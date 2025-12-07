@@ -1,0 +1,897 @@
+/* ================================
+   1. RESET & COLOR TOKENS
+   ================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --thrive-magenta: #d12e83;
+  --thrive-orange: #ea6b2c;
+  --thrive-blue: #3b43af;
+  --thrive-mint: #71f082;
+  --thrive-purple: #861dc5;
+  --thrive-black: #000000;
+  --thrive-white: #ffffff;
+
+  --thrive-cream: #fff7fb; /* light top-banner base (optional) */
+  --thrive-egg: #fffaf0;   /* light neutral section */
+}
+
+/* Page background */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  color: var(--thrive-black);
+  background-color: var(--thrive-white);
+}
+
+.page {
+  min-height: 100vh;
+}
+
+/* Links */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ================================
+   2. BASE LAYOUT & TYPOGRAPHY
+   ================================ */
+
+.wrapper {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.hero {
+  padding: 80px 0 96px;
+  background-color: var(--thrive-white);
+}
+
+.hero-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.hero-tag {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgb(0, 0, 0);
+  margin: 50px 0 10px;
+}
+
+.hero-title {
+  font-size: 30px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 14px;
+}
+
+@media (min-width: 768px) {
+  .hero-title {
+    font-size: 38px;
+  }
+}
+
+.hero-highlight {
+  color: var(--thrive-magenta);
+}
+
+.hero-text {
+  max-width: 580px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #444444;
+  margin: 0 0 8px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Chips / tags row */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  background-color: rgba(0, 0, 0, 0.06);
+}
+
+/* ================================
+   3. HEADER / NAV / BUTTONS
+   ================================ */
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: var(--thrive-white);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.site-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 0;
+}
+
+.logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.logo-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background-color: var(--thrive-blue);
+  border: 3px solid var(--thrive-magenta);
+}
+
+/* nav links */
+.nav-links {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.nav-links a {
+  padding: 6px 8px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color 150ms ease-out,
+    color 150ms ease-out,
+    box-shadow 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+.btn-primary {
+  background-color: var(--thrive-magenta);
+  color: var(--thrive-white);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+}
+
+.btn-secondary {
+  background-color: var(--thrive-white);
+  color: var(--thrive-black);
+  border-color: rgba(0, 0, 0, 0.18);
+}
+
+.btn-secondary:hover {
+  background-color: #f5f5f5;
+}
+
+/* ================================
+   4. HERO LANDING (TOP SECTION)
+   ================================ */
+/* ================================
+   HERO = “LET’S CHANGE CATERING” STYLE
+   ================================ */
+
+/* Outer section background stays light / white */
+.hero-landing {
+  background-color: var(--thrive-cream);
+}
+
+/* Big rounded white block, like the example */
+.hero-landing .hero-inner {
+  max-width: 1080px;
+  margin: 40px auto 56px;
+  padding: 28px 28px 0;
+  background-color: var(--thrive-white);
+  border-radius: 40px;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Top row: text on the left, pill on the right */
+.hero-banner-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+@media (max-width: 800px) {
+  .hero-banner-top {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+/* Eyebrow label */
+.hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Big chunky type like “LET’S CHANGE CATERING” */
+.hero-display {
+  margin: 0 0 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 0.9;
+  font-size: clamp(2.3rem, 3vw + 2rem, 3.8rem);
+}
+
+.hero-display span {
+  display: block;
+}
+
+/* Sub copy below the big headline */
+.hero-display-sub {
+  margin: 10px 0 0;
+  max-width: 560px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #444444;
+}
+
+/* Pill on the right (Buon appetito vibe) */
+.hero-pill {
+  align-self: flex-start;
+  background-color: var(--thrive-mint);
+  border-radius: 999px;
+  padding: 14px 22px;
+  min-width: 230px;
+  max-width: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.hero-pill-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+}
+
+.hero-pill-caption {
+  font-size: 12px;
+}
+
+/* Bottom image strip inside the same rounded card */
+.hero-banner-photo {
+  margin-top: 18px;
+  border-radius: 28px;
+  overflow: hidden;
+}
+
+.hero-banner-photo-img {
+  display: block;
+  width: 100%;
+  max-height: 380px;
+  object-fit: cover;
+}
+
+/* ================================
+   HERO – L-SHAPED IMAGE LAYOUT
+   ================================ */
+
+.hero-landing {
+  background-color: var(--thrive-egg); /* soft pink page background */
+  padding: 72px 0 96px;
+}
+
+/* Big rounded hero “card” */
+.hero-landing .hero-inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  background-color: var(--thrive-white);
+  border-radius: 40px;
+  padding: 32px 32px 40px;
+  overflow: hidden;
+}
+
+/* Top row: text and green pill */
+.hero-banner-top {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.hero-banner-copy {
+  max-width: 640px;
+}
+
+/* Eyebrow */
+.hero-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+
+/* Big “LET’S CHANGE CATERING” style heading */
+.hero-display {
+  font-size: 46px;
+  line-height: 0.92;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+.hero-display span {
+  display: block;
+}
+
+.hero-display-sub {
+  max-width: 480px;
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 0 18px;
+}
+
+/* Green pill on the right */
+.hero-pill {
+  flex-shrink: 0;
+  min-width: 300px;
+  max-width: 350px;
+  padding: 14px 18px;
+  border-radius: 999px;
+  background-color: var(--thrive-mint);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: flex-start;
+}
+.hero-pill-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.hero-pill-caption {
+  font-size: 12px;
+}
+
+/* Buttons under the text */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* HERO IMAGE FRAME (black L-shaped outline) */
+.hero-banner-photo {
+  /* your existing positioning */
+  margin-top: 28px;
+  margin-left: 0;          /* make it line up with the left edge of the frame */
+  width: 100%;
+
+  /* IMPORTANT: the frame itself */
+  border: 0px solid #000;  /* or whatever you’re using for the lines */
+  border-radius: 20px;        /* remove extra rounding if you don't want it */
+  padding: 0;              /* remove inner gap */
+  overflow: hidden;        /* clip the image to the frame */
+}
+
+/* make the image fill the frame */
+.hero-banner-photo-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;       /* crops instead of squishing */
+}
+
+
+/* Keep your existing hero-actions/buttons spacing */
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.hero-landing {
+  /* keep if you want a slightly warmer hero;
+     otherwise you can leave this as white */
+  background-color: var(--thrive-cream);
+}
+
+.hero-landing .hero-inner {
+  display: grid;
+  gap: 32px;
+}
+
+@media (min-width: 880px) {
+  .hero-landing .hero-inner {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: center;
+    gap: 40px;
+  }
+}
+
+/* ================================
+   5. RUNNING BANNER / MARQUEE STRIP
+   ================================ */
+
+.hero-strip {
+  background-color: var(--thrive-orange);
+  color: var(--thrive-white);
+  font-size: 14px;
+  overflow: hidden;
+}
+
+.hero-strip-track {
+  display: flex;
+  width: max-content;
+  min-width: 100%;
+  animation: hero-strip-marquee 22s linear infinite;
+}
+
+.hero-strip-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 32px;
+}
+
+.hero-strip-inner span {
+  white-space: nowrap;
+}
+
+@keyframes hero-strip-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ================================
+   6. FEATURED CASE STUDY BAND
+   ================================ */
+
+.hero-case-band {
+  background-color: var(--thrive-blue);
+  color: var(--thrive-white);
+}
+
+.hero-case-band .hero-tag,
+.hero-case-band .hero-title,
+.hero-case-band .hero-text {
+  color: var(--thrive-white);
+}
+
+.hero-case-band .hero-inner {
+  /* reuse base spacing */
+}
+
+.case-card {
+  margin-top: 32px;
+  background-color: var(--thrive-white);
+  color: var(--thrive-black);
+  border-radius: 22px;
+  padding: 26px 24px;
+  display: grid;
+  gap: 26px;
+}
+
+@media (min-width: 880px) {
+  .case-card {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: center;
+  }
+}
+
+/* left "phone" area */
+.case-media {
+  display: flex;
+  justify-content: center;
+}
+
+.case-phone {
+  width: 210px;
+  height: 380px;
+  border-radius: 26px;
+  background-color: var(--thrive-mint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  text-align: center;
+  padding: 10px;
+}
+
+/* right copy */
+.case-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.case-kicker {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.case-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.case-services {
+  font-size: 13px;
+  font-style: italic;
+  margin: 4px 0;
+}
+
+.case-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.case-stats > div {
+  min-width: 90px;
+}
+
+.case-stat-number {
+  display: block;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.case-stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+/* ================================
+   7. SERVICES / WAYS TO WORK BAND
+   ================================ */
+
+.hero-services-band {
+  background-color: var(--thrive-mint);
+}
+
+.hero-services-band .hero-title,
+.hero-services-band .hero-text {
+  color: var(--thrive-black);
+}
+
+.hero-services-band .hero-inner {
+  /* base spacing already handled */
+}
+
+.services-row {
+  margin-top: 26px;
+  display: grid;
+  gap: 18px;
+}
+
+@media (min-width: 768px) {
+  .services-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.services-card {
+  border-radius: 26px;
+  background-color: var(--thrive-white);
+  padding: 18px 20px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* ================================
+   8. ABOUT / FOUNDER BAND
+   ================================ */
+
+.hero-about-band {
+  background-color: var(--thrive-egg);
+}
+
+.hero-about-inner {
+  display: grid;
+  gap: 32px;
+}
+
+@media (min-width: 880px) {
+  .hero-about-inner {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    align-items: center;
+  }
+}
+
+.about-photo-card {
+  background-color: var(--thrive-white);
+  border-radius: 26px;
+  padding: 18px 18px 14px;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
+}
+
+.about-photo-placeholder {
+  width: 100%;
+  height: 260px;
+  border-radius: 18px;
+  background-color: var(--thrive-purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--thrive-white);
+  font-size: 14px;
+  text-align: center;
+}
+
+.about-caption {
+  margin: 10px 4px 0;
+  font-size: 12px;
+}
+
+/* ================================
+   9. CLIENT LOVE / CONTACT BAND
+   ================================ */
+
+.hero-testimonial-band {
+  background-color: var(--thrive-orange);
+  color: var(--thrive-white);
+}
+
+.hero-testimonial-band .hero-tag,
+.hero-testimonial-band .hero-title,
+.hero-testimonial-band .hero-text {
+  color: var(--thrive-white);
+}
+
+.hero-testimonial-inner {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 880px) {
+  .hero-testimonial-inner {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+    align-items: center;
+  }
+}
+
+.hero-contact-card {
+  background-color: var(--thrive-white);
+  color: var(--thrive-black);
+  border-radius: 22px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+/* ================================
+   10. WORK CARDS – THRIVE COLOR BLOCKS
+   ================================ */
+
+.work-grid {
+  padding: 0 0 100px;
+  margin-top: 40px;      /* space between intro text and first row of cards */
+}
+
+@media (min-width: 768px) {
+  .work-grid {
+    margin-top: 56px;
+  }
+}
+
+.work-grid-inner {
+  display: grid;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .work-grid-inner {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1040px) {
+  .work-grid-inner {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* base card */
+.work-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+
+  border: 1px solid transparent;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
+
+  /* ALL TEXT WHITE */
+  color: var(--thrive-white);
+  background-color: var(--thrive-blue); /* fallback */
+
+  transition:
+    transform 150ms ease-out,
+    box-shadow 150ms ease-out,
+    border-color 150ms ease-out;
+}
+
+/* inherit white text inside the card */
+.work-card * {
+  color: inherit;
+  text-decoration: none;
+}
+
+.work-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 38px rgba(0, 0, 0, 0.35);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* solid Thrive color variants */
+
+.work-card--magenta {
+  background-color: var(--thrive-magenta);
+  border-color: var(--thrive-magenta);
+}
+
+.work-card--blue {
+  background-color: var(--thrive-blue);
+  border-color: var(--thrive-blue);
+}
+
+.work-card--mint {
+  background-color: var(--thrive-mint);
+  border-color: var(--thrive-mint);
+}
+
+.work-card--orange {
+  background-color: var(--thrive-orange);
+  border-color: var(--thrive-orange);
+}
+
+.work-card--purple {
+  background-color: var(--thrive-purple);
+  border-color: var(--thrive-purple);
+}
+
+/* type inside cards */
+
+.work-tag {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.9;
+}
+
+.work-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.work-meta {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+/* ================================
+   11. SCROLL REVEAL
+   ================================ */
+
+.sr {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 420ms ease-out,
+    transform 420ms ease-out;
+}
+
+.sr-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ================================
+   12. GRID-PAPER TEXTURE SECTIONS
+   ================================ */
+
+.section-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-grid .wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.section-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background-image:
+    linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.15) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.15) 1px,
+      transparent 1px
+    );
+
+  background-size: 26px 26px;
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* WORK SECTION – solid color + padding + grid */
+
+#work.section-grid {
+  background-color: var(--thrive-blue);
+  padding: 50px 0 96px;
+}
+
+#work.section-grid .wrapper {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* CLIENT LOVE – solid color + padding + grid */
+
+#contact.section-grid {
+  background-color: var(--thrive-orange);
+  padding: 50px 0 96px;
+}
+
+#contact.section-grid .wrapper {
+  max-width: 1080px;
+  margin: 0 auto;
+}
