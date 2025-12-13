@@ -45,6 +45,20 @@ const WORK_PROJECTS = [
     cover: "/work/soulcheck-cover.jpg",
     span: "span-5x4",
   },
+  {
+    title: "Anchor Academy",
+    slug: "anchor-academy",
+    category: "Development · LMS",
+    cover: "/work/anchor-academy-cover.jpg",
+    span: "span-4x3",
+  },
+  {
+    title: "The Burrell Group",
+    slug: "the-burrell-group",
+    category: "Website · Development",
+    cover: "/work/burrell-group-cover.jpg",
+    span: "span-3x3",
+  },
   
 ];
 
