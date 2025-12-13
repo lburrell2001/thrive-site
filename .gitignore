@@ -168,3 +168,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 >>>>>>> 4fec564 (Thrive Site initial commit)
+
+# videos too large for GitHub
+public/videos/*.mp4
+
