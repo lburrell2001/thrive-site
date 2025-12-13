@@ -172,3 +172,23 @@ next-env.d.ts
 # videos too large for GitHub
 public/videos/*.mp4
 
+
+# env
+.env.local
+
+# media / big files
+public/videos/
+public/images/
+public/work/
+*.mp4
+*.mov
+*.webm
+*.psd
+*.ai
+*.aep
+*.wav
+*.zip
+
+# next
+.next/
+out/
