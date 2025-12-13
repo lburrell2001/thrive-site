@@ -5,18 +5,25 @@ export default function SiteHeader() {
   return (
     <header className="site-header">
       <div className="wrapper site-header-inner">
-        <div className="logo-lockup">
-          <span className="logo-mark" />
-          <span>Thrive Creative Studios</span>
-        </div>
+        
+        {/* LOGO ONLY → links home */}
+        <Link
+          href="/"
+          className="logo-lockup"
+          aria-label="Thrive Creative Studios home"
+        >
+          <img
+            src="/logo.svg"
+            alt="Thrive Creative Studios"
+            className="site-logo"
+          />
+        </Link>
 
         <nav className="nav-links">
-          <Link href="/#services">Services</Link>
-          <Link href="/#about">About</Link>
+          <Link href="/services">Services</Link>
           <Link href="/work">Portfolio</Link>
 
-          {/* INTERNAL link to contact section */}
-          <Link href="/#contact" className="btn btn-primary">
+          <Link href="/contact" className="btn btn-primary">
             Work with me
           </Link>
         </nav>

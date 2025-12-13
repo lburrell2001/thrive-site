@@ -1,5 +1,5 @@
 /* ================================
-   1. RESET & COLOR TOKENS
+   1) RESET + TOKENS
    ================================ */
 
 *,
@@ -8,7 +8,13 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+}
+
 :root {
+  /* Thrive palette */
   --thrive-magenta: #d12e83;
   --thrive-orange: #ea6b2c;
   --thrive-blue: #3b43af;
@@ -17,63 +23,89 @@
   --thrive-black: #000000;
   --thrive-white: #ffffff;
 
-  --thrive-cream: #fff7fb; /* light top-banner base (optional) */
-  --thrive-egg: #fffaf0;   /* light neutral section */
+  /* soft neutrals */
+  --thrive-cream: #fff7fb;
+  --thrive-egg: #fffaf0;
+
+  /* layout */
+  --wrapper-max: 1080px;
+  --radius-xl: 40px;
+  --radius-lg: 26px;
+  --radius-md: 22px;
+
+  /* type */
+  --text-muted: rgba(0, 0, 0, 0.65);
+  --text-body: #444444;
+
+  /* grid texture */
+  --grid-size: 26px;
+  --grid-line: rgba(255, 255, 255, 0.15);
+}
+.site-logo {
+  height: 32px; /* adjust if needed */
+  width: auto;
+  display: block;
 }
 
-/* Page background */
+.logo-lockup {
+  display: flex;
+  align-items: center;
+}
+
+/* ================================
+   2) BASE
+   ================================ */
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
   color: var(--thrive-black);
-  background-color: var(--thrive-white);
+  background: var(--thrive-white);
+  text-rendering: geometricPrecision;
 }
 
 .page {
   min-height: 100vh;
 }
 
-/* Links */
+img,
+video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 a {
   color: inherit;
   text-decoration: none;
 }
 
-/* ================================
-   2. BASE LAYOUT & TYPOGRAPHY
-   ================================ */
-
 .wrapper {
   width: 100%;
-  max-width: 1080px;
+  max-width: var(--wrapper-max);
   margin: 0 auto;
   padding: 0 20px;
 }
 
-.hero {
-  padding: 80px 0 96px;
-  background-color: var(--thrive-white);
+/* generic section spacing helper (used on homepage) */
+.section {
+  position: relative;
 }
 
-.hero-inner {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
+/* Shared hero bits */
 .hero-tag {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgb(0, 0, 0);
+  color: var(--thrive-black);
   margin: 50px 0 10px;
 }
 
 .hero-title {
   font-size: 30px;
   line-height: 1.15;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: -0.02em;
   margin: 0 0 14px;
 }
@@ -89,40 +121,29 @@ a {
 }
 
 .hero-text {
-  max-width: 580px;
+  max-width: 620px;
   font-size: 15px;
   line-height: 1.7;
-  color: #444444;
-  margin: 0 0 8px;
+  color: var(--text-body);
+  margin: 0 0 10px;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-}
-
-/* Chips / tags row */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  background-color: rgba(0, 0, 0, 0.06);
+  margin-top: 18px;
 }
 
 /* ================================
-   3. HEADER / NAV / BUTTONS
+   3) HEADER / NAV / BUTTONS
    ================================ */
 
 .site-header {
   position: sticky;
   top: 0;
   z-index: 40;
-  background-color: var(--thrive-white);
+  background: var(--thrive-white);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
@@ -139,18 +160,17 @@ a {
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .logo-mark {
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background-color: var(--thrive-blue);
+  background: var(--thrive-blue);
   border: 3px solid var(--thrive-magenta);
 }
 
-/* nav links */
 .nav-links {
   display: flex;
   gap: 12px;
@@ -159,6 +179,11 @@ a {
 
 .nav-links a {
   padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.nav-links a:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 /* Buttons */
@@ -169,19 +194,16 @@ a {
   border-radius: 999px;
   padding: 8px 18px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
   border: 1px solid transparent;
   cursor: pointer;
-  text-decoration: none;
-  transition:
-    background-color 150ms ease-out,
-    color 150ms ease-out,
-    box-shadow 150ms ease-out,
-    transform 150ms ease-out;
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out,
+    background-color 150ms ease-out, color 150ms ease-out;
+  white-space: nowrap;
 }
 
 .btn-primary {
-  background-color: var(--thrive-magenta);
+  background: var(--thrive-magenta);
   color: var(--thrive-white);
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
 }
@@ -192,44 +214,44 @@ a {
 }
 
 .btn-secondary {
-  background-color: var(--thrive-white);
+  background: var(--thrive-white);
   color: var(--thrive-black);
   border-color: rgba(0, 0, 0, 0.18);
 }
 
 .btn-secondary:hover {
-  background-color: #f5f5f5;
+  background: #f5f5f5;
 }
 
 /* ================================
-   4. HERO LANDING (TOP SECTION)
-   ================================ */
-/* ================================
-   HERO = “LET’S CHANGE CATERING” STYLE
+   4) HOMEPAGE HERO LANDING
    ================================ */
 
-/* Outer section background stays light / white */
+.hero {
+  padding: 80px 0 96px;
+  background: var(--thrive-white);
+}
+
 .hero-landing {
-  background-color: var(--thrive-cream);
+  position: relative;
+  overflow: hidden;
+  padding: 140px 0;
+  background-image: url("/hero-thrive-desk.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-/* Big rounded white block, like the example */
-.hero-landing .hero-inner {
-  max-width: 1080px;
-  margin: 40px auto 56px;
-  padding: 28px 28px 0;
-  background-color: var(--thrive-white);
-  border-radius: 40px;
+.hero-banner {
+  background: var(--thrive-white);
+  border-radius: var(--radius-xl);
+  padding: 32px 32px 34px;
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.16);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
 }
 
-/* Top row: text on the left, pill on the right */
 .hero-banner-top {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
   gap: 24px;
 }
@@ -237,25 +259,27 @@ a {
 @media (max-width: 800px) {
   .hero-banner-top {
     flex-direction: column;
-    gap: 20px;
+    gap: 18px;
   }
 }
 
-/* Eyebrow label */
+.hero-banner-copy {
+  max-width: 640px;
+}
+
 .hero-eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   margin: 0 0 10px;
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--text-muted);
 }
 
-/* Big chunky type like “LET’S CHANGE CATERING” */
 .hero-display {
-  margin: 0 0 10px;
-  font-weight: 800;
+  margin: 0 0 14px;
+  font-weight: 900;
   text-transform: uppercase;
-  line-height: 0.9;
+  line-height: 0.92;
   font-size: clamp(2.3rem, 3vw + 2rem, 3.8rem);
 }
 
@@ -263,255 +287,165 @@ a {
   display: block;
 }
 
-/* Sub copy below the big headline */
-.hero-display-sub {
-  margin: 10px 0 0;
-  max-width: 560px;
-  font-size: 15px;
-  line-height: 1.7;
-  color: #444444;
+/* Pill stack */
+.hero-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex-shrink: 0;
+  min-width: 260px;
+  max-width: 340px;
+  height: 100%;
+  justify-content: stretch;
 }
 
-/* Pill on the right (Buon appetito vibe) */
 .hero-pill {
-  align-self: flex-start;
-  background-color: var(--thrive-mint);
+  flex: 1;
   border-radius: 999px;
-  padding: 14px 22px;
-  min-width: 230px;
-  max-width: 260px;
+  padding: 18px 22px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
+  color: var(--thrive-black);
+  transition: transform 160ms ease-out, box-shadow 160ms ease-out;
 }
 
-.hero-pill-title {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+.hero-pill:nth-child(1) {
+  background: var(--thrive-mint);
 }
 
+.hero-pill:nth-child(2) {
+  background: var(--thrive-blue);
+  color: var(--thrive-white);
+}
+
+.hero-pill:nth-child(3) {
+  background: var(--thrive-magenta);
+  color: var(--thrive-white);
+}
+
+.hero-pill-title,
 .hero-pill-caption {
-  font-size: 12px;
+  color: inherit;
 }
 
-/* Bottom image strip inside the same rounded card */
-.hero-banner-photo {
-  margin-top: 18px;
-  border-radius: 28px;
-  overflow: hidden;
-}
-
-.hero-banner-photo-img {
-  display: block;
-  width: 100%;
-  max-height: 380px;
-  object-fit: cover;
+.hero-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
 
 /* ================================
-   HERO – L-SHAPED IMAGE LAYOUT
-   ================================ */
-
-.hero-landing {
-  background-color: var(--thrive-egg); /* soft pink page background */
-  padding: 72px 0 96px;
-}
-
-/* Big rounded hero “card” */
-.hero-landing .hero-inner {
-  max-width: 1120px;
-  margin: 0 auto;
-  background-color: var(--thrive-white);
-  border-radius: 40px;
-  padding: 32px 32px 40px;
-  overflow: hidden;
-}
-
-/* Top row: text and green pill */
-.hero-banner-top {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.hero-banner-copy {
-  max-width: 640px;
-}
-
-/* Eyebrow */
-.hero-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin: 0 0 10px;
-}
-
-/* Big “LET’S CHANGE CATERING” style heading */
-.hero-display {
-  font-size: 46px;
-  line-height: 0.92;
-  font-weight: 900;
-  text-transform: uppercase;
-  margin: 0 0 14px;
-}
-.hero-display span {
-  display: block;
-}
-
-.hero-display-sub {
-  max-width: 480px;
-  font-size: 15px;
-  line-height: 1.7;
-  margin: 0 0 18px;
-}
-
-/* Green pill on the right */
-.hero-pill {
-  flex-shrink: 0;
-  min-width: 300px;
-  max-width: 350px;
-  padding: 14px 18px;
-  border-radius: 999px;
-  background-color: var(--thrive-mint);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  align-items: flex-start;
-}
-.hero-pill-title {
-  font-size: 13px;
-  font-weight: 600;
-}
-.hero-pill-caption {
-  font-size: 12px;
-}
-
-/* Buttons under the text */
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-/* HERO IMAGE FRAME (black L-shaped outline) */
-.hero-banner-photo {
-  /* your existing positioning */
-  margin-top: 28px;
-  margin-left: 0;          /* make it line up with the left edge of the frame */
-  width: 100%;
-
-  /* IMPORTANT: the frame itself */
-  border: 0px solid #000;  /* or whatever you’re using for the lines */
-  border-radius: 20px;        /* remove extra rounding if you don't want it */
-  padding: 0;              /* remove inner gap */
-  overflow: hidden;        /* clip the image to the frame */
-}
-
-/* make the image fill the frame */
-.hero-banner-photo-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;       /* crops instead of squishing */
-}
-
-
-/* Keep your existing hero-actions/buttons spacing */
-.hero-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.hero-landing {
-  /* keep if you want a slightly warmer hero;
-     otherwise you can leave this as white */
-  background-color: var(--thrive-cream);
-}
-
-.hero-landing .hero-inner {
-  display: grid;
-  gap: 32px;
-}
-
-@media (min-width: 880px) {
-  .hero-landing .hero-inner {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
-    align-items: center;
-    gap: 40px;
-  }
-}
-
-/* ================================
-   5. RUNNING BANNER / MARQUEE STRIP
+   5) ORANGE RUNNING STRIP (MARQUEE)
    ================================ */
 
 .hero-strip {
-  background-color: var(--thrive-orange);
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  background: var(--thrive-orange);
   color: var(--thrive-white);
-  font-size: 14px;
+  border-top: 3px solid var(--thrive-black);
+  border-bottom: 3px solid var(--thrive-black);
+  padding: 10px 0;
   overflow: hidden;
 }
 
 .hero-strip-track {
   display: flex;
+  align-items: center;
+  gap: 40px;
   width: max-content;
   min-width: 100%;
+  will-change: transform;
   animation: hero-strip-marquee 22s linear infinite;
 }
 
-.hero-strip-inner {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 8px 32px;
-}
-
-.hero-strip-inner span {
+.hero-strip-text {
+  display: inline-block;
   white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 @keyframes hero-strip-marquee {
-  0% {
+  from {
     transform: translateX(0);
   }
-  100% {
+  to {
     transform: translateX(-50%);
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .hero-strip-track {
+    animation: none;
+  }
+}
+
 /* ================================
-   6. FEATURED CASE STUDY BAND
+   6) GRID PAPER TEXTURE (SECTIONS)
    ================================ */
 
-.hero-case-band {
-  background-color: var(--thrive-blue);
+.section-grid {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-grid .wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.section-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(
+      to right,
+      var(--grid-line) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ================================
+   7) HOMEPAGE: FEATURED CASE STUDY BAND
+   ================================ */
+
+.section-work {
+  position: relative;
+  overflow: hidden;
+  padding: 20px 0 160px;
+
+  --section-bg: var(--thrive-blue);
+  --next-section-bg: var(--thrive-mint);
+
+  background: var(--section-bg);
   color: var(--thrive-white);
 }
 
-.hero-case-band .hero-tag,
-.hero-case-band .hero-title,
-.hero-case-band .hero-text {
+.section-work .hero-tag,
+.section-work .hero-title,
+.section-work .hero-text {
   color: var(--thrive-white);
-}
-
-.hero-case-band .hero-inner {
-  /* reuse base spacing */
 }
 
 .case-card {
   margin-top: 32px;
-  background-color: var(--thrive-white);
+  background: var(--thrive-white);
   color: var(--thrive-black);
-  border-radius: 22px;
+  border-radius: var(--radius-md);
   padding: 26px 24px;
   display: grid;
   gap: 26px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
 }
 
 @media (min-width: 880px) {
@@ -521,7 +455,6 @@ a {
   }
 }
 
-/* left "phone" area */
 .case-media {
   display: flex;
   justify-content: center;
@@ -531,7 +464,7 @@ a {
   width: 210px;
   height: 380px;
   border-radius: 26px;
-  background-color: var(--thrive-mint);
+  background: var(--thrive-mint);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -540,7 +473,6 @@ a {
   padding: 10px;
 }
 
-/* right copy */
 .case-copy {
   display: flex;
   flex-direction: column;
@@ -556,7 +488,7 @@ a {
 
 .case-title {
   font-size: 20px;
-  font-weight: 700;
+  font-weight: 900;
   margin: 0;
 }
 
@@ -574,13 +506,13 @@ a {
 }
 
 .case-stats > div {
-  min-width: 90px;
+  min-width: 110px;
 }
 
 .case-stat-number {
   display: block;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 900;
 }
 
 .case-stat-label {
@@ -589,21 +521,30 @@ a {
   letter-spacing: 0.12em;
 }
 
+/* scallop bottom edge */
+.scallop-edge__svg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 160px;
+  pointer-events: none;
+}
+
+.scallop-edge__svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
 /* ================================
-   7. SERVICES / WAYS TO WORK BAND
+   8) HOMEPAGE: SERVICES BAND
    ================================ */
 
 .hero-services-band {
-  background-color: var(--thrive-mint);
-}
-
-.hero-services-band .hero-title,
-.hero-services-band .hero-text {
+  background: var(--thrive-mint);
   color: var(--thrive-black);
-}
-
-.hero-services-band .hero-inner {
-  /* base spacing already handled */
+  padding: 70px 0 96px;
 }
 
 .services-row {
@@ -619,18 +560,344 @@ a {
 }
 
 .services-card {
-  border-radius: 26px;
-  background-color: var(--thrive-white);
+  border-radius: var(--radius-lg);
+  background: var(--thrive-white);
   padding: 18px 20px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 /* ================================
-   8. ABOUT / FOUNDER BAND
+   FEATURED WORK GALLERY (Service pages)
+   Used on Branding / Web+UX / Content
+   Classes used:
+   .featured-gallery
+   .featured-gallery__header
+   .gallery-grid
+   .gallery-card
+   .gallery-media
+   .gallery-img
+   .gallery-overlay
+   .gallery-kicker
+   .gallery-title
+   .gallery-cta
+   ================================ */
+
+.featured-gallery {
+  padding: 84px 0 96px;
+}
+
+.featured-gallery__header {
+  max-width: 760px;
+  margin-bottom: 26px;
+}
+
+/* 3-up on desktop, larger cards */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* Card */
+.gallery-card {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 32px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.18);
+  transform: translateY(0);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+/* consistent “gallery” crop */
+.gallery-card.is-grid {
+  aspect-ratio: 4 / 5;
+}
+
+.gallery-card.is-grid .gallery-media,
+.gallery-card.is-grid .gallery-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.gallery-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.26);
+}
+
+/* Media */
+.gallery-media {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1);
+  transition: transform 220ms ease-out;
+}
+
+.gallery-card:hover .gallery-img {
+  transform: scale(1.06);
+}
+
+/* Label overlay — NO gradient (solid), readable */
+.gallery-overlay {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 22px;
+  color: var(--thrive-white);
+
+  /* solid dark layer so text is always readable */
+  background: rgba(0, 0, 0, 0.45);
+
+  transition: background-color 180ms ease-out;
+}
+
+/* Optional: slight punch on hover */
+.gallery-card:hover .gallery-overlay {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.gallery-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin: 0 0 6px;
+}
+
+.gallery-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  line-height: 1.08;
+}
+
+.gallery-cta {
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 0.92;
+}
+
+
+/* ================================
+   Responsive
+   ================================ */
+
+@media (max-width: 980px) {
+  .gallery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .gallery-card {
+    border-radius: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  .featured-gallery {
+    padding: 64px 0 80px;
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .gallery-overlay {
+    padding: 18px;
+  }
+
+  .gallery-title {
+    font-size: 20px;
+  }
+}
+
+/* ================================
+   SERVICE PAGE: HERO-STYLE VIDEO SECTION
+   ================================ */
+
+.service-video-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 64px 0 84px;
+}
+
+/* Background video layer */
+.service-video-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.service-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* readable dim (SOLID, no gradient) */
+.service-video-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* Foreground content */
+.service-video-hero .wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* Big rounded “hero card” like homepage */
+.service-video-card {
+  background: var(--thrive-white);
+  border-radius: var(--radius-xl);
+  padding: 32px 32px 34px;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.22);
+}
+
+/* Layout: copy + pill stack */
+.service-video-card-top {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.service-video-copy {
+  max-width: 660px;
+}
+
+
+.service-video-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-bottom: 26px;
+}
+
+/* Buttons already handled by .hero-actions */
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Mobile */
+@media (max-width: 820px) {
+  .service-video-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+.service-hero-cta{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  margin-top:18px;
+  max-width:220px;
+}
+.service-hero-cta .btn{
+  width:100%;
+  justify-content:center;
+}
+
+
+/* mobile */
+@media (max-width: 880px) {
+  .service-video-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================================
+   9) WORK CARDS (COLOR BLOCKS)
+   (Used on homepage services band + any cards)
+   ================================ */
+
+.work-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid transparent;
+  color: var(--thrive-white);
+  background: var(--thrive-blue);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18);
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out,
+    border-color 150ms ease-out;
+}
+
+.work-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 38px rgba(0, 0, 0, 0.24);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.work-card--magenta {
+  background: var(--thrive-magenta);
+  border-color: var(--thrive-magenta);
+}
+
+.work-card--blue {
+  background: var(--thrive-blue);
+  border-color: var(--thrive-blue);
+}
+
+.work-card--mint {
+  background: var(--thrive-mint);
+  border-color: var(--thrive-mint);
+  color: var(--thrive-black);
+}
+
+.work-card--orange {
+  background: var(--thrive-orange);
+  border-color: var(--thrive-orange);
+}
+
+.work-card--purple {
+  background: var(--thrive-purple);
+  border-color: var(--thrive-purple);
+}
+
+.work-tag {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.work-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.work-meta {
+  font-size: 13px;
+  opacity: 0.92;
+  margin: 0;
+}
+
+/* ================================
+   10) HOMEPAGE: ABOUT BAND
    ================================ */
 
 .hero-about-band {
-  background-color: var(--thrive-egg);
+  background: var(--thrive-egg);
+  padding: 70px 0 96px;
 }
 
 .hero-about-inner {
@@ -646,8 +913,8 @@ a {
 }
 
 .about-photo-card {
-  background-color: var(--thrive-white);
-  border-radius: 26px;
+  background: var(--thrive-white);
+  border-radius: var(--radius-lg);
   padding: 18px 18px 14px;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.12);
 }
@@ -656,7 +923,7 @@ a {
   width: 100%;
   height: 260px;
   border-radius: 18px;
-  background-color: var(--thrive-purple);
+  background: var(--thrive-purple);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -671,17 +938,18 @@ a {
 }
 
 /* ================================
-   9. CLIENT LOVE / CONTACT BAND
+   11) HOMEPAGE: CLIENT LOVE / CONTACT BAND
    ================================ */
 
-.hero-testimonial-band {
-  background-color: var(--thrive-orange);
+.client-voice {
+  background: var(--thrive-orange);
   color: var(--thrive-white);
+  padding: 70px 0 96px;
 }
 
-.hero-testimonial-band .hero-tag,
-.hero-testimonial-band .hero-title,
-.hero-testimonial-band .hero-text {
+.client-voice .hero-tag,
+.client-voice .hero-title,
+.client-voice .hero-text {
   color: var(--thrive-white);
 }
 
@@ -698,136 +966,454 @@ a {
 }
 
 .hero-contact-card {
-  background-color: var(--thrive-white);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--thrive-black);
-  border-radius: 22px;
+  border-radius: var(--radius-md);
   padding: 20px 22px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
 }
 
 /* ================================
-   10. WORK CARDS – THRIVE COLOR BLOCKS
+   12) SERVICES PAGE (PILLS)
    ================================ */
 
-.work-grid {
-  padding: 0 0 100px;
-  margin-top: 40px;      /* space between intro text and first row of cards */
+.services {
+  background: var(--thrive-egg);
 }
 
-@media (min-width: 768px) {
-  .work-grid {
-    margin-top: 56px;
-  }
+.services-hero {
+  padding: 84px 0 52px;
 }
 
-.work-grid-inner {
+.services-title {
+  font-size: clamp(2.2rem, 3vw + 1.6rem, 3.4rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 18px;
+  font-weight: 900;
+}
+
+.services-subtitle {
+  max-width: 720px;
+  margin: 0 0 24px;
+  color: var(--text-body);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.pill-grid {
+  margin-top: 28px;
   display: grid;
-  gap: 20px;
+  gap: 22px;
 }
 
-@media (min-width: 768px) {
-  .work-grid-inner {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1040px) {
-  .work-grid-inner {
+@media (min-width: 820px) {
+  .pill-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
-/* base card */
-.work-card {
+.pill-card {
   position: relative;
-  border-radius: 24px;
-  padding: 18px 20px 20px;
+  display: block;
+  overflow: hidden;
+  border-radius: 60px;
+  min-height: 560px;
+  background: #000;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.22);
+  transform: translateY(0);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.pill-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, 0.3);
+}
+
+.pill-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.pill-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pill-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.pill-content {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 1;
+  padding: 32px 28px 42px;
+  color: var(--thrive-white);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  cursor: pointer;
-
-  border: 1px solid transparent;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
-
-  /* ALL TEXT WHITE */
-  color: var(--thrive-white);
-  background-color: var(--thrive-blue); /* fallback */
-
-  transition:
-    transform 150ms ease-out,
-    box-shadow 150ms ease-out,
-    border-color 150ms ease-out;
 }
 
-/* inherit white text inside the card */
-.work-card * {
-  color: inherit;
-  text-decoration: none;
-}
-
-.work-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 20px 38px rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-/* solid Thrive color variants */
-
-.work-card--magenta {
-  background-color: var(--thrive-magenta);
-  border-color: var(--thrive-magenta);
-}
-
-.work-card--blue {
-  background-color: var(--thrive-blue);
-  border-color: var(--thrive-blue);
-}
-
-.work-card--mint {
-  background-color: var(--thrive-mint);
-  border-color: var(--thrive-mint);
-}
-
-.work-card--orange {
-  background-color: var(--thrive-orange);
-  border-color: var(--thrive-orange);
-}
-
-.work-card--purple {
-  background-color: var(--thrive-purple);
-  border-color: var(--thrive-purple);
-}
-
-/* type inside cards */
-
-.work-tag {
+.pill-tag {
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  opacity: 0.9;
+  opacity: 0.85;
 }
 
-.work-title {
-  font-size: 15px;
-  font-weight: 600;
+.pill-title {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
 }
 
-.work-meta {
+.pill-blurb {
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 38ch;
+  opacity: 0.95;
+}
+
+.pill-cta {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
   font-size: 13px;
-  opacity: 0.9;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+
+.services-body {
+  padding: 10px 0 96px;
+}
+
+.services-block {
+  margin-top: 26px;
+  background: var(--thrive-white);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.1);
+}
+
+.services-h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.services-list,
+.services-bundles {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.services-note {
+  margin-top: 18px;
+  max-width: 640px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-body);
+}
+
+@media (max-width: 640px) {
+  .pill-card {
+    min-height: 480px;
+    border-radius: 44px;
+  }
+
+  .pill-title {
+    font-size: 20px;
+  }
+
+  .pill-content {
+    padding: 26px 22px 34px;
+  }
 }
 
 /* ================================
-   11. SCROLL REVEAL
+   13) WORK PAGE: MOSAIC GALLERY WALL
+   ================================ */
+
+.work-wall {
+  padding: 22px 0 90px;
+}
+
+.wall-frame {
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.mosaic-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: 9px;
+  gap: 12px;
+  grid-auto-flow: dense;
+}
+
+.mosaic-item {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #111;
+  display: block;
+  min-height: 180px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.16);
+  transform: translateY(0);
+  transition: transform 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.mosaic-item:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.24);
+}
+
+.mosaic-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1);
+  transition: transform 220ms ease-out;
+}
+
+.mosaic-item:hover .mosaic-img {
+  transform: scale(1.04);
+}
+
+.mosaic-item::before {
+  content: none !important;
+}
+
+.mosaic-label {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2;
+  color: var(--thrive-white);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75),
+    0 2px 6px rgba(0, 0, 0, 0.65),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mosaic-kicker {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.mosaic-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.span-3x4 {
+  grid-column: span 3;
+  grid-row: span 20;
+}
+.span-4x3 {
+  grid-column: span 4;
+  grid-row: span 16;
+}
+.span-3x3 {
+  grid-column: span 3;
+  grid-row: span 16;
+}
+.span-4x4 {
+  grid-column: span 4;
+  grid-row: span 20;
+}
+.span-5x4 {
+  grid-column: span 5;
+  grid-row: span 20;
+}
+.span-5x6 {
+  grid-column: span 5;
+  grid-row: span 26;
+}
+
+@media (max-width: 980px) {
+  .mosaic-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-auto-rows: 9px;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mosaic-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 8px;
+    gap: 10px;
+  }
+
+  .mosaic-label {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .mosaic-title {
+    font-size: 18px;
+  }
+}
+
+/* ================================
+   14) PROCESS STACK
+   ================================ */
+
+.process-section {
+  padding: 48px 0 96px;
+}
+
+.process-header {
+  margin-bottom: 28px;
+  max-width: 820px;
+}
+
+.process-stack {
+  display: grid;
+  gap: 18px;
+  max-width: 920px;
+}
+
+.process-card {
+  position: relative;
+  border-radius: 26px;
+  padding: 22px 22px 18px;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  transform-origin: left center;
+}
+
+.process-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.process-step {
+  font-weight: 900;
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.process-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.process-desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  max-width: 66ch;
+  opacity: 0.95;
+}
+
+.process-card::before,
+.process-card::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.75);
+  clip-path: polygon(
+    50% 0%,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0% 50%,
+    38% 38%
+  );
+}
+
+.process-card::before {
+  width: 10px;
+  height: 10px;
+  top: 18px;
+  right: 22px;
+  opacity: 0.85;
+}
+
+.process-card::after {
+  width: 18px;
+  height: 18px;
+  top: 8px;
+  right: 36px;
+  opacity: 0.65;
+}
+
+.pc-1 {
+  background: var(--thrive-orange);
+  color: var(--thrive-black);
+  transform: rotate(-3.5deg);
+  margin-left: 22px;
+}
+
+.pc-2 {
+  background: var(--thrive-magenta);
+  color: var(--thrive-white);
+  transform: rotate(1.8deg);
+  margin-left: 0;
+}
+
+.pc-3 {
+  background: var(--thrive-mint);
+  color: var(--thrive-black);
+  transform: rotate(-1.2deg);
+  margin-left: 18px;
+}
+
+.pc-4 {
+  background: var(--thrive-purple);
+  color: var(--thrive-white);
+  transform: rotate(2.4deg);
+  margin-left: 36px;
+}
+
+@media (max-width: 780px) {
+  .process-card {
+    transform: none !important;
+    margin-left: 0 !important;
+  }
+}
+
+/* ================================
+   15) SCROLL REVEAL
    ================================ */
 
 .sr {
   opacity: 0;
   transform: translateY(22px);
-  transition:
-    opacity 420ms ease-out,
-    transform 420ms ease-out;
+  transition: opacity 420ms ease-out, transform 420ms ease-out;
 }
 
 .sr-visible {
@@ -835,63 +1421,3 @@ a {
   transform: translateY(0);
 }
 
-/* ================================
-   12. GRID-PAPER TEXTURE SECTIONS
-   ================================ */
-
-.section-grid {
-  position: relative;
-  overflow: hidden;
-}
-
-.section-grid .wrapper {
-  position: relative;
-  z-index: 1;
-}
-
-.section-grid::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-
-  background-image:
-    linear-gradient(
-      to right,
-      rgba(255, 255, 255, 0.15) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.15) 1px,
-      transparent 1px
-    );
-
-  background-size: 26px 26px;
-  mix-blend-mode: soft-light;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* WORK SECTION – solid color + padding + grid */
-
-#work.section-grid {
-  background-color: var(--thrive-blue);
-  padding: 50px 0 96px;
-}
-
-#work.section-grid .wrapper {
-  max-width: 1080px;
-  margin: 0 auto;
-}
-
-/* CLIENT LOVE – solid color + padding + grid */
-
-#contact.section-grid {
-  background-color: var(--thrive-orange);
-  padding: 50px 0 96px;
-}
-
-#contact.section-grid .wrapper {
-  max-width: 1080px;
-  margin: 0 auto;
-}

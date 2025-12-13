@@ -4,12 +4,11 @@ import { useEffect } from "react";
 import Link from "next/link";
 import SiteHeader from "./components/SiteHeader";
 
+
 export default function HomePage() {
   // simple scroll reveal for .sr elements
   useEffect(() => {
-    const els = Array.from(
-      document.querySelectorAll<HTMLElement>(".sr")
-    );
+    const els = Array.from(document.querySelectorAll<HTMLElement>(".sr"));
     if (!els.length) return;
 
     const observer = new IntersectionObserver(
@@ -33,11 +32,10 @@ export default function HomePage() {
       <SiteHeader />
 
       {/* =======================
-          1. HERO – “LET’S CHANGE CATERING” STYLE
+          1. HERO
       ======================== */}
       <section id="top" className="hero hero-landing">
         <div className="wrapper hero-banner">
-          {/* TOP ROW: headline + pill */}
           <div className="hero-banner-top">
             <div className="hero-banner-copy">
               <p className="hero-eyebrow">Thrive Creative Studios</p>
@@ -48,66 +46,67 @@ export default function HomePage() {
               </h1>
 
               <div className="hero-actions">
-                <a href="#work" className="btn btn-secondary">
+                <a href="work" className="btn btn-secondary">
                   View work
                 </a>
-                <a href="#contact" className="btn btn-primary">
+                <a href="contact" className="btn btn-primary">
                   Work with me
                 </a>
               </div>
             </div>
 
-            <div className="hero-pill">
-              <span className="hero-pill-title">
-                Branding · Web &amp; UX · Content
-              </span>
-              <span className="hero-pill-caption">
-                Dallas · Remote clients worldwide
-              </span>
-            </div>
-          </div>
+            {/* ✅ 3 separate pills (no nesting / no broken tags) */}
+            <div className="hero-pills">
+              <div className="hero-pill" role="link" tabIndex={0}>
+                <span className="hero-pill-title">Branding</span>
+                <span className="hero-pill-caption">
+                  Identity · Visual systems
+                </span>
+              </div>
 
-          {/* BOTTOM ROW: photo sitting inside same rounded block */}
-          <div className="hero-banner-photo">
-            <img
-              src="/hero-thrive-desk.jpg"
-              alt="Thrive Creative Studios desk with colorful design work"
-              className="hero-banner-photo-img"
-            />
+              <div className="hero-pill" role="link" tabIndex={0}>
+                <span className="hero-pill-title">Web &amp; UX</span>
+                <span className="hero-pill-caption">
+                  Websites · UX · Front-end
+                </span>
+              </div>
+
+              <div className="hero-pill" role="link" tabIndex={0}>
+                <span className="hero-pill-title">Content</span>
+                <span className="hero-pill-caption">
+                  Social · Motion · Campaigns
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* =======================
-          2. STRIP / MARQUEE BAR
+          2. RUNNING ORANGE STRIP
       ======================== */}
       <section className="hero-strip" aria-label="Thrive services">
         <div className="hero-strip-track">
-          {/* repeat blocks so the marquee loops smoothly */}
-          <div className="hero-strip-inner">
-            <span>We help small businesses, churches, and creatives build visual
-                identities and websites that look good, read clearly, and feel
-                like the communities they serve.</span>
-          </div>
-          <div className="hero-strip-inner">
-            <span>We help small businesses, churches, and creatives build visual
-                identities and websites that look good, read clearly, and feel
-                like the communities they serve.</span>
-          </div>
-          <div className="hero-strip-inner">
-            <span>We help small businesses, churches, and creatives build visual
-                identities and websites that look good, read clearly, and feel
-                like the communities they serve.</span>
-          </div>
+          <span className="hero-strip-text">
+            We help small businesses, churches, and creatives build visual
+            identities and websites that look good, read clearly, and feel like
+            the communities they serve. •
+          </span>
+
+          <span className="hero-strip-text" aria-hidden="true">
+            We help small businesses, churches, and creatives build visual
+            identities and websites that look good, read clearly, and feel like
+            the communities they serve. •
+          </span>
         </div>
       </section>
 
       {/* =======================
-          3. FEATURED CASE STUDY BAND
+          3. FEATURED CASE STUDY BAND (WITH SCALLOP EDGE)
       ======================== */}
       <section
         id="work"
-        className="section section-work section-grid"
+        className="section section-work section-grid squiggle-edge"
         aria-labelledby="case-heading"
       >
         <div className="wrapper sr">
@@ -126,25 +125,19 @@ export default function HomePage() {
             {/* right: case info */}
             <div className="case-copy">
               <p className="case-kicker">Case Study</p>
-              <h3 className="case-title">
-                TCKT — movie ticketing experience
-              </h3>
+              <h3 className="case-title">TCKT — movie ticketing experience</h3>
               <p className="hero-text">
                 A seamless UX and visual system for browsing, buying and
                 tracking movie tickets—all designed with accessibility and ease
                 in mind.
               </p>
 
-              <p className="case-services">
-                UX design · UI design · brand design
-              </p>
+              <p className="case-services">UX design · UI design · brand design</p>
 
               <div className="case-stats">
                 <div>
                   <span className="case-stat-number">3x</span>
-                  <span className="case-stat-label">
-                    Faster checkout flow
-                  </span>
+                  <span className="case-stat-label">Faster checkout flow</span>
                 </div>
                 <div>
                   <span className="case-stat-number">+40%</span>
@@ -163,6 +156,53 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ✅ scallop bottom edge (kept inside the same #work section) */}
+        <div className="scallop-edge__svg" aria-hidden="true">
+          <svg viewBox="0 0 1440 160" preserveAspectRatio="none">
+            <path
+              d="
+                M0,80
+                Q60,0 120,80
+                T240,80
+                T360,80
+                T480,80
+                T600,80
+                T720,80
+                T840,80
+                T960,80
+                T1080,80
+                T1200,80
+                T1320,80
+                T1440,80
+                L1440,160 L0,160 Z
+              "
+              fill="var(--next-section-bg)"
+            />
+            <path
+              d="
+                M0,80
+                Q60,0 120,80
+                T240,80
+                T360,80
+                T480,80
+                T600,80
+                T720,80
+                T840,80
+                T960,80
+                T1080,80
+                T1200,80
+                T1320,80
+                T1440,80
+              "
+              fill="none"
+              stroke="var(--section-bg)"
+              strokeWidth="8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </div>
       </section>
 
@@ -213,20 +253,13 @@ export default function HomePage() {
       {/* =======================
           5. ABOUT / FOUNDER
       ======================== */}
-      <section
-        id="about"
-        className="hero hero-about-band"
-        aria-labelledby="about-heading"
-      >
+      <section id="about" className="hero hero-about-band" aria-labelledby="about-heading">
         <div className="wrapper hero-about-inner">
           <div className="sr">
             <p className="hero-tag">From Prairie View to product design</p>
             <h2 id="about-heading" className="hero-title">
               From classroom projects to{" "}
-              <span className="hero-highlight">
-                client work that actually works
-              </span>
-              .
+              <span className="hero-highlight">client work that actually works</span>.
             </h2>
             <p className="hero-text">
               I&apos;m Lauren Burrell—designer, developer, and storyteller. I
@@ -234,24 +267,31 @@ export default function HomePage() {
               help brands look good and actually work for the people using them.
             </p>
             <p className="hero-text">
-              Thrive is where Black, young &amp; creative isn&apos;t a
-              footnote—it&apos;s the superpower. You don&apos;t have to choose
-              one lane when you were born to build the whole highway.
+              Thrive is where Black, young &amp; creative isn&apos;t a footnote—it&apos;s
+              the superpower. You don&apos;t have to choose one lane when you were born
+              to build the whole highway.
             </p>
             <div className="hero-actions" style={{ marginTop: 16 }}>
-              <a href="#contact" className="btn btn-primary">
+              <a href="/contact" className="btn btn-primary">
                 Meet &amp; collaborate
               </a>
             </div>
           </div>
 
           <div className="about-photo-card sr">
-            <div className="about-photo-placeholder">Your photo / collage</div>
-            <p className="about-caption">
-              Lauren Burrell · Founder &amp; Creative Director, Thrive Creative
-              Studios
-            </p>
-          </div>
+  <div className="about-photo-frame">
+    <img
+      src="/lauren-portrait.jpg"
+      alt="Lauren Burrell portrait"
+      className="about-photo-img"
+    />
+  </div>
+
+  <p className="about-caption">
+    Lauren Burrell · Founder &amp; Creative Director, Thrive Creative Studios
+  </p>
+</div>
+
         </div>
       </section>
 
@@ -281,7 +321,7 @@ export default function HomePage() {
               Ready to collaborate on your brand, website or next launch?
             </p>
             <a
-              href="mailto:hello@thrivecreativestudios.com?subject=Project%20Inquiry"
+              href="mailto:thrivecreativestudios@gmail.com?subject=Project%20Inquiry"
               className="btn btn-secondary"
             >
               Tell me about your project
