@@ -1,76 +1,87 @@
 // src/app/work/page.tsx
 import Link from "next/link";
+import Image from "next/image";
 import SiteHeader from "../components/SiteHeader";
-import { supabase } from "@/lib/supabaseServer";
 import styles from "./WorkPage.module.css";
+
+import { supabase } from "../../lib/supabaseServer";
+
+type WorkProject = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string | null;
+  span: string | null;
+};
 
 const BUCKET = "course-media";
 
+// If you already have a publicUrl helper elsewhere, you can remove this and import yours.
 function publicUrl(path: string) {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return path;
-  return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 export default async function WorkPage() {
-  const { data: projects, error } = await supabase
+  const { data, error } = await supabase
     .from("projects")
-    .select("id,title,slug,category,span,order_index,published")
-    .eq("published", true)
-    .order("order_index", { ascending: true });
+    .select("id,title,slug,category,span")
+    .order("title", { ascending: true });
 
   if (error) {
+    // You can make this prettier later; this prevents hard build failures.
     return (
       <div className={styles.page}>
         <SiteHeader />
-        <main className={styles.wrap}>
-          <h1 className={styles.title}>Work</h1>
-          <p className={styles.sub}>Supabase error: {error.message}</p>
-        </main>
+        <div className={styles.wrap}>
+          <h1 className={styles.h1}>Work</h1>
+          <p className={styles.muted}>Could not load projects right now.</p>
+        </div>
       </div>
     );
   }
+
+  const projects: WorkProject[] = (data ?? []) as WorkProject[];
 
   return (
     <div className={styles.page}>
       <SiteHeader />
 
-      <main className={styles.wrap}>
-        {/* Intro */}
-        <section className={styles.hero}>
-          <p className={styles.kicker}>Selected work</p>
-          <h1 className={styles.heroTitle}>Projects that feel like a gallery wall.</h1>
-          <p className={styles.heroText}>
-            A curated selection spanning branding, UX, product concepts, and content.
+      <div className={styles.wrap}>
+        <header className={styles.header}>
+          <h1 className={styles.h1}>Work</h1>
+          <p className={styles.sub}>
+            A selection of branding, UX/UI, and web builds from Thrive Creative Studios.
           </p>
-        </section>
+        </header>
 
-        {/* Grid */}
-        <section className={styles.wall} aria-label="Work gallery">
-          <div className={styles.grid}>
-            {projects?.map((p) => (
-              <Link
-                key={p.id}
-                href={`/work/${p.slug}`}
-                className={`${styles.tile} ${styles[p.span as keyof typeof styles] ?? ""}`}
-                aria-label={`View ${p.title}`}
-              >
-                <span className={styles.bg} aria-hidden="true" />
-                <img
-                  src={publicUrl(`projects/${p.slug}/cover.jpg`)}
-                  alt={`${p.title} cover`}
-                  className={styles.img}
-                  loading="lazy"
-                />
-                <div className={styles.label}>
-                  <span className={styles.cat}>{p.category}</span>
-                  <span className={styles.name}>{p.title}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
+        <section className={styles.grid} aria-label="Project gallery">
+          {projects.map((p) => (
+            <Link
+              key={p.id}
+              href={`/work/${p.slug}`}
+              className={`${styles.tile} ${p.span ? (styles[p.span as keyof typeof styles] ?? "") : ""}`}
+              aria-label={`View ${p.title}`}
+            >
+              <span className={styles.bg} aria-hidden="true" />
+
+              {/* Use Next Image so it’s optimized, but still works with your Supabase public URL */}
+              <Image
+                src={publicUrl(`projects/${p.slug}/cover.jpg`)}
+                alt={`${p.title} cover`}
+                fill
+                className={styles.img}
+                sizes="(max-width: 920px) 100vw, 50vw"
+                priority={false}
+              />
+
+              <div className={styles.label}>
+                <span className={styles.cat}>{p.category ?? ""}</span>
+                <span className={styles.name}>{p.title}</span>
+              </div>
+            </Link>
+          ))}
         </section>
-      </main>
+      </div>
     </div>
   );
 }
