@@ -9,19 +9,19 @@ export const metadata = {
 const DEV_FEATURED = [
   {
     title: "The Burrell Group Website",
-    slug: "burrell-group",
+    slug: "the-burrell-group",
     cover: MEDIA.work.burrellGroup,
     alt: "The Burrell Group website project cover image",
   },
   {
-    title: "Anchor Academy LMS",
-    slug: "anchor-academy-lms",
+    title: "Anchor Academy",
+    slug: "anchor-academy",
     cover: MEDIA.work.anchorAcademy,
     alt: "Anchor Academy LMS project cover image",
   },
   {
     title: "Thrive Website",
-    slug: "thrive-website",
+    slug: "thrive-site",
     cover: MEDIA.work.thriveSite,
     alt: "Thrive Creative Studios website cover image",
   },

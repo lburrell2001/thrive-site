@@ -21,7 +21,7 @@ const BRANDING_FEATURED = [
   },
   {
     title: "The Squeeze Shop",
-    slug: "the-squeeze-shop",
+    slug: "squeeze-shop",
     cover: MEDIA.work.squeezeShop,
     alt: "The Squeeze Shop branding cover image",
   },
