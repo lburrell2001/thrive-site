@@ -2,17 +2,25 @@ const BASE =
   "https://lsmpdqasbvjchyooyuli.supabase.co/storage/v1/object/public/course-media";
 
 export const MEDIA = {
-  heroVideo: `${BASE}/thrive-hero.mp4`,
+  // ✅ SERVICE HERO VIDEOS (root of bucket)
+  hero: {
+    branding: `${BASE}/branding-hero-v2.mp4`,
+    webux: `${BASE}/ux-hero.mp4`,
+    webAppDev: `${BASE}/thrive-hero-v2.mp4`,
+    home: `${BASE}/thrive-hero.mp4`, // optional, if homepage uses same
+  },
+
+  // ✅ IMAGES (root of bucket)
   portrait: `${BASE}/lauren-portrait.jpg`,
   heroImage: `${BASE}/hero-thrive-desk.jpg`,
 
+  // ✅ “portfolio reel” videos folder (if you still use these anywhere)
   videos: {
     branding: `${BASE}/videos/branding.mp4`,
     content: `${BASE}/videos/content.mp4`,
     uxhero: `${BASE}/videos/uxhero.mp4`,
     webux: `${BASE}/videos/webux.mp4`,
   },
-
   work: {
     anchorAcademy: `${BASE}/work/anchor-academy-cover.jpg`,
     brewhaus: `${BASE}/work/brewhaus-cover.jpg`,
@@ -26,4 +34,4 @@ export const MEDIA = {
     tckt: `${BASE}/work/tckt-cover.jpg`,
     thriveSite: `${BASE}/work/thrive-site-cover.jpg`,
   },
-};
+}; 

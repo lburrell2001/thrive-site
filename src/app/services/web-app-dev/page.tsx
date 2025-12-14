@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
+import { MEDIA } from "@/lib/medita";
 
 export const metadata = {
   title: "Web + App Development · Thrive Creative Studios",
@@ -9,26 +10,29 @@ const DEV_FEATURED = [
   {
     title: "The Burrell Group Website",
     slug: "burrell-group",
-    cover: "/work/burrell-group-cover.jpg",
+    cover: MEDIA.work.burrellGroup,
     alt: "The Burrell Group website project cover image",
   },
   {
     title: "Anchor Academy LMS",
     slug: "anchor-academy-lms",
-    cover: "/work/anchor-academy-cover.jpg",
+    cover: MEDIA.work.anchorAcademy,
     alt: "Anchor Academy LMS project cover image",
   },
   {
     title: "Thrive Website",
     slug: "thrive-website",
-    cover: "/work/thrive-site-cover.jpg",
+    cover: MEDIA.work.thriveSite,
     alt: "Thrive Creative Studios website cover image",
   },
 ];
 
 function FeaturedDevGallery() {
   return (
-    <section className="featured-gallery" aria-label="Featured Web + App Dev projects">
+    <section
+      className="featured-gallery"
+      aria-label="Featured Web + App Dev projects"
+    >
       <div className="wrapper">
         <div className="featured-gallery__header">
           <p className="hero-tag">Featured development</p>
@@ -69,24 +73,28 @@ export default function WebAppDevServicePage() {
       <SiteHeader />
 
       <main className="service-page">
-        {/* VIDEO HERO (same system as your Web+UX page) */}
-        <section className="service-video-hero" aria-label="Web + App Dev service hero">
+        {/* VIDEO HERO */}
+        <section
+          className="service-video-hero"
+          aria-label="Web + App Dev service hero"
+        >
           <div className="service-video-bg" aria-hidden="true">
             <video
               className="service-video"
-              src="/videos/thrive-hero.mp4"
+              src="https://lsmpdqasbvjchyooyuli.supabase.co/storage/v1/object/public/course-media/thrive-hero-v2.mp4"
               autoPlay
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
+              // Helps Safari/iOS + avoids some autoplay edge cases
+              disablePictureInPicture
             />
             <div className="service-video-dim" />
           </div>
 
           <div className="wrapper">
             <div className="service-video-card">
-              {/* top: title/caption */}
               <div>
                 <p className="hero-tag" style={{ marginTop: 0 }}>
                   Service
@@ -98,7 +106,6 @@ export default function WebAppDevServicePage() {
                 </p>
               </div>
 
-              {/* middle: two columns (Best for + Starting prices) */}
               <div className="service-video-grid" style={{ marginTop: 18 }}>
                 <div className="service-mini-card">
                   <h3 className="service-h2">Best for</h3>
@@ -123,7 +130,6 @@ export default function WebAppDevServicePage() {
                 </div>
               </div>
 
-              {/* bottom: buttons side-by-side */}
               <div className="hero-actions" style={{ marginTop: 18 }}>
                 <a
                   href="mailto:thrivecreativestudios@gmail.com?subject=Web%20%2B%20App%20Dev%20Inquiry"
@@ -140,7 +146,6 @@ export default function WebAppDevServicePage() {
           </div>
         </section>
 
-        {/* FEATURED PROJECTS */}
         <FeaturedDevGallery />
 
         {/* PROCESS */}

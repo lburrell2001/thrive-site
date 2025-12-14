@@ -1,6 +1,7 @@
 // app/services/page.tsx
 import SiteHeader from "../components/SiteHeader";
 import Link from "next/link";
+import { MEDIA } from "@/lib/medita";
 
 export const metadata = {
   title: "Services & Bundles · Thrive Creative Studios",
@@ -21,7 +22,7 @@ const PILL_CARDS: Pill[] = [
     blurb:
       "Logos, color systems, type pairing, and templates that make your brand feel like you—everywhere.",
     href: "/services/branding",
-    videoSrc: "/videos/branding.mp4",
+    videoSrc: MEDIA.videos.branding,
   },
   {
     title: "Web + UX",
@@ -29,18 +30,18 @@ const PILL_CARDS: Pill[] = [
     blurb:
       "Websites and product experiences that look good, read clean, and convert without feeling salesy.",
     href: "/services/web-ux",
-    videoSrc: "/videos/webux.mp4",
+    videoSrc: MEDIA.videos.webux,
   },
   {
-  title: "Web + App Dev",
-  tag: "Front-end · Full-stack · Deployments",
-  blurb:
-    "Custom websites and web apps built to be fast, responsive, and ready to scale—without the tech headache.",
-  href: "/services/web-app-dev",
-  videoSrc: "/videos/thrive-hero.mp4",
-}
-
+    title: "Web + App Dev",
+    tag: "Front-end · Full-stack · Deployments",
+    blurb:
+      "Custom websites and web apps built to be fast, responsive, and ready to scale—without the tech headache.",
+    href: "/services/web-app-dev",
+    videoSrc: MEDIA.hero.webAppDev, // ✅ thrive-hero-v2.mp4
+  },
 ];
+
 
 function ServicePills() {
   return (
@@ -54,14 +55,16 @@ function ServicePills() {
         >
           <div className="pill-media" aria-hidden="true">
             <video
-              className="pill-video"
-              src={pill.videoSrc}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            />
+  className="pill-video"
+  src={pill.videoSrc}
+  autoPlay
+  muted
+  loop
+  playsInline
+  preload="auto"
+  disablePictureInPicture
+/>
+
             <div className="pill-overlay" />
           </div>
 

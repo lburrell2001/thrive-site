@@ -1,5 +1,6 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
+import { MEDIA } from "@/lib/medita";
 
 export const metadata = {
   title: "Branding · Thrive Creative Studios",
@@ -9,19 +10,19 @@ const BRANDING_FEATURED = [
   {
     title: "Brewhaus Coffee",
     slug: "brewhaus",
-    cover: "/work/brewhaus-cover.jpg",
+    cover: MEDIA.work.brewhaus,
     alt: "Brewhaus Coffee branding cover image",
   },
   {
     title: "Curl & Co.",
     slug: "curl-and-co",
-    cover: "/work/curl-co-cover.jpg",
+    cover: MEDIA.work.curlCo,
     alt: "Curl & Co. branding cover image",
   },
   {
     title: "The Squeeze Shop",
     slug: "the-squeeze-shop",
-    cover: "/work/squeeze-shop-cover.jpg",
+    cover: MEDIA.work.squeezeShop,
     alt: "The Squeeze Shop branding cover image",
   },
 ];
@@ -69,25 +70,24 @@ export default function BrandingServicePage() {
       <SiteHeader />
 
       <main className="service-page">
-        {/* HERO (same layout as Web+UX) */}
+        {/* HERO */}
         <section className="service-video-hero" aria-label="Branding service overview">
-          {/* video bg */}
           <div className="service-video-bg" aria-hidden="true">
             <video
               className="service-video"
-              src="/videos/brandinghero.mp4"
+              src={MEDIA.hero.branding}  // ✅ Supabase video
               autoPlay
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
+              disablePictureInPicture
             />
             <div className="service-video-dim" />
           </div>
 
           <div className="wrapper">
             <div className="service-video-card">
-              {/* TOP COPY */}
               <div className="service-video-header">
                 <p className="hero-tag" style={{ marginTop: 0 }}>
                   Service
@@ -101,7 +101,6 @@ export default function BrandingServicePage() {
                 </p>
               </div>
 
-              {/* TWO COLUMNS */}
               <div className="service-video-columns">
                 <div>
                   <h3 className="service-h2">Best for</h3>
@@ -124,7 +123,6 @@ export default function BrandingServicePage() {
                 </div>
               </div>
 
-              {/* BUTTONS */}
               <div className="hero-actions">
                 <a
                   href="mailto:thrivecreativestudios@gmail.com?subject=Branding%20Inquiry"
@@ -141,10 +139,8 @@ export default function BrandingServicePage() {
           </div>
         </section>
 
-        {/* FEATURED PROJECTS */}
         <FeaturedBrandingGallery />
 
-        {/* PROCESS / TIMELINE */}
         <section className="process-section" aria-label="Process timeline">
           <div className="wrapper">
             <div className="process-header">

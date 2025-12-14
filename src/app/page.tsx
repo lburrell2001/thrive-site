@@ -55,29 +55,28 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* ✅ 3 separate pills (no nesting / no broken tags) */}
             <div className="hero-pills">
-              <div className="hero-pill" role="link" tabIndex={0}>
-                <span className="hero-pill-title">Branding</span>
-                <span className="hero-pill-caption">
-                  Identity · Visual systems
-                </span>
-              </div>
+  <Link href="/services/branding" className="hero-pill">
+    <span className="hero-pill-title">Branding</span>
+    <span className="hero-pill-caption">
+      Identity · Visual systems
+    </span>
+  </Link>
 
-              <div className="hero-pill" role="link" tabIndex={0}>
-                <span className="hero-pill-title">Web &amp; UX</span>
-                <span className="hero-pill-caption">
-                  Websites · UX · Front-end
-                </span>
-              </div>
+  <Link href="/services/web-ux" className="hero-pill">
+    <span className="hero-pill-title">Web &amp; UX</span>
+    <span className="hero-pill-caption">
+      Websites · UX · Front-end
+    </span>
+  </Link>
 
-              <div className="hero-pill" role="link" tabIndex={0}>
-                <span className="hero-pill-title">Content</span>
-                <span className="hero-pill-caption">
-                  Social · Motion · Campaigns
-                </span>
-              </div>
-            </div>
+  <Link href="/services/web-app-dev" className="hero-pill">
+  <span className="hero-pill-title">Web &amp; App Dev</span>
+  <span className="hero-pill-caption">
+    Websites · Mobile Apps · Front-end
+  </span>
+</Link>
+</div>
           </div>
         </div>
       </section>
