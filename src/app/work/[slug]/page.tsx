@@ -1,182 +1,257 @@
 // src/app/work/[slug]/page.tsx
 import Link from "next/link";
-import SiteHeader from "../../components/SiteHeader";
 import { notFound } from "next/navigation";
-import { supabase } from "@/lib/supabaseServer";
+
+import SiteHeader from "../../components/SiteHeader";
+import ProjectGallery from "./ProjectGallery";
 import styles from "./ProjectPage.module.css";
+
+import { supabase } from "../../../lib/supabaseServer";
+
+type Project = {
+  id: string;
+  title: string;
+  slug: string;
+  category: string | null;
+  span: string | null;
+
+  // Optional fields (add these columns in Supabase when ready)
+  tagline?: string | null;
+  description?: string | null;
+  role?: string | null;
+  year?: string | null;
+  website_url?: string | null;
+  repo_url?: string | null;
+  tools?: string[] | null;
+
+  overview?: string | null;
+project_notes?: string | null;
+problem?: string | null;
+solution?: string | null;
+results?: string | null;
+
+};
 
 const BUCKET = "course-media";
 
 function publicUrl(path: string) {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!base) return path;
-  return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
 export default async function ProjectSlugPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
+  const { slug } = await params;
+
   const { data: project, error } = await supabase
     .from("projects")
     .select("*")
-    .eq("slug", params.slug)
-    .maybeSingle();
+    .eq("slug", slug)
+    .maybeSingle<Project>();
 
-  // IMPORTANT: show real error instead of fake 404 while building
-  if (error) {
-    return (
-      <div className={styles.page}>
-        <SiteHeader />
-        <main className={styles.wrap}>
-          <Link href="/work" className={styles.link}>
-            ← Work
-          </Link>
-          <pre className={styles.mono} style={{ marginTop: 18, whiteSpace: "pre-wrap" }}>
-            Supabase error: {error.message}
-          </pre>
-        </main>
-      </div>
-    );
-  }
+  if (error || !project) notFound();
 
-  // If slug truly doesn't exist in DB
-  if (!project) return notFound();
-
-  // Optional fields (won’t crash if they’re null/missing)
-  const tagline = project.tagline ?? "";
-  const overview = project.overview ?? "";
-  const highlights: string[] = Array.isArray(project.highlights) ? project.highlights : [];
-  const deliverables: string[] = Array.isArray(project.deliverables) ? project.deliverables : [];
-  const tools: string[] = Array.isArray(project.tools) ? project.tools : [];
-  const gallery: string[] = Array.isArray(project.gallery) ? project.gallery : [];
-
+  // Cover image
   const coverSrc = publicUrl(`projects/${project.slug}/cover.jpg`);
+
+  // Gallery images (requires storage.objects select policy for listing)
+  const galleryFolder = `projects/${project.slug}/gallery`;
+  const { data: files } = await supabase.storage.from(BUCKET).list(galleryFolder, { limit: 100 });
+
+  const galleryItems =
+    files?.length
+      ? files
+          .filter((f) => f.name && !f.name.startsWith("."))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+          .map((f) => ({
+            url: publicUrl(`${galleryFolder}/${f.name}`),
+            alt: `${project.title} gallery image`,
+          }))
+      : [];
+
+  // Prev/Next nav
+  const { data: all } = await supabase
+    .from("projects")
+    .select("title, slug, category")
+    .order("title", { ascending: true });
+
+  const list = (all ?? []) as Array<{ title: string; slug: string; category: string | null }>;
+  const idx = list.findIndex((p) => p.slug === project.slug);
+  const prev = idx > 0 ? list[idx - 1] : null;
+  const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null;
+
+  // Content fallbacks (no database/dev text)
+  const description =
+    project.description ??
+    "Case study content coming soon. I’m building this out with process, decisions, and final outcomes.";
 
   return (
     <div className={styles.page}>
       <SiteHeader />
 
-      <main className={styles.wrap}>
-        <div className={styles.breadcrumb}>
-          <Link href="/work" className={styles.link}>
-            ← Work
+      <div className={styles.wrap}>
+        <nav className={styles.breadcrumb}>
+          <Link className={styles.link} href="/work">
+            ← Back to work
           </Link>
-        </div>
+        </nav>
 
         <section className={styles.hero}>
           <div className={styles.heroLeft}>
             <div className={styles.pillRow}>
-              <span className={styles.pill}>{project.category}</span>
+              <span className={styles.pill}>{project.category ?? "Project"}</span>
+              {project.year ? (
+                <>
+                  <span className={styles.dot} />
+                  <span className={styles.meta}>{project.year}</span>
+                </>
+              ) : null}
             </div>
 
             <h1 className={styles.title}>{project.title}</h1>
-            {tagline ? <p className={styles.tagline}>{tagline}</p> : null}
+
+            {/* ✅ FIX: no undefined tagline variable */}
+            {project.tagline ? <p className={styles.tagline}>{project.tagline}</p> : null}
+
+            <div className={styles.metaGrid}>
+              {project.role ? (
+                <div className={styles.card}>
+                  <p className={styles.cardLabel}>Role</p>
+                  <p className={styles.cardValue}>{project.role}</p>
+                </div>
+              ) : null}
+
+              {project.tools?.length ? (
+                <div className={styles.card}>
+                  <p className={styles.cardLabel}>Tools</p>
+                  <p className={styles.cardValue}>{project.tools.join(" · ")}</p>
+                </div>
+              ) : null}
+            </div>
 
             <div className={styles.ctaRow}>
-              <Link className={styles.btn} href="/work">
-                View all projects
-              </Link>
-              <a className={styles.btnGhost} href="#gallery">
-                Jump to gallery
-              </a>
+              {project.website_url ? (
+                <a className={styles.btn} href={project.website_url} target="_blank" rel="noreferrer">
+                  Visit live site
+                </a>
+              ) : null}
+
+              {project.repo_url ? (
+                <a className={styles.btnGhost} href={project.repo_url} target="_blank" rel="noreferrer">
+                  View repo
+                </a>
+              ) : null}
             </div>
           </div>
 
           <div className={styles.cover}>
-            <img
-              src={coverSrc}
-              alt={`${project.title} cover`}
-              className={styles.coverImg}
-              style={{ width: "100%", height: "100%" }}
-            />
-            <div className={styles.coverGlow} aria-hidden="true" />
+            <img src={coverSrc} alt={`${project.title} cover`} className={styles.coverImg} />
           </div>
         </section>
 
         <section className={styles.body}>
-          <article className={styles.left}>
+          <div className={styles.left}>
             <h2 className={styles.h2}>Overview</h2>
+<p className={styles.p}>
+  {project.overview ?? "Overview coming soon."}
+</p>
 
-            {overview ? (
-              <p className={styles.p}>{overview}</p>
-            ) : (
-              <p className={styles.muted}>
-                Add an <span className={styles.mono}>overview</span> column to the projects table to show the case study
-                story here.
-              </p>
-            )}
+{project.problem || project.solution || project.results ? (
+  <>
+    <div className={styles.divider} />
 
-            <div className={styles.divider} />
+    {project.problem ? (
+      <>
+        <h3 className={styles.h3}>Problem</h3>
+        <p className={styles.p}>{project.problem}</p>
+      </>
+    ) : null}
 
-            <h2 className={styles.h2} id="gallery">
-              Gallery
-            </h2>
+    {project.solution ? (
+      <>
+        <div className={styles.divider} />
+        <h3 className={styles.h3}>Solution</h3>
+        <p className={styles.p}>{project.solution}</p>
+      </>
+    ) : null}
 
-            {gallery.length ? (
-              <div className={styles.gallery}>
-                {gallery.map((file) => (
-                  <div className={styles.shot} key={file}>
-                    <img
-                      src={publicUrl(`projects/${project.slug}/gallery/${file}`)}
-                      alt={`${project.title} gallery`}
-                      className={styles.shotImg}
-                      style={{ width: "100%", height: "100%" }}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.muted}>
-                Gallery coming soon. Upload to{" "}
-                <span className={styles.mono}>projects/{project.slug}/gallery/</span>
-              </p>
-            )}
-          </article>
+    {project.results ? (
+      <>
+        <div className={styles.divider} />
+        <h3 className={styles.h3}>Results</h3>
+        <p className={styles.p}>{project.results}</p>
+      </>
+    ) : null}
+  </>
+) : null}
+
+
+            {/* Gallery */}
+            {galleryItems.length ? (
+              <>
+                <div className={styles.divider} />
+                <h2 className={styles.h2}>Gallery</h2>
+                <ProjectGallery items={galleryItems} title={project.title} />
+              </>
+            ) : null}
+          </div>
 
           <aside className={styles.right}>
             <div className={styles.panel}>
-              <h3 className={styles.h3}>Highlights</h3>
-              {highlights.length ? (
-                <ul className={styles.list}>
-                  {highlights.map((x: string) => (
-                    <li key={x} className={styles.li}>
-                      {x}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={styles.mutedSmall}>Add a highlights[] column to show bullet points.</p>
-              )}
-            </div>
-
-            <div className={styles.panel}>
-              <h3 className={styles.h3}>Deliverables</h3>
-              {deliverables.length ? (
-                <ul className={styles.list}>
-                  {deliverables.map((x: string) => (
-                    <li key={x} className={styles.li}>
-                      {x}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className={styles.mutedSmall}>Add a deliverables[] column to list what you shipped.</p>
-              )}
+              <h3 className={styles.h3}>Quick details</h3>
+              <ul className={styles.list}>
+                {project.category ? <li className={styles.li}>Category: {project.category}</li> : null}
+                {project.role ? <li className={styles.li}>Role: {project.role}</li> : null}
+                {project.year ? <li className={styles.li}>Year: {project.year}</li> : null}
+              </ul>
             </div>
 
             <div className={styles.panelAlt}>
-              <h3 className={styles.h3}>Tools</h3>
-              {tools.length ? (
-                <p className={styles.mutedSmall}>{tools.join(" · ")}</p>
-              ) : (
-                <p className={styles.mutedSmall}>Add a tools[] column for your stack.</p>
-              )}
+              <div className={styles.panelAlt}>
+  <h3 className={styles.h3}>Project notes</h3>
+  <p className={styles.mutedSmall}>
+    {project.project_notes ?? "Notes coming soon."}
+  </p>
+</div>
+
             </div>
           </aside>
         </section>
-      </main>
+
+        <section className={styles.bottomNav}>
+          <div className={styles.navGrid}>
+            {prev ? (
+              <Link href={`/work/${prev.slug}`} className={styles.navCard}>
+                <span className={styles.navTop}>Previous</span>
+                <span className={styles.navTitle}>{prev.title}</span>
+                <span className={styles.navMeta}>{prev.category ?? ""}</span>
+              </Link>
+            ) : (
+              <div className={styles.navCardDisabled}>
+                <span className={styles.navTop}>Previous</span>
+                <span className={styles.navTitle}>—</span>
+                <span className={styles.navMeta}> </span>
+              </div>
+            )}
+
+            {next ? (
+              <Link href={`/work/${next.slug}`} className={styles.navCard}>
+                <span className={styles.navTop}>Next</span>
+                <span className={styles.navTitle}>{next.title}</span>
+                <span className={styles.navMeta}>{next.category ?? ""}</span>
+              </Link>
+            ) : (
+              <div className={styles.navCardDisabled}>
+                <span className={styles.navTop}>Next</span>
+                <span className={styles.navTitle}>—</span>
+                <span className={styles.navMeta}> </span>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
