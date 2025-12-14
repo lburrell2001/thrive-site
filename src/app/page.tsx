@@ -1,11 +1,66 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import SiteHeader from "./components/SiteHeader";
+import { createClient } from "@supabase/supabase-js";
 
+type FeaturedProject = {
+  id: string;
+  title: string;
+  slug: string;
+  overview: string | null;
+  services: string | null;
+};
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const BUCKET = "course-media";
+
+function storagePublicUrl(path: string) {
+  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+}
 
 export default function HomePage() {
+  // ✅ Featured project state (MUST be inside component)
+  const [featured, setFeatured] = useState<FeaturedProject | null>(null);
+
+  // ✅ Load featured project (MUST be inside component)
+  useEffect(() => {
+    let alive = true;
+
+    async function loadFeatured() {
+      const { data } = await supabase
+        .from("projects")
+        .select("id,title,slug,overview,services")
+        .eq("featured", true)
+        .maybeSingle();
+
+      // fallback: show TCKT if no featured set
+      if (!data) {
+        const fallback = await supabase
+          .from("projects")
+          .select("id,title,slug,overview,services")
+          .eq("slug", "tckt")
+          .maybeSingle();
+
+        if (alive) setFeatured((fallback.data as FeaturedProject) ?? null);
+        return;
+      }
+
+      if (alive) setFeatured(data as FeaturedProject);
+    }
+
+    loadFeatured();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // simple scroll reveal for .sr elements
   useEffect(() => {
     const els = Array.from(document.querySelectorAll<HTMLElement>(".sr"));
@@ -56,27 +111,21 @@ export default function HomePage() {
             </div>
 
             <div className="hero-pills">
-  <Link href="/services/branding" className="hero-pill">
-    <span className="hero-pill-title">Branding</span>
-    <span className="hero-pill-caption">
-      Identity · Visual systems
-    </span>
-  </Link>
+              <Link href="/services/branding" className="hero-pill">
+                <span className="hero-pill-title">Branding</span>
+                <span className="hero-pill-caption">Identity · Visual systems</span>
+              </Link>
 
-  <Link href="/services/web-ux" className="hero-pill">
-    <span className="hero-pill-title">Web &amp; UX</span>
-    <span className="hero-pill-caption">
-      Websites · UX · Front-end
-    </span>
-  </Link>
+              <Link href="/services/web-ux" className="hero-pill">
+                <span className="hero-pill-title">Web &amp; UX</span>
+                <span className="hero-pill-caption">Websites · UX · Front-end</span>
+              </Link>
 
-  <Link href="/services/web-app-dev" className="hero-pill">
-  <span className="hero-pill-title">Web &amp; App Dev</span>
-  <span className="hero-pill-caption">
-    Websites · Mobile Apps · Front-end
-  </span>
-</Link>
-</div>
+              <Link href="/services/web-app-dev" className="hero-pill">
+                <span className="hero-pill-title">Web &amp; App Dev</span>
+                <span className="hero-pill-caption">Websites · Mobile Apps · Front-end</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -116,23 +165,42 @@ export default function HomePage() {
           </h2>
 
           <div className="case-card">
-            {/* left: phone style image placeholder */}
-            <div className="case-media">
-              <div className="case-phone">Project visuals here</div>
-            </div>
+            {/* left: phone style image */}
+            <div className="case-phone">
+  {featured ? (
+    <video
+  src={storagePublicUrl("videos/webux.mp4")}
+  className="case-phone-video"
+  autoPlay
+  muted
+  loop
+  playsInline
+/>
+
+  ) : (
+    <div className="case-phone-skeleton" aria-hidden="true" />
+  )}
+</div>
+
 
             {/* right: case info */}
             <div className="case-copy">
               <p className="case-kicker">Case Study</p>
-              <h3 className="case-title">TCKT — movie ticketing experience</h3>
+
+              <h3 className="case-title">
+                {featured ? `${featured.title} — case study` : "Loading…"}
+              </h3>
+
               <p className="hero-text">
-                A seamless UX and visual system for browsing, buying and
-                tracking movie tickets—all designed with accessibility and ease
-                in mind.
+                {featured?.overview ??
+                  "A featured case study from Thrive Creative Studios—coming in hot."}
               </p>
 
-              <p className="case-services">UX design · UI design · brand design</p>
+              <p className="case-services">
+                {featured?.services ?? "UX design · UI design · brand design"}
+              </p>
 
+              {/* stats (still styled, can be real later) */}
               <div className="case-stats">
                 <div>
                   <span className="case-stat-number">3x</span>
@@ -149,8 +217,19 @@ export default function HomePage() {
               </div>
 
               <div className="hero-actions" style={{ marginTop: 18 }}>
-                <Link href="/work" className="btn btn-secondary">
-                  View full case studies
+                <Link
+                  href={featured ? `/work/${featured.slug}` : "/work"}
+                  className="btn btn-secondary"
+                >
+                  View full case study
+                </Link>
+
+                <Link
+                  href="/work"
+                  className="btn btn-secondary"
+                  style={{ marginLeft: 10 }}
+                >
+                  View all case studies
                 </Link>
               </div>
             </div>
@@ -238,13 +317,14 @@ export default function HomePage() {
             </div>
 
             <div className="work-card work-card--orange services-card">
-              <p className="work-tag">Content &amp; Social</p>
-              <p className="work-title">Content &amp; campaign design</p>
-              <p className="work-meta">
-                Carousels, static graphics and content libraries for launches,
-                campaigns and evergreen storytelling.
-              </p>
-            </div>
+  <p className="work-tag">Website &amp; App Dev</p>
+  <p className="work-title">Websites &amp; application builds</p>
+  <p className="work-meta">
+    Custom websites and web apps built with modern front-end tools—designed
+    for performance, accessibility and real-world use.
+  </p>
+</div>
+
           </div>
         </div>
       </section>
@@ -258,7 +338,10 @@ export default function HomePage() {
             <p className="hero-tag">From Prairie View to product design</p>
             <h2 id="about-heading" className="hero-title">
               From classroom projects to{" "}
-              <span className="hero-highlight">client work that actually works</span>.
+              <span className="hero-highlight">
+                client work that actually works
+              </span>
+              .
             </h2>
             <p className="hero-text">
               I&apos;m Lauren Burrell—designer, developer, and storyteller. I
@@ -267,8 +350,8 @@ export default function HomePage() {
             </p>
             <p className="hero-text">
               Thrive is where Black, young &amp; creative isn&apos;t a footnote—it&apos;s
-              the superpower. You don&apos;t have to choose one lane when you were born
-              to build the whole highway.
+              the superpower. You don&apos;t have to choose one lane when you were
+              born to build the whole highway.
             </p>
             <div className="hero-actions" style={{ marginTop: 16 }}>
               <a href="/contact" className="btn btn-primary">
@@ -278,19 +361,18 @@ export default function HomePage() {
           </div>
 
           <div className="about-photo-card sr">
-  <div className="about-photo-frame">
-    <img
-      src="/lauren-portrait.jpg"
-      alt="Lauren Burrell portrait"
-      className="about-photo-img"
-    />
-  </div>
+            <div className="about-photo-frame">
+              <img
+                src="/lauren-portrait.jpg"
+                alt="Lauren Burrell portrait"
+                className="about-photo-img"
+              />
+            </div>
 
-  <p className="about-caption">
-    Lauren Burrell · Founder &amp; Creative Director, Thrive Creative Studios
-  </p>
-</div>
-
+            <p className="about-caption">
+              Lauren Burrell · Founder &amp; Creative Director, Thrive Creative Studios
+            </p>
+          </div>
         </div>
       </section>
 
