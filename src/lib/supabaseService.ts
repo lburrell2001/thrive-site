@@ -1,11 +1,10 @@
 // src/lib/supabaseService.ts
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/database.types";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// Don’t throw at import-time — only when actually used
 function assertEnv() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
@@ -14,18 +13,19 @@ function assertEnv() {
   }
 }
 
-export const supabaseService = new Proxy(
-  {},
-  {
-    get(_target, prop) {
-      assertEnv();
+// Create the typed client only when used
+function getClient(): SupabaseClient<Database> {
+  assertEnv();
+  return createClient<Database>(supabaseUrl!, serviceRoleKey!, {
+    auth: { persistSession: false },
+  });
+}
 
-      const client = createClient<Database>(supabaseUrl!, serviceRoleKey!, {
-        auth: { persistSession: false },
-      });
-
-      // @ts-expect-error proxy passthrough
-      return client[prop];
-    },
-  }
-) as ReturnType<typeof createClient<Database>>;
+// Proxy keeps your “don’t throw at import-time” behavior
+export const supabaseService: SupabaseClient<Database> = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop) {
+    const client = getClient();
+    // @ts-expect-error dynamic proxy passthrough
+    return client[prop];
+  },
+});

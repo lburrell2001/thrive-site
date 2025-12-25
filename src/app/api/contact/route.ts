@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
 
+
 type Payload = {
   name: string;
   email: string;
@@ -71,18 +72,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
 
     // 1) Save to Supabase (primary outcome)
-    const { error: dbError } = await supabaseService.from("contact_inquiries").insert({
-      name,
-      email,
-      project_type: projectType === "—" ? null : projectType,
-      budget: budget === "—" ? null : budget,
-      timeline: timeline === "—" ? null : timeline,
-      message: message === "—" ? null : message,
-      user_agent: req.headers.get("user-agent"),
-      referrer: body.referrer || req.headers.get("referer"),
-      page_url: body.pageUrl || null,
-      status: "new",
-    });
+    const { error: dbError } = await supabaseService
+  .from("contact_inquiries")
+  .insert({
+    name,
+    email,
+    project_type: projectType === "—" ? null : projectType,
+    budget: budget === "—" ? null : budget,
+    timeline: timeline === "—" ? null : timeline,
+    message: message === "—" ? null : message,
+    user_agent: req.headers.get("user-agent"),
+    referrer: body.referrer || req.headers.get("referer"),
+    page_url: body.pageUrl || null,
+    status: "new",
+  });
+
 
     if (dbError) {
       return NextResponse.json({ error: "Failed to submit. Try again." }, { status: 500 });
