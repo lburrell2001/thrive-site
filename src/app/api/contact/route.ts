@@ -5,7 +5,6 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
 
-
 type Payload = {
   name: string;
   email: string;
@@ -55,9 +54,37 @@ function infoRow(label: string, valueHtml: string) {
   `;
 }
 
+// Accept JSON + FormData submissions (prevents “Invalid request” on real site)
+async function readPayload(req: Request): Promise<Payload> {
+  const ct = req.headers.get("content-type") || "";
+
+  // JSON requests (fetch)
+  if (ct.includes("application/json")) {
+    return (await req.json()) as Payload;
+  }
+
+  // HTML form posts
+  if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
+    const fd = await req.formData();
+    return {
+      name: String(fd.get("name") || ""),
+      email: String(fd.get("email") || ""),
+      projectType: String(fd.get("projectType") || fd.get("project_type") || ""),
+      budget: String(fd.get("budget") || ""),
+      timeline: String(fd.get("timeline") || ""),
+      message: String(fd.get("message") || ""),
+      pageUrl: String(fd.get("pageUrl") || ""),
+      referrer: String(fd.get("referrer") || ""),
+    };
+  }
+
+  // Last resort
+  return (await req.json()) as Payload;
+}
+
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as Payload;
+    const body = await readPayload(req);
 
     const name = (body.name || "").trim();
     const email = (body.email || "").trim();
@@ -68,28 +95,32 @@ export async function POST(req: Request) {
     const message = safe(body.message);
 
     if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
-    if (!email || !isEmail(email))
+    if (!email || !isEmail(email)) {
       return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+    }
+
+    const referrer = body.referrer || req.headers.get("referer") || null;
+    const pageUrl = body.pageUrl || null;
 
     // 1) Save to Supabase (primary outcome)
+    // NOTE: cast avoids “never[]” typing issue if your service client loses generics
     const { error: dbError } = await (supabaseService as any)
-  .from("contact_inquiries")
-  .insert({
-    name,
-    email,
-    project_type: projectType === "—" ? null : projectType,
-    budget: budget === "—" ? null : budget,
-    timeline: timeline === "—" ? null : timeline,
-    message: message === "—" ? null : message,
-    user_agent: req.headers.get("user-agent"),
-    referrer: body.referrer || req.headers.get("referer"),
-    page_url: body.pageUrl || null,
-    status: "new",
-  });
-
-
+      .from("contact_inquiries")
+      .insert({
+        name,
+        email,
+        project_type: projectType === "—" ? null : projectType,
+        budget: budget === "—" ? null : budget,
+        timeline: timeline === "—" ? null : timeline,
+        message: message === "—" ? null : message,
+        user_agent: req.headers.get("user-agent"),
+        referrer,
+        page_url: pageUrl,
+        status: "new",
+      });
 
     if (dbError) {
+      console.error("SUPABASE ERROR:", dbError);
       return NextResponse.json({ error: "Failed to submit. Try again." }, { status: 500 });
     }
 
@@ -112,15 +143,13 @@ export async function POST(req: Request) {
       `Details:`,
       `${message}`,
       ``,
-      `Page URL: ${body.pageUrl || "—"}`,
-      `Referrer: ${body.referrer || "—"}`,
+      `Page URL: ${pageUrl || "—"}`,
+      `Referrer: ${referrer || "—"}`,
     ].join("\n");
 
     const html = `
       <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
         <div style="max-width:640px;margin:0 auto;padding:28px;">
-
-          <!-- Header -->
           <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
             <div style="background:#0b0b0f;border-radius:16px;padding:22px 22px 18px;">
               <div style="display:flex;align-items:center;gap:12px;">
@@ -135,7 +164,6 @@ export async function POST(req: Request) {
             </div>
           </div>
 
-          <!-- Body -->
           <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
             <div style="color:#ffffff;font-size:18px;font-weight:900;margin-bottom:6px;">
               New inquiry: ${escapeHtml(name)}
@@ -170,8 +198,8 @@ export async function POST(req: Request) {
                 Reply to client
               </a>
               ${
-                body.pageUrl
-                  ? `<a href="${escapeAttr(body.pageUrl)}"
+                pageUrl
+                  ? `<a href="${escapeAttr(pageUrl)}"
                        style="background:rgba(255,255,255,.08);color:#fff;padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;font-size:13px;">
                       View page
                     </a>`
@@ -180,16 +208,14 @@ export async function POST(req: Request) {
             </div>
 
             <div style="margin-top:14px;color:#7f879b;font-size:12px;line-height:1.5;">
-              Page URL: <span style="color:#aab0c0;">${escapeHtml(body.pageUrl || "—")}</span><br/>
-              Referrer: <span style="color:#aab0c0;">${escapeHtml(body.referrer || "—")}</span>
+              Page URL: <span style="color:#aab0c0;">${escapeHtml(pageUrl || "—")}</span><br/>
+              Referrer: <span style="color:#aab0c0;">${escapeHtml(referrer || "—")}</span>
             </div>
           </div>
 
-          <!-- Footer -->
           <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
             Sent from Thrive Contact Form • ${new Date().toLocaleString("en-US")}
           </div>
-
         </div>
       </div>
     `;
@@ -200,7 +226,7 @@ export async function POST(req: Request) {
       subject,
       html,
       text, // fallback
-      replyTo: email, // hitting “reply” goes to the client
+      replyTo: email,
     });
 
     if (emailError) {
@@ -209,7 +235,11 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ ok: true, emailed: true, data }, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  } catch (err) {
+    console.error("CONTACT API ERROR:", err);
+    return NextResponse.json(
+      { error: "Invalid request.", details: err instanceof Error ? err.message : String(err) },
+      { status: 400 }
+    );
   }
 }
