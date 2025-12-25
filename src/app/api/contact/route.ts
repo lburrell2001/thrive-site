@@ -20,15 +20,49 @@ function isEmail(s: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
-function env(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env var: ${name}`);
-  return v;
-}
-
 function safe(input?: string | null) {
   const s = (input ?? "").toString().trim();
   return s.length ? s : "—";
+}
+
+function getEnv(name: string) {
+  return process.env[name] || "";
+}
+
+/** Accept JSON / FormData / raw text gracefully */
+async function readPayload(req: Request): Promise<Payload> {
+  const ct = (req.headers.get("content-type") || "").toLowerCase();
+
+  // JSON
+  if (ct.includes("application/json")) {
+    return (await req.json()) as Payload;
+  }
+
+  // FormData
+  if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
+    const fd = await req.formData();
+    return {
+      name: String(fd.get("name") || ""),
+      email: String(fd.get("email") || ""),
+      projectType: String(fd.get("projectType") || fd.get("project_type") || ""),
+      budget: String(fd.get("budget") || ""),
+      timeline: String(fd.get("timeline") || ""),
+      message: String(fd.get("message") || ""),
+      pageUrl: String(fd.get("pageUrl") || ""),
+      referrer: String(fd.get("referrer") || ""),
+    };
+  }
+
+  // Raw text fallback (handles missing/odd content-type)
+  const raw = await req.text();
+  if (!raw) return {} as Payload;
+
+  try {
+    return JSON.parse(raw) as Payload;
+  } catch {
+    // If someone posted plain text, don’t explode
+    return { message: raw } as Payload;
+  }
 }
 
 function escapeHtml(input: string) {
@@ -54,35 +88,14 @@ function infoRow(label: string, valueHtml: string) {
   `;
 }
 
-// Accept JSON + FormData submissions (prevents “Invalid request” on real site)
-async function readPayload(req: Request): Promise<Payload> {
-  const ct = req.headers.get("content-type") || "";
-
-  // JSON requests (fetch)
-  if (ct.includes("application/json")) {
-    return (await req.json()) as Payload;
-  }
-
-  // HTML form posts
-  if (ct.includes("multipart/form-data") || ct.includes("application/x-www-form-urlencoded")) {
-    const fd = await req.formData();
-    return {
-      name: String(fd.get("name") || ""),
-      email: String(fd.get("email") || ""),
-      projectType: String(fd.get("projectType") || fd.get("project_type") || ""),
-      budget: String(fd.get("budget") || ""),
-      timeline: String(fd.get("timeline") || ""),
-      message: String(fd.get("message") || ""),
-      pageUrl: String(fd.get("pageUrl") || ""),
-      referrer: String(fd.get("referrer") || ""),
-    };
-  }
-
-  // Last resort
-  return (await req.json()) as Payload;
-}
-
 export async function POST(req: Request) {
+  // Helpful request context (for debugging)
+  const requestInfo = {
+    contentType: req.headers.get("content-type") || "",
+    origin: req.headers.get("origin") || "",
+    referer: req.headers.get("referer") || "",
+  };
+
   try {
     const body = await readPayload(req);
 
@@ -94,16 +107,17 @@ export async function POST(req: Request) {
     const timeline = safe(body.timeline);
     const message = safe(body.message);
 
-    if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: "Name is required.", code: "VALIDATION_NAME" }, { status: 400 });
+    }
     if (!email || !isEmail(email)) {
-      return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
+      return NextResponse.json({ error: "Valid email is required.", code: "VALIDATION_EMAIL" }, { status: 400 });
     }
 
     const referrer = body.referrer || req.headers.get("referer") || null;
     const pageUrl = body.pageUrl || null;
 
     // 1) Save to Supabase (primary outcome)
-    // NOTE: cast avoids “never[]” typing issue if your service client loses generics
     const { error: dbError } = await (supabaseService as any)
       .from("contact_inquiries")
       .insert({
@@ -120,14 +134,34 @@ export async function POST(req: Request) {
       });
 
     if (dbError) {
-      console.error("SUPABASE ERROR:", dbError);
-      return NextResponse.json({ error: "Failed to submit. Try again." }, { status: 500 });
+      console.error("SUPABASE ERROR:", dbError, requestInfo);
+      return NextResponse.json(
+        { error: "Failed to submit. Try again.", code: "SUPABASE_INSERT", dbError },
+        { status: 500 }
+      );
     }
 
-    // 2) Email notification (secondary outcome)
-    const resend = new Resend(env("RESEND_API_KEY"));
-    const to = env("CONTACT_NOTIFY_TO");
-    const from = env("CONTACT_NOTIFY_FROM");
+    // 2) Email notification (secondary outcome) — NEVER block submission
+    const RESEND_API_KEY = getEnv("RESEND_API_KEY");
+    const CONTACT_NOTIFY_TO = getEnv("CONTACT_NOTIFY_TO");
+    const CONTACT_NOTIFY_FROM = getEnv("CONTACT_NOTIFY_FROM");
+
+    // If env isn’t set on Vercel, still return success for the form
+    if (!RESEND_API_KEY || !CONTACT_NOTIFY_TO || !CONTACT_NOTIFY_FROM) {
+      console.warn("EMAIL SKIPPED: Missing env vars", {
+        hasResendKey: !!RESEND_API_KEY,
+        hasTo: !!CONTACT_NOTIFY_TO,
+        hasFrom: !!CONTACT_NOTIFY_FROM,
+        requestInfo,
+      });
+
+      return NextResponse.json(
+        { ok: true, emailed: false, code: "EMAIL_SKIPPED_MISSING_ENV" },
+        { status: 200 }
+      );
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
 
     const subject = `New Thrive inquiry — ${name} (${projectType})`;
 
@@ -220,25 +254,38 @@ export async function POST(req: Request) {
       </div>
     `;
 
-    const { data, error: emailError } = await resend.emails.send({
-      from,
-      to,
-      subject,
-      html,
-      text, // fallback
-      replyTo: email,
-    });
+    try {
+      const { data, error: emailError } = await resend.emails.send({
+        from: CONTACT_NOTIFY_FROM,
+        to: CONTACT_NOTIFY_TO,
+        subject,
+        html,
+        text,
+        replyTo: email,
+      });
 
-    if (emailError) {
-      console.error("RESEND ERROR:", emailError);
-      return NextResponse.json({ ok: true, emailed: false, emailError }, { status: 200 });
+      if (emailError) {
+        console.error("RESEND ERROR:", emailError, requestInfo);
+        return NextResponse.json({ ok: true, emailed: false, code: "EMAIL_FAILED", emailError }, { status: 200 });
+      }
+
+      return NextResponse.json({ ok: true, emailed: true, code: "OK", data }, { status: 200 });
+    } catch (emailCrash) {
+      console.error("EMAIL CRASH:", emailCrash, requestInfo);
+      return NextResponse.json(
+        { ok: true, emailed: false, code: "EMAIL_CRASH", details: emailCrash instanceof Error ? emailCrash.message : String(emailCrash) },
+        { status: 200 }
+      );
     }
-
-    return NextResponse.json({ ok: true, emailed: true, data }, { status: 200 });
   } catch (err) {
-    console.error("CONTACT API ERROR:", err);
+    console.error("CONTACT API ERROR:", err, requestInfo);
     return NextResponse.json(
-      { error: "Invalid request.", details: err instanceof Error ? err.message : String(err) },
+      {
+        error: "Invalid request.",
+        code: "REQUEST_PARSE_OR_RUNTIME",
+        details: err instanceof Error ? err.message : String(err),
+        requestInfo,
+      },
       { status: 400 }
     );
   }
