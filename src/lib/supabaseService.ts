@@ -8,12 +8,11 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 function assertEnv() {
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error(
-      "Missing Supabase service env vars. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env.local (project root) and restart dev server."
+      "Missing Supabase service env vars. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to .env.local and restart."
     );
   }
 }
 
-// Create the typed client only when used
 function getClient(): SupabaseClient<Database> {
   assertEnv();
   return createClient<Database>(supabaseUrl!, serviceRoleKey!, {
@@ -21,11 +20,10 @@ function getClient(): SupabaseClient<Database> {
   });
 }
 
-// Proxy keeps your “don’t throw at import-time” behavior
 export const supabaseService: SupabaseClient<Database> = new Proxy({} as SupabaseClient<Database>, {
   get(_target, prop) {
     const client = getClient();
-    // @ts-expect-error dynamic proxy passthrough
+    // @ts-expect-error proxy passthrough
     return client[prop];
   },
 });

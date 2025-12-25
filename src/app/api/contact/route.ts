@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Valid email is required." }, { status: 400 });
 
     // 1) Save to Supabase (primary outcome)
-    const { error: dbError } = await supabaseService
+    const { error: dbError } = await (supabaseService as any)
   .from("contact_inquiries")
   .insert({
     name,
@@ -86,6 +86,7 @@ export async function POST(req: Request) {
     page_url: body.pageUrl || null,
     status: "new",
   });
+
 
 
     if (dbError) {
