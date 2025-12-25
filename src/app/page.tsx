@@ -398,7 +398,7 @@ export default function HomePage() {
           </div>
 
           <div className="hero-contact-card">
-            <p className="hero-text">
+            <p className="hero-text-nowhite">
               Ready to collaborate on your brand, website or next launch?
             </p>
             <a

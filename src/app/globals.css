@@ -128,6 +128,14 @@ a {
   margin: 0 0 10px;
 }
 
+.hero-text-nowhite {
+  max-width: 620px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--thrive-black);
+  margin: 0 0 10px;
+}
+
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
