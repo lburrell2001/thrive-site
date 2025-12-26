@@ -135,8 +135,8 @@ export default function ContactForm() {
 
       <p style={{ fontSize: 12, color: "#555", marginTop: 12 }}>
         Prefer email? Reach me at{" "}
-        <a href="mailto:thrivecreativestudios@gmail.com" style={{ textDecoration: "underline" }}>
-         thrivecreativestudios@gmail.com
+        <a href="mailto:hello@thrivecreativestudios.org" style={{ textDecoration: "underline" }}>
+         hello@thrivecreativestudios.org
         </a>
         .
       </p>
