@@ -231,7 +231,9 @@ body {
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+  background: var(--thrive-orange);
+  color: var(--thrive-white);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.831);
 }
 
 .btn-secondary {
@@ -242,6 +244,13 @@ body {
 
 .btn-secondary:hover {
   background: #f5f5f5;
+}
+/* Header CTA hover override (ensures it wins) */
+.site-header .btn-primary:hover {
+  background: var(--thrive-orange);
+  color: var(--thrive-white);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
 }
 
 /* ----------------------------------------------------------------------

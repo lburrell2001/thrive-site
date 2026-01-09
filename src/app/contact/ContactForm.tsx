@@ -1,11 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const styles = useMemo(() => {
+    const label: React.CSSProperties = {
+      display: "block",
+      fontWeight: 650,
+      fontSize: 13,
+      color: "#111",
+      marginBottom: 6,
+    };
+
+    const controlBase: React.CSSProperties = {
+      width: "100%",
+      padding: "10px 12px",
+      borderRadius: 12,
+
+      backgroundColor: "#ffffff",
+      color: "#111111",
+      border: "1px solid rgba(0,0,0,0.15)",
+
+      fontSize: 14,
+      lineHeight: 1.4,
+      outline: "none",
+
+      transition: "border-color 150ms ease, box-shadow 150ms ease",
+    };
+
+    const helper: React.CSSProperties = {
+      fontSize: 12,
+      color: "rgba(0,0,0,0.65)",
+      marginTop: 10,
+      lineHeight: 1.5,
+    };
+
+    const alertBase: React.CSSProperties = {
+      fontSize: 13,
+      marginTop: 6,
+      padding: "10px 12px",
+      borderRadius: 12,
+      border: "1px solid rgba(0,0,0,0.08)",
+    };
+
+    return { label, controlBase, helper, alertBase };
+  }, []);
+
+  function focusStyle(on: boolean): React.CSSProperties {
+    return on
+      ? {
+          borderColor: "var(--thrive-magenta)",
+          boxShadow: "0 0 0 3px rgba(209, 46, 131, 0.18)",
+        }
+      : {};
+  }
+
+  // Track focus per-field so we can emulate :focus with inline styles
+  const [focus, setFocus] = useState<Record<string, boolean>>({
+    name: false,
+    email: false,
+    projectType: false,
+    budget: false,
+    timeline: false,
+    message: false,
+  });
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -17,12 +79,12 @@ export default function ContactForm() {
     const formData = new FormData(form);
 
     const payload = {
-      name: String(formData.get("name") || ""),
-      email: String(formData.get("email") || ""),
-      projectType: String(formData.get("projectType") || ""),
-      budget: String(formData.get("budget") || ""),
-      timeline: String(formData.get("timeline") || ""),
-      message: String(formData.get("message") || ""),
+      name: String(formData.get("name") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      projectType: String(formData.get("projectType") || "").trim(),
+      budget: String(formData.get("budget") || "").trim(),
+      timeline: String(formData.get("timeline") || "").trim(),
+      message: String(formData.get("message") || "").trim(),
       pageUrl: typeof window !== "undefined" ? window.location.href : "",
       referrer: typeof document !== "undefined" ? document.referrer : "",
     };
@@ -36,8 +98,9 @@ export default function ContactForm() {
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) setErr(data?.error || "Something went wrong. Please try again.");
-      else {
+      if (!res.ok) {
+        setErr(data?.error || "Something went wrong. Please try again.");
+      } else {
         setOk("Got it! I’ll reply with next steps within 1–2 business days.");
         form.reset();
       }
@@ -51,28 +114,73 @@ export default function ContactForm() {
   return (
     <form
       onSubmit={onSubmit}
-      style={{ marginTop: 32, maxWidth: 560, display: "grid", gap: 16, fontSize: 14 }}
+      style={{
+        marginTop: 28,
+        maxWidth: 560,
+        display: "grid",
+        gap: 16,
+        fontSize: 14,
+      }}
     >
+      {/* NAME */}
       <div>
-        <label htmlFor="name">Name</label>
-        <input id="name" name="name" type="text" placeholder="Your name" style={inputStyle} required />
+        <label htmlFor="name" style={styles.label}>
+          Name
+        </label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          placeholder="Your name"
+          required
+          style={{ ...styles.controlBase, ...focusStyle(focus.name) }}
+          onFocus={() => setFocus((s) => ({ ...s, name: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, name: false }))}
+        />
       </div>
 
+      {/* EMAIL */}
       <div>
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email" style={styles.label}>
+          Email
+        </label>
         <input
           id="email"
           name="email"
           type="email"
           placeholder="you@example.com"
-          style={inputStyle}
           required
+          style={{ ...styles.controlBase, ...focusStyle(focus.email) }}
+          onFocus={() => setFocus((s) => ({ ...s, email: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, email: false }))}
         />
       </div>
 
+      {/* PROJECT TYPE */}
       <div>
-        <label htmlFor="projectType">What are you looking for?</label>
-        <select id="projectType" name="projectType" style={inputStyle} defaultValue="">
+        <label htmlFor="projectType" style={styles.label}>
+          What are you looking for?
+        </label>
+        <select
+          id="projectType"
+          name="projectType"
+          defaultValue=""
+          style={{
+            ...styles.controlBase,
+            ...focusStyle(focus.projectType),
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            backgroundImage:
+              "linear-gradient(45deg, transparent 50%, rgba(0,0,0,0.55) 50%), linear-gradient(135deg, rgba(0,0,0,0.55) 50%, transparent 50%)",
+            backgroundPosition: "calc(100% - 18px) 50%, calc(100% - 12px) 50%",
+            backgroundSize: "6px 6px, 6px 6px",
+            backgroundRepeat: "no-repeat",
+            paddingRight: 34,
+          }}
+          onFocus={() => setFocus((s) => ({ ...s, projectType: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, projectType: false }))}
+        >
           <option value="">Select one</option>
           <option>Branding / logo</option>
           <option>Poster or print design</option>
@@ -83,9 +191,31 @@ export default function ContactForm() {
         </select>
       </div>
 
+      {/* BUDGET */}
       <div>
-        <label htmlFor="budget">Estimated budget</label>
-        <select id="budget" name="budget" style={inputStyle} defaultValue="">
+        <label htmlFor="budget" style={styles.label}>
+          Estimated budget
+        </label>
+        <select
+          id="budget"
+          name="budget"
+          defaultValue=""
+          style={{
+            ...styles.controlBase,
+            ...focusStyle(focus.budget),
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            backgroundImage:
+              "linear-gradient(45deg, transparent 50%, rgba(0,0,0,0.55) 50%), linear-gradient(135deg, rgba(0,0,0,0.55) 50%, transparent 50%)",
+            backgroundPosition: "calc(100% - 18px) 50%, calc(100% - 12px) 50%",
+            backgroundSize: "6px 6px, 6px 6px",
+            backgroundRepeat: "no-repeat",
+            paddingRight: 34,
+          }}
+          onFocus={() => setFocus((s) => ({ ...s, budget: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, budget: false }))}
+        >
           <option value="">Choose a range</option>
           <option>Under $200</option>
           <option>$200 – $400</option>
@@ -94,62 +224,96 @@ export default function ContactForm() {
         </select>
       </div>
 
+      {/* TIMELINE */}
       <div>
-        <label htmlFor="timeline">Timeline</label>
+        <label htmlFor="timeline" style={styles.label}>
+          Timeline
+        </label>
         <input
           id="timeline"
           name="timeline"
           type="text"
           placeholder="For example: launch in March, or flexible"
-          style={inputStyle}
+          style={{ ...styles.controlBase, ...focusStyle(focus.timeline) }}
+          onFocus={() => setFocus((s) => ({ ...s, timeline: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, timeline: false }))}
         />
       </div>
 
+      {/* MESSAGE */}
       <div>
-        <label htmlFor="message">Project details</label>
+        <label htmlFor="message" style={styles.label}>
+          Project details
+        </label>
         <textarea
           id="message"
           name="message"
           placeholder="Tell me about your brand, goals, and any links you'd like to share."
-          rows={5}
-          style={{ ...inputStyle, resize: "vertical" }}
+          rows={6}
+          style={{
+            ...styles.controlBase,
+            ...focusStyle(focus.message),
+            resize: "vertical",
+          }}
+          onFocus={() => setFocus((s) => ({ ...s, message: true }))}
+          onBlur={() => setFocus((s) => ({ ...s, message: false }))}
         />
       </div>
 
-      <p style={{ fontSize: 12, color: "#555", marginTop: 4 }}>
-        All confirmed bookings require a $30 deposit to secure your spot. After you submit this form,
-        I&apos;ll follow up with a quick discovery call and next steps.
+      {/* HELPER TEXT */}
+      <p style={styles.helper}>
+        All confirmed bookings require a <strong>$30 deposit</strong> to secure your spot. After you
+        submit this form, I&apos;ll follow up with a quick discovery call and next steps.
       </p>
 
-      {err && <p style={{ fontSize: 13, marginTop: 6, color: "#b00020" }}><strong>{err}</strong></p>}
-      {ok && <p style={{ fontSize: 13, marginTop: 6 }}><strong>{ok}</strong></p>}
+      {/* STATUS */}
+      {err && (
+        <p
+          style={{
+            ...styles.alertBase,
+            color: "#7a0b1a",
+            background: "rgba(176, 0, 32, 0.06)",
+            borderColor: "rgba(176, 0, 32, 0.18)",
+          }}
+        >
+          <strong>{err}</strong>
+        </p>
+      )}
+      {ok && (
+        <p
+          style={{
+            ...styles.alertBase,
+            color: "#0b5a2a",
+            background: "rgba(16, 185, 129, 0.10)",
+            borderColor: "rgba(16, 185, 129, 0.20)",
+          }}
+        >
+          <strong>{ok}</strong>
+        </p>
+      )}
 
+      {/* SUBMIT */}
       <button
         type="submit"
         className="btn btn-primary"
         disabled={loading}
-        style={{ marginTop: 8, width: "fit-content", opacity: loading ? 0.7 : 1 }}
+        style={{
+          marginTop: 6,
+          width: "fit-content",
+          opacity: loading ? 0.75 : 1,
+        }}
       >
         {loading ? "Submitting…" : "Submit inquiry"}
       </button>
 
-      <p style={{ fontSize: 12, color: "#555", marginTop: 12 }}>
+      {/* EMAIL FALLBACK */}
+      <p style={{ ...styles.helper, marginTop: 10 }}>
         Prefer email? Reach me at{" "}
         <a href="mailto:hello@thrivecreativestudios.org" style={{ textDecoration: "underline" }}>
-         hello@thrivecreativestudios.org
+          hello@thrivecreativestudios.org
         </a>
         .
       </p>
     </form>
   );
 }
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  marginTop: 4,
-  padding: "9px 11px",
-  borderRadius: 10,
-  border: "1px solid rgba(0,0,0,0.12)",
-  fontSize: 14,
-  outline: "none",
-};
