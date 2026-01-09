@@ -26,8 +26,11 @@ function safe(input?: string | null) {
 }
 
 function getEnv(name: string) {
-  return process.env[name] || "";
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env var: ${name}`);
+  return v;
 }
+
 
 /** Accept JSON / FormData / raw text gracefully */
 async function readPayload(req: Request): Promise<Payload> {
