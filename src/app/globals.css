@@ -1,6 +1,7 @@
 /* ======================================================================
    THRIVE GLOBAL STYLES (globals.css)
    Organized + deduped + labeled
+   Mobile + Desktop safe (no weird overflow/spacing)
    ====================================================================== */
 
 /* ----------------------------------------------------------------------
@@ -13,6 +14,11 @@
   box-sizing: border-box;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
 html,
 body {
   height: 100%;
@@ -20,6 +26,7 @@ body {
 
 body {
   margin: 0;
+  overflow-x: hidden; /* kills random horizontal scroll */
 }
 
 img,
@@ -29,9 +36,38 @@ video {
   display: block; /* prevents inline-gap */
 }
 
+/* Include other media types so nothing can overflow unexpectedly */
+svg,
+canvas {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Long URLs / words shouldn't force sideways scrolling */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+a {
+  overflow-wrap: anywhere;
+}
+
+/* Form controls can blow up small layouts */
+input,
+textarea,
+select,
+button {
+  font: inherit;
+  max-width: 100%;
 }
 
 /* ----------------------------------------------------------------------
@@ -54,6 +90,11 @@ a {
 
   /* Layout */
   --wrapper-max: 1080px;
+
+  /* Wrapper padding scale */
+  --wrap-pad-mobile: 16px;
+  --wrap-pad-sm: 24px;
+  --wrap-pad-lg: 28px;
 
   /* Radii */
   --radius-xl: 40px;
@@ -85,24 +126,44 @@ body {
   min-height: 100vh;
 }
 
+/* ✅ Responsive wrapper padding + safe-area (fixes edge-to-edge + weird header alignment) */
 .wrapper {
   width: 100%;
   max-width: var(--wrapper-max);
   margin: 0 auto;
-  padding: 0 20px;
+  padding-left: max(var(--wrap-pad-mobile), env(safe-area-inset-left));
+  padding-right: max(var(--wrap-pad-mobile), env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .wrapper {
+    padding-left: max(var(--wrap-pad-sm), env(safe-area-inset-left));
+    padding-right: max(var(--wrap-pad-sm), env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 1024px) {
+  .wrapper {
+    padding-left: max(var(--wrap-pad-lg), env(safe-area-inset-left));
+    padding-right: max(var(--wrap-pad-lg), env(safe-area-inset-right));
+  }
 }
 
 .section {
   position: relative;
 }
 
-/* Shared “hero” text styles (used across pages) */
+/* ----------------------------------------------------------------------
+   Shared “hero” text styles (used across pages)
+   ✅ Mobile spacing tightened (less top gap, cleaner rhythm)
+   ---------------------------------------------------------------------- */
+
 .hero-tag {
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--thrive-black);
-  margin: 50px 0 10px;
+  margin: 40px 0 10px; /* desktop default */
 }
 
 .hero-title {
@@ -146,6 +207,27 @@ body {
   margin-top: 18px;
 }
 
+/* ✅ Mobile: reduce the "big empty space" above hero sections */
+@media (max-width: 640px) {
+  .hero-tag {
+    margin: 22px 0 8px; /* was 50px top */
+  }
+
+  .hero-title {
+    margin-bottom: 10px; /* slightly tighter */
+  }
+
+  .hero-text,
+  .hero-text-nowhite {
+    margin-bottom: 8px;
+  }
+
+  .hero-actions {
+    margin-top: 14px;
+    gap: 10px;
+  }
+}
+
 /* ----------------------------------------------------------------------
    04) HEADER / NAV / LOGO
    ---------------------------------------------------------------------- */
@@ -156,14 +238,32 @@ body {
   z-index: 40;
   background: var(--thrive-white);
   border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-top: env(safe-area-inset-top);
 }
 
+/* Header inner row */
 .site-header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 10px 0;
+  gap: 14px;
+
+  /* ✅ side padding */
+  padding: 20px 24px;
+
+  /* ✅ center + constrain like the rest of the site */
+  max-width: var(--wrapper-max);
+  margin: 0 auto;
+
+  min-width: 0;
+}
+
+/* Mobile: slightly tighter sides */
+@media (max-width: 640px) {
+  .site-header-inner {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 .logo-lockup {
@@ -180,7 +280,7 @@ body {
   display: block;
 }
 
-/* Optional: if you still use the circle mark anywhere */
+/* Optional mark */
 .logo-mark {
   width: 22px;
   height: 22px;
@@ -193,6 +293,7 @@ body {
   display: flex;
   gap: 12px;
   font-size: 13px;
+  min-width: 0;
 }
 
 .nav-links a {
@@ -203,6 +304,17 @@ body {
 .nav-links a:hover {
   background: rgba(0, 0, 0, 0.04);
 }
+
+/* Extra-tight phones */
+@media (max-width: 420px) {
+  .nav-links {
+    gap: 8px;
+  }
+  .nav-links a {
+    padding: 6px 6px;
+  }
+}
+
 
 /* ----------------------------------------------------------------------
    05) BUTTONS
@@ -233,7 +345,7 @@ body {
   transform: translateY(-1px);
   background: var(--thrive-orange);
   color: var(--thrive-white);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.831);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.35);
 }
 
 .btn-secondary {
@@ -245,6 +357,7 @@ body {
 .btn-secondary:hover {
   background: #f5f5f5;
 }
+
 /* Header CTA hover override (ensures it wins) */
 .site-header .btn-primary:hover {
   background: var(--thrive-orange);
@@ -272,6 +385,7 @@ body {
   background-repeat: no-repeat;
 }
 
+/* Banner card */
 .hero-banner {
   background: var(--thrive-white);
   border-radius: var(--radius-xl);
@@ -279,11 +393,13 @@ body {
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.16);
 }
 
+/* Layout row */
 .hero-banner-top {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
   gap: 24px;
+  min-width: 0;
 }
 
 @media (max-width: 800px) {
@@ -295,8 +411,10 @@ body {
 
 .hero-banner-copy {
   max-width: 640px;
+  min-width: 0;
 }
 
+/* Hero text */
 .hero-eyebrow {
   font-size: 12px;
   letter-spacing: 0.18em;
@@ -364,6 +482,40 @@ body {
   transform: translateY(-1px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
 }
+
+/* ----------------------------------------------------------------------
+   ✅ REAL MOBILE SPACING FIX (works even with wrapper padding)
+   ---------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  /* make sure the white card never touches the edges */
+  .hero-banner {
+    margin-left: auto;
+    margin-right: auto;
+
+    /* ✅ this is the key: adds space OUTSIDE the card */
+    width: min(100%, calc(100vw - 32px)); /* 16px padding each side */
+    
+    padding: 22px 20px 24px;
+    border-radius: 32px;
+  }
+
+  /* when stacked, give the top row a little extra breathing room */
+  .hero-banner-top {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+  .hero-landing {
+    padding: 110px 0;
+  }
+
+  .hero-pills {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
 
 /* ----------------------------------------------------------------------
    07) MARQUEE STRIP (ORANGE RUNNING STRIP)
@@ -446,11 +598,14 @@ body {
 
 /* ----------------------------------------------------------------------
    09) HOMEPAGE: FEATURED CASE STUDY BAND
+   ✅ Mobile spacing + padding improvements
    ---------------------------------------------------------------------- */
 
 .section-work {
   position: relative;
   overflow: hidden;
+
+  /* desktop default */
   padding: 20px 0 160px;
 
   --section-bg: var(--thrive-blue);
@@ -467,7 +622,7 @@ body {
 }
 
 .case-card {
-  margin-top: 32px;
+  margin-top: 28px; /* slightly tighter */
   background: var(--thrive-white);
   color: var(--thrive-black);
   border-radius: var(--radius-md);
@@ -488,6 +643,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
 }
 
 .case-kicker {
@@ -502,11 +658,13 @@ body {
   font-weight: 900;
   margin: 0;
 }
-
+.case-text{
+  font-weight:250;
+}
 .case-services {
   font-size: 13px;
   font-style: italic;
-  margin: 4px 0;
+  margin: 0;
 }
 
 .case-stats {
@@ -538,35 +696,32 @@ body {
   justify-content: center;
 }
 
-/* ✅ Single source of truth for the phone block (deduped) */
+/* ✅ Single source of truth for the phone block */
 .case-phone {
   position: relative;
   width: 320px;
   aspect-ratio: 9 / 19.5;
   border-radius: 28px;
   overflow: hidden;
-  background: #0b0b2d; /* fallback behind video/image */
+  background: #0b0b2d;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
 }
 
-/* If you render <img> inside the phone */
 .case-phone-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-/* If you render <video> inside the phone */
 .case-phone-video {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* keeps full video visible */
+  object-fit: contain;
 }
 
-/* Optional skeleton placeholder */
 .case-phone-skeleton {
   width: 100%;
   height: 100%;
@@ -587,6 +742,47 @@ body {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* ---- FIX: stop hero-text margins from creating a giant gap inside case-copy ---- */
+.case-copy .hero-text {
+  margin: 0;
+}
+
+/* ✅ Mobile: reduce section bottom padding + tighten card + prevent cramped media */
+@media (max-width: 640px) {
+  .section-work {
+    padding: 18px 0 160px; /* was 160 bottom */
+  }
+
+  .case-card {
+    margin-top: 18px;
+    padding: 20px 16px;
+    border-radius: 20px;
+    gap: 18px; /* less air between copy + phone */
+  }
+
+  .case-copy {
+    gap: 8px;
+  }
+
+  .case-stats {
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  .case-stats > div {
+    min-width: 96px; /* helps wrap cleaner on small phones */
+  }
+
+  .case-phone {
+    width: min(320px, 82vw); /* keeps it from touching edges */
+    border-radius: 24px;
+  }
+
+  .scallop-edge__svg {
+    height: 120px; /* less overlap feeling on small screens */
+  }
 }
 
 /* ----------------------------------------------------------------------
@@ -794,10 +990,12 @@ body {
   align-items: stretch;
   justify-content: space-between;
   gap: 24px;
+  min-width: 0;
 }
 
 .service-video-copy {
   max-width: 660px;
+  min-width: 0;
 }
 
 .service-video-columns {
@@ -1417,16 +1615,227 @@ body {
 }
 
 /* ----------------------------------------------------------------------
-   19) SCROLL REVEAL (UTILITY)
+   20) FOOTER (THRIVE) — magenta base + bg image (low opacity) + navy text
    ---------------------------------------------------------------------- */
 
-.sr {
-  opacity: 0;
-  transform: translateY(22px);
-  transition: opacity 420ms ease-out, transform 420ms ease-out;
+.site-footer {
+  position: relative;
+  overflow: hidden;
+
+  /* ✅ solid brand base */
+  background-color: var(--thrive-white);
+
+  /* ✅ make all footer text navy by default */
+  color: var(--thrive-blue);
 }
 
-.sr-visible {
-  opacity: 1;
-  transform: translateY(0);
+/* ✅ background image layer with reduced opacity (text stays crisp) */
+.site-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+
+  background-image: url("/site-footer.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  opacity: 0.18; /* adjust 0.12–0.25 */
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ✅ ensure everything sits above bg */
+.site-footer .wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+/* ✅ force all footer descendants to navy (no stragglers) */
+.site-footer,
+.site-footer * {
+  color: var(--thrive-navy);
+}
+
+/* ✅ give the wrapper vertical padding so side padding stays correct */
+.footer-wrap {
+  padding-top: 72px;
+  padding-bottom: 44px;
+}
+
+/* Layout */
+.footer-card {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: start;
+
+  /* ✅ fixes the “services vs explore” collision */
+  gap: 64px;
+
+  min-width: 0;
+}
+
+@media (max-width: 880px) {
+  .footer-card {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
+/* Brand block */
+.footer-brand {
+  min-width: 0;
+  max-width: 560px;
+}
+
+.footer-logo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.footer-logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.footer-tagline {
+  margin: 16px 0 18px;
+  font-size: 18px;
+  line-height: 1.55;
+  max-width: 48ch;
+
+  /* ✅ navy, but softer */
+  color: rgba(31, 42, 107, 0.92);
+}
+
+/* ✅ Services pills spacing + readable separation */
+.footer-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+
+.footer-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border-radius: 999px;
+
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+
+  /* ✅ navy text */
+  color: var(--thrive-navy);
+
+  /* ✅ pill still pops on magenta, but stays light */
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(31, 42, 107, 0.25);
+
+  transition: transform 150ms ease-out, background-color 150ms ease-out;
+  white-space: nowrap;
+}
+
+.footer-pill:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Link columns */
+.footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px;
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .footer-links {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+}
+
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.footer-col-title {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+
+  /* ✅ navy, muted */
+  color: rgba(31, 42, 107, 0.72);
+}
+
+.footer-col a {
+  font-size: 18px;
+  width: fit-content;
+  border-radius: 12px;
+  padding: 6px 8px;
+  margin-left: -8px;
+
+  /* ✅ navy */
+  color: rgba(31, 42, 107, 0.95);
+
+  transition: background-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.footer-col a:hover {
+  background: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+/* Bottom row */
+.footer-bottom {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(31, 42, 107, 0.22);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  font-size: 18px;
+  color: rgba(31, 42, 107, 0.9);
+}
+
+@media (max-width: 640px) {
+  .footer-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 16px;
+  }
+}
+
+.footer-bottom-right {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.footer-bottom-right a {
+  color: rgba(31, 42, 107, 0.95);
+  padding: 6px 8px;
+  margin-left: -8px;
+  border-radius: 12px;
+}
+
+.footer-bottom-right a:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.footer-dot {
+  opacity: 0.7;
 }

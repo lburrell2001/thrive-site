@@ -5,6 +5,8 @@ import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "./components/SiteHeader";
 import { createClient } from "@supabase/supabase-js";
+import SiteFooter from "./components/SiteFooter";
+
 
 type FeaturedProject = {
   id: string;
@@ -191,7 +193,7 @@ export default function HomePage() {
                 {featured ? `${featured.title} — case study` : "Loading…"}
               </h3>
 
-              <p className="hero-text">
+              <p className="case-text">
                 {featured?.overview ??
                   "A featured case study from Thrive Creative Studios—coming in hot."}
               </p>
@@ -410,6 +412,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      {/* =======================
+          7. FOOTER
+      ======================== */}
+      <SiteFooter />
     </div>
   );
 }

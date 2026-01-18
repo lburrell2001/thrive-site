@@ -138,7 +138,64 @@ export default function WebUxServicePage() {
         </section>
 
         <FeaturedWebUxGallery />
-        {/* process section stays the same */}
+        <section className="process-section" aria-label="Web & UX process timeline">
+  <div className="wrapper">
+    <div className="process-header">
+      <p className="hero-tag">Timeline</p>
+      <h2 className="hero-title">How we design & build (without the chaos).</h2>
+      <p className="hero-text">
+        Strategy first, UX that makes sense, and a site that looks good and works even better.
+      </p>
+    </div>
+
+    <div className="process-stack" role="list">
+      <article className="process-card pc-1" role="listitem">
+        <div className="process-card-top">
+          <span className="process-step">01</span>
+          <h3 className="process-title">Discovery + goals</h3>
+        </div>
+        <p className="process-desc">
+          We get clear on your audience, what success looks like, and what the site needs to do
+          (book, sell, inform, convert, or all of the above).
+        </p>
+      </article>
+
+      <article className="process-card pc-2" role="listitem">
+        <div className="process-card-top">
+          <span className="process-step">02</span>
+          <h3 className="process-title">UX map + structure</h3>
+        </div>
+        <p className="process-desc">
+          Sitemap, page flow, and wireframes that keep things simple for users and easy for you
+          to maintain. No mystery navigation.
+        </p>
+      </article>
+
+      <article className="process-card pc-3" role="listitem">
+        <div className="process-card-top">
+          <span className="process-step">03</span>
+          <h3 className="process-title">Visual design + build</h3>
+        </div>
+        <p className="process-desc">
+          We bring the vibe to life (type, color, layout) and build it responsive—fast, clean,
+          and aligned across desktop and mobile.
+        </p>
+      </article>
+
+      <article className="process-card pc-4" role="listitem">
+        <div className="process-card-top">
+          <span className="process-step">04</span>
+          <h3 className="process-title">QA + launch + handoff</h3>
+        </div>
+        <p className="process-desc">
+          Final checks (mobile, accessibility, performance), launch support, and a clean handoff
+          so you can update your site without feeling stuck.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
       </main>
     </div>
   );
