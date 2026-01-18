@@ -1,7 +1,7 @@
 // src/app/work/[slug]/page.tsx
 import Link from "next/link";
 import { notFound } from "next/navigation";
-
+import SiteFooter from "../../components/SiteFooter";
 import SiteHeader from "../../components/SiteHeader";
 import ProjectGallery from "./ProjectGallery";
 import styles from "./ProjectPage.module.css";
@@ -252,6 +252,10 @@ export default async function ProjectSlugPage({
           </div>
         </section>
       </div>
+      {/* =======================
+                            7. FOOTER
+                        ======================== */}
+                        <SiteFooter />
     </div>
   );
 }

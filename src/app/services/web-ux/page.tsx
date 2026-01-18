@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { MEDIA } from "@/lib/medita";
+import SiteFooter from "../../components/SiteFooter";
 
 export const metadata = {
   title: "Web + UX · Thrive Creative Studios",
@@ -197,6 +198,10 @@ export default function WebUxServicePage() {
 </section>
 
       </main>
+      {/* =======================
+                      7. FOOTER
+                  ======================== */}
+                  <SiteFooter />
     </div>
   );
 }

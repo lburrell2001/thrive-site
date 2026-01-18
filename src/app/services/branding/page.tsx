@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { MEDIA } from "@/lib/medita";
+import SiteFooter from "../../components/SiteFooter";
 
 export const metadata = {
   title: "Branding · Thrive Creative Studios",
@@ -200,6 +201,10 @@ export default function BrandingServicePage() {
           </div>
         </section>
       </main>
+      {/* =======================
+                7. FOOTER
+            ======================== */}
+            <SiteFooter />
     </div>
   );
 }

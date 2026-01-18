@@ -1,6 +1,7 @@
 // src/app/contact/page.tsx
 import SiteHeader from "../components/SiteHeader";
 import ContactForm from "./ContactForm";
+import SiteFooter from "../components/SiteFooter";
 
 export const metadata = {
   title: "Contact · Thrive Creative Studios",
@@ -30,9 +31,14 @@ export default function ContactPage() {
 
             {/* Contact form */}
             <ContactForm />
+
           </div>
         </section>
       </main>
+      {/* =======================
+                7. FOOTER
+            ======================== */}
+            <SiteFooter />
     </div>
   );
 }

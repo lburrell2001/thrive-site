@@ -2,6 +2,7 @@
 import SiteHeader from "../components/SiteHeader";
 import Link from "next/link";
 import { MEDIA } from "@/lib/medita";
+import SiteFooter from "../components/SiteFooter";
 
 export const metadata = {
   title: "Services & Bundles · Thrive Creative Studios",
@@ -156,6 +157,10 @@ export default function ServicesPage() {
           </div>
         </section>
       </main>
+         {/* =======================
+                            7. FOOTER
+                        ======================== */}
+                        <SiteFooter />
     </div>
   );
 }

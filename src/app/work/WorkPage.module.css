@@ -1,151 +1,156 @@
-/* src/app/work/WorkPage.module.css */
+/* ----------------------------------------------------------------------
+   WORK PAGE SHELL (pad the whole page)
+   ---------------------------------------------------------------------- */
 
 .page {
+  /* background, min-height optional if you want */
   min-height: 100vh;
-  background: #fff;
-  color: #0b0b10;
 }
 
+/* This is the real wrapper that holds header + grid */
 .wrap {
-  width: min(1120px, calc(100% - 40px));
+  /* ✅ whole page padding */
+  padding-left: 16px;
+  padding-right: 16px;
+
+  /* ✅ keep content from going too wide */
+  max-width: 1080px; /* match your --wrapper-max */
   margin: 0 auto;
-  padding: 40px 0 90px;
+
+  /* optional top/bottom spacing */
+  padding-top: 34px;
+  padding-bottom: 80px;
 }
 
-.hero {
-  padding: 22px 0 18px;
+@media (min-width: 640px) {
+  .wrap {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
 }
 
-.kicker {
-  margin: 0 0 12px;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  font-weight: 800;
-  font-size: 12px;
-  color: rgba(10, 10, 14, 0.6);
+@media (min-width: 1024px) {
+  .wrap {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
 }
 
-.heroTitle {
-  margin: 0 0 12px;
-  font-size: clamp(40px, 4.2vw, 58px);
-  line-height: 1.02;
+/* Header spacing */
+.header {
+  margin-bottom: 22px;
+}
+
+.h1 {
+  margin: 0 0 10px;
+  font-size: 48px;
+  font-weight: 900;
   letter-spacing: -0.03em;
 }
 
-.heroText {
+.sub {
   margin: 0;
   font-size: 16px;
-  line-height: 1.55;
-  color: rgba(10, 10, 14, 0.65);
-  max-width: 62ch;
+  line-height: 1.7;
+  opacity: 0.85;
+  max-width: 72ch;
 }
 
-.wall {
-  padding-top: 18px;
+.muted {
+  opacity: 0.7;
 }
 
-/* KEY: stable grid = no overlap */
+/* ----------------------------------------------------------------------
+   MASONRY GRID (NO outer padding here)
+   ---------------------------------------------------------------------- */
+
 .grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: 46px; /* controls mosaic "row unit" */
-  gap: 18px;
+  column-count: 3;
+  column-gap: 18px;
 }
 
-/* Tile is the Link itself (clickable) */
+@media (max-width: 980px) {
+  .grid {
+    column-count: 2;
+    column-gap: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .grid {
+    column-count: 1;
+    column-gap: 0;
+  }
+}
+
+/* Each masonry item */
 .tile {
-  position: relative;
-  display: block;
-  border-radius: 26px;
-  overflow: hidden;
-  text-decoration: none;
-  color: inherit;
-  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.18);
-  background: #101018;
-  isolation: isolate;
-  transform: translateZ(0);
-}
-
-/* make sure nothing steals clicks */
-.bg,
-.img,
-.label {
-  pointer-events: none;
-}
-
-.bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(700px 320px at 15% 15%, rgba(255, 62, 138, 0.18), transparent 58%),
-    radial-gradient(700px 320px at 85% 70%, rgba(90, 240, 200, 0.14), transparent 58%),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.55));
-}
-
-.img {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
+  display: inline-block;
   width: 100%;
-  height: 100%;
+  margin: 0 0 18px;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  text-decoration: none;
+
+  transition: transform 160ms ease-out;
+}
+
+.tile:hover {
+  transform: translateY(-2px);
+}
+
+/* Media wrapper so overlays position correctly */
+.media {
+  position: relative;
+  width: 100%;
+}
+
+/* Image behaves like a normal responsive image */
+.img {
+  width: 100%;
+  height: auto;
+  display: block;
   object-fit: cover;
 }
 
+/* Overlay gradient / tint */
+.bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 35%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+}
+
+/* Label */
 .label {
   position: absolute;
-  left: 18px;
-  right: 18px;
-  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: white;
   z-index: 2;
-  text-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
 .cat {
-  display: block;
-  font-size: 12px;
-  letter-spacing: 0.25em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.78);
-  margin-bottom: 6px;
+  opacity: 0.9;
 }
 
 .name {
-  display: block;
+  font-size: 18px;
   font-weight: 900;
-  font-size: 22px;
-  color: #fff;
-  letter-spacing: -0.02em;
-}
-
-/* Hover (subtle, Thrive-y) */
-.tile:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.22);
-}
-
-/* Span mapping (column x row) */
-.span-5x6 { grid-column: span 5; grid-row: span 6; }
-.span-5x4 { grid-column: span 5; grid-row: span 4; }
-.span-4x4 { grid-column: span 4; grid-row: span 4; }
-.span-4x3 { grid-column: span 4; grid-row: span 3; }
-.span-3x4 { grid-column: span 3; grid-row: span 4; }
-.span-3x3 { grid-column: span 3; grid-row: span 3; }
-
-/* Responsive: stack nicely */
-@media (max-width: 980px) {
-  .grid {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    grid-auto-rows: 48px;
-  }
-
-  .span-5x6,
-  .span-5x4,
-  .span-4x4,
-  .span-4x3,
-  .span-3x4,
-  .span-3x3 {
-    grid-column: span 6;
-    grid-row: span 6;
-  }
+  line-height: 1.1;
 }
