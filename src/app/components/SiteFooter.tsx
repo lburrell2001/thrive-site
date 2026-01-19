@@ -19,7 +19,7 @@ export default function SiteFooter() {
             </Link>
 
             <p className="footer-tagline">
-              A one-stop creative studio for branding, motion, and web — built to
+              A one-stop creative studio for branding, ux design, and development — built to
               help your ideas look as good as they feel.
             </p>
 
