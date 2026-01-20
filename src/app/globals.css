@@ -1839,3 +1839,127 @@ body {
 .footer-dot {
   opacity: 0.7;
 }
+/* ----------------------------------------------------------------------
+   19.5) FOOTER CTA BANNER — solid magenta, NO bg bleed, 2-col grid
+   ---------------------------------------------------------------------- */
+
+/* CTA band sits above the footer background image layer */
+.footer-cta {
+  position: relative;
+  z-index: 2; /* ABOVE .site-footer::before */
+}
+
+/* Solid magenta mask so you NEVER see the stars behind */
+.footer-cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--thrive-magenta); /* 100% opaque */
+  z-index: -1; /* behind CTA content, above footer bg */
+}
+
+/* Override global footer navy rule inside CTA */
+.footer-cta,
+.footer-cta * {
+  color: var(--thrive-white) !important;
+}
+
+.footer-cta-wrap {
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+/* ✅ 2-column layout: text left, button right — same row */
+.footer-cta-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto; /* text | button */
+  align-self: start;
+  gap: 32px;
+
+  background: transparent; /* background handled by ::before */
+  border: none;
+  padding: 0;
+}
+
+.footer-cta-text {
+  max-width: 720px;
+}
+
+/* Typography */
+.footer-cta-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.footer-cta-title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 850;
+  color: var(--thrive-white) !important;
+}
+
+.footer-cta-subtitle {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Actions */
+.footer-cta-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Button */
+.footer-cta-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+   min-width: 260px; 
+
+  padding: 12px 18px;
+  border-radius: 999px;
+
+  font-size: 14px;
+  font-weight: 850;
+
+  background: var(--thrive-white);
+  color: var(--thrive-magenta) !important;
+  border: none;
+
+  white-space: nowrap;
+  text-decoration: none;
+
+  transition: transform 150ms ease-out;
+}
+
+.footer-cta-button:hover {
+  transform: translateY(-1px);
+}
+
+/* Mobile: stack, keep button aligned right */
+@media (max-width: 640px) {
+  .footer-cta-wrap {
+    padding-top: 26px;
+    padding-bottom: 26px;
+  }
+
+  .footer-cta-card {
+    grid-template-columns: 1fr; /* ✅ stack */
+    gap: 18px;
+  }
+
+  .footer-cta-actions {
+    justify-content: flex-end; /* ✅ right on mobile */
+  }
+
+  
+  .footer-cta-button { width: 100%; justify-content: center; }
+  
+}

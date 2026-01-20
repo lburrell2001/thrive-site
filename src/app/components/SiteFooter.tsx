@@ -6,16 +6,36 @@ export default function SiteFooter() {
 
   return (
     <footer className="site-footer" aria-label="Site footer">
+     {/* ================= CTA BANNER ================= */}
+<div className="footer-cta" aria-label="Footer call to action">
+  <div className="wrapper footer-cta-wrap">
+    <div className="footer-cta-card">
+      <div className="footer-cta-text">
+        <div className="footer-cta-eyebrow">Work with Thrive</div>
+        <h3 className="footer-cta-title">Ready to bring your idea to life?</h3>
+        <p className="footer-cta-subtitle">
+          Let’s build a brand, website, or product that actually works — design and
+          development, together.
+        </p>
+      </div>
+
+      <div className="footer-cta-actions">
+        <Link href="/contact" className="footer-cta-button">
+          Book a free 20 min consultation
+        </Link>
+      </div>
+    </div>
+  </div>
+</div>
+{/* ============================================== */}
+
+
       <div className="wrapper footer-wrap">
         <div className="footer-card">
           {/* Brand */}
           <div className="footer-brand">
             <Link href="/" className="footer-logo" aria-label="Thrive Creative Studios home">
-              <img
-                src="/logo.svg"
-                alt="Thrive Creative Studios"
-                className="footer-logo-img"
-              />
+              <img src="/logo.svg" alt="Thrive Creative Studios" className="footer-logo-img" />
             </Link>
 
             <p className="footer-tagline">
@@ -53,15 +73,20 @@ export default function SiteFooter() {
 
             <div className="footer-col">
               <div className="footer-col-title">Social</div>
-              <a href="https://www.linkedin.com/company/thrive-creative-studios" target="_blank" rel="noreferrer">
+              <a
+                href="https://www.linkedin.com/company/thrive-creative-studios"
+                target="_blank"
+                rel="noreferrer"
+              >
                 LinkedIn
               </a>
-              <a href="https://www.instagram.com/thrivecreativestudio_/" target="_blank" rel="noreferrer">
+              <a
+                href="https://www.instagram.com/thrivecreativestudio_/"
+                target="_blank"
+                rel="noreferrer"
+              >
                 Instagram
               </a>
-              {/*<a href="https://www.tiktok.com" target="_blank" rel="noreferrer">
-                TikTok
-              </a>*/}
             </div>
           </nav>
         </div>
