@@ -473,6 +473,17 @@ body {
   color: var(--thrive-white);
 }
 
+.hero-pill:nth-child(4) {
+  background: var(--thrive-orange);
+  color: var(--thrive-white);
+}
+
+.hero-pill:nth-child(5) {
+  background: var(--thrive-white);
+  color: var(--thrive-black);
+  border: 2px solid rgba(0, 0, 0, 0.08);
+}
+
 .hero-pill-title,
 .hero-pill-caption {
   color: inherit;
@@ -803,7 +814,13 @@ body {
 
 @media (min-width: 768px) {
   .services-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1080px) {
+  .services-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -889,6 +906,36 @@ body {
 
 .gallery-card:hover .gallery-overlay {
   background: rgba(0, 0, 0, 0.55);
+}
+
+/* Social service gallery: stronger readability on collage covers */
+.social-gallery-card .gallery-overlay {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.12) 0%,
+    rgba(0, 0, 0, 0.78) 68%,
+    rgba(0, 0, 0, 0.9) 100%
+  );
+}
+
+.social-gallery-card .gallery-kicker,
+.social-gallery-card .gallery-title,
+.social-gallery-card .gallery-cta {
+  text-shadow: 0 3px 14px rgba(0, 0, 0, 0.72);
+}
+
+.social-gallery-card .gallery-title {
+  max-width: 14ch;
+  font-size: clamp(1.85rem, 1.8vw, 2.6rem);
+  line-height: 1.04;
+}
+
+.social-gallery-card .gallery-cta {
+  margin-top: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  width: max-content;
 }
 
 .gallery-kicker {
@@ -1212,7 +1259,13 @@ body {
 
 @media (min-width: 820px) {
   .pill-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .pill-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

@@ -41,6 +41,14 @@ const PILL_CARDS: Pill[] = [
     href: "/services/web-app-dev",
     videoSrc: MEDIA.hero.webAppDev, // ✅ thrive-hero-v2.mp4
   },
+  {
+    title: "Social Media + Graphics",
+    tag: "Content Strategy · Scheduling · Branded Visuals",
+    blurb:
+      "Your all-in-one social service: content strategy, posting management, and high-quality graphics built to keep your brand visible and recognizable.",
+    href: "/services/social-media-management",
+    videoSrc: "/services/social/hero-social.mp4",
+  },
 ];
 
 
@@ -96,12 +104,12 @@ export default function ServicesPage() {
             <p className="hero-tag">Services & Bundles</p>
 
             <h1 className="services-title">
-              Flexible design support for brands, artists, and small teams.
+              Social media management and graphics creation that keeps your brand active.
             </h1>
 
             <p className="services-subtitle">
-              Whether you need one visual or a full brand experience, Thrive offers
-              à la carte services and curated bundles to match your goals and timeline.
+              Thrive offers strategy, posting, and graphic design in one workflow so your
+              Instagram looks cohesive, sounds clear, and stays consistent week to week.
             </p>
 
             <ServicePills />
@@ -118,7 +126,9 @@ export default function ServicesPage() {
                 <li>Logo design — starting at $75</li>
                 <li>UX/UI design — starting at $100</li>
                 <li>2D motion graphics — starting at $100</li>
-                <li>Social media graphics — $60 for 3 posts · $90 for 5 posts</li>
+                <li>
+                  Social media management + graphics creation — starting at $75/month
+                </li>
               </ul>
             </div>
 
@@ -147,14 +157,7 @@ export default function ServicesPage() {
               </ul>
             </div>
 
-            <div className="services-note">
-              <p>
-                All confirmed bookings require a $30 deposit. Once you submit a booking
-                request, you&apos;ll receive an invitation for a discovery call—during
-                that call, the deposit is collected and we lock in your spot.
-              </p>
-            </div>
-          </div>
+           </div>
         </section>
       </main>
          {/* =======================

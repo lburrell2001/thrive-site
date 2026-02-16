@@ -21,7 +21,7 @@ export default function SiteFooter() {
 
       <div className="footer-cta-actions">
         <Link href="/contact" className="footer-cta-button">
-          Book a free 20 min consultation
+          Book a free 20 min consultation 
         </Link>
       </div>
     </div>
@@ -53,6 +53,9 @@ export default function SiteFooter() {
               </Link>
               <Link className="footer-pill" href="/services/web-ux">
                 Web &amp; UX
+              </Link>
+              <Link className="footer-pill" href="/services/social-media-management">
+                Social Media &amp; Graphics
               </Link>
             </div>
           </div>
@@ -95,8 +98,8 @@ export default function SiteFooter() {
           <div>© {year} Thrive Creative Studios. All rights reserved.</div>
 
           <div className="footer-bottom-right">
-            <a href="mailto:lauren@thrivecreativestudios.com">
-              lauren@thrivecreativestudios.com
+            <a href="mailto:hello@thrivecreativestudios.com">
+              hello@thrivecreativestudios.com
             </a>
             <span className="footer-dot" aria-hidden="true">
               •

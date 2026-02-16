@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import SiteHeader from "./components/SiteHeader";
 import { createClient } from "@supabase/supabase-js";
 import SiteFooter from "./components/SiteFooter";
@@ -98,8 +97,8 @@ export default function HomePage() {
               <p className="hero-eyebrow">Thrive Creative Studios</p>
 
               <h1 className="hero-display">
-                <span>Branding &amp; web design</span>
-                <span>that actually feels like you.</span>
+                <span>Social media management</span>
+                <span>&amp; graphics that move your brand.</span>
               </h1>
 
               <div className="hero-actions">
@@ -127,6 +126,11 @@ export default function HomePage() {
                 <span className="hero-pill-title">Web &amp; App Dev</span>
                 <span className="hero-pill-caption">Websites · Mobile Apps · Front-end</span>
               </Link>
+
+              <Link href="/services/social-media-management" className="hero-pill">
+                <span className="hero-pill-title">Social Media + Graphics</span>
+                <span className="hero-pill-caption">Strategy · Posting · Feed + Reel design</span>
+              </Link>
             </div>
           </div>
         </div>
@@ -138,15 +142,17 @@ export default function HomePage() {
       <section className="hero-strip" aria-label="Thrive services">
         <div className="hero-strip-track">
           <span className="hero-strip-text">
-            We help small businesses, churches, and creatives build visual
-            identities and websites that look good, read clearly, and feel like
-            the communities they serve. •
+            I manage your social media and design your graphics so your brand
+            shows up consistently, looks polished, and converts attention into
+            action. Proven style direction from @rootstowellnessnow and
+            @thrivecreativestudio_. •
           </span>
 
           <span className="hero-strip-text" aria-hidden="true">
-            We help small businesses, churches, and creatives build visual
-            identities and websites that look good, read clearly, and feel like
-            the communities they serve. •
+            I manage your social media and design your graphics so your brand
+            shows up consistently, looks polished, and converts attention into
+            action. Proven style direction from @rootstowellnessnow and
+            @thrivecreativestudio_. •
           </span>
         </div>
       </section>
@@ -319,13 +325,23 @@ export default function HomePage() {
             </div>
 
             <div className="work-card work-card--orange services-card">
-  <p className="work-tag">Website &amp; App Dev</p>
-  <p className="work-title">Websites &amp; application builds</p>
-  <p className="work-meta">
-    Custom websites and web apps built with modern front-end tools—designed
-    for performance, accessibility and real-world use.
-  </p>
-</div>
+              <p className="work-tag">Website &amp; App Dev</p>
+              <p className="work-title">Websites &amp; application builds</p>
+              <p className="work-meta">
+                Custom websites and web apps built with modern front-end tools—designed
+                for performance, accessibility and real-world use.
+              </p>
+            </div>
+
+            <div className="work-card work-card--blue services-card">
+              <p className="work-tag">Social Media + Graphics</p>
+              <p className="work-title">End-to-end management + standout visuals</p>
+              <p className="work-meta">
+                Monthly content strategy, posting, 
+                and cohesive feeds, carousels, and reels—designed with intention 
+                and aligned to your brand.
+              </p>
+            </div>
 
           </div>
         </div>
