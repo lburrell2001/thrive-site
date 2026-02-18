@@ -1,4 +1,5 @@
 // src/app/work/page.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "../components/SiteHeader";
@@ -6,6 +7,20 @@ import styles from "./WorkPage.module.css";
 import SiteFooter from "../components/SiteFooter";
 
 import { supabase } from "../../lib/supabaseServer";
+import { buildPageMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildPageMetadata({
+  title: "Portfolio",
+  description:
+    "View portfolio projects by Thrive Creative Studios across branding, UX/UI, web design, and social media graphics.",
+  path: "/work",
+  keywords: [
+    "design portfolio",
+    "branding portfolio",
+    "UX portfolio",
+    "social media graphics portfolio",
+  ],
+});
 
 type WorkProject = {
   id: string;

@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { MEDIA } from "@/lib/medita";
 import SiteFooter from "../../components/SiteFooter";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Web + App Development · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Web and App Development",
+  description:
+    "Web and app development services in Houston, Texas from Thrive Creative Studios for fast, responsive, and scalable websites and web applications.",
+  path: "/services/web-app-dev",
+  keywords: [
+    "web development Houston",
+    "app development services",
+    "front-end development",
+    "custom web apps",
+  ],
+});
 
 const DEV_FEATURED = [
   {

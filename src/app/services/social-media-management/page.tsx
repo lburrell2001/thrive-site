@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import SiteFooter from "../../components/SiteFooter";
 import { MEDIA } from "@/lib/medita";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Social Media + Graphics · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Social Media Management and Graphics Creation",
+  description:
+    "Done-for-you social media management and graphics creation in Houston, Texas including content strategy, posting cadence, reels, and branded visual design.",
+  path: "/services/social-media-management",
+  keywords: [
+    "social media management Houston",
+    "Instagram management",
+    "graphics creation service",
+    "content strategy service",
+  ],
+});
 
 type SocialProject = {
   title: string;

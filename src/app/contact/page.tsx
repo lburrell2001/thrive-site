@@ -1,11 +1,22 @@
 // src/app/contact/page.tsx
+import type { Metadata } from "next";
 import SiteHeader from "../components/SiteHeader";
 import ContactForm from "./ContactForm";
 import SiteFooter from "../components/SiteFooter";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Contact · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Contact",
+  description:
+    "Contact Thrive Creative Studios in Houston, Texas to discuss branding, web design, UX, and social media management with graphics creation.",
+  path: "/contact",
+  keywords: [
+    "contact Thrive Creative Studios",
+    "Houston designer contact",
+    "branding consultation",
+    "web design inquiry",
+  ],
+});
 
 export default function ContactPage() {
   return (

@@ -1,4 +1,5 @@
 // src/app/work/[slug]/page.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import SiteFooter from "../../components/SiteFooter";
@@ -7,6 +8,7 @@ import ProjectGallery from "./ProjectGallery";
 import styles from "./ProjectPage.module.css";
 
 import { supabase } from "../../../lib/supabaseServer";
+import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 
 type Project = {
   id: string;
@@ -38,6 +40,64 @@ function publicUrl(path: string) {
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+
+  const { data: project } = await supabase
+    .from("projects")
+    .select("title,slug,overview,description,category")
+    .eq("slug", slug)
+    .maybeSingle<{
+      title: string;
+      slug: string;
+      overview?: string | null;
+      description?: string | null;
+      category?: string | null;
+    }>();
+
+  if (!project) {
+    return {
+      title: "Project",
+      description: "Project details from Thrive Creative Studios.",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const metaDescription =
+    project.overview ??
+    project.description ??
+    `${project.title} project by Thrive Creative Studios.`;
+
+  const pageUrl = `/work/${project.slug}`;
+  const coverSrc = publicUrl(`projects/${project.slug}/cover.jpg`);
+
+  return {
+    title: project.title,
+    description: metaDescription,
+    alternates: {
+      canonical: pageUrl,
+    },
+    openGraph: {
+      title: project.title,
+      description: metaDescription,
+      url: pageUrl,
+      type: "article",
+      section: project.category ?? "Project",
+      images: [{ url: coverSrc, alt: `${project.title} cover` }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: project.title,
+      description: metaDescription,
+      images: [coverSrc],
+    },
+  };
+}
+
 export default async function ProjectSlugPage({
   params,
 }: {
@@ -55,6 +115,7 @@ export default async function ProjectSlugPage({
 
   // Cover image
   const coverSrc = publicUrl(`projects/${project.slug}/cover.jpg`);
+  const projectUrl = absoluteUrl(`/work/${project.slug}`);
 
   // Gallery images (requires storage.objects select policy for listing)
   const galleryFolder = `projects/${project.slug}/gallery`;
@@ -71,6 +132,49 @@ export default async function ProjectSlugPage({
           }))
       : [];
 
+  const projectJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: project.title,
+    url: projectUrl,
+    description:
+      project.overview ??
+      project.description ??
+      `${project.title} project by ${SITE_NAME}.`,
+    image: [coverSrc, ...galleryItems.map((item) => item.url)].slice(0, 8),
+    creator: {
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: absoluteUrl("/"),
+    },
+    about: project.category ?? "Design project",
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: absoluteUrl("/"),
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Work",
+        item: absoluteUrl("/work"),
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: project.title,
+        item: projectUrl,
+      },
+    ],
+  };
+
   // Prev/Next nav
   const { data: all } = await supabase
     .from("projects")
@@ -82,13 +186,16 @@ export default async function ProjectSlugPage({
   const prev = idx > 0 ? list[idx - 1] : null;
   const next = idx >= 0 && idx < list.length - 1 ? list[idx + 1] : null;
 
-  // Content fallbacks (no database/dev text)
-  const description =
-    project.description ??
-    "Case study content coming soon. I’m building this out with process, decisions, and final outcomes.";
-
   return (
     <div className={styles.page}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(projectJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
       <SiteHeader />
 
       <div className={styles.wrap}>
@@ -155,7 +262,8 @@ export default async function ProjectSlugPage({
           <div className={styles.left}>
             <h2 className={styles.h2}>Overview</h2>
 <p className={styles.p}>
-  {project.overview ?? "Overview coming soon."}
+  {project.overview ??
+    "This project highlights the strategy, design decisions, and execution approach used to deliver a clear, effective client outcome."}
 </p>
 
 {project.problem || project.solution || project.results ? (
@@ -212,7 +320,8 @@ export default async function ProjectSlugPage({
               <div className={styles.panelAlt}>
   <h3 className={styles.h3}>Project notes</h3>
   <p className={styles.mutedSmall}>
-    {project.project_notes ?? "Notes coming soon."}
+    {project.project_notes ??
+      "Additional implementation details, process considerations, and production context are documented for this case study."}
   </p>
 </div>
 

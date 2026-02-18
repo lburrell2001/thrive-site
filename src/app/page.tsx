@@ -197,12 +197,12 @@ export default function HomePage() {
               <p className="case-kicker">Case Study</p>
 
               <h3 className="case-title">
-                {featured ? `${featured.title} — case study` : "Loading…"}
+                {featured ? `${featured.title} — case study` : "Featured project — case study"}
               </h3>
 
               <p className="case-text">
                 {featured?.overview ??
-                  "A featured case study from Thrive Creative Studios—coming in hot."}
+                  "Explore how Thrive Creative Studios combines strategy, design, and execution to deliver clear, high-impact client results."}
               </p>
 
               <p className="case-services">

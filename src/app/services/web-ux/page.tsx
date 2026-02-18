@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { MEDIA } from "@/lib/medita";
 import SiteFooter from "../../components/SiteFooter";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Web + UX · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Web and UX Services",
+  description:
+    "Web and UX services in Houston, Texas from Thrive Creative Studios including UX strategy, responsive website design, and conversion-focused digital experiences.",
+  path: "/services/web-ux",
+  keywords: [
+    "web design Houston",
+    "UX design services",
+    "responsive website design",
+    "conversion-focused UX",
+  ],
+});
 
 const WEBUX_FEATURED = [
   {

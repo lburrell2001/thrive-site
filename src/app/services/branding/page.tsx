@@ -1,11 +1,22 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import { MEDIA } from "@/lib/medita";
 import SiteFooter from "../../components/SiteFooter";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Branding · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Branding Services",
+  description:
+    "Branding services in Houston, Texas from Thrive Creative Studios: logos, visual systems, color direction, and launch-ready brand assets.",
+  path: "/services/branding",
+  keywords: [
+    "branding services Houston",
+    "logo design Houston",
+    "visual identity design",
+    "brand strategy studio",
+  ],
+});
 
 const BRANDING_FEATURED = [
   {

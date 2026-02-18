@@ -1,12 +1,23 @@
 // app/services/page.tsx
+import type { Metadata } from "next";
 import SiteHeader from "../components/SiteHeader";
 import Link from "next/link";
 import { MEDIA } from "@/lib/medita";
 import SiteFooter from "../components/SiteFooter";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Services & Bundles · Thrive Creative Studios",
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: "Services",
+  description:
+    "Explore Thrive Creative Studios services in Houston, Texas: branding, web + UX, web app development, and social media management with graphics creation.",
+  path: "/services",
+  keywords: [
+    "creative services Houston",
+    "branding and web design services",
+    "social media management service",
+    "graphics creation service",
+  ],
+});
 
 type Pill = {
   title: string;
