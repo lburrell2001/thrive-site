@@ -98,7 +98,8 @@ export default function HomePage() {
 
               <h1 className="hero-display">
                 <span>Where branding</span>
-                <span>meets digital execution.</span>
+                <span>meets digital execution</span>
+                <span>and strategy drives every move.</span>
               </h1>
 
               <div className="hero-actions">
