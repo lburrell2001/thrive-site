@@ -97,8 +97,8 @@ export default function HomePage() {
               <p className="hero-eyebrow">Thrive Creative Studios</p>
 
               <h1 className="hero-display">
-                <span>Social media management</span>
-                <span>&amp; graphics that move your brand.</span>
+                <span>Where branding</span>
+                <span>meets digital execution.</span>
               </h1>
 
               <div className="hero-actions">
