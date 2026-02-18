@@ -47,7 +47,7 @@ const PILL_CARDS: Pill[] = [
     blurb:
       "Your all-in-one social service: content strategy, posting management, and high-quality graphics built to keep your brand visible and recognizable.",
     href: "/services/social-media-management",
-    videoSrc: "/services/social/hero-social.mp4",
+    videoSrc: MEDIA.hero.social,
   },
 ];
 

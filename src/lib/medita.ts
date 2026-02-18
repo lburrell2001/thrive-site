@@ -7,6 +7,7 @@ export const MEDIA = {
     branding: `${BASE}/branding-hero-v2.mp4`,
     webux: `${BASE}/ux-hero.mp4`,
     webAppDev: `${BASE}/thrive-hero-v2.mp4`,
+    social: `${BASE}/hero-social.mp4`,
     home: `${BASE}/thrive-hero.mp4`, // optional, if homepage uses same
   },
 

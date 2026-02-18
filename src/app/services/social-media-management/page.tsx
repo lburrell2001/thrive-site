@@ -1,6 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "../../components/SiteHeader";
 import SiteFooter from "../../components/SiteFooter";
+import { MEDIA } from "@/lib/medita";
 
 export const metadata = {
   title: "Social Media + Graphics · Thrive Creative Studios",
@@ -85,7 +86,7 @@ export default function SocialMediaManagementPage() {
           <div className="service-video-bg" aria-hidden="true">
             <video
               className="service-video"
-              src="/services/social/hero-social.mp4"
+              src={MEDIA.hero.social}
               autoPlay
               muted
               loop
