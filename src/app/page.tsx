@@ -143,17 +143,19 @@ export default function HomePage() {
       <section className="hero-strip" aria-label="Thrive services">
         <div className="hero-strip-track">
           <span className="hero-strip-text">
-            I manage your social media and design your graphics so your brand
-            shows up consistently, looks polished, and converts attention into
-            action. Proven style direction from @rootstowellnessnow and
-            @thrivecreativestudio_. •
+            Branding. Web. Development. Visual systems. Social — built to perform.•
           </span>
 
           <span className="hero-strip-text" aria-hidden="true">
-            I manage your social media and design your graphics so your brand
-            shows up consistently, looks polished, and converts attention into
-            action. Proven style direction from @rootstowellnessnow and
-            @thrivecreativestudio_. •
+            Branding. Web. Development. Visual systems. Social — built to perform.•
+          </span>
+
+          <span className="hero-strip-text" aria-hidden="true">
+            Branding. Web. Development. Visual systems. Social — built to perform.•
+          </span>
+
+          <span className="hero-strip-text" aria-hidden="true">
+            Branding. Web. Development. Visual systems. Social — built to perform.•
           </span>
         </div>
       </section>
