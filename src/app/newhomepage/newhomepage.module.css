@@ -510,28 +510,229 @@
 
 /* ─────────────── RESPONSIVE ─────────────── */
 @media (max-width: 960px) {
-  .nav { padding: 0 20px; }
+  /* Nav */
+  .nav { height: 70px; padding: 0 20px; }
+  .navLogo { height: 44px; max-width: 150px; width: auto; }
+  .npill { font-size: 13px; padding: 8px 12px; }
+
+  /* Hero */
   .gh  { display: none; }
-  .hero { height: auto; padding: 80px 20px 100px; }
-  .heroThrive { font-size: 72px; }
-  .about { grid-template-columns: 1fr; padding: 60px 20px; }
+  .hero { height: auto; padding: 40px 20px 48px; }
+  .heroWordmark { margin-top: 0; margin-bottom: 0; }
+  .heroThrive { height: clamp(0px, 38vw, 160px); }
+
+  /* About */
+  .about { grid-template-columns: 1fr; padding: 60px 20px 80px; }
   .aboutFrame { width: 100%; height: 260px; }
+  .aboutBadge { width: 120px; height: 120px; top: -20px; left: -8px; font-size: 15px; }
+  .aboutH { font-size: 36px; }
+
+  /* Services */
   .services { padding: 60px 20px 80px; }
-  .svcTabs { flex-wrap: wrap; gap: 4px; }
-  .svcTab { font-size: 11px; padding: 8px 14px; border-radius: 8px 8px 0 0; }
+
+  /* Tab row: 5 equal-width folder tabs that don't scroll or wrap */
+  .svcTabs { flex-wrap: nowrap; gap: 0; counter-reset: svc-tab; align-items: flex-end; }
+
+  /* Hide the label text; replace with a CSS counter (01 – 05) */
+  .svcTab {
+    flex: 1;
+    font-size: 0;           /* hide text */
+    padding: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    border-radius: 8px 8px 0 0;
+    white-space: nowrap;
+    margin-right: 0;        /* remove the -2px desktop bleed */
+  }
+  .svcTab:not(:last-child) { border-right: none; } /* single border between tabs */
+  .svcTab::before {
+    counter-increment: svc-tab;
+    content: "0" counter(svc-tab);
+    font-family: var(--font-bungee), sans-serif;
+    font-size: 13px;
+    letter-spacing: -0.04em;
+    color: inherit;
+  }
+  .svcTabActive { padding-bottom: 12px; }
+  /* Panel top corners flush with full-width tab row */
+  .svcPanelWrap { border-radius: 0 0 12px 12px; }
+
   .svcPanel { grid-template-columns: 1fr; }
+  .svcPanelLeft { padding: 28px 24px; }
   .svcPanelRight { min-height: 200px; border-left: none; border-top: 2px solid #000; }
   .viewAllRow { flex-direction: column; gap: 12px; }
-  .processCards { flex-wrap: wrap; justify-content: center; padding: 40px 20px 0; }
-  .pcard { margin: 8px !important; transform: none !important; min-height: 220px; }
-  .processGhost { font-size: 56px; }
-  .testiGhost { font-size: 56px; }
-  .testimonials { padding: 40px 20px; }
-  .testiCircles { flex-direction: column; align-items: center; }
-  .tc2 { margin-top: 0; }
+
+  /* ── Process: 2×2 grid, all cards visible ── */
+  .process {
+    height: auto;
+    padding: 40px 0 64px;
+    margin-top: 64px !important;
+    overflow: hidden;
+    position: relative;
+  }
+  .processCards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 32px 16px 0 !important;
+    flex-wrap: unset;
+    justify-content: unset;
+    overflow-x: unset;
+  }
+  .pcard {
+    width: 100% !important;
+    min-height: 165px !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+  /* Beat the nth-child specificity explicitly */
+  .pcard:nth-child(1),
+  .pcard:nth-child(2),
+  .pcard:nth-child(3),
+  .pcard:nth-child(4) {
+    margin: 0 !important;
+    transform: none !important;
+  }
+  .pcardNum { font-size: 34px; }
+  /* Ghost on TOP of cards — no scroll-reveal motion */
+  .processGhost {
+    font-size: clamp(38px, 10.5vw, 58px);
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10px;
+    z-index: 3;
+    pointer-events: none;
+    /* kill reveal animation */
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* ── Testimonials: staggered scattered layout, all on screen ── */
+  .testimonials {
+    height: auto;
+    padding: 0;
+    margin-top: 48px;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Fixed-height container so circles are absolutely placed */
+  .testiCircles {
+    display: block !important;
+    position: relative;
+    height: 430px;
+    z-index: 2;
+  }
+  .tc1 {
+    position: absolute !important;
+    width: 155px !important; height: 155px !important;
+    top: 20px !important; left: 16px !important;
+    animation: none;
+    padding: 18px;
+  }
+  .tc2 {
+    position: absolute !important;
+    width: 155px !important; height: 155px !important;
+    top: 145px !important; left: auto !important; right: 16px;
+    animation: none;
+    padding: 18px;
+  }
+  .tc3 {
+    position: absolute !important;
+    width: 145px !important; height: 145px !important;
+    bottom: 20px !important; top: auto !important; left: 40px !important;
+    animation: none;
+    padding: 18px;
+  }
+  .tcircleText { font-size: 11px; line-height: 1.55; }
+  .tcircleClient { font-size: 10px; }
+  /* Ghost text: left-aligned with pink circle, stacked one word per line */
+  .testiGhost {
+    font-size: clamp(48px, 10vw, 48px);
+    position: absolute !important;
+    inset: unset !important;
+    top: 350px !important;
+    left: 16px !important;
+    right: auto !important;
+    bottom: auto !important;
+    display: block !important;
+    width: min-content;
+    text-align: left;
+    line-height: 1.05;
+    z-index: 3;
+    pointer-events: none;
+    /* kill reveal animation */
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* CTA Banner */
+  .ctaBanner { flex-direction: column; align-items: flex-start; padding: 32px 24px; gap: 16px; }
+  .ctaBannerBtn { width: 100%; text-align: center; }
+
+  /* Footer */
+  .footerTop { grid-template-columns: 1fr; padding: 40px 24px 32px; gap: 28px; }
+  .footerBrand { padding: 32px 24px 24px; }
+  .footerBottom { padding: 16px 24px; }
+
+  /* Legacy classes kept for compatibility */
   .cta { padding: 0 20px 80px; }
   .cbubble { width: 120px; height: 120px; margin-left: -20px; }
   .ctaThrive { font-size: 60px; }
   .footerInner { padding: 36px 20px 48px; }
   .footerPattern { height: 120px; }
+}
+
+@media (max-width: 480px) {
+  /* Nav — keep logo + pills from overflowing */
+  .nav { height: 60px; padding: 0 14px; gap: 10px; }
+  .navLogo { height: 32px; max-width: 100px; }
+  .navPills { gap: 6px; }
+  .npill { font-size: 11px; padding: 6px 9px; border-radius: 8px; }
+
+  /* Hero — compact, no wasted space */
+  .hero { padding: 32px 16px 36px; }
+  .heroWordmark { margin-top: 0; margin-bottom: 0; }
+
+  /* About */
+  .about { padding: 48px 16px 56px; }
+  .aboutFrame { height: 200px; }
+  .aboutBadge { width: 96px; height: 96px; top: -16px; left: -6px; font-size: 12px; }
+  .aboutH { font-size: 28px; }
+  .aboutP { font-size: 15px; }
+
+  /* Services */
+  .services { padding: 40px 16px 56px; }
+  .svcPanelLeft { padding: 20px 16px; }
+
+  /* Process */
+  .process { padding: 32px 0 56px; margin-top: 32px; }
+  .processCards { gap: 10px; padding: 12px 12px 0; }
+  .pcard { min-height: 145px !important; }
+  .pcardNum { font-size: 28px; }
+  .processGhost { font-size: clamp(32px, 9.5vw, 48px); opacity: 1 !important; transform: none !important; transition: none !important; }
+
+  /* Testimonials — scale circles down for small phones */
+  .testimonials { margin-top: 32px; }
+  .testiCircles { height: 750px; }
+  .tc1 { width: 250px !important; height: 250px !important; top: 16px !important; left: 12px !important; padding: 14px; }
+  .tc2 { width: 250px !important; height: 250px !important; top: 250px !important; right: 12px; padding: 14px; }
+  .tc3 { width: 250px !important; height: 250px !important; bottom: 0px !important; left: 30px !important; padding: 14px; }
+  .testiGhost { font-size: clamp(24px, 7vw, 38px); top: 268px; left: 12px; line-height: 1.05; opacity: 1 !important; transform: none !important; transition: none !important; }
+
+  /* CTA */
+  .ctaBanner { padding: 22px 16px; }
+
+  /* Footer */
+  .footerTop { padding: 28px 16px 20px; gap: 20px; }
+  .footerBrand { padding: 20px 16px 16px; }
+  .footerBottom { padding: 12px 16px; font-size: 11px; }
+  .footerNavLink { font-size: 13px; padding: 5px 12px; }
 }

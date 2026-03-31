@@ -377,10 +377,37 @@
   .navGrid {
     grid-template-columns: 1fr;
   }
-  @media (max-width: 640px) {
+
   .gallery {
     grid-template-columns: 1fr;
   }
 }
 
+@media (max-width: 640px) {
+  .wrap {
+    width: min(1120px, calc(100% - 32px));
+    padding-top: 20px;
+    padding-bottom: 64px;
+  }
+
+  .heroLeft {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: clamp(28px, 8vw, 40px);
+  }
+
+  .cover {
+    min-height: 220px;
+  }
+
+  .shot {
+    height: 220px;
+  }
+
+  .btn,
+  .btnGhost {
+    padding: 14px 18px;
+  }
 }

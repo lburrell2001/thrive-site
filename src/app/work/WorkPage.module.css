@@ -81,6 +81,14 @@
     column-count: 1;
     column-gap: 0;
   }
+
+  .h1 {
+    font-size: 32px;
+  }
+
+  .sub {
+    font-size: 14px;
+  }
 }
 
 /* Each masonry item */
