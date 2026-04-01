@@ -420,6 +420,7 @@
 .fnGreen  { background: #0cf574; }
 .fnOrange { background: #fd6100; }
 .fnPink   { background: #e50586; color: #fff; }
+.fnBlue   { background: #1e3add; color: #fff; }
 .footerBottom {
   padding: 20px 80px;
   border-top: 0px solid rgba(0,0,0,.06);

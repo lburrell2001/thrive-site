@@ -300,11 +300,13 @@ export default function NewHomePage() {
             <a href="#services"  className={`${styles.footerNavLink} ${styles.fnGreen}`}>SERVICES</a>
             <a href="#portfolio" className={`${styles.footerNavLink} ${styles.fnOrange}`}>PORTFOLIO</a>
             <a href="#contact"   className={`${styles.footerNavLink} ${styles.fnPink}`}>CONTACT</a>
+            <a href="/portal/login" className={`${styles.footerNavLink} ${styles.fnBlue}`}>CLIENT PORTAL</a>
           </div>
         </div>
 
-        <div className={styles.footerBottom}>
+        <div className={styles.footerBottom} style={{ position: 'relative' }}>
           © 2025 Thrive Creative Studios &nbsp;·&nbsp; Black-Owned &nbsp;·&nbsp; Black-Led &nbsp;·&nbsp; Built Different &nbsp;·&nbsp; Dallas, TX
+          <a href="/admin" style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, fontSize: '0.7rem', color: 'inherit', textDecoration: 'none' }}>Admin</a>
         </div>
 
       </footer>
