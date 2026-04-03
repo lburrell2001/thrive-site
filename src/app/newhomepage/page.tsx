@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import styles from "./newhomepage.module.css";
+import PublicLayout from "../components/PublicLayout";
+import { storageUrl } from "@/lib/storage";
 
 const bungee = Bungee({
   weight: "400",
@@ -23,28 +25,37 @@ const SERVICES = [
   {
     tag: "01 — Digital", name: "DIGITAL DESIGN", sub: "ALL YOURS IN ONLY 2–4 WEEKS",
     desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
+    href: "/services/digital-design",
+    media: { type: "video" as const, src: "branding-hero-v2.mp4" },
   },
   {
     tag: "02 — Social", name: "SOCIAL MEDIA", sub: "CONTENT THAT ACTUALLY CONVERTS",
     desc: "Strategy, content creation, and community management that grows your audience and turns followers into loyal clients.",
+    href: "/services/social-media",
+    media: { type: "video" as const, src: "hero-social.mp4" },
   },
   {
     tag: "03 — UX", name: "UX DESIGN", sub: "EXPERIENCES PEOPLE ACTUALLY LOVE",
     desc: "Human-centered product design that makes digital experiences feel effortless and intuitive — from wireframes to polished prototypes.",
+    href: "/services/ux-design",
+    media: { type: "video" as const, src: "ux-hero.mp4" },
   },
   {
     tag: "04 — Brand", name: "BRAND DESIGN", sub: "ALL YOURS IN ONLY 4–6 WEEKS",
     desc: "Complete visual identities — logos, color systems, typography, and brand guidelines — built from the ground up to set you apart in your industry.",
+    href: "/services/brand-design",
+    media: { type: "video" as const, src: "thrive-hero-v2.mp4" },
   },
   {
     tag: "05 — Photo", name: "PHOTOGRAPHY", sub: "VISUALS THAT TELL YOUR STORY",
     desc: "Brand photography and visual storytelling that captures real culture, real beauty, and real depth — bold, intentional, unforgettable.",
+    href: "/services/photography",
+    media: { type: "image" as const, src: "/new-thrive/services/photo.png", local: true },
   },
 ];
 
 export default function NewHomePage() {
   const [activeTab, setActiveTab] = useState(0);
-  const [navScrolled, setNavScrolled] = useState(false);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -65,7 +76,6 @@ export default function NewHomePage() {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const y = window.scrollY;
-        setNavScrolled(y > 40);
 
         // Hero parallax — scroll-based (drift as you scroll away)
         document.querySelectorAll<HTMLElement>("[data-py]").forEach((el) => {
@@ -90,19 +100,8 @@ export default function NewHomePage() {
   }, []);
 
   return (
+    <PublicLayout>
     <div className={`${bungee.variable} ${baiJamjuree.variable} ${styles.page}`}>
-
-      {/* ── NAV ── */}
-      <nav className={`${styles.nav} ${navScrolled ? styles.navScrolled : ""}`}>
-        <a href="/">
-          <img src="/new-thrive/logo-mark-blk.svg" alt="Thrive" className={styles.navLogo} />
-        </a>
-        <div className={styles.navPills}>
-          <a href="#services"  className={`${styles.npill} ${styles.npillGreen}`}>SERVICES</a>
-          <a href="#portfolio" className={`${styles.npill} ${styles.npillOrange}`}>PORTFOLIO</a>
-          <a href="#contact"   className={`${styles.npill} ${styles.npillPink}`}>CONTACT</a>
-        </div>
-      </nav>
 
       {/* ── HERO ── */}
       <section className={styles.hero}>
@@ -111,27 +110,40 @@ export default function NewHomePage() {
         <span className={`${styles.gh} ${styles.ghService}`}  data-hx="0.10">SERVICE</span>
         <span className={`${styles.gh} ${styles.ghCreative}`} data-hx="-0.06">CREATIVE</span>
         <span className={`${styles.gh} ${styles.ghAgency}`}   data-hx="0.08">AGENCY</span>
-        <div className={styles.heroWordmark}>
+<div className={styles.heroWordmark}>
           <img src="/new-thrive/logo.svg" alt="Thrive" className={styles.heroThrive} />
         </div>
       </section>
 
       {/* ── ABOUT ── */}
       <section className={styles.about} id="about">
-        <div className={styles.aboutFrameWrap}>
-          <div className={`${styles.aboutFrame} reveal`}>
-            <div className={styles.aboutFrameDiag} />
-            <span className={styles.aboutFrameLabel}>Add Your Image Here</span>
+        <div className={styles.aboutMarqueeWrap}>
+          <svg viewBox="0 0 1440 14" className={styles.aboutWave} preserveAspectRatio="none">
+            <path d="M0,7 C90,0 180,14 270,7 C360,0 450,14 540,7 C630,0 720,14 810,7 C900,0 990,14 1080,7 C1170,0 1260,14 1350,7 C1395,3.5 1418,1 1440,7 L1440,14 L0,14 Z" fill="#0a0a0a"/>
+            <path d="M0,7 C90,0 180,14 270,7 C360,0 450,14 540,7 C630,0 720,14 810,7 C900,0 990,14 1080,7 C1170,0 1260,14 1350,7 C1395,3.5 1418,1 1440,7" fill="none" stroke="#e50586" strokeWidth="2.5"/>
+          </svg>
+          <div className={styles.aboutMarqueeTrack}>
+            {[0,1].map(i => (
+              <span key={i} aria-hidden={i > 0 ? true : undefined}>
+                THRIVE CREATIVE STUDIOS &nbsp;✦&nbsp; BOLD BRANDING &nbsp;✦&nbsp; WEB DESIGN &nbsp;✦&nbsp; UX DESIGN &nbsp;✦&nbsp; SOCIAL MEDIA &nbsp;✦&nbsp; PHOTOGRAPHY &nbsp;✦&nbsp; DALLAS, TX &nbsp;✦&nbsp; BUILT FOR THE BOLD &nbsp;✦&nbsp;
+              </span>
+            ))}
           </div>
-          <div className={styles.aboutBadge}>
-            WE ARE<br />
-            <img src="/new-thrive/logo.svg" alt="Thrive" className={styles.badgeLogo} />
-          </div>
+          <svg viewBox="0 0 1440 14" className={styles.aboutWave} preserveAspectRatio="none">
+            <path d="M0,0 L1440,0 L1440,7 C1418,1 1395,3.5 1350,7 C1260,14 1170,0 1080,7 C990,14 900,0 810,7 C720,14 630,0 540,7 C450,14 360,0 270,7 C180,14 90,0 0,7 Z" fill="#0a0a0a"/>
+            <path d="M0,7 C90,0 180,14 270,7 C360,0 450,14 540,7 C630,0 720,14 810,7 C900,0 990,14 1080,7 C1170,0 1260,14 1350,7 C1395,3.5 1418,1 1440,7" fill="none" stroke="#e50586" strokeWidth="2.5"/>
+          </svg>
         </div>
-        <div className="reveal d2" style={{ paddingTop: "10px" }}>
+
+        {/* floating badges */}
+        <div className={`${styles.afBadge} ${styles.afb1}`}>BOLD<br/>BY DESIGN</div>
+        <div className={`${styles.afBadge} ${styles.afb2}`}>DALLAS<br/>TX</div>
+        <div className={`${styles.afBadge} ${styles.afb3}`}>BLACK<br/>OWNED</div>
+        <div className={`${styles.afBadge} ${styles.afb4}`}>FULL<br/>SERVICE</div>
+
+        <div className={`${styles.aboutTextWrap} reveal d2`}>
           <h2 className={styles.aboutH}>We do <em>almost</em> <u>everything</u></h2>
-          <p className={styles.aboutP}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.</p>
-          <p className={styles.aboutP}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.</p>
+          <p className={styles.aboutP}>Thrive Creative Studios is a full-service creative agency rooted in representation. We exist because Black creatives — especially Black women — have always been forces in the creative world, but not always given the seat, the stage, or the spotlight they deserve. So we built the room ourselves.</p>
         </div>
       </section>
 
@@ -143,6 +155,7 @@ export default function NewHomePage() {
           <p className={`${styles.servicesDesc} reveal`} style={{ transitionDelay: "0.1s" }}>Whether you need a quick turnaround brand identity or the whole dream creative experience, I&apos;ll build you something that&apos;s bold, strategic, and fun to show off. Your brand won&apos;t just look good — it&apos;ll get you booked.</p>
         </div>
 
+        <div className={styles.svcLayout}>
         <div className={styles.svcTabs} role="tablist">
           {["DIGITAL DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"].map((label, i) => (
             <div
@@ -155,7 +168,7 @@ export default function NewHomePage() {
               onClick={() => setActiveTab(i)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setActiveTab(i); }}
             >
-              {label}
+              <span className={styles.svcTabLabel}>{label}</span>
             </div>
           ))}
         </div>
@@ -175,16 +188,32 @@ export default function NewHomePage() {
                   <div className={styles.svcPanelSub}>{svc.sub}</div>
                   <p className={styles.svcPanelDesc}>{svc.desc}</p>
                 </div>
-                <a href="#contact" className={styles.svcPanelBtn}>GIMME THE DETAILS →</a>
+                <a href={svc.href} className={styles.svcPanelBtn}>GIMME THE DETAILS →</a>
               </div>
               <div className={styles.svcPanelRight}>
-                
+                {svc.media.type === "video" ? (
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  >
+                    <source src={storageUrl(`videos/${svc.media.src}`)} type="video/mp4" />
+                  </video>
+                ) : (
+                  <img
+                    src={svc.media.local ? svc.media.src : storageUrl(svc.media.src)}
+                    alt={svc.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                )}
               </div>
             </div>
           ))}
         </div>
+        </div>
 
-       
       </section>
 
       {/* ── PROCESS ── */}
@@ -192,19 +221,19 @@ export default function NewHomePage() {
         <div className={`${styles.processCards} reveal`}>
           <div className={styles.pcard}>
             <div className={styles.pcardNum}>01</div>
-            <p className={styles.pcardText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.</p>
+            <p className={styles.pcardText}>We start by listening. Deep dives into your brand, your audience, your goals — and the story only you can tell.</p>
           </div>
           <div className={styles.pcard}>
             <div className={styles.pcardNum}>02</div>
-            <p className={styles.pcardText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.</p>
+            <p className={styles.pcardText}>Strategy first. We build a creative brief and direction that becomes the north star for every decision we make.</p>
           </div>
           <div className={styles.pcard}>
             <div className={styles.pcardNum}>03</div>
-            <p className={styles.pcardText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.</p>
+            <p className={styles.pcardText}>This is where we create. Bold concepts, refined execution, and relentless attention to every detail.</p>
           </div>
           <div className={styles.pcard}>
             <div className={styles.pcardNum}>04</div>
-            <p className={styles.pcardText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas.</p>
+            <p className={styles.pcardText}>Launch-ready deliverables — and ongoing partnership to keep your brand growing long after handoff.</p>
           </div>
         </div>
         <div className={`${styles.processGhost} reveal`} data-px="-0.4">THE PROCESS</div>
@@ -214,15 +243,15 @@ export default function NewHomePage() {
       <section className={styles.testimonials} id="testimonials">
         <div className={styles.testiCircles}>
           <div className={`${styles.tcircle} ${styles.tc1} reveal d1`}>
-            <p className={styles.tcircleText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor.</p>
+            <p className={styles.tcircleText}>Thrive completely transformed how our brand shows up. The energy, the vision, the execution — nothing short of exceptional.</p>
             <span className={styles.tcircleClient}>DJ Mastamind</span>
           </div>
           <div className={`${styles.tcircle} ${styles.tc2} reveal d2`}>
-            <p className={styles.tcircleText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor.</p>
+            <p className={styles.tcircleText}>Working with Thrive felt like working with people who actually understood our community.</p>
             <span className={styles.tcircleClient}>Classic Rollers</span>
           </div>
           <div className={`${styles.tcircle} ${styles.tc3} reveal d3`}>
-            <p className={styles.tcircleText}>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. Tempus leo eu aenean sed diam urna tempor.</p>
+            <p className={styles.tcircleText}>The work they did set us apart immediately. Bold, intentional, and exactly right.</p>
             <span className={styles.tcircleClient}>The Burrell Group</span>
           </div>
         </div>
@@ -235,82 +264,7 @@ export default function NewHomePage() {
         <a href="/contact" className={styles.ctaBannerBtn}>LET&apos;S TALK →</a>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className={styles.siteFooter} id="contact">
-
-        {/* Pattern watermark */}
-        <div className={styles.footerPatternBg}>
-          <img src="/new-thrive/pattern.png" alt="" />
-        </div>
-
-        
-
-        {/* 3-col info bar */}
-        <div className={styles.footerTop}>
-          <div>
-            <div className={styles.footerColLabel}>Contact</div>
-            <div className={styles.footerColText}>
-              <a href="mailto:hello@thrivecreativestudios.org">hello@thrivecreativestudios.org</a><br />
-              Dallas, TX
-            </div>
-          </div>
-          <div>
-            <div className={styles.footerColLabel}>Quick Links</div>
-            <div className={styles.footerColText}>
-              <a href="#services">Services</a><br />
-              <a href="#portfolio">Portfolio</a><br />
-              <a href="#process">Process</a><br />
-              <a href="#testimonials">Client Love</a>
-            </div>
-          </div>
-          <div>
-            <div className={styles.footerColLabel}>Stay in the Loop</div>
-            <div className={styles.footerSubscribe}>
-              <input type="email" placeholder="Your email address" />
-              <button type="button">SUBSCRIBE →</button>
-            </div>
-          </div>
-        </div>
-
-        {/* Brand block */}
-        <div className={styles.footerBrand}>
-          <div className={styles.footerLogoRow}>
-            <img src="/new-thrive/logo.svg" alt="Thrive Creative Studios" className={styles.footerThriveText} />
-          </div>
-          <span className={styles.footerTagline}>Representation · Artistry · Excellence</span>
-
-          <div className={styles.footerSocials}>
-            <a href="#" className={styles.socialIcon} aria-label="Instagram">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-                <rect x="2" y="2" width="20" height="20" rx="5"/>
-                <circle cx="12" cy="12" r="4"/>
-                <circle cx="17.5" cy="6.5" r="1" fill="#000" stroke="none"/>
-              </svg>
-            </a>
-            <a href="#" className={styles.socialIcon} aria-label="LinkedIn">
-              <svg viewBox="0 0 24 24" fill="#000" width="18" height="18">
-                <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z"/>
-                <rect x="2" y="9" width="4" height="12"/>
-                <circle cx="4" cy="4" r="2"/>
-              </svg>
-            </a>
-          </div>
-
-          <div className={styles.footerNav}>
-            <a href="#services"  className={`${styles.footerNavLink} ${styles.fnGreen}`}>SERVICES</a>
-            <a href="#portfolio" className={`${styles.footerNavLink} ${styles.fnOrange}`}>PORTFOLIO</a>
-            <a href="#contact"   className={`${styles.footerNavLink} ${styles.fnPink}`}>CONTACT</a>
-            <a href="/portal/login" className={`${styles.footerNavLink} ${styles.fnBlue}`}>CLIENT PORTAL</a>
-          </div>
-        </div>
-
-        <div className={styles.footerBottom} style={{ position: 'relative' }}>
-          © 2025 Thrive Creative Studios &nbsp;·&nbsp; Black-Owned &nbsp;·&nbsp; Black-Led &nbsp;·&nbsp; Built Different &nbsp;·&nbsp; Dallas, TX
-          <a href="/admin" style={{ position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)', opacity: 0.4, fontSize: '0.7rem', color: 'inherit', textDecoration: 'none' }}>Admin</a>
-        </div>
-
-      </footer>
-
     </div>
+    </PublicLayout>
   );
 }

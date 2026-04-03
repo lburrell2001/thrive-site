@@ -126,7 +126,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: '#f6f5f4', minHeight: '100%' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: '#f6f5f4', minHeight: '100%', boxSizing: 'border-box' }}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
         .skel { animation: pulse 1.5s ease-in-out infinite; }
@@ -134,11 +134,17 @@ export default function DashboardPage() {
         .dash-mid     { display: flex; flex-direction: column; gap: 16px; }
         .dash-projects { min-height: 280px; }
         .dash-activity { min-height: 280px; }
+        .dash-milestone-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .dash-milestone-title { font-family: ${F.inter}; font-size: 14px; font-weight: 600; color: #0a0a0a; flex: 1; min-width: 120px; }
+        .dash-milestone-date { font-family: ${F.inter}; font-size: 12px; font-weight: 600; color: #0a0a0a; border: 1px solid #e5e5e5; border-radius: 999px; padding: 3px 10px; flex-shrink: 0; }
         @media (min-width: 1200px) {
           .dash-stats { grid-template-columns: repeat(4,1fr); }
           .dash-mid   { flex-direction: row; }
           .dash-projects { flex: 0 0 auto; width: 58%; }
           .dash-activity { flex: 1; }
+        }
+        @media (max-width: 480px) {
+          .dash-stats { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -292,16 +298,13 @@ export default function DashboardPage() {
         ) : milestones && milestones.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
             {milestones.map((m) => (
-              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div key={m.id} className="dash-milestone-row">
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
                 {m.project_name && (
                   <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#808080', flexShrink: 0 }}>{m.project_name}</span>
                 )}
-                {m.project_name && <span style={{ color: '#d0d0d0' }}>—</span>}
-                <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1 }}>{m.title}</span>
-                <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#0a0a0a', border: '1px solid #e5e5e5', borderRadius: 999, padding: '3px 10px', flexShrink: 0 }}>
-                  {fmtDate(m.due_date)}
-                </span>
+                <span className="dash-milestone-title">{m.title}</span>
+                <span className="dash-milestone-date">{fmtDate(m.due_date)}</span>
               </div>
             ))}
           </div>

@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bungee, Inter } from 'next/font/google';
+import { Bungee, Bai_Jamjuree } from 'next/font/google';
 import { supabasePortal } from '@/lib/supabasePortal';
 
 const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bungee' });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 const BASE_NAV_LINKS = [
   { href: '/portal/dashboard',  label: 'Dashboard' },
@@ -109,13 +109,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   if (pathname === '/portal/login') {
-    return <div className={`${bungee.variable} ${inter.variable}`}>{children}</div>;
+    return <div className={`${bungee.variable} ${baiJamjuree.variable}`}>{children}</div>;
   }
 
   if (checking) {
     return (
       <div
-        className={`${bungee.variable} ${inter.variable}`}
+        className={`${bungee.variable} ${baiJamjuree.variable}`}
         style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6f5f4' }}
       >
         <span style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, color: '#808080' }}>
@@ -131,9 +131,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const pageInfo    = PAGE_TITLES[pathname] ?? { title: 'PORTAL', subtitle: '' };
 
   return (
-    <div className={`${bungee.variable} ${inter.variable}`} style={{ display: 'flex', minHeight: '100dvh' }}>
+    <div className={`${bungee.variable} ${baiJamjuree.variable}`} style={{ display: 'flex', minHeight: '100dvh' }}>
       <style>{`
         @media (min-width: 768px) { .portal-main { margin-left: 220px; } }
+        .portal-header { padding: 0 32px; }
+        @media (max-width: 767px) {
+          .portal-header { padding: 0 16px; }
+          .portal-header h1 { font-size: 16px !important; }
+          .portal-header p  { display: none; }
+        }
       `}</style>
 
       {/* Mobile overlay */}
@@ -242,10 +248,10 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       {/* ── Main ── */}
       <div className="portal-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: '#f6f5f4' }}>
         {/* Header */}
-        <header style={{
+        <header className="portal-header" style={{
           position: 'sticky', top: 0, zIndex: 20,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 32px', height: 72,
+          height: 72,
           background: '#fff', borderBottom: '1px solid #e5e5e5',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>

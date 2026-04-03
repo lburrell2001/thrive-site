@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 
 interface DbProject {
-  id: string; title: string; status: string;
-  completion_percentage: number; start_date: string | null; end_date: string | null;
+  id: string;
+  name: string;
+  status: string;
+  progress: number;
+  color: string;
 }
 
 const F = {
@@ -13,21 +16,23 @@ const F = {
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  in_progress: 'In Progress', review: 'Review',
-  kickoff: 'Kickoff', completed: 'Completed', on_hold: 'On Hold',
-};
+const STAGES = [
+  { key: 'kickoff',     label: 'Kickoff',     n: 1 },
+  { key: 'in_progress', label: 'In Progress', n: 2 },
+  { key: 'review',      label: 'Review',      n: 3 },
+  { key: 'completed',   label: 'Completed',   n: 4 },
+];
+
 const STATUS_COLOR: Record<string, string> = {
-  in_progress: '#e40586', review: '#fd6100',
-  kickoff: '#1e3add', completed: '#0cf574', on_hold: '#808080',
+  kickoff:     '#1e3add',
+  in_progress: '#e40586',
+  review:      '#fd6100',
+  completed:   '#0cf574',
+  on_hold:     '#808080',
 };
 
 function Skel({ w = '100%', h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
   return <div className="skel" style={{ width: w, height: h, borderRadius: r, background: '#f1f0ef' }} />;
-}
-
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export default function ProgressPage() {
@@ -40,7 +45,7 @@ export default function ProgressPage() {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) return;
       const { data, error: qErr } = await supabasePortal
-        .from('portal_projects').select('*')
+        .from('portal_projects').select('id, name, status, progress, color')
         .eq('client_id', user.id).order('created_at', { ascending: false });
       if (qErr) { setError(true); setLoading(false); return; }
       setProjects(data ?? []);
@@ -51,9 +56,13 @@ export default function ProgressPage() {
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, background: '#f6f5f4', minHeight: '100%' }}>
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}.skel{animation:pulse 1.5s ease-in-out infinite}`}</style>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+        .skel{animation:pulse 1.5s ease-in-out infinite}
+        @keyframes fillbar { from { width: 0 } }
+        .prog-fill { animation: fillbar .6s ease forwards; }
+      `}</style>
 
-      {/* Error */}
       {error && (
         <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
           Something went wrong loading projects — please refresh.
@@ -62,14 +71,14 @@ export default function ProgressPage() {
 
       {/* Loading skeletons */}
       {loading && [1, 2, 3].map(i => (
-        <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <Skel w="40%" h={14} /><Skel w={60} h={22} r={999} />
+        <div key={i} style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+            <Skel w="50%" h={18} /><Skel w={80} h={26} r={8} />
           </div>
-          <Skel w="100%" h={8} r={999} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-            <Skel w={80} h={11} /><Skel w={30} h={11} />
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {[1,2,3,4].map(j => <Skel key={j} w="25%" h={36} r={8} />)}
           </div>
+          <Skel w="100%" h={10} r={999} />
         </div>
       ))}
 
@@ -81,47 +90,90 @@ export default function ProgressPage() {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
           </div>
-          <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>
-            No active projects yet
-          </p>
+          <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No active projects yet</p>
         </div>
       )}
 
       {/* Project cards */}
       {!loading && !error && projects.map(proj => {
-        const sc  = STATUS_COLOR[proj.status] ?? '#808080';
-        const pct = Math.min(100, Math.max(0, proj.completion_percentage ?? 0));
+        const accent = proj.color || STATUS_COLOR[proj.status] || '#808080';
+        const pct    = Math.min(100, Math.max(0, proj.progress ?? 0));
+        const activeStageIdx = STAGES.findIndex(s => s.key === proj.status);
+
         return (
-          <div key={proj.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', borderLeft: `4px solid ${sc}`, overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px' }}>
-              {/* Title + status */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-                <div style={{ fontFamily: F.inter, fontSize: 15, fontWeight: 700, color: '#0a0a0a' }}>{proj.title}</div>
-                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: sc, background: `${sc}18`, padding: '3px 10px', borderRadius: 999, flexShrink: 0 }}>
-                  {STATUS_LABEL[proj.status] ?? proj.status}
-                </span>
+          <div key={proj.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
+            {/* Top accent bar */}
+            <div style={{ height: 4, background: accent }} />
+
+            <div style={{ padding: '20px 24px 24px' }}>
+              {/* Project name + percentage */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 20 }}>
+                <div style={{ fontFamily: F.bungee, fontSize: 18, color: '#0a0a0a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                  {proj.name}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: F.bungee, fontSize: 28, color: accent, lineHeight: 1 }}>{pct}%</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em' }}>complete</div>
+                </div>
+              </div>
+
+              {/* Stage pipeline */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
+                {STAGES.map((stage, idx) => {
+                  const isPast    = activeStageIdx > idx;
+                  const isCurrent = activeStageIdx === idx;
+                  const isFuture  = activeStageIdx < idx && activeStageIdx !== -1;
+                  const isUnknown = activeStageIdx === -1;
+                  return (
+                    <div
+                      key={stage.key}
+                      style={{
+                        borderRadius: 8,
+                        padding: '10px 8px',
+                        textAlign: 'center',
+                        background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4',
+                        border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1.5px solid #e5e5e5',
+                        opacity: isFuture || isUnknown ? 0.5 : 1,
+                        transition: 'all .2s',
+                      }}
+                    >
+                      <div style={{
+                        fontFamily: F.inter, fontSize: 10, fontWeight: 800,
+                        textTransform: 'uppercase', letterSpacing: '0.06em',
+                        color: isCurrent ? '#fff' : isPast ? accent : '#808080',
+                        marginBottom: 3,
+                      }}>
+                        {stage.n < 10 ? `0${stage.n}` : stage.n}
+                      </div>
+                      <div style={{
+                        fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500,
+                        color: isCurrent ? '#fff' : isPast ? accent : '#808080',
+                      }}>
+                        {stage.label}
+                      </div>
+                      {isPast && (
+                        <div style={{ marginTop: 4 }}>
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                            <circle cx="6" cy="6" r="5" fill={accent} />
+                            <path d="M3.5 6l2 2 3-3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Progress bar */}
-              <div style={{ height: 8, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden', marginBottom: 8 }}>
-                <div style={{ height: '100%', borderRadius: 999, background: sc, width: `${pct}%`, transition: 'width .4s ease' }} />
+              <div style={{ height: 10, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden' }}>
+                <div
+                  className="prog-fill"
+                  style={{ height: '100%', borderRadius: 999, background: accent, width: `${pct}%` }}
+                />
               </div>
-
-              {/* Footer row */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  {proj.start_date && (
-                    <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>
-                      Started {fmt(proj.start_date)}
-                    </span>
-                  )}
-                  {proj.end_date && (
-                    <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>
-                      Due {fmt(proj.end_date)}
-                    </span>
-                  )}
-                </div>
-                <span style={{ fontFamily: F.bungee, fontSize: 13, color: sc }}>{pct}%</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>0%</span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>100%</span>
               </div>
             </div>
           </div>

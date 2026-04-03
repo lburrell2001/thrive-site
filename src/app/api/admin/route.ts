@@ -54,7 +54,8 @@ export async function POST(req: NextRequest) {
 
       case 'get_client_data': {
         const clientId = params.clientId as string;
-        const [profile, projects, requests, invoices, files, milestones, onboarding, activity] = await Promise.all([
+        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity] = await Promise.all([
+          admin.auth.admin.getUserById(clientId),
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
           admin.from('portal_requests').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           ok: true,
           data: {
-            profile: profile.data,
+            profile: profile.data ? { ...profile.data, email: authUser.data.user?.email ?? null } : null,
             projects: projects.data ?? [],
             requests: requests.data ?? [],
             invoices: invoices.data ?? [],
@@ -77,6 +78,26 @@ export async function POST(req: NextRequest) {
             activity: activity.data ?? [],
           },
         });
+      }
+
+      case 'remove_demo_data': {
+        const { clientId } = params as { clientId: string };
+        if (!clientId) return err('clientId is required');
+        // Server-side guard: only allow for the demo account
+        const { data: authData } = await admin.auth.admin.getUserById(clientId);
+        if (authData.user?.email !== 'lauren@thrivecreativestudios.org') {
+          return err('Not authorized', 403);
+        }
+        await Promise.all([
+          admin.from('portal_projects').delete().eq('client_id', clientId),
+          admin.from('portal_invoices').delete().eq('client_id', clientId),
+          admin.from('portal_requests').delete().eq('client_id', clientId),
+          admin.from('portal_files').delete().eq('client_id', clientId),
+          admin.from('portal_milestones').delete().eq('client_id', clientId),
+          admin.from('portal_onboarding_steps').delete().eq('client_id', clientId),
+          admin.from('portal_activity').delete().eq('client_id', clientId),
+        ]);
+        return NextResponse.json({ ok: true });
       }
 
       case 'update_profile': {
@@ -209,6 +230,154 @@ export async function POST(req: NextRequest) {
         const { data, error } = await admin.from('portal_activity').insert({ client_id: clientId, text, dot_color }).select().single();
         if (error) return err(error.message);
         return NextResponse.json({ ok: true, data });
+      }
+
+      // ── Portfolio (public case study) management ───────────────────────────
+
+      case 'list_portfolio_projects': {
+        const { data, error } = await admin.from('projects').select('*').order('title', { ascending: true });
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true, data });
+      }
+
+      case 'create_portfolio_project': {
+        const { title, slug, category, category_label, year, tagline, overview, role,
+                tools, problem, solution, results,
+                project_notes, featured } = params as Record<string, unknown>;
+        if (!title || !slug) return err('title and slug are required');
+        const insertPayload: Record<string, unknown> = {
+          title, slug, category, year, tagline, overview, role,
+          tools: tools ?? [], problem, solution, results,
+          project_notes, featured: featured ?? false, span: '1', order_index: 0,
+        };
+        if (category_label !== undefined && category_label !== null) insertPayload.category_label = category_label;
+        const { data, error } = await admin.from('projects').insert(insertPayload).select().single();
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true, data });
+      }
+
+      case 'update_portfolio_project': {
+        const { id, title, slug, category, category_label, year, tagline, overview, role,
+                tools, problem, solution, results,
+                project_notes, featured } = params as Record<string, unknown>;
+        if (!id) return err('id is required');
+        const updatePayload: Record<string, unknown> = {
+          title, slug, category, year, tagline, overview, role,
+          tools: tools ?? [], problem, solution, results,
+          project_notes, featured: featured ?? false,
+        };
+        if (category_label !== undefined && category_label !== null) updatePayload.category_label = category_label;
+        const { error } = await admin.from('projects').update(updatePayload).eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'list_service_featured': {
+        const { serviceSlug } = params as { serviceSlug: string };
+        if (!serviceSlug) return err('serviceSlug is required');
+        const { data, error } = await admin
+          .from('service_featured_projects')
+          .select('project_slug, display_order')
+          .eq('service_slug', serviceSlug)
+          .order('display_order', { ascending: true });
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true, data: data ?? [] });
+      }
+
+      case 'set_service_featured': {
+        const { serviceSlug, projectSlugs } = params as { serviceSlug: string; projectSlugs: string[] };
+        if (!serviceSlug) return err('serviceSlug is required');
+        const { error: delError } = await admin
+          .from('service_featured_projects')
+          .delete()
+          .eq('service_slug', serviceSlug);
+        if (delError) return err(delError.message);
+        if (projectSlugs && projectSlugs.length > 0) {
+          const rows = projectSlugs.map((slug, i) => ({
+            service_slug: serviceSlug,
+            project_slug: slug,
+            display_order: i,
+          }));
+          const { error: insError } = await admin
+            .from('service_featured_projects')
+            .insert(rows);
+          if (insError) return err(insError.message);
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'delete_portfolio_project': {
+        const { id } = params as { id: string };
+        if (!id) return err('id is required');
+        const { error } = await admin.from('projects').delete().eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'upload_project_cover': {
+        // body.imageData: base64 string (no data: prefix), body.slug, body.mimeType
+        const { slug, imageData, mimeType } = params as Record<string, string>;
+        if (!slug || !imageData) return err('slug and imageData are required');
+        const buf = Buffer.from(imageData, 'base64');
+        const path = `work/${slug}-cover.jpg`;
+        const { error } = await admin.storage.from('course-media').upload(path, buf, {
+          contentType: mimeType ?? 'image/jpeg',
+          upsert: true,
+        });
+        if (error) return err(error.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        return NextResponse.json({ ok: true, url: publicUrl });
+      }
+
+      case 'upload_gallery_image': {
+        const { slug, filename, imageData, mimeType } = params as Record<string, string>;
+        if (!slug || !filename || !imageData) return err('slug, filename, and imageData are required');
+        const buf = Buffer.from(imageData, 'base64');
+        const path = `projects/${slug}/gallery/${filename}`;
+        const { error } = await admin.storage.from('course-media').upload(path, buf, {
+          contentType: mimeType ?? 'image/jpeg',
+          upsert: true,
+        });
+        if (error) return err(error.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        return NextResponse.json({ ok: true, url: publicUrl });
+      }
+
+      case 'list_gallery_images': {
+        const { slug } = params as { slug: string };
+        if (!slug) return err('slug is required');
+        const { data, error } = await admin.storage.from('course-media').list(`projects/${slug}/gallery`, { limit: 100 });
+        if (error) return err(error.message);
+        const images = (data ?? [])
+          .filter((f) => f.name && !f.name.startsWith('.'))
+          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+          .map((f) => ({
+            name: f.name,
+            url: admin.storage.from('course-media').getPublicUrl(`projects/${slug}/gallery/${f.name}`).data.publicUrl,
+          }));
+        return NextResponse.json({ ok: true, data: images });
+      }
+
+      case 'delete_gallery_image': {
+        const { slug, filename } = params as Record<string, string>;
+        if (!slug || !filename) return err('slug and filename are required');
+        const { error } = await admin.storage.from('course-media').remove([`projects/${slug}/gallery/${filename}`]);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'upload_service_cover': {
+        const { slug, imageData, mimeType } = params as Record<string, string>;
+        if (!slug || !imageData) return err('slug and imageData are required');
+        const buf = Buffer.from(imageData, 'base64');
+        const path = `services/${slug}-cover.jpg`;
+        const { error } = await admin.storage.from('course-media').upload(path, buf, {
+          contentType: mimeType ?? 'image/jpeg',
+          upsert: true,
+        });
+        if (error) return err(error.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        return NextResponse.json({ ok: true, url: publicUrl });
       }
 
       default:

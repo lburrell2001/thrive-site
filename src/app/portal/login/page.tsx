@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bungee, Inter } from 'next/font/google';
+import { Bungee, Bai_Jamjuree } from 'next/font/google';
 import { supabasePortal } from '@/lib/supabasePortal';
 
 const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bungee' });
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 type Step = 'contact' | 'verify';
 
@@ -215,7 +215,7 @@ export default function LoginPage() {
         .portal-btn-primary:not(:disabled):hover { opacity: 0.88; }
       `}</style>
 
-      <div className={`${bungee.variable} ${inter.variable} portal-login-wrap`}>
+      <div className={`${bungee.variable} ${baiJamjuree.variable} portal-login-wrap`}>
 
         {/* ══ LEFT — dark brand panel ══════════════════════ */}
         <div className="portal-login-left">
@@ -247,10 +247,18 @@ export default function LoginPage() {
             </p>
           </div>
 
-          {/* Bottom: copyright */}
-          <p style={{ fontFamily: F.inter, fontSize: 12, color: '#444', margin: 0, position: 'absolute', bottom: 48, left: 52 }}>
-            © 2025 Thrive Creative Studios
-          </p>
+          {/* Bottom: copyright + homepage link */}
+          <div style={{ position: 'absolute', bottom: 48, left: 52, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <a
+              href="/"
+              style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#E50586', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            >
+              ← Return to Homepage
+            </a>
+            <p style={{ fontFamily: F.inter, fontSize: 12, color: '#444', margin: 0 }}>
+              © 2025 Thrive Creative Studios
+            </p>
+          </div>
         </div>
 
         {/* ══ RIGHT — form panel ═══════════════════════════ */}

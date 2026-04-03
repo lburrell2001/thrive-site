@@ -45,7 +45,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; }
+interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; }
@@ -146,13 +146,14 @@ function SectionHead({ title, action }: { title: string; action?: React.ReactNod
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const [loading,      setLoading]      = useState(true);
-  const [clients,      setClients]      = useState<Client[]>([]);
-  const [search,       setSearch]       = useState('');
-  const [selectedId,   setSelectedId]   = useState<string | 'new' | ''>('');
-  const [clientData,   setClientData]   = useState<ClientData | null>(null);
-  const [dataLoading,  setDataLoading]  = useState(false);
-  const [activeTab,    setActiveTab]    = useState<Tab>('profile');
+  const [loading,          setLoading]          = useState(true);
+  const [clients,          setClients]          = useState<Client[]>([]);
+  const [search,           setSearch]           = useState('');
+  const [selectedId,       setSelectedId]       = useState<string | 'new' | ''>('');
+  const [clientData,       setClientData]       = useState<ClientData | null>(null);
+  const [dataLoading,      setDataLoading]      = useState(false);
+  const [activeTab,        setActiveTab]        = useState<Tab>('profile');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const api = useCallback(async (body: Record<string, unknown>) => {
     const passcode = sessionStorage.getItem('admin_passcode') ?? '';
@@ -207,17 +208,50 @@ export default function AdminPage() {
     { id: 'settings',   label: 'Settings' },
   ] : [{ id: 'settings' as Tab, label: 'Settings' }];
 
+  const selectedClient = clients.find(c => c.id === selectedId);
+
   return (
-    <div style={{ display: 'flex', height: 'calc(100dvh - 64px)', fontFamily: F.inter }}>
+    <div style={{ display: 'flex', height: '100%', fontFamily: F.inter }}>
       <style>{`
         .admin-list-item:hover { background: #fafafa; }
         .admin-list-item.active { background: #fff0f8; }
         .admin-list-item.active .admin-list-name { color: ${PINK}; }
-        @media (max-width: 640px) { .admin-sidebar { display: none; } }
+        .admin-sidebar {
+          width: 260px; background: #fff; border-right: 1px solid #e5e5e5;
+          display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .admin-mobile-bar { display: none; }
+        .admin-client-hdr { padding: 24px 32px; }
+        .admin-tab-bar { padding: 0 32px; }
+        .admin-tab-content { padding: 24px 32px; }
+        .admin-tab-inner { padding: 28px; border-radius: 12px; }
+        @media (max-width: 640px) {
+          .admin-sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+            width: 280px !important;
+            transform: translateX(-100%);
+            transition: transform .22s ease;
+            box-shadow: 4px 0 24px rgba(0,0,0,.15);
+          }
+          .admin-sidebar.mobile-open { transform: translateX(0); }
+          .admin-mobile-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+          .admin-client-hdr { padding: 16px !important; }
+          .admin-tab-bar { padding: 0 16px !important; }
+          .admin-tab-content { padding: 12px !important; }
+          .admin-tab-inner { padding: 16px !important; border-radius: 8px; }
+        }
       `}</style>
 
+      {/* Mobile overlay backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40 }}
+        />
+      )}
+
       {/* ── Left sidebar: client list ── */}
-      <aside className="admin-sidebar" style={{ width: 260, background: '#fff', borderRight: '1px solid #e5e5e5', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      <aside className={`admin-sidebar${mobileSidebarOpen ? ' mobile-open' : ''}`}>
         <div style={{ padding: '16px 16px 12px' }}>
           <div style={{ position: 'relative' }}>
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
@@ -243,7 +277,7 @@ export default function AdminPage() {
               <div
                 key={c.id}
                 className={`admin-list-item${selectedId === c.id ? ' active' : ''}`}
-                onClick={() => { setSelectedId(c.id); setActiveTab('profile'); }}
+                onClick={() => { setSelectedId(c.id); setActiveTab('profile'); setMobileSidebarOpen(false); }}
                 style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderLeft: selectedId === c.id ? `3px solid ${PINK}` : '3px solid transparent', transition: 'background .15s' }}
               >
                 <Avatar name={c.full_name} initials={c.initials} size={34} />
@@ -267,7 +301,30 @@ export default function AdminPage() {
       </aside>
 
       {/* ── Right panel ── */}
-      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f5f4' }}>
+      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f5f4', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+        {/* Mobile client selector bar */}
+        <div className="admin-mobile-bar">
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f6f5f4', border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: DARK, cursor: 'pointer', flex: 1 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="6" r="2.5" stroke="#808080" strokeWidth="1.5"/>
+              <path d="M3 13c0-2.76 2.239-5 5-5s5 2.24 5 5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            {selectedClient ? selectedClient.full_name : selectedId === 'new' ? 'New Client' : 'Select Client'}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 'auto' }}>
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => { setSelectedId('new'); setActiveTab('profile'); setMobileSidebarOpen(false); }}
+            style={{ background: DARK, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + New
+          </button>
+        </div>
 
         {/* No selection */}
         {!selectedId && (
@@ -284,7 +341,7 @@ export default function AdminPage() {
 
         {/* New client form */}
         {selectedId === 'new' && (
-          <div style={{ padding: 32, maxWidth: 600 }}>
+          <div className="admin-tab-content" style={{ maxWidth: 600 }}>
             <h2 style={{ fontFamily: F.inter, fontSize: 18, fontWeight: 800, color: DARK, margin: '0 0 6px' }}>New Client</h2>
             <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 28px' }}>Create a new client account. They'll receive a login invite.</p>
             <NewClientForm api={api} onCreated={(id) => { refreshClients(); setSelectedId(id); setActiveTab('profile'); }} />
@@ -297,7 +354,7 @@ export default function AdminPage() {
 
             {/* Client header */}
             {clientData?.profile && (
-              <div style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '24px 32px' }}>
+              <div className="admin-client-hdr" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <Avatar name={clientData.profile.full_name} initials={clientData.profile.initials} size={52} />
@@ -332,7 +389,7 @@ export default function AdminPage() {
             )}
 
             {/* Tab bar */}
-            <div style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', padding: '0 32px', display: 'flex', gap: 0, overflowX: 'auto' }}>
+            <div className="admin-tab-bar" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', display: 'flex', gap: 0, overflowX: 'auto' }}>
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -358,11 +415,11 @@ export default function AdminPage() {
             </div>
 
             {/* Tab content */}
-            <div style={{ flex: 1, padding: 32 }}>
+            <div className="admin-tab-content" style={{ flex: 1 }}>
               {dataLoading ? (
                 <div style={{ color: '#bfbfbf', fontSize: 13, fontFamily: F.inter }}>Loading…</div>
               ) : clientData ? (
-                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', padding: 28 }}>
+                <div className="admin-tab-inner" style={{ background: '#fff', border: '1px solid #e5e5e5' }}>
                   {activeTab === 'profile'    && <ProfileTab    clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'projects'   && <ProjectsTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'invoices'   && <InvoicesTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
@@ -371,7 +428,7 @@ export default function AdminPage() {
                   {activeTab === 'onboarding' && <OnboardingTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'milestones' && <MilestonesTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'activity'   && <ActivityTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'settings'   && <SettingsTab   api={api} />}
+                  {activeTab === 'settings'   && <SettingsTab   api={api} clientId={selectedId} clientEmail={clientData?.profile?.email ?? null} onRefresh={refreshClientData} />}
                 </div>
               ) : null}
             </div>
@@ -990,12 +1047,24 @@ function ActivityTab({ clientId, data, api, onRefresh }: { clientId: string; dat
 }
 
 // ── Settings Tab ───────────────────────────────────────────────────────────────
-function SettingsTab({ api }: { api: (b: Record<string, unknown>) => Promise<Record<string, unknown>> }) {
+const DEMO_EMAIL = 'lauren@thrivecreativestudios.org';
+
+function SettingsTab({ api, clientId, clientEmail, onRefresh }: {
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  clientId: string;
+  clientEmail: string | null;
+  onRefresh: () => Promise<void>;
+}) {
   const [newPass, setNewPass] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const [demoConfirm, setDemoConfirm] = useState(false);
+  const [demoRemoving, setDemoRemoving] = useState(false);
+  const [demoError, setDemoError] = useState('');
+  const [demoSuccess, setDemoSuccess] = useState('');
 
   async function handleChange(e: React.FormEvent) {
     e.preventDefault();
@@ -1009,18 +1078,54 @@ function SettingsTab({ api }: { api: (b: Record<string, unknown>) => Promise<Rec
     setNewPass(''); setConfirm(''); setSaving(false);
   }
 
+  async function handleRemoveDemo() {
+    setDemoRemoving(true); setDemoError(''); setDemoSuccess('');
+    const r = await api({ action: 'remove_demo_data', clientId }) as { ok?: boolean; error?: string };
+    if (r.error) { setDemoError(r.error); setDemoRemoving(false); return; }
+    setDemoSuccess('Demo data removed. The portal is now clean.');
+    setDemoConfirm(false); setDemoRemoving(false);
+    await onRefresh();
+  }
+
   return (
-    <div style={{ maxWidth: 400 }}>
-      <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Change Admin Passcode</h3>
-      <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 24px', lineHeight: 1.6 }}>Must be at least 4 characters. Stored securely in your database.</p>
-      <form onSubmit={handleChange} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <FormRow label="New Passcode"><input style={INPUT} type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="Enter new passcode" /></FormRow>
-        <FormRow label="Confirm Passcode"><input style={INPUT} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat new passcode" /></FormRow>
-        <div>
-          <Btn type="submit" disabled={saving || !newPass || !confirm}>{saving ? 'Saving…' : 'Update Passcode'}</Btn>
-          <ErrorMsg msg={error} /><SuccessMsg msg={success} />
+    <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 40 }}>
+
+      {/* Passcode */}
+      <div>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Change Admin Passcode</h3>
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 24px', lineHeight: 1.6 }}>Must be at least 4 characters. Stored securely in your database.</p>
+        <form onSubmit={handleChange} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <FormRow label="New Passcode"><input style={INPUT} type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="Enter new passcode" /></FormRow>
+          <FormRow label="Confirm Passcode"><input style={INPUT} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat new passcode" /></FormRow>
+          <div>
+            <Btn type="submit" disabled={saving || !newPass || !confirm}>{saving ? 'Saving…' : 'Update Passcode'}</Btn>
+            <ErrorMsg msg={error} /><SuccessMsg msg={success} />
+          </div>
+        </form>
+      </div>
+
+      {/* Demo data — only visible for the demo account */}
+      {clientEmail === DEMO_EMAIL && (
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 32 }}>
+          <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: PINK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Remove Demo Data</h3>
+          <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 20px', lineHeight: 1.6 }}>
+            Permanently deletes all projects, invoices, requests, files, milestones, onboarding steps, and activity for this account. The account itself is kept. This cannot be undone.
+          </p>
+          {!demoConfirm ? (
+            <Btn variant="danger" onClick={() => setDemoConfirm(true)}>Remove Demo Data</Btn>
+          ) : (
+            <div style={{ background: '#fff0f8', border: `1px solid ${PINK}`, borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: PINK, margin: 0 }}>Are you sure? This will wipe all portal data for this client.</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Btn variant="danger" disabled={demoRemoving} onClick={handleRemoveDemo}>{demoRemoving ? 'Removing…' : 'Yes, remove it all'}</Btn>
+                <Btn variant="ghost" onClick={() => setDemoConfirm(false)}>Cancel</Btn>
+              </div>
+            </div>
+          )}
+          <ErrorMsg msg={demoError} />
+          <SuccessMsg msg={demoSuccess} />
         </div>
-      </form>
+      )}
     </div>
   );
 }

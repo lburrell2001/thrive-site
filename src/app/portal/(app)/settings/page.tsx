@@ -30,6 +30,11 @@ export default function SettingsPage() {
   const [seedMsg,  setSeedMsg]  = useState('');
   const [seedErr,  setSeedErr]  = useState('');
 
+  const [removing,   setRemoving]   = useState(false);
+  const [removeMsg,  setRemoveMsg]  = useState('');
+  const [removeErr,  setRemoveErr]  = useState('');
+  const [confirmRem, setConfirmRem] = useState(false);
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabasePortal.auth.getUser();
@@ -80,6 +85,26 @@ export default function SettingsPage() {
       setSeedErr(e instanceof Error ? e.message : 'Unexpected error.');
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function handleRemoveData() {
+    setRemoving(true); setRemoveMsg(''); setRemoveErr('');
+    try {
+      const { data: { session } } = await supabasePortal.auth.getSession();
+      if (!session) { setRemoveErr('Not logged in.'); return; }
+      const res  = await fetch('/api/portal/admin/unseed', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+      const data = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok) { setRemoveErr(data.error ?? 'Remove failed.'); return; }
+      setRemoveMsg('Demo data removed. Portal is now clean.');
+      setConfirmRem(false);
+    } catch (e) {
+      setRemoveErr(e instanceof Error ? e.message : 'Unexpected error.');
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -145,18 +170,52 @@ export default function SettingsPage() {
           <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 16px', lineHeight: 1.6 }}>
             Populate your portal with sample projects, invoices, requests, milestones, and onboarding steps so you can see how everything looks with real data. This only runs once — it won&apos;t overwrite existing records.
           </p>
-          <button
-            onClick={handleSeedData}
-            disabled={seeding}
-            style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: seeding ? '#ccc' : '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 20px', cursor: seeding ? 'default' : 'pointer', transition: 'background .15s' }}
-          >
-            {seeding ? 'Adding data…' : 'Add Demo Data'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button
+              onClick={handleSeedData}
+              disabled={seeding}
+              style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: seeding ? '#ccc' : '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 20px', cursor: seeding ? 'default' : 'pointer', transition: 'background .15s' }}
+            >
+              {seeding ? 'Adding data…' : 'Add Demo Data'}
+            </button>
+            {!confirmRem ? (
+              <button
+                onClick={() => setConfirmRem(true)}
+                disabled={removing}
+                style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#c0006a', background: '#fff0f8', border: '1.5px solid #f5b8d8', borderRadius: 8, padding: '10px 20px', cursor: 'pointer', transition: 'background .15s' }}
+              >
+                Remove Demo Data
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: '#fff0f8', border: '1px solid #f5b8d8', borderRadius: 8, padding: '8px 14px' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, color: '#c0006a', fontWeight: 600 }}>Remove all data?</span>
+                <button
+                  onClick={handleRemoveData}
+                  disabled={removing}
+                  style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: removing ? '#ccc' : '#e40586', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: removing ? 'default' : 'pointer' }}
+                >
+                  {removing ? 'Removing…' : 'Yes, remove'}
+                </button>
+                <button
+                  onClick={() => setConfirmRem(false)}
+                  style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
           {seedMsg && (
             <p style={{ fontFamily: F.inter, fontSize: 13, color: '#0a7a3a', background: '#f0fff8', border: '1px solid #0cf574', borderRadius: 8, padding: '10px 14px', margin: '14px 0 0' }}>{seedMsg}</p>
           )}
           {seedErr && (
             <p style={{ fontFamily: F.inter, fontSize: 13, color: '#c0006a', background: '#fff0f8', border: '1px solid #f5b8d8', borderRadius: 8, padding: '10px 14px', margin: '14px 0 0' }}>{seedErr}</p>
+          )}
+          {removeMsg && (
+            <p style={{ fontFamily: F.inter, fontSize: 13, color: '#0a7a3a', background: '#f0fff8', border: '1px solid #0cf574', borderRadius: 8, padding: '10px 14px', margin: '14px 0 0' }}>{removeMsg}</p>
+          )}
+          {removeErr && (
+            <p style={{ fontFamily: F.inter, fontSize: 13, color: '#c0006a', background: '#fff0f8', border: '1px solid #f5b8d8', borderRadius: 8, padding: '10px 14px', margin: '14px 0 0' }}>{removeErr}</p>
           )}
         </div>
       </div>

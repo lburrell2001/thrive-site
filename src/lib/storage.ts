@@ -7,7 +7,7 @@ export function storageUrl(path: string) {
 
 // Project helpers (slug-based)
 export function projectCover(slug: string) {
-  return storageUrl(`projects/${slug}/cover.jpg`);
+  return storageUrl(`work/${slug}-cover.jpg`);
 }
 
 export function projectGallery(slug: string, file: string) {

@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bungee, Bai_Jamjuree } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -17,6 +17,20 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+const bungee = Bungee({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-bungee",
+  display: "swap",
+});
+
+const baiJamjuree = Bai_Jamjuree({
+  weight: ["400", "600", "700"],
+  subsets: ["latin"],
+  variable: "--font-bai",
+  display: "swap",
+});
+
 // Update these to your exact brand colors
 const BRAND = {
   theme: "#E50586", // deep near-black (tab/mobile chrome)
@@ -25,24 +39,26 @@ const BRAND = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${SITE_NAME} | Branding, Web, and Social Media Design`,
+    default: `${SITE_NAME} | Bold Branding, Web & Creative Design in Dallas, TX`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Thrive Creative Studios helps small businesses, creators, and organizations with branding, web design, UX, social media management, and graphics creation.",
+    "Thrive Creative Studios is a Dallas-based creative agency specializing in brand design, web design, UX, and social media — available remotely across the US. Also offering photography services in Dallas, TX.",
   applicationName: SITE_NAME,
   metadataBase: new URL(SITE_URL),
   keywords: [
     "Thrive Creative Studios",
-    "branding studio",
-    "web design",
-    "UX design",
-    "social media management",
-    "graphics creation",
-    "Houston designer",
-    "Houston branding studio",
-    "Texas web design",
-    "Instagram content management",
+    "Dallas branding agency",
+    "Dallas creative studio",
+    "brand design Dallas TX",
+    "web design Dallas TX",
+    "UX design studio Texas",
+    "social media management Dallas TX",
+    "photography Dallas TX",
+    "remote branding agency",
+    "remote creative studio",
+    "Black-owned creative agency",
+    "small business branding",
   ],
   authors: [{ name: "Lauren Burrell" }],
   creator: "Lauren Burrell",
@@ -61,11 +77,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/new-thrive/logomark.svg", type: "image/svg+xml" },
       { url: "/icon.png", sizes: "32x32", type: "image/png" },
       { url: "/icon.png", sizes: "192x192", type: "image/png" },
     ],
     apple: [{ url: "/appleicon.png", sizes: "180x180", type: "image/png" }],
-    shortcut: ["/favicon.ico"],
+    shortcut: ["/new-thrive/logomark.svg"],
   },
   openGraph: {
     title: SITE_NAME,
@@ -125,7 +142,7 @@ export default function RootLayout({
     areaServed: "United States",
     address: {
       "@type": "PostalAddress",
-      addressLocality: "Houston",
+      addressLocality: "Dallas",
       addressRegion: "TX",
       addressCountry: "US",
     },
@@ -136,7 +153,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bungee.variable} ${baiJamjuree.variable}`}>
       <body className="antialiased bg-[var(--bg)] text-[var(--fg)]">
         <script
           type="application/ld+json"
