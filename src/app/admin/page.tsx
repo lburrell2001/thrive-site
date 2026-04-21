@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 const F = {
   inter: `var(--font-inter), 'Inter', sans-serif`,
@@ -51,9 +51,9 @@ interface Invoice { id: string; invoice_number: string; project_name: string; am
 interface Request { id: string; title: string; type: string; status: string; priority: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
-interface Activity { id: string; text: string; dot_color: string; created_at: string; }
+interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
 interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
-interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; }
+interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
 interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; }
 type Tab = 'profile' | 'projects' | 'invoices' | 'requests' | 'files' | 'onboarding' | 'milestones' | 'activity' | 'settings';
 
@@ -113,6 +113,48 @@ function FormGrid({ children }: { children: React.ReactNode }) {
 
 function Divider() { return <div style={{ height: 1, background: '#f0f0f0', margin: '24px 0' }} />; }
 
+function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,.csv,.mp4,.mov', maxMB = 20, uploading = false }: {
+  onFile: (f: File) => void; accept?: string; maxMB?: number; uploading?: boolean;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function pick(file: File) {
+    if (file.size > maxMB * 1024 * 1024) return;
+    onFile(file);
+  }
+
+  return (
+    <div
+      onClick={() => !uploading && inputRef.current?.click()}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) pick(f); }}
+      style={{
+        border: `2px dashed ${dragging ? PINK : '#e5e5e5'}`,
+        borderRadius: 10, padding: '20px 16px', textAlign: 'center',
+        cursor: uploading ? 'default' : 'pointer',
+        background: dragging ? '#fff0f8' : '#fafafa',
+        transition: 'border-color .15s, background .15s',
+        userSelect: 'none',
+      }}
+    >
+      <input ref={inputRef} type="file" accept={accept} style={{ display: 'none' }} disabled={uploading}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f); }} />
+      {uploading ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: 0 }}>Uploading…</p>
+      ) : dragging ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: PINK, margin: 0 }}>Drop to upload</p>
+      ) : (
+        <>
+          <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, margin: '0 0 3px' }}>Drop file here or click to browse</p>
+          <p style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', margin: 0 }}>Max {maxMB} MB</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ErrorMsg({ msg }: { msg: string }) {
   if (!msg) return null;
   return <p style={{ fontFamily: F.inter, fontSize: 13, color: PINK, background: '#fff0f8', border: `1px solid #fbc8e8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
@@ -134,6 +176,15 @@ function Btn({ children, onClick, type = 'button', variant = 'primary', disabled
     ghost:   { background: 'transparent', color: '#808080', border: '1.5px solid #e5e5e5' },
   };
   return <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{children}</button>;
+}
+
+function SubSectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+      {action}
+    </div>
+  );
 }
 
 function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
@@ -506,7 +557,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
         </div>
       </form>
       <Divider />
-      <ProposalsSection clientId={clientId} proposals={data.proposals} api={api} onRefresh={onRefresh} />
+      <ProposalsSection clientId={clientId} proposals={data.proposals.filter(p => !p.project_id)} api={api} onRefresh={onRefresh} />
     </div>
   );
 }
@@ -520,10 +571,7 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function handleFile(file: File) {
     if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
     setUploading(true); setError('');
     const reader = new FileReader();
@@ -557,20 +605,13 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proposals</h3>
-        <label style={{ cursor: uploading ? 'default' : 'pointer' }}>
-          <input type="file" accept=".pdf,.doc,.docx" style={{ display: 'none' }} onChange={handleFileChange} disabled={uploading} />
-          <span style={{ fontFamily: F.inter, fontWeight: 700, fontSize: 13, borderRadius: 8, border: 'none', cursor: uploading ? 'default' : 'pointer', padding: '8px 16px', background: DARK, color: '#fff', opacity: uploading ? 0.5 : 1, display: 'inline-block' }}>
-            {uploading ? 'Uploading…' : '+ Upload Proposal'}
-          </span>
-        </label>
-      </div>
+      <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proposals</h3>
 
+      <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
       <ErrorMsg msg={error} />
 
       {proposals.length === 0 ? (
-        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '8px 0 0' }}>No proposals uploaded yet.</p>
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '12px 0 0' }}>No proposals uploaded yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {proposals.map((p) => {
@@ -608,9 +649,7 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
 
 // ── Projects Tab ───────────────────────────────────────────────────────────────
 function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<Partial<Project>>({});
-  const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [status, setStatus] = useState('kickoff');
   const [progress, setProgress] = useState(0);
@@ -618,18 +657,6 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
   const [addErr, setAddErr] = useState('');
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
-
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this project?')) return;
-    await api({ action: 'delete_project', id });
-    onRefresh();
-  }
-
-  async function handleEditSave(id: string) {
-    setSaving(true);
-    await api({ action: 'update_project', id, ...editData });
-    setEditId(null); setEditData({}); setSaving(false); onRefresh();
-  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -666,42 +693,274 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
       {data.projects.length === 0 ? (
         <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '8px 0' }}>No projects yet.</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {data.projects.map((p, i) => (
-            <div key={p.id} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', marginBottom: i < data.projects.length - 1 ? 8 : 0 }}>
-              {editId === p.id ? (
-                <div style={{ padding: 16, background: '#fafafa', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <FormGrid>
-                    <FormRow label="Name"><input style={INPUT} value={editData.name ?? p.name} onChange={(e) => setEditData((d) => ({ ...d, name: e.target.value }))} /></FormRow>
-                    <FormRow label="Status">
-                      <select style={SELECT} value={editData.status ?? p.status} onChange={(e) => setEditData((d) => ({ ...d, status: e.target.value }))}>
-                        <option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option>
-                      </select>
-                    </FormRow>
-                    <FormRow label="Progress"><input style={INPUT} type="number" min={0} max={100} value={editData.progress ?? p.progress} onChange={(e) => setEditData((d) => ({ ...d, progress: Number(e.target.value) }))} /></FormRow>
-                  </FormGrid>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <Btn onClick={() => handleEditSave(p.id)} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Btn>
-                    <Btn variant="ghost" onClick={() => { setEditId(null); setEditData({}); }}>Cancel</Btn>
-                  </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.projects.map((p) => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              expanded={expandedId === p.id}
+              onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+              clientId={clientId}
+              data={data}
+              api={api}
+              onRefresh={onRefresh}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Project Card (accordion) ───────────────────────────────────────────────────
+function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefresh }: {
+  project: Project; expanded: boolean; onToggle: () => void;
+  clientId: string; data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const [editData, setEditData] = useState<Partial<Project>>({});
+  const [saving, setSaving] = useState(false);
+
+  const projectProposals  = data.proposals.filter(p => p.project_id === project.id);
+  const projectFiles      = data.files.filter(f => f.project_name === project.name);
+  const projectMilestones = data.milestones.filter(m => m.project_name === project.name);
+  const projectActivity   = data.activity.filter(a => a.project_name === project.name);
+
+  async function handleSave() {
+    setSaving(true);
+    await api({ action: 'update_project', id: project.id, ...editData });
+    setEditData({}); setSaving(false); onRefresh();
+  }
+
+  return (
+    <div style={{ borderRadius: 10, border: expanded ? `1.5px solid ${PINK}` : '1px solid #f0f0f0', overflow: 'hidden', transition: 'border-color .15s' }}>
+      {/* Header row — click to expand */}
+      <div onClick={onToggle} style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', background: expanded ? '#fff0f8' : '#fff', userSelect: 'none' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: expanded ? PINK : DARK }}>{project.name}</div>
+          <div style={{ marginTop: 5, background: '#f0f0f0', borderRadius: 999, height: 4, width: '100%', maxWidth: 180 }}>
+            <div style={{ height: 4, borderRadius: 999, background: project.color, width: `${project.progress}%`, transition: 'width .3s' }} />
+          </div>
+        </div>
+        <Badge status={project.status} />
+        <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', minWidth: 32 }}>{project.progress}%</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, transition: 'transform .2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+          <path d="M3 5l4 4 4-4" stroke="#bfbfbf" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div>
+          {/* Edit project */}
+          <div style={{ padding: 16, background: '#fff', borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
+            <SubSectionHead title="Edit Project" action={
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Btn onClick={handleSave} disabled={saving} style={{ padding: '4px 12px', fontSize: 12 }}>{saving ? 'Saving…' : 'Save'}</Btn>
+                <Btn variant="danger" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete this project?')) return; await api({ action: 'delete_project', id: project.id }); onRefresh(); }}>Delete</Btn>
+              </div>
+            } />
+            <FormGrid>
+              <FormRow label="Name"><input style={INPUT} value={editData.name ?? project.name} onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))} /></FormRow>
+              <FormRow label="Status">
+                <select style={SELECT} value={editData.status ?? project.status} onChange={(e) => setEditData(d => ({ ...d, status: e.target.value }))}>
+                  <option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option>
+                </select>
+              </FormRow>
+              <FormRow label="Progress"><input style={INPUT} type="number" min={0} max={100} value={editData.progress ?? project.progress} onChange={(e) => setEditData(d => ({ ...d, progress: Number(e.target.value) }))} /></FormRow>
+            </FormGrid>
+          </div>
+
+          <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubActivity   project={project} activity={projectActivity}     clientId={clientId} api={api} onRefresh={onRefresh} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project sub-sections ───────────────────────────────────────────────────
+type SubProps = { project: Project; clientId: string; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void; };
+
+function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: SubProps & { proposals: Proposal[] }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
+
+  async function handleFile(file: File) {
+    if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
+    setUploading(true); setError('');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+      setUploading(false);
+    };
+    reader.onerror = () => { setError('Failed to read file'); setUploading(false); };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Proposal" />
+      <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
+      <ErrorMsg msg={error} />
+      {proposals.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {proposals.map((p) => {
+            const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.pending;
+            return (
+              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#fff' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
-              ) : (
-                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 120 }}>
-                    <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{p.name}</div>
-                    <div style={{ marginTop: 6, background: '#f0f0f0', borderRadius: 999, height: 4, width: '100%', maxWidth: 200 }}>
-                      <div style={{ height: 4, borderRadius: 999, background: p.color, width: `${p.progress}%`, transition: 'width .3s' }} />
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Badge status={p.status} />
-                    <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', minWidth: 32 }}>{p.progress}%</span>
-                    <Btn variant="ghost" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => { setEditId(p.id); setEditData({}); }}>Edit</Btn>
-                    <Btn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={() => handleDelete(p.id)}>Delete</Btn>
-                  </div>
-                </div>
-              )}
+                <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
+                <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                {p.signed_file_url && <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '3px 8px', borderRadius: 6 }}>↓ Signed</a>}
+                <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { const next = p.status === 'pending' ? 'signed' : 'pending'; await api({ action: 'set_proposal_status', id: p.id, status: next }); onRefresh(); }}>{p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}</Btn>
+                <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_proposal', id: p.id }); onRefresh(); }}>Delete</Btn>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps & { files: PortalFile[] }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploading(true); setError('');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, fileData: base64, mimeType: file.type }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+      setUploading(false);
+    };
+    reader.onerror = () => { setError('Failed to read file'); setUploading(false); };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Files" />
+      <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
+      <ErrorMsg msg={error} />
+      {files.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {files.map((f) => (
+            <div key={f.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+              <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>View ↗</a>
+              <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubMilestones({ project, milestones, clientId, api, onRefresh }: SubProps & { milestones: Milestone[] }) {
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [color, setColor] = useState(PINK);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setError('Title required'); return; }
+    setAdding(true); setError('');
+    const r = await api({ action: 'add_milestone', clientId, project_name: project.name, title, due_date: dueDate, color }) as { error?: string };
+    if (r.error) { setError(r.error); setAdding(false); return; }
+    setTitle(''); setDueDate(''); setColor(PINK); setShowForm(false); setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Milestones" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Title *"><input style={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Final Delivery" /></FormRow>
+            <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
+          </FormGrid>
+          <FormRow label="Color"><ColorPicker value={color} onChange={setColor} /></FormRow>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add'}</Btn><ErrorMsg msg={error} /></div>
+        </form>
+      )}
+      {milestones.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No milestones yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {milestones.map((m) => (
+            <div key={m.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <input type="checkbox" checked={m.completed} onChange={() => { api({ action: 'update_milestone', id: m.id, title: m.title, due_date: m.due_date, completed: !m.completed }); onRefresh(); }} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: GREEN }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: m.completed ? '#bfbfbf' : DARK, textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
+              {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
+              <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_milestone', id: m.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: SubProps & { activity: Activity[] }) {
+  const [text, setText] = useState('');
+  const [dotColor, setDotColor] = useState(GREEN);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text) { setError('Text required'); return; }
+    setAdding(true); setError('');
+    const r = await api({ action: 'add_activity', clientId, text, dot_color: dotColor, project_name: project.name }) as { error?: string };
+    if (r.error) { setError(r.error); setAdding(false); return; }
+    setText(''); setDotColor(GREEN); setShowForm(false); setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa' }}>
+      <SubSectionHead title="Activity" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormRow label="Activity Text *"><input style={INPUT} value={text} onChange={(e) => setText(e.target.value)} placeholder="Project kicked off" /></FormRow>
+          <FormRow label="Dot Color"><ColorPicker value={dotColor} onChange={setDotColor} /></FormRow>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add'}</Btn><ErrorMsg msg={error} /></div>
+        </form>
+      )}
+      {activity.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No activity yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {activity.map((item, i) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, paddingBottom: i < activity.length - 1 ? 10 : 0, borderBottom: i < activity.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
+              <div style={{ flex: 1 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, color: DARK }}>{item.text}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginLeft: 8 }}>{relTime(item.created_at)}</span>
+              </div>
             </div>
           ))}
         </div>
@@ -891,37 +1150,67 @@ function RequestsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
 
 // ── Files Tab ──────────────────────────────────────────────────────────────────
 function FilesTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
-  const [name, setName] = useState('');
-  const [projName, setProjName] = useState('');
-  const [fileUrl, setFileUrl] = useState('');
-  const [addErr, setAddErr] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [projName, setProjName]   = useState('');
+  const [fileUrl, setFileUrl]     = useState('');
+  const [urlName, setUrlName]     = useState('');
+  const [addErr, setAddErr]       = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [showUrl, setShowUrl]     = useState(false);
+  const [showForm, setShowForm]   = useState(false);
 
-  async function handleAdd(e: React.FormEvent) {
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setAddErr('File must be under 50 MB'); return; }
+    setUploading(true); setAddErr('');
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: projName, fileData: base64, mimeType: file.type }) as { error?: string };
+      if (r.error) setAddErr(r.error);
+      else { setProjName(''); setShowForm(false); onRefresh(); }
+      setUploading(false);
+    };
+    reader.onerror = () => { setAddErr('Failed to read file'); setUploading(false); };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleUrlAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !fileUrl) { setAddErr('Name and URL required'); return; }
-    setAdding(true); setAddErr('');
-    const r = await api({ action: 'add_file', clientId, name, project_name: projName, file_url: fileUrl }) as { error?: string };
-    if (r.error) { setAddErr(r.error); setAdding(false); return; }
-    setName(''); setProjName(''); setFileUrl(''); setShowForm(false);
-    setAdding(false); onRefresh();
+    if (!urlName || !fileUrl) { setAddErr('Name and URL are required'); return; }
+    setUploading(true); setAddErr('');
+    const r = await api({ action: 'add_file', clientId, name: urlName, project_name: projName, file_url: fileUrl }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setUploading(false); return; }
+    setUrlName(''); setProjName(''); setFileUrl(''); setShowUrl(false); setShowForm(false);
+    setUploading(false); onRefresh();
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <SectionHead title="Files & Assets" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add File'}</Btn>} />
+      <SectionHead title="Files & Assets" action={<Btn onClick={() => { setShowForm(!showForm); setAddErr(''); }}>{showForm ? 'Cancel' : '+ Add File'}</Btn>} />
 
       {showForm && (
-        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
-          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <FormGrid>
-              <FormRow label="File Name *"><input style={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="brand-guide.pdf" /></FormRow>
-              <FormRow label="Project"><input style={INPUT} value={projName} onChange={(e) => setProjName(e.target.value)} placeholder="Brand Identity" /></FormRow>
-            </FormGrid>
-            <FormRow label="File URL *"><input style={INPUT} value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" /></FormRow>
-            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add File'}</Btn><ErrorMsg msg={addErr} /></div>
-          </form>
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <FormRow label="Project (optional)">
+            <input style={INPUT} value={projName} onChange={(e) => setProjName(e.target.value)} placeholder="Brand Identity" />
+          </FormRow>
+          <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
+
+          {/* URL fallback */}
+          <button type="button" onClick={() => setShowUrl(!showUrl)}
+            style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline' }}>
+            {showUrl ? 'Hide URL option' : 'Or link an external URL instead'}
+          </button>
+
+          {showUrl && (
+            <form onSubmit={handleUrlAdd} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <FormGrid>
+                <FormRow label="File Name *"><input style={INPUT} value={urlName} onChange={(e) => setUrlName(e.target.value)} placeholder="brand-guide.pdf" /></FormRow>
+                <FormRow label="URL *"><input style={INPUT} value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" /></FormRow>
+              </FormGrid>
+              <div><Btn type="submit" disabled={uploading}>Add Link</Btn></div>
+            </form>
+          )}
+
+          <ErrorMsg msg={addErr} />
         </div>
       )}
 

@@ -191,6 +191,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, data });
       }
 
+      case 'upload_file': {
+        const { clientId, name, projectName, fileData, mimeType } = params as Record<string, string>;
+        if (!clientId || !name || !fileData) return err('clientId, name, and fileData are required');
+        const buf = Buffer.from(fileData, 'base64');
+        const safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `client-files/${clientId}/${Date.now()}-${safeName}`;
+        const { error: uploadErr } = await admin.storage.from('course-media').upload(path, buf, {
+          contentType: mimeType ?? 'application/octet-stream',
+          upsert: false,
+        });
+        if (uploadErr) return err(uploadErr.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        const { data, error: insertErr } = await admin.from('portal_files').insert({
+          client_id: clientId, name, project_name: projectName ?? '', file_url: publicUrl,
+        }).select().single();
+        if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        return NextResponse.json({ ok: true, data });
+      }
+
       case 'delete_file': {
         const { error } = await admin.from('portal_files').delete().eq('id', params.id);
         if (error) return err(error.message);
@@ -232,8 +251,10 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_activity': {
-        const { clientId, text, dot_color } = params as Record<string, unknown>;
-        const { data, error } = await admin.from('portal_activity').insert({ client_id: clientId, text, dot_color }).select().single();
+        const { clientId, text, dot_color, project_name } = params as Record<string, unknown>;
+        const row: Record<string, unknown> = { client_id: clientId, text, dot_color };
+        if (project_name) row.project_name = project_name;
+        const { data, error } = await admin.from('portal_activity').insert(row).select().single();
         if (error) return err(error.message);
         return NextResponse.json({ ok: true, data });
       }
@@ -365,7 +386,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'upload_proposal': {
-        const { clientId, name, fileData, mimeType } = params as Record<string, string>;
+        const { clientId, projectId, name, fileData, mimeType } = params as Record<string, string>;
         if (!clientId || !name || !fileData) return err('clientId, name, and fileData are required');
         const buf = Buffer.from(fileData, 'base64');
         const safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -376,9 +397,9 @@ export async function POST(req: NextRequest) {
         });
         if (uploadErr) return err(uploadErr.message);
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
-        const { data, error: insertErr } = await admin.from('portal_proposals').insert({
-          client_id: clientId, name, file_url: publicUrl, storage_path: path, status: 'pending',
-        }).select().single();
+        const row: Record<string, unknown> = { client_id: clientId, name, file_url: publicUrl, storage_path: path, status: 'pending' };
+        if (projectId) row.project_id = projectId;
+        const { data, error: insertErr } = await admin.from('portal_proposals').insert(row).select().single();
         if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
         return NextResponse.json({ ok: true, data });
       }
