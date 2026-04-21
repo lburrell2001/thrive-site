@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
       case 'get_client_data': {
         const clientId = params.clientId as string;
-        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity] = await Promise.all([
+        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals] = await Promise.all([
           admin.auth.admin.getUserById(clientId),
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
           admin.from('portal_milestones').select('*').eq('client_id', clientId).order('due_date', { ascending: true }),
           admin.from('portal_onboarding_steps').select('*').eq('client_id', clientId).order('step_number', { ascending: true }),
           admin.from('portal_activity').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(20),
+          admin.from('portal_proposals').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
         ]);
         return NextResponse.json({
           ok: true,
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],
+            proposals: proposals.data ?? [],
           },
         });
       }
@@ -101,7 +103,11 @@ export async function POST(req: NextRequest) {
       }
 
       case 'update_profile': {
-        const { clientId, full_name, company_name, initials } = params as Record<string, string>;
+        const { clientId, full_name, company_name, initials, email } = params as Record<string, string>;
+        if (email) {
+          const { error: emailErr } = await admin.auth.admin.updateUserById(clientId, { email });
+          if (emailErr) return err(emailErr.message);
+        }
         const { error } = await admin.from('portal_clients').update({ full_name, company_name, initials }).eq('id', clientId);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
@@ -356,6 +362,43 @@ export async function POST(req: NextRequest) {
             url: admin.storage.from('course-media').getPublicUrl(`projects/${slug}/gallery/${f.name}`).data.publicUrl,
           }));
         return NextResponse.json({ ok: true, data: images });
+      }
+
+      case 'upload_proposal': {
+        const { clientId, name, fileData, mimeType } = params as Record<string, string>;
+        if (!clientId || !name || !fileData) return err('clientId, name, and fileData are required');
+        const buf = Buffer.from(fileData, 'base64');
+        const safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `proposals/${clientId}/${Date.now()}-${safeName}`;
+        const { error: uploadErr } = await admin.storage.from('course-media').upload(path, buf, {
+          contentType: mimeType ?? 'application/pdf',
+          upsert: false,
+        });
+        if (uploadErr) return err(uploadErr.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        const { data, error: insertErr } = await admin.from('portal_proposals').insert({
+          client_id: clientId, name, file_url: publicUrl, storage_path: path, status: 'pending',
+        }).select().single();
+        if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        return NextResponse.json({ ok: true, data });
+      }
+
+      case 'delete_proposal': {
+        const { id } = params as { id: string };
+        if (!id) return err('id is required');
+        const { data: row } = await admin.from('portal_proposals').select('storage_path').eq('id', id).single();
+        if (row?.storage_path) await admin.storage.from('course-media').remove([row.storage_path]);
+        const { error } = await admin.from('portal_proposals').delete().eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'set_proposal_status': {
+        const { id, status } = params as { id: string; status: string };
+        if (!id || !status) return err('id and status are required');
+        const { error } = await admin.from('portal_proposals').update({ status }).eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
       }
 
       case 'delete_gallery_image': {
