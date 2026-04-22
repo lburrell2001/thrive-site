@@ -224,7 +224,12 @@ export default function AdminPage() {
       headers: { 'X-Admin-Passcode': passcode, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    return res.json() as Promise<Record<string, unknown>>;
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return { error: `Server error ${res.status}: ${text.slice(0, 200)}` } as Record<string, unknown>;
+    }
   }, []);
 
   const refreshClients = useCallback(async () => {
@@ -608,7 +613,7 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
       const base64 = await readBase64(file);
       const r = await api({ action: 'upload_proposal', clientId, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
-    } catch { setError('Upload failed — please try again.'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
   }
 
@@ -914,7 +919,7 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
       const base64 = await readBase64(file);
       const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
-    } catch { setError('Upload failed — please try again.'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
   }
 
@@ -958,7 +963,7 @@ function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps 
       const base64 = await readBase64(file);
       const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
-    } catch { setError('Upload failed — please try again.'); }
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
   }
 
