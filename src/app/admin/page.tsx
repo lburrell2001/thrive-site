@@ -1295,7 +1295,7 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.due_date)}</td>
                   <td style={{ padding: '12px 12px' }}><Badge status={inv.status} /></td>
-                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({}); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
                 </tr>
               ))}
             </tbody>
