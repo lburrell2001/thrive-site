@@ -53,16 +53,16 @@ async function api(action: string, params: Record<string, unknown> = {}) {
   return data;
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      resolve(result.split(',')[1]); // strip data:... prefix
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+async function directUpload(file: File, storagePath: string, upsert = false): Promise<string> {
+  const res = await api('create_upload_url', { path: storagePath, upsert });
+  if (!res.signedUrl) throw new Error('Could not get upload URL');
+  const up = await fetch(res.signedUrl as string, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
   });
+  if (!up.ok) throw new Error(`Storage upload failed (${up.status})`);
+  return (res.path as string) ?? storagePath;
 }
 
 function slugify(str: string) {
@@ -259,8 +259,8 @@ export default function PortfolioAdminPage() {
     if (!slug) { setMsg({ type: 'err', text: 'Set a slug before uploading images.' }); return; }
     setCoverUploading(true); setMsg(null);
     try {
-      const imageData = await fileToBase64(file);
-      const res = await api('upload_project_cover', { slug, imageData, mimeType: file.type });
+      const path = await directUpload(file, `work/${slug}-cover.jpg`, true);
+      const res = await api('upload_project_cover', { slug, path });
       setCoverUrl((res.url as string) + '?t=' + Date.now());
       setMsg({ type: 'ok', text: 'Cover image uploaded.' });
     } catch (e) {
@@ -280,9 +280,9 @@ export default function PortfolioAdminPage() {
     setGalleryUploading(true); setMsg(null);
     try {
       for (const file of files) {
-        const imageData = await fileToBase64(file);
         const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        await api('upload_gallery_image', { slug, filename, imageData, mimeType: file.type });
+        const path = await directUpload(file, `projects/${slug}/gallery/${filename}`, true);
+        await api('upload_gallery_image', { slug, filename, path });
       }
       await loadGallery(slug);
       setMsg({ type: 'ok', text: `${files.length} image${files.length > 1 ? 's' : ''} uploaded.` });

@@ -114,13 +114,21 @@ function FormGrid({ children }: { children: React.ReactNode }) {
 
 function Divider() { return <div style={{ height: 1, background: '#f0f0f0', margin: '24px 0' }} />; }
 
-function readBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+async function directUpload(
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>,
+  file: File,
+  storagePath: string,
+  upsert = false,
+): Promise<string> {
+  const res = await api({ action: 'create_upload_url', path: storagePath, upsert }) as { signedUrl?: string; path?: string; error?: string };
+  if (res.error || !res.signedUrl) throw new Error(res.error ?? 'Could not get upload URL');
+  const up = await fetch(res.signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
   });
+  if (!up.ok) throw new Error(`Storage upload failed (${up.status})`);
+  return res.path ?? storagePath;
 }
 
 function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,.csv,.mp4,.mov', maxMB = 20, uploading = false }: {
@@ -607,11 +615,12 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
   const [error, setError] = useState('');
 
   async function handleFile(file: File) {
-    if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
     setUploading(true); setError('');
     try {
-      const base64 = await readBase64(file);
-      const r = await api({ action: 'upload_proposal', clientId, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_proposal', clientId, name: file.name, path }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
@@ -913,11 +922,12 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
   const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
 
   async function handleFile(file: File) {
-    if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
     setUploading(true); setError('');
     try {
-      const base64 = await readBase64(file);
-      const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, path }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
@@ -960,8 +970,9 @@ function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps 
     if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
     setUploading(true); setError('');
     try {
-      const base64 = await readBase64(file);
-      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, fileData: base64, mimeType: file.type }) as { error?: string };
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `client-files/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, path }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
@@ -1277,11 +1288,12 @@ function FilesTab({ clientId, data, api, onRefresh }: { clientId: string; data: 
     if (file.size > 50 * 1024 * 1024) { setAddErr('File must be under 50 MB'); return; }
     setUploading(true); setAddErr('');
     try {
-      const base64 = await readBase64(file);
-      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: projName, fileData: base64, mimeType: file.type }) as { error?: string };
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `client-files/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: projName, path }) as { error?: string };
       if (r.error) setAddErr(r.error);
       else { setProjName(''); setShowForm(false); onRefresh(); }
-    } catch { setAddErr('Upload failed — please try again.'); }
+    } catch (e) { setAddErr(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
   }
 

@@ -32,13 +32,16 @@ async function apiFetch(action: string, params: Record<string, unknown> = {}) {
   return data;
 }
 
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve((reader.result as string).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
+async function directUpload(file: File, storagePath: string, upsert = false): Promise<string> {
+  const res = await apiFetch('create_upload_url', { path: storagePath, upsert });
+  if (!res.signedUrl) throw new Error('Could not get upload URL');
+  const up = await fetch(res.signedUrl as string, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
   });
+  if (!up.ok) throw new Error(`Storage upload failed (${up.status})`);
+  return (res.path as string) ?? storagePath;
 }
 
 function storageUrl(path: string) {
@@ -117,8 +120,8 @@ export default function ServicesAdminPage() {
     setUploading(svc.slug);
     setCoverMsgs(prev => { const n = { ...prev }; delete n[svc.slug]; return n; });
     try {
-      const imageData = await fileToBase64(file);
-      const res = await apiFetch('upload_service_cover', { slug: svc.coverKey, imageData, mimeType: file.type });
+      const path = await directUpload(file, `services/${svc.coverKey}-cover.jpg`, true);
+      const res = await apiFetch('upload_service_cover', { slug: svc.coverKey, path });
       setCoverUrls(prev => ({ ...prev, [svc.slug]: (res.url as string) + '?t=' + Date.now() }));
       setCoverMsg(svc.slug, 'ok', 'Cover image updated.');
     } catch (err) {

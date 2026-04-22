@@ -281,21 +281,13 @@ export async function POST(req: NextRequest) {
       }
 
       case 'upload_file': {
-        const { clientId, name, projectName, fileData, mimeType } = params as Record<string, string>;
-        if (!clientId || !name || !fileData) return err('clientId, name, and fileData are required');
-        const buf = Buffer.from(fileData, 'base64');
-        const safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `client-files/${clientId}/${Date.now()}-${safeName}`;
-        const { error: uploadErr } = await admin.storage.from('course-media').upload(path, buf, {
-          contentType: mimeType ?? 'application/octet-stream',
-          upsert: false,
-        });
-        if (uploadErr) return err(uploadErr.message);
+        const { clientId, name, projectName, path } = params as Record<string, string>;
+        if (!clientId || !name || !path) return err('clientId, name, and path are required');
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
         const { data, error: insertErr } = await admin.from('portal_files').insert({
           client_id: clientId, name, project_name: projectName ?? '', file_url: publicUrl,
         }).select().single();
-        if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        if (insertErr) return err(insertErr.message);
         logActivity(admin, clientId, `New file delivered: ${name}`, '#fd6100', projectName || null);
         notifyClient(
           admin, clientId,
@@ -448,31 +440,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
-      case 'upload_project_cover': {
-        // body.imageData: base64 string (no data: prefix), body.slug, body.mimeType
-        const { slug, imageData, mimeType } = params as Record<string, string>;
-        if (!slug || !imageData) return err('slug and imageData are required');
-        const buf = Buffer.from(imageData, 'base64');
-        const path = `work/${slug}-cover.jpg`;
-        const { error } = await admin.storage.from('course-media').upload(path, buf, {
-          contentType: mimeType ?? 'image/jpeg',
-          upsert: true,
-        });
+      case 'create_upload_url': {
+        const { path, upsert } = params as { path: string; upsert?: boolean };
+        if (!path) return err('path is required');
+        const { data, error } = await admin.storage
+          .from('course-media')
+          .createSignedUploadUrl(path, { upsert: upsert ?? false });
         if (error) return err(error.message);
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        return NextResponse.json({ ok: true, signedUrl: data.signedUrl, path: data.path, publicUrl });
+      }
+
+      case 'upload_project_cover': {
+        const { slug, path } = params as Record<string, string>;
+        if (!slug || !path) return err('slug and path are required');
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
         return NextResponse.json({ ok: true, url: publicUrl });
       }
 
       case 'upload_gallery_image': {
-        const { slug, filename, imageData, mimeType } = params as Record<string, string>;
-        if (!slug || !filename || !imageData) return err('slug, filename, and imageData are required');
-        const buf = Buffer.from(imageData, 'base64');
-        const path = `projects/${slug}/gallery/${filename}`;
-        const { error } = await admin.storage.from('course-media').upload(path, buf, {
-          contentType: mimeType ?? 'image/jpeg',
-          upsert: true,
-        });
-        if (error) return err(error.message);
+        const { slug, filename, path } = params as Record<string, string>;
+        if (!slug || !filename || !path) return err('slug, filename, and path are required');
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
         return NextResponse.json({ ok: true, url: publicUrl });
       }
@@ -493,21 +481,13 @@ export async function POST(req: NextRequest) {
       }
 
       case 'upload_proposal': {
-        const { clientId, projectId, name, fileData, mimeType } = params as Record<string, string>;
-        if (!clientId || !name || !fileData) return err('clientId, name, and fileData are required');
-        const buf = Buffer.from(fileData, 'base64');
-        const safeName = name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const path = `proposals/${clientId}/${Date.now()}-${safeName}`;
-        const { error: uploadErr } = await admin.storage.from('course-media').upload(path, buf, {
-          contentType: mimeType ?? 'application/pdf',
-          upsert: false,
-        });
-        if (uploadErr) return err(uploadErr.message);
+        const { clientId, projectId, name, path } = params as Record<string, string>;
+        if (!clientId || !name || !path) return err('clientId, name, and path are required');
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
         const row: Record<string, unknown> = { client_id: clientId, name, file_url: publicUrl, storage_path: path, status: 'pending' };
         if (projectId) row.project_id = projectId;
         const { data, error: insertErr } = await admin.from('portal_proposals').insert(row).select().single();
-        if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        if (insertErr) return err(insertErr.message);
         logActivity(admin, clientId, `Proposal ready for review: ${name}`, '#e40586', null);
         notifyClient(
           admin, clientId,
@@ -545,15 +525,8 @@ export async function POST(req: NextRequest) {
       }
 
       case 'upload_service_cover': {
-        const { slug, imageData, mimeType } = params as Record<string, string>;
-        if (!slug || !imageData) return err('slug and imageData are required');
-        const buf = Buffer.from(imageData, 'base64');
-        const path = `services/${slug}-cover.jpg`;
-        const { error } = await admin.storage.from('course-media').upload(path, buf, {
-          contentType: mimeType ?? 'image/jpeg',
-          upsert: true,
-        });
-        if (error) return err(error.message);
+        const { slug, path } = params as Record<string, string>;
+        if (!slug || !path) return err('slug and path are required');
         const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
         return NextResponse.json({ ok: true, url: publicUrl });
       }
