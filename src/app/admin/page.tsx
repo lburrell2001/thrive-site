@@ -46,7 +46,8 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; }
-interface Project { id: string; name: string; status: string; progress: number; color: string; }
+interface Stage   { key: string; label: string; }
+interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
@@ -112,6 +113,15 @@ function FormGrid({ children }: { children: React.ReactNode }) {
 }
 
 function Divider() { return <div style={{ height: 1, background: '#f0f0f0', margin: '24px 0' }} />; }
+
+function readBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,.csv,.mp4,.mov', maxMB = 20, uploading = false }: {
   onFile: (f: File) => void; accept?: string; maxMB?: number; uploading?: boolean;
@@ -254,7 +264,6 @@ export default function AdminPage() {
     { id: 'invoices',   label: 'Invoices',   count: clientData.invoices.length },
     { id: 'requests',   label: 'Requests',   count: clientData.requests.length },
     { id: 'files',      label: 'Files',      count: clientData.files.length },
-    { id: 'onboarding', label: 'Onboarding', count: clientData.onboarding.length },
     { id: 'milestones', label: 'Milestones', count: clientData.milestones.length },
     { id: 'activity',   label: 'Activity',   count: clientData.activity.length },
     { id: 'settings',   label: 'Settings' },
@@ -477,7 +486,6 @@ export default function AdminPage() {
                   {activeTab === 'invoices'   && <InvoicesTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'requests'   && <RequestsTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'files'      && <FilesTab      clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'onboarding' && <OnboardingTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'milestones' && <MilestonesTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'activity'   && <ActivityTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
                   {activeTab === 'settings'   && <SettingsTab   api={api} clientId={selectedId} clientEmail={clientData?.profile?.email ?? null} onRefresh={refreshClientData} />}
@@ -558,6 +566,28 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       </form>
       <Divider />
       <ProposalsSection clientId={clientId} proposals={data.proposals.filter(p => !p.project_id)} api={api} onRefresh={onRefresh} />
+      <Divider />
+      <div>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recent Activity</h3>
+        {data.activity.length === 0 ? (
+          <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No activity yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {data.activity.slice(0, 8).map((item) => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {item.project_name && (
+                    <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: item.dot_color, marginBottom: 1 }}>{item.project_name}</div>
+                  )}
+                  <div style={{ fontFamily: F.inter, fontSize: 13, color: DARK }}>{item.text}</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 1 }}>{relTime(item.created_at)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -574,16 +604,12 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
   async function handleFile(file: File) {
     if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
     setUploading(true); setError('');
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
+    try {
+      const base64 = await readBase64(file);
       const r = await api({ action: 'upload_proposal', clientId, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
-      if (r.error) setError(r.error);
-      else onRefresh();
-      setUploading(false);
-    };
-    reader.onerror = () => { setError('Failed to read file'); setUploading(false); };
-    reader.readAsDataURL(file);
+      if (r.error) setError(r.error); else onRefresh();
+    } catch { setError('Upload failed — please try again.'); }
+    finally { setUploading(false); }
   }
 
   async function handleDelete(id: string) {
@@ -713,6 +739,13 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
 }
 
 // ── Project Card (accordion) ───────────────────────────────────────────────────
+const DEFAULT_STAGES: Stage[] = [
+  { key: 'kickoff', label: 'Kickoff' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'review', label: 'Review' },
+  { key: 'completed', label: 'Completed' },
+];
+
 function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefresh }: {
   project: Project; expanded: boolean; onToggle: () => void;
   clientId: string; data: ClientData;
@@ -721,6 +754,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 }) {
   const [editData, setEditData] = useState<Partial<Project>>({});
   const [saving, setSaving] = useState(false);
+  const [stages, setStages] = useState<Stage[]>(project.stages?.length ? project.stages : DEFAULT_STAGES);
 
   const projectProposals  = data.proposals.filter(p => p.project_id === project.id);
   const projectFiles      = data.files.filter(f => f.project_name === project.name);
@@ -729,8 +763,26 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 
   async function handleSave() {
     setSaving(true);
-    await api({ action: 'update_project', id: project.id, ...editData });
+    await api({ action: 'update_project', id: project.id, name: editData.name ?? project.name, status: editData.status ?? project.status, progress: editData.progress ?? project.progress, stages });
     setEditData({}); setSaving(false); onRefresh();
+  }
+
+  function addStage() {
+    const label = 'New Stage';
+    const key = `stage_${Date.now()}`;
+    setStages(s => [...s, { key, label }]);
+  }
+
+  function renameStage(key: string, label: string) {
+    setStages(s => s.map(st => st.key === key ? { ...st, label } : st));
+  }
+
+  function deleteStage(key: string) {
+    setStages(s => s.filter(st => st.key !== key));
+    if ((editData.status ?? project.status) === key) {
+      const remaining = stages.filter(st => st.key !== key);
+      if (remaining.length) setEditData(d => ({ ...d, status: remaining[0].key }));
+    }
   }
 
   return (
@@ -762,15 +814,79 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
                 <Btn variant="danger" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete this project?')) return; await api({ action: 'delete_project', id: project.id }); onRefresh(); }}>Delete</Btn>
               </div>
             } />
-            <FormGrid>
-              <FormRow label="Name"><input style={INPUT} value={editData.name ?? project.name} onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))} /></FormRow>
-              <FormRow label="Status">
-                <select style={SELECT} value={editData.status ?? project.status} onChange={(e) => setEditData(d => ({ ...d, status: e.target.value }))}>
-                  <option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option>
-                </select>
-              </FormRow>
-              <FormRow label="Progress"><input style={INPUT} type="number" min={0} max={100} value={editData.progress ?? project.progress} onChange={(e) => setEditData(d => ({ ...d, progress: Number(e.target.value) }))} /></FormRow>
-            </FormGrid>
+
+            {/* Name */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={LABEL}>Name</label>
+              <input style={INPUT} value={editData.name ?? project.name} onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))} />
+            </div>
+
+            {/* Stage management */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ ...LABEL, margin: 0 }}>Stages</label>
+                <button type="button" onClick={addStage} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: PINK, background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>+ Add Stage</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                {stages.map((st, idx) => {
+                  const currentStatus = editData.status ?? project.status;
+                  const activeIdx = stages.findIndex(s => s.key === currentStatus);
+                  const isCurrent = currentStatus === st.key;
+                  const isPast    = activeIdx > idx;
+                  const accent    = project.color || PINK;
+                  return (
+                    <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
+                        style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 6, cursor: 'pointer', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1.5px solid #e5e5e5', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', fontFamily: F.inter, fontSize: 10, fontWeight: 800, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>
+                        {String(idx + 1).padStart(2, '0')}
+                      </button>
+                      <input
+                        style={{ ...INPUT, flex: 1 }}
+                        value={st.label}
+                        onChange={e => renameStage(st.key, e.target.value)}
+                        placeholder="Stage name"
+                      />
+                      <button type="button" onClick={() => deleteStage(st.key)} disabled={stages.length <= 1}
+                        style={{ flexShrink: 0, background: 'none', border: 'none', cursor: stages.length <= 1 ? 'default' : 'pointer', color: stages.length <= 1 ? '#e5e5e5' : '#bfbfbf', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <label style={{ ...LABEL, marginBottom: 6 }}>Active Stage</label>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(stages.length, 4)}, 1fr)`, gap: 6 }}>
+                {stages.map((st, idx) => {
+                  const currentStatus = editData.status ?? project.status;
+                  const activeIdx = stages.findIndex(s => s.key === currentStatus);
+                  const isCurrent = currentStatus === st.key;
+                  const isPast    = activeIdx > idx;
+                  const accent    = project.color || PINK;
+                  return (
+                    <button key={st.key} type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
+                      style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1.5px solid #e5e5e5', opacity: (!isCurrent && !isPast) ? 0.6 : 1, transition: 'all .15s' }}>
+                      <div style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: isCurrent ? '#fff' : isPast ? accent : '#808080', marginBottom: 3 }}>{String(idx + 1).padStart(2, '0')}</div>
+                      <div style={{ fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>{st.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Progress slider */}
+            <div>
+              <label style={LABEL}>Progress — {editData.progress ?? project.progress}%</label>
+              <input
+                type="range" min={0} max={100} step={5}
+                value={editData.progress ?? project.progress}
+                onChange={(e) => setEditData(d => ({ ...d, progress: Number(e.target.value) }))}
+                style={{ width: '100%', accentColor: project.color || PINK, cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>0%</span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>100%</span>
+              </div>
+            </div>
           </div>
 
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} api={api} onRefresh={onRefresh} />
@@ -794,15 +910,12 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
   async function handleFile(file: File) {
     if (file.size > 20 * 1024 * 1024) { setError('File must be under 20 MB'); return; }
     setUploading(true); setError('');
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
+    try {
+      const base64 = await readBase64(file);
       const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
-      setUploading(false);
-    };
-    reader.onerror = () => { setError('Failed to read file'); setUploading(false); };
-    reader.readAsDataURL(file);
+    } catch { setError('Upload failed — please try again.'); }
+    finally { setUploading(false); }
   }
 
   return (
@@ -841,15 +954,12 @@ function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps 
   async function handleFile(file: File) {
     if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
     setUploading(true); setError('');
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
+    try {
+      const base64 = await readBase64(file);
       const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
-      setUploading(false);
-    };
-    reader.onerror = () => { setError('Failed to read file'); setUploading(false); };
-    reader.readAsDataURL(file);
+    } catch { setError('Upload failed — please try again.'); }
+    finally { setUploading(false); }
   }
 
   return (
@@ -1161,16 +1271,13 @@ function FilesTab({ clientId, data, api, onRefresh }: { clientId: string; data: 
   async function handleFile(file: File) {
     if (file.size > 50 * 1024 * 1024) { setAddErr('File must be under 50 MB'); return; }
     setUploading(true); setAddErr('');
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = (reader.result as string).split(',')[1];
+    try {
+      const base64 = await readBase64(file);
       const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: projName, fileData: base64, mimeType: file.type }) as { error?: string };
       if (r.error) setAddErr(r.error);
       else { setProjName(''); setShowForm(false); onRefresh(); }
-      setUploading(false);
-    };
-    reader.onerror = () => { setAddErr('Failed to read file'); setUploading(false); };
-    reader.readAsDataURL(file);
+    } catch { setAddErr('Upload failed — please try again.'); }
+    finally { setUploading(false); }
   }
 
   async function handleUrlAdd(e: React.FormEvent) {

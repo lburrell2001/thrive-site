@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 
+interface DbStage   { key: string; label: string; }
 interface DbProject {
   id: string;
   name: string;
   status: string;
   progress: number;
   color: string;
+  stages?: DbStage[];
 }
 
 const F = {
@@ -16,11 +18,11 @@ const F = {
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
-const STAGES = [
-  { key: 'kickoff',     label: 'Kickoff',     n: 1 },
-  { key: 'in_progress', label: 'In Progress', n: 2 },
-  { key: 'review',      label: 'Review',      n: 3 },
-  { key: 'completed',   label: 'Completed',   n: 4 },
+const DEFAULT_STAGES: DbStage[] = [
+  { key: 'kickoff',     label: 'Kickoff' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'review',      label: 'Review' },
+  { key: 'completed',   label: 'Completed' },
 ];
 
 const STATUS_COLOR: Record<string, string> = {
@@ -45,7 +47,7 @@ export default function ProgressPage() {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) return;
       const { data, error: qErr } = await supabasePortal
-        .from('portal_projects').select('id, name, status, progress, color')
+        .from('portal_projects').select('id, name, status, progress, color, stages')
         .eq('client_id', user.id).order('created_at', { ascending: false });
       if (qErr) { setError(true); setLoading(false); return; }
       setProjects(data ?? []);
@@ -98,6 +100,7 @@ export default function ProgressPage() {
       {!loading && !error && projects.map(proj => {
         const accent = proj.color || STATUS_COLOR[proj.status] || '#808080';
         const pct    = Math.min(100, Math.max(0, proj.progress ?? 0));
+        const STAGES = proj.stages?.length ? proj.stages : DEFAULT_STAGES;
         const activeStageIdx = STAGES.findIndex(s => s.key === proj.status);
 
         return (
@@ -118,7 +121,7 @@ export default function ProgressPage() {
               </div>
 
               {/* Stage pipeline */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(STAGES.length, 4)}, 1fr)`, gap: 6, marginBottom: 20 }}>
                 {STAGES.map((stage, idx) => {
                   const isPast    = activeStageIdx > idx;
                   const isCurrent = activeStageIdx === idx;
@@ -143,7 +146,7 @@ export default function ProgressPage() {
                         color: isCurrent ? '#fff' : isPast ? accent : '#808080',
                         marginBottom: 3,
                       }}>
-                        {stage.n < 10 ? `0${stage.n}` : stage.n}
+                        {String(idx + 1).padStart(2, '0')}
                       </div>
                       <div style={{
                         fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500,

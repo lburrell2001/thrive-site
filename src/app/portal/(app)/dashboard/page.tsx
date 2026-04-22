@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabasePortal } from '@/lib/supabasePortal';
 
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; }
-interface DbActivity { id: string; text: string; dot_color: string; created_at: string; }
+interface DbActivity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
 interface DbMilestone { id: string; project_name: string; title: string; due_date: string; color: string; }
 
 const F = {
@@ -122,8 +122,10 @@ export default function DashboardPage() {
     { label: 'Submit Request', href: '/portal/requests',   bg: '#e40586', color: '#fff' },
     { label: 'Upload Files',   href: '/portal/files',      bg: '#fd6100', color: '#fff' },
     { label: 'Pay Invoice',    href: '/portal/invoices',   bg: '#0cf574', color: '#0a0a0a' },
-    { label: 'View Contract',  href: '/portal/onboarding', bg: '#1e3add', color: '#fff' },
+    { label: 'View Proposal',  href: '/portal/files',      bg: '#1e3add', color: '#fff' },
   ];
+
+  const latestActivity = activity && activity.length > 0 ? activity[0] : null;
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: '#f6f5f4', minHeight: '100%', boxSizing: 'border-box' }}>
@@ -147,6 +149,29 @@ export default function DashboardPage() {
           .dash-stats { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {/* ── Latest Update banner ── */}
+      {!loading && latestActivity && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: '#fff', border: '1px solid #e5e5e5',
+          borderLeft: `4px solid ${latestActivity.dot_color}`,
+          borderRadius: 12, padding: '14px 20px',
+        }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: latestActivity.dot_color, flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#808080', margin: '0 0 2px' }}>
+              {latestActivity.project_name ? latestActivity.project_name : 'Latest Update'}
+            </p>
+            <p style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
+              {latestActivity.text}
+            </p>
+          </div>
+          <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', flexShrink: 0 }}>
+            {relativeTime(latestActivity.created_at)}
+          </span>
+        </div>
+      )}
 
       {/* ── Stat cards ── */}
       <div className="dash-stats">
@@ -251,6 +276,9 @@ export default function DashboardPage() {
                 <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 5 }} />
                   <div>
+                    {item.project_name && (
+                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: item.dot_color, display: 'block', marginBottom: 1 }}>{item.project_name}</span>
+                    )}
                     <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a', display: 'block' }}>{item.text}</span>
                     <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf' }}>{relativeTime(item.created_at)}</span>
                   </div>

@@ -69,6 +69,13 @@ export async function POST(req: NextRequest) {
     .eq('id', proposalId);
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
+  // Log activity for the client
+  await admin.from('portal_activity').insert({
+    client_id: user.id,
+    text: `You returned the signed proposal: ${proposal.name}`,
+    dot_color: '#0cf574',
+  });
+
   // Send email notification (never blocks response)
   const resendKey  = process.env.RESEND_API_KEY;
   const notifyFrom = process.env.CONTACT_NOTIFY_FROM;

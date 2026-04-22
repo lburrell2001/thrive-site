@@ -1,5 +1,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
+
+const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.com'}/portal/dashboard`;
+
+function escHtml(s: string) {
+  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function notifyClient(
+  admin: ReturnType<typeof getAdmin>,
+  clientId: string,
+  subject: string,
+  headline: string,
+  detail: string,
+) {
+  const resendKey  = process.env.RESEND_API_KEY;
+  const notifyFrom = process.env.CONTACT_NOTIFY_FROM;
+  if (!resendKey || !notifyFrom) return;
+  try {
+    const [authRes, profileRes] = await Promise.all([
+      admin.auth.admin.getUserById(clientId),
+      admin.from('portal_clients').select('full_name').eq('id', clientId).single(),
+    ]);
+    const clientEmail = authRes.data.user?.email;
+    if (!clientEmail) return;
+    const firstName = (profileRes.data?.full_name ?? '').split(' ')[0] || 'there';
+
+    const resend = new Resend(resendKey);
+    await resend.emails.send({
+      from: notifyFrom,
+      to: clientEmail,
+      subject,
+      text: `Hi ${firstName},\n\n${headline}\n\n${detail}\n\nLog in to your portal:\n${PORTAL_URL}`,
+      html: `
+        <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
+          <div style="max-width:600px;margin:0 auto;padding:28px;">
+            <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
+              <div style="background:#0b0b0f;border-radius:16px;padding:20px 22px 16px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div style="width:12px;height:12px;border-radius:999px;background:#ff2ea6;box-shadow:0 0 0 4px rgba(255,46,166,.18);"></div>
+                  <div style="color:#fff;font-weight:900;font-size:15px;">Thrive Creative Studios</div>
+                </div>
+                <div style="margin-top:6px;color:#d7d7e0;font-size:13px;">Your client portal has been updated.</div>
+              </div>
+            </div>
+            <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
+              <div style="color:#fff;font-size:17px;font-weight:900;margin-bottom:6px;">Hi ${escHtml(firstName)},</div>
+              <div style="color:#d7d7e0;font-size:14px;line-height:1.6;margin-bottom:8px;">${escHtml(headline)}</div>
+              ${detail ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;color:#fff;font-size:13px;line-height:1.6;margin-bottom:16px;">${escHtml(detail)}</div>` : ''}
+              <a href="${PORTAL_URL}" style="display:inline-block;background:#ff2ea6;color:#0b0b0f;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">View Portal →</a>
+            </div>
+            <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
+              Thrive Creative Studios · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('Client notification failed:', e);
+  }
+}
+
+async function logActivity(
+  admin: ReturnType<typeof getAdmin>,
+  clientId: string,
+  text: string,
+  dotColor: string,
+  projectName?: string | null,
+) {
+  const row: Record<string, unknown> = { client_id: clientId, text, dot_color: dotColor };
+  if (projectName) row.project_name = projectName;
+  await admin.from('portal_activity').insert(row);
+}
 
 function getAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -139,9 +213,22 @@ export async function POST(req: NextRequest) {
       }
 
       case 'update_project': {
-        const { id, name, status, progress } = params as Record<string, unknown>;
-        const { error } = await admin.from('portal_projects').update({ name, status, progress: Number(progress) }).eq('id', id);
+        const { id, name, status, progress, stages } = params as Record<string, unknown>;
+        const { data: prev } = await admin.from('portal_projects').select('client_id, status, progress, color').eq('id', id).single();
+        const updates: Record<string, unknown> = { name, status, progress: Number(progress) };
+        if (stages !== undefined) updates.stages = stages;
+        const { error } = await admin.from('portal_projects').update(updates).eq('id', id);
         if (error) return err(error.message);
+        if (prev) {
+          const statusChanged = prev.status !== status;
+          const progressChanged = prev.progress !== Number(progress);
+          if (statusChanged || progressChanged) {
+            const label = statusChanged
+              ? `Project "${name}" moved to ${String(status).replace('_', ' ')}`
+              : `Project "${name}" progress updated to ${progress}%`;
+            logActivity(admin, prev.client_id, label, prev.color ?? '#808080', String(name));
+          }
+        }
         return NextResponse.json({ ok: true });
       }
 
@@ -155,6 +242,8 @@ export async function POST(req: NextRequest) {
         const { clientId, invoice_number, project_name, amount_cents, invoice_date, due_date, status } = params as Record<string, unknown>;
         const { data, error } = await admin.from('portal_invoices').insert({ client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status }).select().single();
         if (error) return err(error.message);
+        const fmtAmt = ((Number(amount_cents)) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+        logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);
         return NextResponse.json({ ok: true, data });
       }
 
@@ -207,6 +296,13 @@ export async function POST(req: NextRequest) {
           client_id: clientId, name, project_name: projectName ?? '', file_url: publicUrl,
         }).select().single();
         if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        logActivity(admin, clientId, `New file delivered: ${name}`, '#fd6100', projectName || null);
+        notifyClient(
+          admin, clientId,
+          'A new file has been delivered to your portal',
+          `A new file is ready for you: ${name}`,
+          projectName ? `Project: ${projectName}` : '',
+        );
         return NextResponse.json({ ok: true, data });
       }
 
@@ -220,6 +316,7 @@ export async function POST(req: NextRequest) {
         const { clientId, project_name, title, due_date, color } = params as Record<string, unknown>;
         const { data, error } = await admin.from('portal_milestones').insert({ client_id: clientId, project_name, title, due_date, color, completed: false }).select().single();
         if (error) return err(error.message);
+        logActivity(admin, clientId as string, `New milestone added: ${title}`, color as string, project_name as string | null);
         return NextResponse.json({ ok: true, data });
       }
 
@@ -227,6 +324,10 @@ export async function POST(req: NextRequest) {
         const { id, title, due_date, completed } = params as Record<string, unknown>;
         const { error } = await admin.from('portal_milestones').update({ title, due_date, completed }).eq('id', id);
         if (error) return err(error.message);
+        if (completed) {
+          const { data: ms } = await admin.from('portal_milestones').select('client_id, project_name').eq('id', id).single();
+          if (ms) logActivity(admin, ms.client_id, `Milestone completed: ${title}`, '#0cf574', ms.project_name ?? null);
+        }
         return NextResponse.json({ ok: true });
       }
 
@@ -256,6 +357,12 @@ export async function POST(req: NextRequest) {
         if (project_name) row.project_name = project_name;
         const { data, error } = await admin.from('portal_activity').insert(row).select().single();
         if (error) return err(error.message);
+        notifyClient(
+          admin, clientId as string,
+          'New update in your Thrive portal',
+          String(text),
+          project_name ? `Project: ${project_name}` : '',
+        );
         return NextResponse.json({ ok: true, data });
       }
 
@@ -401,6 +508,13 @@ export async function POST(req: NextRequest) {
         if (projectId) row.project_id = projectId;
         const { data, error: insertErr } = await admin.from('portal_proposals').insert(row).select().single();
         if (insertErr) { await admin.storage.from('course-media').remove([path]); return err(insertErr.message); }
+        logActivity(admin, clientId, `Proposal ready for review: ${name}`, '#e40586', null);
+        notifyClient(
+          admin, clientId,
+          'A proposal is ready for your review',
+          `A proposal has been uploaded for you to review and sign: ${name}`,
+          'Log in to your portal to download, sign, and return it.',
+        );
         return NextResponse.json({ ok: true, data });
       }
 

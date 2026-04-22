@@ -15,7 +15,6 @@ const BASE_NAV_LINKS = [
   { href: '/portal/progress',   label: 'Progress' },
   { href: '/portal/invoices',   label: 'Invoices' },
   { href: '/portal/payments',   label: 'Payments' },
-  { href: '/portal/onboarding', label: 'Onboarding' },
   { href: '/portal/files',      label: 'Files & Assets' },
   { href: '/portal/settings',   label: 'Settings' },
 ];
