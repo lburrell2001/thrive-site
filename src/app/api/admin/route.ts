@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
-const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.com'}/portal/dashboard`;
+const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.org'}/portal/dashboard`;
 
 function escHtml(s: string) {
   return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');

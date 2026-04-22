@@ -44,54 +44,64 @@ export default function PaymentsPage() {
     load();
   }, []);
 
-  const totalPaid = paid.reduce((s, i) => s + i.amount_cents, 0);
+  const totalPaid   = paid.reduce((s, i) => s + i.amount_cents, 0);
   const lastPayment = paid[0] ?? null;
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, background: '#f6f5f4', minHeight: '100%' }}>
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}.skel{animation:pulse 1.5s ease-in-out infinite}`}</style>
+      <style>{`
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+        .skel{animation:pulse 1.5s ease-in-out infinite;background:#f1f0ef;border-radius:6px;}
+        .pay-table-head { display:grid; grid-template-columns:90px 1fr 120px 140px; gap:12px; padding:10px 24px; background:#fafafa; }
+        .pay-table-row  { display:grid; grid-template-columns:90px 1fr 120px 140px; gap:12px; padding:14px 24px; border-top:1px solid #f1f0ef; align-items:center; }
+        .pay-card       { display:none; }
+        @media (max-width:600px) {
+          .pay-table-head { display:none; }
+          .pay-table-row  { display:none; }
+          .pay-card       { display:block; padding:16px; border-top:1px solid #f1f0ef; }
+        }
+      `}</style>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16 }}>
         {[
-          { label: 'Total Paid',   value: loading ? '—' : fmtCurrency(totalPaid),                                   color: '#0cf574' },
-          { label: 'Last Payment', value: loading ? '—' : (lastPayment ? fmtDate(lastPayment.invoice_date) : '—'),  color: '#1e3add' },
+          { label: 'Total Paid',    value: loading ? '—' : fmtCurrency(totalPaid),                                  color: '#0cf574' },
+          { label: 'Last Payment',  value: loading ? '—' : (lastPayment ? fmtDate(lastPayment.invoice_date) : '—'), color: '#1e3add' },
           { label: 'Payments Made', value: loading ? '—' : String(paid.length),                                     color: '#fd6100' },
         ].map(c => (
           <div key={c.label} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
             <div style={{ height: 3, background: c.color }} />
             <div style={{ padding: '16px 20px' }}>
               <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#808080' }}>{c.label}</div>
-              <div style={{ fontFamily: F.bungee, fontSize: 28, color: '#0a0a0a', marginTop: 8, opacity: loading ? 0.3 : 1 }}>{c.value}</div>
+              <div style={{ fontFamily: F.bungee, fontSize: 26, color: '#0a0a0a', marginTop: 8, opacity: loading ? 0.3 : 1 }}>{c.value}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Error */}
       {error && (
         <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
           Something went wrong loading payment history — please refresh.
         </div>
       )}
 
-      {/* Payment history table */}
+      {/* Payment history */}
       <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px 16px' }}>
           <h2 style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '-0.01em', margin: 0 }}>PAYMENT HISTORY</h2>
         </div>
         <div style={{ height: 1, background: '#f1f0ef' }} />
 
-        {/* Column headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr 120px 120px', gap: 12, padding: '10px 24px', background: '#fafafa' }}>
-          {['Invoice #', 'Project', 'Amount', 'Date'].map(col => (
+        {/* Desktop headers */}
+        <div className="pay-table-head">
+          {['Invoice #', 'Project', 'Amount', 'Date Paid'].map(col => (
             <span key={col} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#808080' }}>{col}</span>
           ))}
         </div>
 
         {/* Loading */}
         {loading && [1, 2, 3].map(i => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 120px 120px', gap: 12, padding: '14px 24px', borderTop: '1px solid #f1f0ef', alignItems: 'center' }}>
+          <div key={i} className="pay-table-row" style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
             <Skel w={50} h={13} /><Skel w="60%" h={13} /><Skel w={70} h={13} /><Skel w={80} h={13} />
           </div>
         ))}
@@ -108,11 +118,26 @@ export default function PaymentsPage() {
 
         {/* Rows */}
         {!loading && !error && paid.map((inv, i) => (
-          <div key={inv.id} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 120px 120px', gap: 12, padding: '14px 24px', borderTop: '1px solid #f1f0ef', alignItems: 'center', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-            <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>{inv.invoice_number}</span>
-            <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a' }}>{inv.project_name}</span>
-            <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a7a3a' }}>{fmtCurrency(inv.amount_cents)}</span>
-            <span style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>{fmtDate(inv.invoice_date)}</span>
+          <div key={inv.id}>
+            {/* Desktop row */}
+            <div className="pay-table-row" style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>{inv.invoice_number}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a' }}>{inv.project_name}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a7a3a' }}>{fmtCurrency(inv.amount_cents)}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>{fmtDate(inv.invoice_date)}</span>
+            </div>
+
+            {/* Mobile card */}
+            <div className="pay-card" style={{ background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#0a0a0a' }}>{inv.invoice_number}</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.project_name}</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', marginTop: 4 }}>{fmtDate(inv.invoice_date)}</div>
+                </div>
+                <div style={{ fontFamily: F.bungee, fontSize: 20, color: '#0a7a3a', flexShrink: 0 }}>{fmtCurrency(inv.amount_cents)}</div>
+              </div>
+            </div>
           </div>
         ))}
       </div>

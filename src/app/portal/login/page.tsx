@@ -164,9 +164,10 @@ export default function LoginPage() {
         }
         @media (max-width: 767px) {
           .portal-login-wrap  { flex-direction: column; }
-          .portal-login-left  { width: 100%; padding: 36px 28px; min-height: 50dvh; }
-          .portal-login-left p[style] { left: 28px !important; bottom: 24px !important; }
+          .portal-login-left  { width: 100%; padding: 36px 28px 32px; min-height: auto; }
           .portal-login-right { width: 100%; padding: 36px 28px; }
+          .portal-login-footer { position: static !important; margin-top: 28px; }
+          .portal-login-headline { font-size: clamp(26px, 11vw, 64px) !important; }
         }
         .portal-otp-box {
           width: 100%;
@@ -224,7 +225,7 @@ export default function LoginPage() {
           {/* Middle: logo mark + headline */}
           <div>
             {/* <img src="/new-thrive/logo-mark.svg" alt="Thrive Creative Studios" width={40} height={40} style={{ display: 'block' }} /> */}
-            <h2 style={{
+            <h2 className="portal-login-headline" style={{
               fontFamily: F.bungee,
               fontSize: 'clamp(36px, 15vw, 64px)',
               color: '#fff',
@@ -248,7 +249,7 @@ export default function LoginPage() {
           </div>
 
           {/* Bottom: copyright + homepage link */}
-          <div style={{ position: 'absolute', bottom: 48, left: 52, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="portal-login-footer" style={{ position: 'absolute', bottom: 48, left: 52, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <a
               href="/"
               style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#E50586', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
