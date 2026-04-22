@@ -47,7 +47,7 @@ export default function ProgressPage() {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) return;
       const { data, error: qErr } = await supabasePortal
-        .from('portal_projects').select('id, name, status, progress, color, stages')
+        .from('portal_projects').select('id, name, status, progress, color')
         .eq('client_id', user.id).order('created_at', { ascending: false });
       if (qErr) { setError(true); setLoading(false); return; }
       setProjects(data ?? []);
