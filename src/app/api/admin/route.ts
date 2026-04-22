@@ -244,6 +244,12 @@ export async function POST(req: NextRequest) {
         if (error) return err(error.message);
         const fmtAmt = ((Number(amount_cents)) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
         logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);
+        notifyClient(
+          admin, clientId as string,
+          `Invoice ${invoice_number} — ${fmtAmt} due`,
+          `A new invoice has been added to your portal.`,
+          project_name ? `Project: ${project_name as string}\nAmount: ${fmtAmt}` : `Amount: ${fmtAmt}`,
+        );
         return NextResponse.json({ ok: true, data });
       }
 
@@ -496,6 +502,26 @@ export async function POST(req: NextRequest) {
           'Log in to your portal to download, sign, and return it.',
         );
         return NextResponse.json({ ok: true, data });
+      }
+
+      case 'upload_signed_proposal': {
+        const { id, path } = params as { id: string; path: string };
+        if (!id || !path) return err('id and path are required');
+        const { data: proposal } = await admin.from('portal_proposals').select('client_id, name').eq('id', id).single();
+        if (!proposal) return err('Proposal not found');
+        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        const { error } = await admin.from('portal_proposals')
+          .update({ signed_file_url: publicUrl, signed_storage_path: path, status: 'signed' })
+          .eq('id', id);
+        if (error) return err(error.message);
+        logActivity(admin, proposal.client_id, `Signed proposal ready to download: ${proposal.name}`, '#0cf574', null);
+        notifyClient(
+          admin, proposal.client_id,
+          'Your signed proposal is ready',
+          `The signed version of "${proposal.name}" is now available in your portal.`,
+          'Log in to download your copy.',
+        );
+        return NextResponse.json({ ok: true });
       }
 
       case 'delete_proposal': {

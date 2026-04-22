@@ -58,6 +58,11 @@ export default function InvoicesPage() {
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
   useEffect(() => { if (justPaid) loadInvoices(); }, [justPaid, loadInvoices]);
 
+  async function handleExportPDF(inv: DbInvoice) {
+    const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    await generateInvoicePDF(inv);
+  }
+
   async function handlePay(invoiceId: string, amountCents: number, description: string) {
     setPayLoading(true); setPayError('');
     try {
@@ -157,6 +162,10 @@ export default function InvoicesPage() {
                   {STATUS_LABEL[inv.status] ?? inv.status}
                 </span>
                 <div style={{ display:'flex', gap:8 }}>
+                  <button onClick={() => handleExportPDF(inv)}
+                    style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer' }}>
+                    PDF
+                  </button>
                   {canPay && (
                     <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
                       style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:8, padding:'6px 16px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
@@ -184,12 +193,18 @@ export default function InvoicesPage() {
                       Issued {fmtDate(inv.invoice_date)} · Due {fmtDate(inv.due_date)}
                     </div>
                   </div>
-                  {canPay && (
-                    <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
-                      style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', flexShrink:0, opacity:payLoading?0.6:1 }}>
-                      {payLoading ? '…' : 'PAY NOW'}
+                  <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                    <button onClick={() => handleExportPDF(inv)}
+                      style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>
+                      PDF
                     </button>
-                  )}
+                    {canPay && (
+                      <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
+                        style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
+                        {payLoading ? '…' : 'PAY NOW'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

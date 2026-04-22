@@ -271,16 +271,16 @@ export default function AdminPage() {
     `${c.full_name} ${c.company_name}`.toLowerCase().includes(search.toLowerCase())
   );
 
-  const TABS: { id: Tab; label: string; count?: number }[] = clientData ? [
+  const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: 'profile',    label: 'Profile' },
-    { id: 'projects',   label: 'Projects',   count: clientData.projects.length },
-    { id: 'invoices',   label: 'Invoices',   count: clientData.invoices.length },
-    { id: 'requests',   label: 'Requests',   count: clientData.requests.length },
-    { id: 'files',      label: 'Files',      count: clientData.files.length },
-    { id: 'milestones', label: 'Milestones', count: clientData.milestones.length },
-    { id: 'activity',   label: 'Activity',   count: clientData.activity.length },
+    { id: 'projects',   label: 'Projects',   count: clientData?.projects.length },
+    { id: 'invoices',   label: 'Invoices',   count: clientData?.invoices.length },
+    { id: 'requests',   label: 'Requests',   count: clientData?.requests.length },
+    { id: 'files',      label: 'Files',      count: clientData?.files.length },
+    { id: 'milestones', label: 'Milestones', count: clientData?.milestones.length },
+    { id: 'activity',   label: 'Activity',   count: clientData?.activity.length },
     { id: 'settings',   label: 'Settings' },
-  ] : [{ id: 'settings' as Tab, label: 'Settings' }];
+  ];
 
   const selectedClient = clients.find(c => c.id === selectedId);
 
@@ -375,7 +375,7 @@ export default function AdminPage() {
       </aside>
 
       {/* ── Right panel ── */}
-      <div style={{ flex: 1, overflowY: 'auto', background: '#f6f5f4', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: 'hidden', background: '#f6f5f4', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Mobile client selector bar */}
         <div className="admin-mobile-bar">
@@ -402,7 +402,7 @@ export default function AdminPage() {
 
         {/* No selection */}
         {!selectedId && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, padding: 40 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, padding: 40 }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fff', border: '1.5px solid #e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="#bfbfbf" strokeWidth="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#bfbfbf" strokeWidth="1.5" strokeLinecap="round"/></svg>
             </div>
@@ -415,7 +415,7 @@ export default function AdminPage() {
 
         {/* New client form */}
         {selectedId === 'new' && (
-          <div className="admin-tab-content" style={{ maxWidth: 600 }}>
+          <div className="admin-tab-content" style={{ maxWidth: 600, flex: 1, overflowY: 'auto' }}>
             <h2 style={{ fontFamily: F.inter, fontSize: 18, fontWeight: 800, color: DARK, margin: '0 0 6px' }}>New Client</h2>
             <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 28px' }}>Create a new client account. They'll receive a login invite.</p>
             <NewClientForm api={api} onCreated={(id) => { refreshClients(); setSelectedId(id); setActiveTab('profile'); }} />
@@ -424,7 +424,7 @@ export default function AdminPage() {
 
         {/* Client editor */}
         {selectedId && selectedId !== 'new' && (
-          <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
 
             {/* Client header */}
             {clientData?.profile && (
@@ -463,7 +463,7 @@ export default function AdminPage() {
             )}
 
             {/* Tab bar */}
-            <div className="admin-tab-bar" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', display: 'flex', gap: 0, overflowX: 'auto' }}>
+            <div className="admin-tab-bar" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', display: 'flex', gap: 0, overflowX: 'auto', flexShrink: 0 }}>
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -489,7 +489,7 @@ export default function AdminPage() {
             </div>
 
             {/* Tab content */}
-            <div className="admin-tab-content" style={{ flex: 1 }}>
+            <div className="admin-tab-content" style={{ flex: 1, overflowY: 'auto' }}>
               {dataLoading ? (
                 <div style={{ color: '#bfbfbf', fontSize: 13, fontFamily: F.inter }}>Loading…</div>
               ) : clientData ? (
@@ -611,8 +611,9 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
   api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onRefresh: () => void;
 }) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
+  const [uploading,        setUploading]        = useState(false);
+  const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
+  const [error,            setError]            = useState('');
 
   async function handleFile(file: File) {
     if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
@@ -624,6 +625,29 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
       if (r.error) setError(r.error); else onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
+  }
+
+  async function handleUploadSigned(proposal: Proposal, file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploadingSignedId(proposal.id); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/signed/${Date.now()}-${safeName}`, true);
+      const r = await api({ action: 'upload_signed_proposal', id: proposal.id, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploadingSignedId(null); }
+  }
+
+  function pickSignedFile(proposal: Proposal) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleUploadSigned(proposal, file);
+    };
+    input.click();
   }
 
   async function handleDelete(id: string) {
@@ -656,23 +680,39 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
           {proposals.map((p) => {
             const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.pending;
+            const signingThis = uploadingSignedId === p.id;
             return (
-              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                   <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{fmtDate(p.created_at)}</div>
+
+                  {/* Signed copy row */}
+                  {p.signed_file_url ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download
+                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '4px 10px', borderRadius: 8 }}>
+                        ↓ Signed Copy
+                      </a>
+                      <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
+                        {signingThis ? 'Uploading…' : 'Replace Signed'}
+                      </Btn>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 8 }}>
+                      <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
+                        {signingThis ? 'Uploading…' : '↑ Upload Signed Copy'}
+                      </Btn>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
                   <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
                   <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
-                  {p.signed_file_url && (
-                    <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '4px 10px', borderRadius: 8 }}>
-                      ↓ Signed Copy
-                    </a>
-                  )}
                   <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => toggleStatus(p)}>
                     {p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}
                   </Btn>
@@ -917,8 +957,9 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 type SubProps = { project: Project; clientId: string; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void; };
 
 function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: SubProps & { proposals: Proposal[] }) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
+  const [uploading,         setUploading]         = useState(false);
+  const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
+  const [error,             setError]             = useState('');
   const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
 
   async function handleFile(file: File) {
@@ -933,6 +974,29 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
     finally { setUploading(false); }
   }
 
+  async function handleUploadSigned(proposal: Proposal, file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploadingSignedId(proposal.id); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/signed/${Date.now()}-${safeName}`, true);
+      const r = await api({ action: 'upload_signed_proposal', id: proposal.id, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploadingSignedId(null); }
+  }
+
+  function pickSignedFile(proposal: Proposal) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleUploadSigned(proposal, file);
+    };
+    input.click();
+  }
+
   return (
     <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
       <SubSectionHead title="Proposal" />
@@ -942,17 +1006,31 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {proposals.map((p) => {
             const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.pending;
+            const signingThis = uploadingSignedId === p.id;
             return (
-              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: '#fff' }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap', background: '#fff' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
-                <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
-                <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
-                {p.signed_file_url && <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '3px 8px', borderRadius: 6 }}>↓ Signed</a>}
-                <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { const next = p.status === 'pending' ? 'signed' : 'pending'; await api({ action: 'set_proposal_status', id: p.id, status: next }); onRefresh(); }}>{p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}</Btn>
-                <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_proposal', id: p.id }); onRefresh(); }}>Delete</Btn>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  {p.signed_file_url ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '2px 8px', borderRadius: 6 }}>↓ Signed</a>
+                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? '…' : 'Replace'}</Btn>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 6 }}>
+                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? 'Uploading…' : '↑ Upload Signed'}</Btn>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
+                  <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                  <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { const next = p.status === 'pending' ? 'signed' : 'pending'; await api({ action: 'set_proposal_status', id: p.id, status: next }); onRefresh(); }}>{p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}</Btn>
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_proposal', id: p.id }); onRefresh(); }}>Delete</Btn>
+                </div>
               </div>
             );
           })}
@@ -1115,6 +1193,11 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
     await api({ action: 'delete_invoice', id }); onRefresh();
   }
 
+  async function handleExportPDF(inv: Invoice) {
+    const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    await generateInvoicePDF(inv, data.profile?.full_name ?? null);
+  }
+
   async function handleEditSave(id: string) {
     setSaving(true);
     const payload = { ...editData, amount_cents: editData.amount_cents !== undefined ? Number(editData.amount_cents) : undefined };
@@ -1156,7 +1239,14 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <FormGrid>
               <FormRow label="Invoice # *"><input style={INPUT} value={invNum} onChange={(e) => setInvNum(e.target.value)} placeholder="INV-001" /></FormRow>
-              <FormRow label="Project"><input style={INPUT} value={projName} onChange={(e) => setProjName(e.target.value)} placeholder="Brand Identity" /></FormRow>
+              <FormRow label="Project">
+                <select style={SELECT} value={projName} onChange={(e) => setProjName(e.target.value)}>
+                  <option value="">— None —</option>
+                  {data.projects.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </FormRow>
               <FormRow label="Amount (USD) *"><input style={INPUT} type="number" step="0.01" value={amountDol} onChange={(e) => setAmountDol(e.target.value)} placeholder="1200.00" /></FormRow>
               <FormRow label="Invoice Date"><input style={INPUT} type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} /></FormRow>
               <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
@@ -1183,7 +1273,14 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
               {data.invoices.map((inv) => editId === inv.id ? (
                 <tr key={inv.id} style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 100 }} value={editData.invoice_number ?? inv.invoice_number} onChange={(e) => setEditData((d) => ({ ...d, invoice_number: e.target.value }))} /></td>
-                  <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 130 }} value={editData.project_name ?? inv.project_name} onChange={(e) => setEditData((d) => ({ ...d, project_name: e.target.value }))} /></td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <select style={{ ...SELECT, width: 150 }} value={editData.project_name ?? inv.project_name} onChange={(e) => setEditData((d) => ({ ...d, project_name: e.target.value }))}>
+                      <option value="">— None —</option>
+                      {data.projects.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </td>
                   <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 90 }} type="number" value={editData.amount_cents !== undefined ? editData.amount_cents / 100 : inv.amount_cents / 100} onChange={(e) => setEditData((d) => ({ ...d, amount_cents: parseFloat(e.target.value) * 100 }))} /></td>
                   <td style={{ padding: '10px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
                   <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 130 }} type="date" value={editData.due_date ?? inv.due_date} onChange={(e) => setEditData((d) => ({ ...d, due_date: e.target.value }))} /></td>
@@ -1198,7 +1295,7 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.due_date)}</td>
                   <td style={{ padding: '12px 12px' }}><Badge status={inv.status} /></td>
-                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({}); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({}); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
                 </tr>
               ))}
             </tbody>
