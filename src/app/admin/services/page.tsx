@@ -27,7 +27,7 @@ async function apiFetch(action: string, params: Record<string, unknown> = {}) {
     headers: { 'X-Admin-Passcode': getPasscode(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...params }),
   });
-  const data = await res.json() as { ok?: boolean; error?: string; data?: unknown; url?: string };
+  const data = await res.json() as { ok?: boolean; error?: string; data?: unknown; url?: string; signedUrl?: string; path?: string };
   if (!res.ok || data.error) throw new Error(data.error ?? 'Request failed');
   return data;
 }
