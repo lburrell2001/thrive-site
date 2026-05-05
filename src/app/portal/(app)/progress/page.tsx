@@ -114,8 +114,8 @@ export default function ProgressPage() {
         />
       ))}
 
-      {/* Archived section */}
-      {!loading && !error && projects.some(p => p.archived) && (
+      {/* Archived section — always visible once loaded */}
+      {!loading && !error && (
         <div style={{ marginTop: 8 }}>
           <button
             type="button"
@@ -134,17 +134,23 @@ export default function ProgressPage() {
           </button>
 
           {showArchived && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 12 }}>
-              {projects.filter(p => p.archived).map(proj => (
-                <ProjectCard
-                  key={proj.id}
-                  proj={proj}
-                  archived
-                  invoices={invoices.filter(i => (i as DbInvoice & { project_name?: string }).project_name === proj.name)}
-                  files={files.filter(f => (f as DbFile & { project_name?: string }).project_name === proj.name)}
-                  proposals={proposals.filter(p => (p as DbProposal & { project_id?: string }).project_id === proj.id)}
-                />
-              ))}
+            <div style={{ marginTop: 12 }}>
+              {projects.filter(p => p.archived).length === 0 ? (
+                <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0, padding: '16px 4px' }}>No archived projects.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {projects.filter(p => p.archived).map(proj => (
+                    <ProjectCard
+                      key={proj.id}
+                      proj={proj}
+                      archived
+                      invoices={invoices.filter(i => (i as DbInvoice & { project_name?: string }).project_name === proj.name)}
+                      files={files.filter(f => (f as DbFile & { project_name?: string }).project_name === proj.name)}
+                      proposals={proposals.filter(p => (p as DbProposal & { project_id?: string }).project_id === proj.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
