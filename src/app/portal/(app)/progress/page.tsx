@@ -47,7 +47,8 @@ export default function ProgressPage() {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) return;
       const [projRes, invRes, fileRes, propRes] = await Promise.all([
-        supabasePortal.from('portal_projects').select('id, name, status, progress, color, stages, archived').eq('client_id', user.id).order('created_at', { ascending: false }),
+        // select('*') avoids hard failures when optional columns (stages, archived) haven't been added to the DB yet
+        supabasePortal.from('portal_projects').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
         supabasePortal.from('portal_invoices').select('id, invoice_number, amount_cents, due_date, status, project_name').eq('client_id', user.id),
         supabasePortal.from('portal_files').select('id, name, file_url, project_name').eq('client_id', user.id),
         supabasePortal.from('portal_proposals').select('id, name, file_url, signed_file_url, status, project_id').eq('client_id', user.id),
