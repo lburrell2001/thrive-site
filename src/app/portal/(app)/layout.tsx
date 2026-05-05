@@ -10,13 +10,10 @@ const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bun
 const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 const BASE_NAV_LINKS = [
-  { href: '/portal/dashboard',  label: 'Dashboard' },
-  { href: '/portal/requests',   label: 'My Requests' },
-  { href: '/portal/progress',   label: 'Progress' },
-  { href: '/portal/invoices',   label: 'Invoices' },
-  { href: '/portal/payments',   label: 'Payments' },
-  { href: '/portal/files',      label: 'Files & Assets' },
-  { href: '/portal/settings',   label: 'Settings' },
+  { href: '/portal/dashboard', label: 'Dashboard' },
+  { href: '/portal/progress',  label: 'My Projects' },
+  { href: '/portal/payments',  label: 'Payments' },
+  { href: '/portal/settings',  label: 'Settings' },
 ];
 
 function buildPageTitles(userName: string, userCompany: string) {
@@ -24,7 +21,7 @@ function buildPageTitles(userName: string, userCompany: string) {
   return {
     '/portal/dashboard':  { title: 'DASHBOARD',       subtitle: welcome },
     '/portal/requests':   { title: 'MY REQUESTS',     subtitle: 'Track and manage your design requests' },
-    '/portal/progress':   { title: 'PROGRESS',        subtitle: 'Project milestones and timelines' },
+    '/portal/progress':   { title: 'MY PROJECTS',      subtitle: 'Everything organised by project' },
     '/portal/invoices':   { title: 'INVOICES',        subtitle: 'Billing history and payments' },
     '/portal/payments':   { title: 'PAYMENTS',        subtitle: 'Payment methods and history' },
     '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Get started with your project' },
