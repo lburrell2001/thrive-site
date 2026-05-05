@@ -67,7 +67,7 @@ export default function DashboardPage() {
       if (!user) return;
 
       const [pR, aR, mR, rR, iR, fR] = await Promise.all([
-        supabasePortal.from('portal_projects').select('*').eq('client_id', user.id).neq('status', 'completed'),
+        supabasePortal.from('portal_projects').select('*').eq('client_id', user.id).neq('status', 'completed').neq('archived', true),
         supabasePortal.from('portal_activity').select('*').eq('client_id', user.id).order('created_at', { ascending: false }).limit(6),
         supabasePortal.from('portal_milestones').select('*').eq('client_id', user.id).eq('completed', false).order('due_date', { ascending: true }).limit(5),
         supabasePortal.from('portal_requests').select('id,status').eq('client_id', user.id),

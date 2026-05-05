@@ -215,10 +215,15 @@ export async function POST(req: NextRequest) {
       case 'update_project': {
         const { id, name, status, progress, stages } = params as Record<string, unknown>;
         const { data: prev } = await admin.from('portal_projects').select('client_id, status, progress, color').eq('id', id).single();
-        const updates: Record<string, unknown> = { name, status, progress: Number(progress) };
-        if (stages !== undefined) updates.stages = stages;
-        const { error } = await admin.from('portal_projects').update(updates).eq('id', id);
+        // Save core fields first — this must succeed
+        const { error } = await admin.from('portal_projects')
+          .update({ name, status, progress: Number(progress) })
+          .eq('id', id);
         if (error) return err(error.message);
+        // Save stages separately — ignore failures (column may not exist yet)
+        if (stages !== undefined) {
+          await admin.from('portal_projects').update({ stages }).eq('id', id);
+        }
         if (prev) {
           const statusChanged = prev.status !== status;
           const progressChanged = prev.progress !== Number(progress);
@@ -229,6 +234,13 @@ export async function POST(req: NextRequest) {
             logActivity(admin, prev.client_id, label, prev.color ?? '#808080', String(name));
           }
         }
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'archive_project': {
+        const { id, archived } = params as { id: string; archived: boolean };
+        const { error } = await admin.from('portal_projects').update({ archived }).eq('id', id);
+        if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }
 
@@ -267,8 +279,10 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_request': {
-        const { clientId, title, type, status, priority } = params as Record<string, unknown>;
-        const { data, error } = await admin.from('portal_requests').insert({ client_id: clientId, title, type, status, priority }).select().single();
+        const { clientId, title, type, status, priority, project_name } = params as Record<string, unknown>;
+        const row: Record<string, unknown> = { client_id: clientId, title, type, status, priority };
+        if (project_name) row.project_name = project_name;
+        const { data, error } = await admin.from('portal_requests').insert(row).select().single();
         if (error) return err(error.message);
         return NextResponse.json({ ok: true, data });
       }

@@ -47,16 +47,16 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; }
 interface Stage   { key: string; label: string; }
-interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; }
+interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; }
-interface Request { id: string; title: string; type: string; status: string; priority: string; }
+interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
 interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
 interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
 interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
 interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; }
-type Tab = 'profile' | 'projects' | 'invoices' | 'requests' | 'files' | 'onboarding' | 'milestones' | 'activity' | 'settings';
+type Tab = 'profile' | 'projects' | 'settings';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtAmount(cents: number) { return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }); }
@@ -272,14 +272,9 @@ export default function AdminPage() {
   );
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
-    { id: 'profile',    label: 'Profile' },
-    { id: 'projects',   label: 'Projects',   count: clientData?.projects.length },
-    { id: 'invoices',   label: 'Invoices',   count: clientData?.invoices.length },
-    { id: 'requests',   label: 'Requests',   count: clientData?.requests.length },
-    { id: 'files',      label: 'Files',      count: clientData?.files.length },
-    { id: 'milestones', label: 'Milestones', count: clientData?.milestones.length },
-    { id: 'activity',   label: 'Activity',   count: clientData?.activity.length },
-    { id: 'settings',   label: 'Settings' },
+    { id: 'profile',  label: 'Profile' },
+    { id: 'projects', label: 'Projects', count: clientData?.projects.filter(p => !p.archived).length },
+    { id: 'settings', label: 'Settings' },
   ];
 
   const selectedClient = clients.find(c => c.id === selectedId);
@@ -494,14 +489,9 @@ export default function AdminPage() {
                 <div style={{ color: '#bfbfbf', fontSize: 13, fontFamily: F.inter }}>Loading…</div>
               ) : clientData ? (
                 <div className="admin-tab-inner" style={{ background: '#fff', border: '1px solid #e5e5e5' }}>
-                  {activeTab === 'profile'    && <ProfileTab    clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'projects'   && <ProjectsTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'invoices'   && <InvoicesTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'requests'   && <RequestsTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'files'      && <FilesTab      clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'milestones' && <MilestonesTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'activity'   && <ActivityTab   clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
-                  {activeTab === 'settings'   && <SettingsTab   api={api} clientId={selectedId} clientEmail={clientData?.profile?.email ?? null} onRefresh={refreshClientData} />}
+                  {activeTab === 'profile'  && <ProfileTab  clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
+                  {activeTab === 'projects' && <ProjectsTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
+                  {activeTab === 'settings' && <SettingsTab api={api} clientId={selectedId} clientEmail={clientData?.profile?.email ?? null} onRefresh={refreshClientData} />}
                 </div>
               ) : null}
             </div>
@@ -601,6 +591,8 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
           </div>
         )}
       </div>
+      <Divider />
+      <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
     </div>
   );
 }
@@ -737,6 +729,13 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
   const [addErr, setAddErr] = useState('');
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const active   = data.projects.filter(p => !p.archived);
+  const archived = data.projects.filter(p => p.archived);
+  const projectNames = new Set(data.projects.map(p => p.name));
+  const standaloneInvoices = data.invoices.filter(i => !i.project_name || !projectNames.has(i.project_name));
+  const standaloneRequests = data.requests.filter(r => !r.project_name || !projectNames.has(r.project_name));
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -746,6 +745,21 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
     if (r.error) { setAddErr(r.error); setAdding(false); return; }
     setName(''); setStatus('kickoff'); setProgress(0); setColor(PINK); setShowForm(false);
     setAdding(false); onRefresh();
+  }
+
+  function renderCard(p: Project) {
+    return (
+      <ProjectCard
+        key={p.id}
+        project={p}
+        expanded={expandedId === p.id}
+        onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+        clientId={clientId}
+        data={data}
+        api={api}
+        onRefresh={onRefresh}
+      />
+    );
   }
 
   return (
@@ -770,22 +784,79 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
         </div>
       )}
 
-      {data.projects.length === 0 ? (
-        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '8px 0' }}>No projects yet.</p>
+      {/* Active projects */}
+      {active.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '8px 0' }}>No active projects yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {data.projects.map((p) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              expanded={expandedId === p.id}
-              onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
-              clientId={clientId}
-              data={data}
-              api={api}
-              onRefresh={onRefresh}
-            />
-          ))}
+          {active.map(renderCard)}
+        </div>
+      )}
+
+      {/* Archived projects */}
+      {archived.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <button
+            type="button"
+            onClick={() => setShowArchived(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', marginBottom: showArchived ? 10 : 0 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: 'transform .2s', transform: showArchived ? 'rotate(90deg)' : 'rotate(0)' }}>
+              <path d="M4 2.5l4 3.5-4 3.5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Archived ({archived.length})
+            </span>
+          </button>
+          {showArchived && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {archived.map(renderCard)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Standalone invoices — not linked to any project */}
+      {standaloneInvoices.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Standalone Invoices
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {standaloneInvoices.map(inv => (
+              <div key={inv.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
+                {inv.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{inv.project_name}</span>}
+                {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+                <Badge status={inv.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Standalone requests — submitted by client without a project */}
+      {standaloneRequests.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Standalone Requests
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {standaloneRequests.map(req => {
+              const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+              const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
+              return (
+                <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
+                  {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
+                  <Badge status={req.status} />
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -808,17 +879,31 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 }) {
   const [editData, setEditData] = useState<Partial<Project>>({});
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
   const [stages, setStages] = useState<Stage[]>(project.stages?.length ? project.stages : DEFAULT_STAGES);
 
   const projectProposals  = data.proposals.filter(p => p.project_id === project.id);
   const projectFiles      = data.files.filter(f => f.project_name === project.name);
   const projectMilestones = data.milestones.filter(m => m.project_name === project.name);
   const projectActivity   = data.activity.filter(a => a.project_name === project.name);
+  const projectInvoices   = data.invoices.filter(i => i.project_name === project.name);
+  const projectRequests   = data.requests.filter(r => r.project_name === project.name);
 
   async function handleSave() {
     setSaving(true);
-    await api({ action: 'update_project', id: project.id, name: editData.name ?? project.name, status: editData.status ?? project.status, progress: editData.progress ?? project.progress, stages });
-    setEditData({}); setSaving(false); onRefresh();
+    setSaveErr('');
+    const r = await api({
+      action: 'update_project',
+      id: project.id,
+      name: editData.name ?? project.name,
+      status: editData.status ?? project.status,
+      progress: editData.progress ?? project.progress,
+      stages,
+    }) as { error?: string };
+    setSaving(false);
+    if (r.error) { setSaveErr(r.error); return; }
+    setEditData({});
+    onRefresh();
   }
 
   function addStage() {
@@ -832,11 +917,13 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
   }
 
   function deleteStage(key: string) {
-    setStages(s => s.filter(st => st.key !== key));
-    if ((editData.status ?? project.status) === key) {
-      const remaining = stages.filter(st => st.key !== key);
-      if (remaining.length) setEditData(d => ({ ...d, status: remaining[0].key }));
-    }
+    setStages(s => {
+      const remaining = s.filter(st => st.key !== key);
+      if ((editData.status ?? project.status) === key && remaining.length) {
+        setEditData(d => ({ ...d, status: remaining[0].key }));
+      }
+      return remaining;
+    });
   }
 
   return (
@@ -850,6 +937,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             <div style={{ height: 4, borderRadius: 999, background: project.color, width: `${project.progress}%`, transition: 'width .3s' }} />
           </div>
         </div>
+        {project.archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '2px 8px', borderRadius: 999, flexShrink: 0 }}>ARCHIVED</span>}
         <Badge status={project.status} />
         <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', minWidth: 32 }}>{project.progress}%</span>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, transition: 'transform .2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
@@ -863,8 +951,10 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
           {/* Edit project */}
           <div style={{ padding: 16, background: '#fff', borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
             <SubSectionHead title="Edit Project" action={
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {saveErr && <span style={{ fontFamily: F.inter, fontSize: 11, color: PINK, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={saveErr}>⚠ {saveErr}</span>}
                 <Btn onClick={handleSave} disabled={saving} style={{ padding: '4px 12px', fontSize: 12 }}>{saving ? 'Saving…' : 'Save'}</Btn>
+                <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { await api({ action: 'archive_project', id: project.id, archived: !project.archived }); onRefresh(); }}>{project.archived ? 'Unarchive' : 'Archive'}</Btn>
                 <Btn variant="danger" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete this project?')) return; await api({ action: 'delete_project', id: project.id }); onRefresh(); }}>Delete</Btn>
               </div>
             } />
@@ -943,6 +1033,8 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             </div>
           </div>
 
+          <ProjectSubInvoices   project={project} invoices={projectInvoices}     clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+          <ProjectSubRequests   project={project} requests={projectRequests}     clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
@@ -1167,6 +1259,145 @@ function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: Sub
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project: Invoices ─────────────────────────────────────────────────────
+function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; data: ClientData }) {
+  const [showForm, setShowForm] = useState(false);
+  const [invNum,    setInvNum]    = useState('');
+  const [amountDol, setAmountDol] = useState('');
+  const [invDate,   setInvDate]   = useState('');
+  const [dueDate,   setDueDate]   = useState('');
+  const [invStatus, setInvStatus] = useState('due');
+  const [editId,    setEditId]    = useState<string | null>(null);
+  const [editVals,  setEditVals]  = useState<Partial<Invoice>>({});
+  const [saving,    setSaving]    = useState(false);
+  const [addErr,    setAddErr]    = useState('');
+  const [adding,    setAdding]    = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!invNum || !amountDol) { setAddErr('Invoice # and amount required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: Math.round(parseFloat(amountDol) * 100), invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  async function handleEditSave(inv: Invoice) {
+    setSaving(true);
+    await api({ action: 'update_invoice', id: inv.id, invoice_number: editVals.invoice_number ?? inv.invoice_number, project_name: project.name, amount_cents: editVals.amount_cents !== undefined ? Number(editVals.amount_cents) : inv.amount_cents, due_date: editVals.due_date ?? inv.due_date, status: editVals.status ?? inv.status });
+    setEditId(null); setEditVals({}); setSaving(false); onRefresh();
+  }
+
+  async function handleExportPDF(inv: Invoice) {
+    const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    await generateInvoicePDF(inv, data.profile?.full_name ?? null);
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Invoices" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Invoice # *"><input style={INPUT} value={invNum} onChange={e => setInvNum(e.target.value)} placeholder="INV-001" /></FormRow>
+            <FormRow label="Amount (USD) *"><input style={INPUT} type="number" step="0.01" value={amountDol} onChange={e => setAmountDol(e.target.value)} placeholder="1200.00" /></FormRow>
+            <FormRow label="Invoice Date"><input style={INPUT} type="date" value={invDate} onChange={e => setInvDate(e.target.value)} /></FormRow>
+            <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></FormRow>
+            <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={e => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
+          </FormGrid>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add Invoice'}</Btn><ErrorMsg msg={addErr} /></div>
+        </form>
+      )}
+      {invoices.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No invoices yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {invoices.map(inv => editId === inv.id ? (
+            <div key={inv.id} style={{ border: '1px solid #e5e5e5', borderRadius: 8, padding: '10px 14px', background: '#fff', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <input style={{ ...INPUT, width: 90 }} value={editVals.invoice_number ?? inv.invoice_number} onChange={e => setEditVals(d => ({ ...d, invoice_number: e.target.value }))} />
+              <input style={{ ...INPUT, width: 90 }} type="number" value={editVals.amount_cents !== undefined ? editVals.amount_cents / 100 : inv.amount_cents / 100} onChange={e => setEditVals(d => ({ ...d, amount_cents: parseFloat(e.target.value) * 100 }))} />
+              <input style={{ ...INPUT, width: 130 }} type="date" value={editVals.due_date ?? inv.due_date} onChange={e => setEditVals(d => ({ ...d, due_date: e.target.value }))} />
+              <select style={{ ...SELECT, width: 100 }} value={editVals.status ?? inv.status} onChange={e => setEditVals(d => ({ ...d, status: e.target.value }))}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select>
+              <Btn onClick={() => handleEditSave(inv)} disabled={saving} style={{ padding: '3px 10px', fontSize: 11 }}>{saving ? '…' : 'Save'}</Btn>
+              <Btn variant="ghost" onClick={() => { setEditId(null); setEditVals({}); }} style={{ padding: '3px 8px', fontSize: 11 }}>✕</Btn>
+            </div>
+          ) : (
+            <div key={inv.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
+              {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+              <Badge status={inv.status} />
+              <div style={{ display: 'flex', gap: 4 }}>
+                <Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '3px 8px', fontSize: 11 }}>PDF</Btn>
+                <Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditVals({ invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '3px 8px', fontSize: 11 }}>Edit</Btn>
+                <Btn variant="danger" onClick={async () => { if (!confirm('Delete invoice?')) return; await api({ action: 'delete_invoice', id: inv.id }); onRefresh(); }} style={{ padding: '3px 8px', fontSize: 11 }}>Delete</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project: Requests ─────────────────────────────────────────────────────
+function ProjectSubRequests({ project, requests, clientId, api, onRefresh }: SubProps & { requests: Request[] }) {
+  const [showForm, setShowForm] = useState(false);
+  const [title,    setTitle]    = useState('');
+  const [type,     setType]     = useState('');
+  const [status,   setStatus]   = useState('kickoff');
+  const [priority, setPriority] = useState('normal');
+  const [addErr,   setAddErr]   = useState('');
+  const [adding,   setAdding]   = useState(false);
+  const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setAddErr('Title required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_request', clientId, title, type, status, priority, project_name: project.name }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setTitle(''); setType(''); setStatus('kickoff'); setPriority('normal'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Requests" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Title *"><input style={INPUT} value={title} onChange={e => setTitle(e.target.value)} placeholder="Logo revision" /></FormRow>
+            <FormRow label="Type"><input style={INPUT} value={type} onChange={e => setType(e.target.value)} placeholder="Design, Copy…" /></FormRow>
+            <FormRow label="Status"><select style={SELECT} value={status} onChange={e => setStatus(e.target.value)}><option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option></select></FormRow>
+            <FormRow label="Priority"><select style={SELECT} value={priority} onChange={e => setPriority(e.target.value)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></FormRow>
+          </FormGrid>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add Request'}</Btn><ErrorMsg msg={addErr} /></div>
+        </form>
+      )}
+      {requests.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No requests yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {requests.map(req => {
+            const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
+            return (
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
+                {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
+                <Badge status={req.status} />
+                <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

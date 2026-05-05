@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const [navScrolled, setNavScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
+  const footerRef = useRef<HTMLElement>(null);
   const year = new Date().getFullYear();
 
   useEffect(() => {
@@ -13,13 +15,26 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const footer = footerRef.current;
+    if (!footer) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setNavHidden(entry.isIntersecting),
+      { threshold: 0 }
+    );
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <>
       <style>{`
         /* ── NAV ── */
         .pl-nav {
-          position: sticky;
+          position: fixed;
           top: 0;
+          left: 0;
+          right: 0;
           z-index: 300;
           background: #fff;
           height: 100px;
@@ -28,10 +43,18 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           justify-content: space-between;
           padding: 0 48px;
           box-sizing: border-box;
-          transition: box-shadow 0.25s ease;
+          transition: box-shadow 0.25s ease, opacity 0.3s ease, transform 0.3s ease;
         }
         .pl-nav-scrolled {
           box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+        }
+        .pl-nav-hidden {
+          opacity: 0;
+          transform: translateY(-100%);
+          pointer-events: none;
+        }
+        .pl-page-offset {
+          height: 100px;
         }
         .pl-nav-logo { height: 64px; width: auto; display: block; }
         .pl-nav-pills { display: flex; gap: 12px; align-items: center; }
@@ -247,6 +270,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           .pl-nav-logo { height: 40px; }
           .pl-nav-pills { display: none; }
           .pl-ham { display: block; }
+          .pl-page-offset { height: 64px; }
 
           .pl-footer-top {
             grid-template-columns: 1fr;
@@ -258,7 +282,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       `}</style>
 
       {/* ── NAV ── */}
-      <nav className={`pl-nav${navScrolled ? " pl-nav-scrolled" : ""}`}>
+      <div className="pl-page-offset" />
+      <nav className={`pl-nav${navScrolled ? " pl-nav-scrolled" : ""}${navHidden ? " pl-nav-hidden" : ""}`}>
         <a href="/">
           <img
             src="/new-thrive/logo-mark-blk.svg"
@@ -308,7 +333,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <main>{children}</main>
 
       {/* ── FOOTER ── */}
-      <footer className="pl-footer" id="contact">
+      <footer className="pl-footer" id="contact" ref={footerRef}>
 
         <div className="pl-footer-pattern">
           <img src="/new-thrive/pattern.png" alt="" />

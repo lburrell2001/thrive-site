@@ -97,7 +97,7 @@ export default function LoginPage() {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('verifyOtp threw:', err);
       setError(`Caught: ${msg}`);
-      setCode(['', '', '', '', '', '']);
+      setCode(['', '', '', '', '', '', '', '']);
       setTimeout(() => codeRefs.current[0]?.focus(), 50);
     }
   }
