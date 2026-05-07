@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from "react";
 
+declare global {
+  interface Window {
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
 export default function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState<string | null>(null);
@@ -103,6 +109,11 @@ export default function ContactForm() {
       } else {
         setOk("Got it! I’ll reply with next steps within 1–2 business days.");
         form.reset();
+        if (typeof window !== "undefined" && typeof window.gtag === "function") {
+          window.gtag("event", "conversion", {
+            send_to: "AW-18142291257/UtwfCIi36agcELnK9cpD",
+          });
+        }
       }
     } catch {
       setErr("Network error. Please try again.");
