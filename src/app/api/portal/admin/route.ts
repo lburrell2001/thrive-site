@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { nextInvoiceNumberFor, addInterval, addOneMonth, IntervalUnit } from '@/lib/invoiceHelpers';
+
+// Re-export so existing imports from this route still resolve.
+export { nextInvoiceNumberFor, addInterval, addOneMonth };
+export type { IntervalUnit };
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -57,7 +62,7 @@ export async function POST(req: NextRequest) {
 
       case 'get_client_data': {
         const clientId = params.clientId as string;
-        const [profile, projects, requests, invoices, files, milestones, onboarding, activity] = await Promise.all([
+        const [profile, projects, requests, invoices, files, milestones, onboarding, activity, subscriptions] = await Promise.all([
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
           admin.from('portal_requests').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -66,6 +71,7 @@ export async function POST(req: NextRequest) {
           admin.from('portal_milestones').select('*').eq('client_id', clientId).order('due_date', { ascending: true }),
           admin.from('portal_onboarding_steps').select('*').eq('client_id', clientId).order('step_number', { ascending: true }),
           admin.from('portal_activity').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(20),
+          admin.from('portal_invoice_subscriptions').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
         ]);
         return NextResponse.json({
           ok: true,
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],
+            subscriptions: subscriptions.data ?? [],
           },
         });
       }
@@ -165,16 +172,68 @@ export async function POST(req: NextRequest) {
 
       case 'update_invoice': {
         const { id, status, invoice_number, project_name, amount_cents, due_date } = params as Record<string, unknown>;
-        const { error } = await admin
-          .from('portal_invoices')
-          .update({ status, invoice_number, project_name, amount_cents: Number(amount_cents), due_date })
-          .eq('id', id);
+        const update: Record<string, unknown> = {};
+        if (status         !== undefined) update.status         = status;
+        if (invoice_number !== undefined) update.invoice_number = invoice_number;
+        if (project_name   !== undefined) update.project_name   = project_name;
+        if (amount_cents   !== undefined) update.amount_cents   = Number(amount_cents);
+        if (due_date       !== undefined) update.due_date       = due_date;
+        const { error } = await admin.from('portal_invoices').update(update).eq('id', id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }
 
       case 'delete_invoice': {
         const { error } = await admin.from('portal_invoices').delete().eq('id', params.id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'next_invoice_number': {
+        const { clientId, invoice_prefix } = params as { clientId: string; invoice_prefix?: string };
+        const number = await nextInvoiceNumberFor(admin, clientId, invoice_prefix || 'INV');
+        return NextResponse.json({ ok: true, data: { invoice_number: number } });
+      }
+
+      case 'add_subscription': {
+        const { clientId, project_name, invoice_prefix, amount_cents, day_of_month, next_due_date, notes, interval_count, interval_unit } = params as Record<string, unknown>;
+        const unit  = (interval_unit as string) || 'month';
+        const count = Math.min(Math.max(Number(interval_count) || 1, 1), 24);
+        const { data, error } = await admin.from('portal_invoice_subscriptions').insert({
+          client_id:      clientId,
+          project_name:   (project_name as string) ?? '',
+          invoice_prefix: (invoice_prefix as string) || 'INV',
+          amount_cents:   Number(amount_cents),
+          day_of_month:   Math.min(Math.max(Number(day_of_month) || 1, 1), 28),
+          next_due_date:  next_due_date as string,
+          notes:          (notes as string) ?? null,
+          status:         'active',
+          interval_unit:  ['week','month','year'].includes(unit) ? unit : 'month',
+          interval_count: count,
+        }).select().single();
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true, data });
+      }
+
+      case 'update_subscription': {
+        const { id, status, project_name, invoice_prefix, amount_cents, day_of_month, next_due_date, notes, interval_count, interval_unit } = params as Record<string, unknown>;
+        const update: Record<string, unknown> = {};
+        if (status         !== undefined) update.status         = status;
+        if (project_name   !== undefined) update.project_name   = project_name;
+        if (invoice_prefix !== undefined) update.invoice_prefix = invoice_prefix || 'INV';
+        if (amount_cents   !== undefined) update.amount_cents   = Number(amount_cents);
+        if (day_of_month   !== undefined) update.day_of_month   = Math.min(Math.max(Number(day_of_month) || 1, 1), 28);
+        if (next_due_date  !== undefined) update.next_due_date  = next_due_date;
+        if (notes          !== undefined) update.notes          = notes;
+        if (interval_unit  !== undefined) update.interval_unit  = ['week','month','year'].includes(interval_unit as string) ? interval_unit : 'month';
+        if (interval_count !== undefined) update.interval_count = Math.min(Math.max(Number(interval_count) || 1, 1), 24);
+        const { error } = await admin.from('portal_invoice_subscriptions').update(update).eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'delete_subscription': {
+        const { error } = await admin.from('portal_invoice_subscriptions').delete().eq('id', params.id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }

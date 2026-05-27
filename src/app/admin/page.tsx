@@ -55,12 +55,54 @@ interface OnboardingStep { id: string; step_number: number; title: string; descr
 interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
 interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
 interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
-interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; }
+interface Subscription { id: string; client_id: string; project_name: string; invoice_prefix: string; amount_cents: number; day_of_month: number; next_due_date: string; last_generated_date: string | null; status: string; notes: string | null; created_at: string; interval_count: number; interval_unit: 'week' | 'month' | 'year'; }
+interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; }
 type Tab = 'profile' | 'projects' | 'settings';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtAmount(cents: number) { return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }); }
 function fmtDate(s: string) { if (!s) return '—'; return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+type IntervalUnit = 'week' | 'month' | 'year';
+function addIntervalClient(dateStr: string, count: number, unit: IntervalUnit): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  if (unit === 'week') {
+    d.setUTCDate(d.getUTCDate() + 7 * count);
+    return d.toISOString().slice(0, 10);
+  }
+  const monthsToAdd = unit === 'year' ? 12 * count : count;
+  const targetMonthIdx = d.getUTCMonth() + monthsToAdd;
+  const targetYear  = d.getUTCFullYear() + Math.floor(targetMonthIdx / 12);
+  const normMonth   = ((targetMonthIdx % 12) + 12) % 12;
+  const dayInTarget = new Date(Date.UTC(targetYear, normMonth + 1, 0)).getUTCDate();
+  const day         = Math.min(d.getUTCDate(), dayInTarget);
+  return new Date(Date.UTC(targetYear, normMonth, day)).toISOString().slice(0, 10);
+}
+const FREQUENCY_PRESETS = [
+  { key: 'weekly',      label: 'Weekly',         count: 1, unit: 'week'  as IntervalUnit },
+  { key: 'biweekly',    label: 'Every 2 weeks',  count: 2, unit: 'week'  as IntervalUnit },
+  { key: 'monthly',     label: 'Monthly',        count: 1, unit: 'month' as IntervalUnit },
+  { key: 'bimonthly',   label: 'Every 2 months', count: 2, unit: 'month' as IntervalUnit },
+  { key: 'quarterly',   label: 'Quarterly',      count: 3, unit: 'month' as IntervalUnit },
+  { key: 'semiannual',  label: 'Every 6 months', count: 6, unit: 'month' as IntervalUnit },
+  { key: 'yearly',      label: 'Yearly',         count: 1, unit: 'year'  as IntervalUnit },
+];
+function intervalLabel(count: number, unit: IntervalUnit): string {
+  const preset = FREQUENCY_PRESETS.find(p => p.count === count && p.unit === unit);
+  if (preset) return preset.label;
+  return `Every ${count} ${unit}${count === 1 ? '' : 's'}`;
+}
+function extractPrefix(invoiceNumber: string): string {
+  const m = invoiceNumber.match(/^([A-Za-z][A-Za-z0-9]*)-\d+$/);
+  return m ? m[1] : 'INV';
+}
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function addDaysIso(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 function relTime(d: string) {
   const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
   if (m < 60) return `${m}m ago`;
@@ -183,9 +225,9 @@ function SuccessMsg({ msg }: { msg: string }) {
   return <p style={{ fontFamily: F.inter, fontSize: 13, color: '#1a8a4a', background: '#edfff6', border: `1px solid #a3f0c8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
 }
 
-function Btn({ children, onClick, type = 'button', variant = 'primary', disabled, style }: {
+function Btn({ children, onClick, type = 'button', variant = 'primary', disabled, style, title }: {
   children: React.ReactNode; onClick?: () => void; type?: 'button' | 'submit';
-  variant?: 'primary' | 'danger' | 'ghost'; disabled?: boolean; style?: React.CSSProperties;
+  variant?: 'primary' | 'danger' | 'ghost'; disabled?: boolean; style?: React.CSSProperties; title?: string;
 }) {
   const base: React.CSSProperties = { fontFamily: F.inter, fontWeight: 700, fontSize: 13, borderRadius: 8, border: 'none', cursor: disabled ? 'default' : 'pointer', padding: '8px 16px', transition: 'opacity .15s', opacity: disabled ? 0.5 : 1 };
   const variants = {
@@ -193,7 +235,7 @@ function Btn({ children, onClick, type = 'button', variant = 'primary', disabled
     danger:  { background: PINK, color: '#fff' },
     ghost:   { background: 'transparent', color: '#808080', border: '1.5px solid #e5e5e5' },
   };
-  return <button type={type} onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...style }}>{children}</button>;
+  return <button type={type} onClick={onClick} disabled={disabled} title={title} style={{ ...base, ...variants[variant], ...style }}>{children}</button>;
 }
 
 function SubSectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
@@ -1273,19 +1315,63 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
   const [invDate,   setInvDate]   = useState('');
   const [dueDate,   setDueDate]   = useState('');
   const [invStatus, setInvStatus] = useState('due');
+  const [repeat, setRepeat] = useState(false);
+  const [frequencyKey, setFrequencyKey] = useState('monthly');
   const [editId,    setEditId]    = useState<string | null>(null);
   const [editVals,  setEditVals]  = useState<Partial<Invoice>>({});
   const [saving,    setSaving]    = useState(false);
   const [addErr,    setAddErr]    = useState('');
   const [adding,    setAdding]    = useState(false);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+
+  // When opening the form, auto-populate the next sequential invoice number for this client.
+  useEffect(() => {
+    if (!showForm || invNum) return;
+    let active = true;
+    (async () => {
+      const r = await api({ action: 'next_invoice_number', clientId }) as { data?: { invoice_number?: string } };
+      if (active && r.data?.invoice_number) setInvNum(r.data.invoice_number);
+    })();
+    return () => { active = false; };
+  }, [showForm, invNum, clientId, api]);
+
+  async function handleMarkPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    await api({ action: 'update_invoice', id: inv.id, status: 'paid' });
+    setMarkingPaid(null); onRefresh();
+  }
+
+  async function handleMakeRecurring(inv: Invoice) {
+    const presetKey = window.prompt(
+      `Set up recurring schedule for ${fmtAmount(inv.amount_cents)}.\nFrequency:\n  w = Weekly\n  2w = Every 2 weeks\n  m = Monthly\n  2m = Every 2 months\n  q = Quarterly\n  6m = Every 6 months\n  y = Yearly\n\nEnter shortcut:`,
+      'm',
+    );
+    if (!presetKey) return;
+    const shortcuts: Record<string, string> = { w:'weekly','2w':'biweekly', m:'monthly','2m':'bimonthly', q:'quarterly','6m':'semiannual', y:'yearly' };
+    const key = shortcuts[presetKey.trim().toLowerCase()] || presetKey.trim().toLowerCase();
+    const preset = FREQUENCY_PRESETS.find(p => p.key === key) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+    const baseDate = inv.due_date || inv.invoice_date || todayIso();
+    const next = addIntervalClient(baseDate, preset.count, preset.unit);
+    const dayOfMonth = parseInt(next.slice(8, 10), 10);
+    await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    onRefresh();
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!invNum || !amountDol) { setAddErr('Invoice # and amount required'); return; }
     setAdding(true); setAddErr('');
-    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: Math.round(parseFloat(amountDol) * 100), invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
+    const amountCents = Math.round(parseFloat(amountDol) * 100);
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
     if (r.error) { setAddErr(r.error); setAdding(false); return; }
-    setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setShowForm(false);
+    if (repeat) {
+      const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+      const baseDate = invDate || todayIso();
+      const next = addIntervalClient(baseDate, preset.count, preset.unit);
+      const dayOfMonth = parseInt(next.slice(8, 10), 10);
+      await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    }
+    setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
     setAdding(false); onRefresh();
   }
 
@@ -1312,7 +1398,18 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
             <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></FormRow>
             <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={e => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
           </FormGrid>
-          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add Invoice'}</Btn><ErrorMsg msg={addErr} /></div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: repeat ? '#edfff6' : '#f6f5f4', border: `1.5px solid ${repeat ? '#0cf574' : '#e5e5e5'}`, borderRadius: 8, padding: '10px 14px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, cursor: 'pointer' }}>
+              <input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#0cf574' }} />
+              <span>Repeat <span style={{ fontWeight: 500, color: '#808080' }}>— auto-generate a new invoice on a schedule until paused</span></span>
+            </label>
+            {repeat && (
+              <select value={frequencyKey} onChange={e => setFrequencyKey(e.target.value)} style={{ ...SELECT, width: 'auto', minWidth: 160, marginLeft: 'auto' }}>
+                {FREQUENCY_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+            )}
+          </div>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : (repeat ? 'Add + Schedule' : 'Add Invoice')}</Btn><ErrorMsg msg={addErr} /></div>
         </form>
       )}
       {invoices.length === 0 ? (
@@ -1334,7 +1431,11 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
               {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
               <Badge status={inv.status} />
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {inv.status !== 'paid' && (
+                  <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>
+                )}
+                <Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '3px 8px', fontSize: 11 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>
                 <Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '3px 8px', fontSize: 11 }}>PDF</Btn>
                 <Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditVals({ invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '3px 8px', fontSize: 11 }}>Edit</Btn>
                 <Btn variant="danger" onClick={async () => { if (!confirm('Delete invoice?')) return; await api({ action: 'delete_invoice', id: inv.id }); onRefresh(); }} style={{ padding: '3px 8px', fontSize: 11 }}>Delete</Btn>
@@ -1404,6 +1505,47 @@ function ProjectSubRequests({ project, requests, clientId, api, onRefresh }: Sub
   );
 }
 
+// ── Recurring Invoices list (subscriptions) ────────────────────────────────────
+function SubscriptionsList({ data, api, onRefresh }: { data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const subs = data.subscriptions ?? [];
+  const [busy, setBusy] = useState<string | null>(null);
+  if (subs.length === 0) return null;
+
+  async function toggle(s: Subscription) {
+    setBusy(s.id);
+    await api({ action: 'update_subscription', id: s.id, status: s.status === 'active' ? 'paused' : 'active' });
+    setBusy(null); onRefresh();
+  }
+  async function cancel(s: Subscription) {
+    if (!confirm(`Cancel this recurring schedule? Future invoices will stop generating.`)) return;
+    setBusy(s.id);
+    await api({ action: 'delete_subscription', id: s.id });
+    setBusy(null); onRefresh();
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Recurring invoices</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {subs.map((s) => {
+          const isPaused = s.status === 'paused';
+          return (
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid #f0f0f0', borderRadius: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK }}>{fmtAmount(s.amount_cents)} · {intervalLabel(s.interval_count || 1, s.interval_unit || 'month')}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{s.project_name || '—'}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Next: {fmtDate(s.next_due_date)}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isPaused ? '#808080' : '#1a8a4a', background: isPaused ? '#f1f0ef' : '#edfff6', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{s.status}</span>
+              <div style={{ flex: 1 }} />
+              <Btn variant="ghost" disabled={busy === s.id} onClick={() => toggle(s)} style={{ padding: '4px 10px', fontSize: 11 }}>{isPaused ? 'Resume' : 'Pause'}</Btn>
+              <Btn variant="danger" disabled={busy === s.id} onClick={() => cancel(s)} style={{ padding: '4px 10px', fontSize: 11 }}>Cancel</Btn>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Invoices Tab ───────────────────────────────────────────────────────────────
 function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
   const [editId, setEditId] = useState<string | null>(null);
@@ -1418,6 +1560,31 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
   const [addErr, setAddErr] = useState('');
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'due' | 'paid' | 'overdue'>('all');
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(false);
+  const [frequencyKey, setFrequencyKey] = useState('monthly');
+  const [generating, setGenerating] = useState(false);
+  const [genMsg, setGenMsg] = useState('');
+
+  useEffect(() => {
+    if (!showForm || invNum) return;
+    let active = true;
+    (async () => {
+      const r = await api({ action: 'next_invoice_number', clientId }) as { data?: { invoice_number?: string } };
+      if (active && r.data?.invoice_number) setInvNum(r.data.invoice_number);
+    })();
+    return () => { active = false; };
+  }, [showForm, invNum, clientId, api]);
+
+  async function handleGenerateDue() {
+    setGenerating(true); setGenMsg('');
+    const r = await api({ action: 'generate_due_invoices' }) as { generated?: number; error?: string };
+    if (r.error) { setGenMsg(r.error); setGenerating(false); return; }
+    setGenMsg(r.generated ? `Generated ${r.generated} invoice${r.generated === 1 ? '' : 's'}.` : 'Nothing due right now.');
+    setGenerating(false);
+    onRefresh();
+  }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete invoice?')) return;
@@ -1436,34 +1603,109 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
     setEditId(null); setEditData({}); setSaving(false); onRefresh();
   }
 
+  async function handleMarkPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    await api({ action: 'update_invoice', id: inv.id, status: 'paid' });
+    setMarkingPaid(null); onRefresh();
+  }
+
+  async function handleMakeRecurring(inv: Invoice) {
+    const presetKey = window.prompt(
+      `Set up recurring schedule for ${fmtAmount(inv.amount_cents)}.\nFrequency:\n  w = Weekly\n  2w = Every 2 weeks\n  m = Monthly\n  2m = Every 2 months\n  q = Quarterly\n  6m = Every 6 months\n  y = Yearly\n\nEnter shortcut:`,
+      'm',
+    );
+    if (!presetKey) return;
+    const shortcuts: Record<string, string> = { w:'weekly','2w':'biweekly', m:'monthly','2m':'bimonthly', q:'quarterly','6m':'semiannual', y:'yearly' };
+    const key = shortcuts[presetKey.trim().toLowerCase()] || presetKey.trim().toLowerCase();
+    const preset = FREQUENCY_PRESETS.find(p => p.key === key) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+    const baseDate = inv.due_date || inv.invoice_date || todayIso();
+    const next = addIntervalClient(baseDate, preset.count, preset.unit);
+    const dayOfMonth = parseInt(next.slice(8, 10), 10);
+    await api({ action: 'add_subscription', clientId, project_name: inv.project_name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    onRefresh();
+  }
+
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!invNum || !amountDol) { setAddErr('Invoice # and Amount required'); return; }
     setAdding(true); setAddErr('');
-    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: projName, amount_cents: Math.round(parseFloat(amountDol) * 100), invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
+    const amountCents = Math.round(parseFloat(amountDol) * 100);
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: projName, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
     if (r.error) { setAddErr(r.error); setAdding(false); return; }
-    setInvNum(''); setProjName(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setShowForm(false);
+    if (repeat) {
+      const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+      const baseDate = invDate || todayIso();
+      const next = addIntervalClient(baseDate, preset.count, preset.unit);
+      const dayOfMonth = parseInt(next.slice(8, 10), 10);
+      await api({ action: 'add_subscription', clientId, project_name: projName, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    }
+    setInvNum(''); setProjName(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
     setAdding(false); onRefresh();
   }
 
-  const total = data.invoices.reduce((s, i) => s + i.amount_cents, 0);
-  const paid  = data.invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_cents, 0);
+  const paid        = data.invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_cents, 0);
+  const outstanding = data.invoices.filter((i) => i.status === 'due').reduce((s, i) => s + i.amount_cents, 0);
+  const overdueAmt  = data.invoices.filter((i) => i.status === 'overdue').reduce((s, i) => s + i.amount_cents, 0);
+
+  const STAT_CARDS = [
+    { label: 'Paid',        value: fmtAmount(paid),        color: '#0cf574' },
+    { label: 'Outstanding', value: fmtAmount(outstanding), color: '#fd6100' },
+    { label: 'Overdue',     value: fmtAmount(overdueAmt),  color: '#e40586' },
+  ];
+
+  const counts = {
+    all:     data.invoices.length,
+    due:     data.invoices.filter((i) => i.status === 'due').length,
+    overdue: data.invoices.filter((i) => i.status === 'overdue').length,
+    paid:    data.invoices.filter((i) => i.status === 'paid').length,
+  };
+
+  const visibleInvoices = filter === 'all' ? data.invoices : data.invoices.filter((i) => i.status === filter);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 20 }}>
-          <div>
-            <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Billed</div>
-            <div style={{ fontFamily: F.inter, fontSize: 20, fontWeight: 800, color: DARK }}>{fmtAmount(total)}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {STAT_CARDS.map((c) => (
+          <div key={c.label} style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ height: 3, background: c.color }} />
+            <div style={{ padding: '10px 14px' }}>
+              <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{c.label}</div>
+              <div style={{ fontFamily: F.inter, fontSize: 18, fontWeight: 800, color: DARK, marginTop: 4 }}>{c.value}</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Paid</div>
-            <div style={{ fontFamily: F.inter, fontSize: 20, fontWeight: 800, color: '#1a8a4a' }}>{fmtAmount(paid)}</div>
-          </div>
-        </div>
-        <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Invoice'}</Btn>
+        ))}
       </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <div role="tablist" aria-label="Filter invoices" style={{ display: 'flex', gap: 4, background: '#f1f0ef', borderRadius: 999, padding: 3 }}>
+          {([
+            { key: 'all',     label: 'All' },
+            { key: 'due',     label: 'Due' },
+            { key: 'overdue', label: 'Overdue' },
+            { key: 'paid',    label: 'Paid' },
+          ] as const).map((t) => {
+            const active = filter === t.key;
+            return (
+              <button key={t.key} role="tab" aria-selected={active} onClick={() => setFilter(t.key)}
+                style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, border: 'none', borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
+                         background: active ? '#fff' : 'transparent',
+                         color: active ? DARK : '#808080',
+                         boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none' }}>
+                {t.label} <span style={{ color: '#bfbfbf', fontWeight: 600 }}>{counts[t.key]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Btn variant="ghost" onClick={handleGenerateDue} disabled={generating} style={{ padding: '6px 12px', fontSize: 12 }}>{generating ? 'Generating…' : 'Run recurring now'}</Btn>
+          <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Invoice'}</Btn>
+        </div>
+      </div>
+      {genMsg && (
+        <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: -8, marginBottom: 12 }}>{genMsg}</div>
+      )}
+
+      <SubscriptionsList data={data} api={api} onRefresh={onRefresh} />
 
       {showForm && (
         <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
@@ -1483,13 +1725,26 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
               <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
               <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={(e) => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
             </FormGrid>
-            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Invoice'}</Btn><ErrorMsg msg={addErr} /></div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: repeat ? '#edfff6' : '#f6f5f4', border: `1.5px solid ${repeat ? '#0cf574' : '#e5e5e5'}`, borderRadius: 8, padding: '10px 14px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, cursor: 'pointer' }}>
+                <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#0cf574' }} />
+                <span>Repeat <span style={{ fontWeight: 500, color: '#808080' }}>— auto-generate a new invoice on a schedule until paused</span></span>
+              </label>
+              {repeat && (
+                <select value={frequencyKey} onChange={(e) => setFrequencyKey(e.target.value)} style={{ ...SELECT, width: 'auto', minWidth: 160, marginLeft: 'auto' }}>
+                  {FREQUENCY_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                </select>
+              )}
+            </div>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : (repeat ? 'Add + Schedule' : 'Add Invoice')}</Btn><ErrorMsg msg={addErr} /></div>
           </form>
         </div>
       )}
 
       {data.invoices.length === 0 ? (
         <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No invoices yet.</p>
+      ) : visibleInvoices.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No {filter} invoices.</p>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: F.inter, fontSize: 13 }}>
@@ -1501,7 +1756,7 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
               </tr>
             </thead>
             <tbody>
-              {data.invoices.map((inv) => editId === inv.id ? (
+              {visibleInvoices.map((inv) => editId === inv.id ? (
                 <tr key={inv.id} style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 100 }} value={editData.invoice_number ?? inv.invoice_number} onChange={(e) => setEditData((d) => ({ ...d, invoice_number: e.target.value }))} /></td>
                   <td style={{ padding: '10px 12px' }}>
@@ -1526,7 +1781,7 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.due_date)}</td>
                   <td style={{ padding: '12px 12px' }}><Badge status={inv.status} /></td>
-                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{inv.status !== 'paid' && (<Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '5px 12px', fontSize: 12, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>)}<Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '5px 12px', fontSize: 12 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
                 </tr>
               ))}
             </tbody>

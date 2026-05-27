@@ -12,7 +12,7 @@ const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['lat
 const BASE_NAV_LINKS = [
   { href: '/portal/dashboard', label: 'Dashboard' },
   { href: '/portal/progress',  label: 'My Projects' },
-  { href: '/portal/payments',  label: 'Payments' },
+  { href: '/portal/invoices',  label: 'Billing' },
   { href: '/portal/settings',  label: 'Settings' },
 ];
 
@@ -22,8 +22,8 @@ function buildPageTitles(userName: string, userCompany: string) {
     '/portal/dashboard':  { title: 'DASHBOARD',       subtitle: welcome },
     '/portal/requests':   { title: 'MY REQUESTS',     subtitle: 'Track and manage your design requests' },
     '/portal/progress':   { title: 'MY PROJECTS',      subtitle: 'Everything organised by project' },
-    '/portal/invoices':   { title: 'INVOICES',        subtitle: 'Billing history and payments' },
-    '/portal/payments':   { title: 'PAYMENTS',        subtitle: 'Payment methods and history' },
+    '/portal/invoices':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
+    '/portal/payments':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
     '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Get started with your project' },
     '/portal/files':      { title: 'FILES & ASSETS',  subtitle: 'Delivered files and uploads' },
     '/portal/settings':   { title: 'SETTINGS',        subtitle: 'Account and notification preferences' },

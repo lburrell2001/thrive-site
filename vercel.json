@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/portal/admin/generate-invoices",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

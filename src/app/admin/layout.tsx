@@ -154,6 +154,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           .adm-hdr-nav { flex: none; width: 100%; padding: 0 0 10px; border-top: 1px solid #1f1f1f; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
           .adm-hdr-nav::-webkit-scrollbar { display: none; }
         }
+        input[type="date"] { cursor: pointer; }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+          opacity: 1;
+          cursor: pointer;
+          width: 16px;
+          height: 16px;
+          filter: invert(45%);
+          margin-left: 6px;
+        }
       `}</style>
 
       {/* Admin header */}

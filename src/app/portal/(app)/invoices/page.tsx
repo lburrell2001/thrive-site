@@ -20,6 +20,10 @@ function fmtCurrency(c: number) {
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
+function effectiveStatus(inv: DbInvoice): string {
+  if (inv.status === 'due' && inv.due_date && inv.due_date < new Date().toISOString().slice(0, 10)) return 'overdue';
+  return inv.status;
+}
 const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586' };
 const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8' };
 const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue' };
@@ -27,13 +31,16 @@ const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'O
 export default function InvoicesPage() {
   const searchParams = useSearchParams();
   const justPaid     = searchParams.get('paid') === 'true';
+  const sessionId    = searchParams.get('session_id');
 
   const [invoices,    setInvoices]    = useState<DbInvoice[]>([]);
   const [loading,     setLoading]     = useState(true);
   const [dueInvoice,  setDueInvoice]  = useState<DbInvoice | null>(null);
   const [payLoading,  setPayLoading]  = useState(false);
   const [payError,    setPayError]    = useState('');
+  const [confirming,  setConfirming]  = useState(false);
   const [statCards,   setStatCards]   = useState<{label:string;value:string;color:string}[]>([]);
+  const [filter,      setFilter]      = useState<'all'|'due'|'paid'|'overdue'>('all');
 
   const loadInvoices = useCallback(async () => {
     const { data: { user } } = await supabasePortal.auth.getUser();
@@ -41,10 +48,10 @@ export default function InvoicesPage() {
     const { data } = await supabasePortal.from('portal_invoices').select('*').eq('client_id', user.id).order('invoice_date', { ascending: false });
     const rows: DbInvoice[] = data ?? [];
     setInvoices(rows);
-    const totalPaid   = rows.filter(i=>i.status==='paid').reduce((s,i)=>s+i.amount_cents,0);
-    const outstanding = rows.filter(i=>i.status==='due').reduce((s,i)=>s+i.amount_cents,0);
-    const overdue     = rows.filter(i=>i.status==='overdue').reduce((s,i)=>s+i.amount_cents,0);
-    const nextDue     = rows.filter(i=>i.status==='due').sort((a,b)=>new Date(a.due_date).getTime()-new Date(b.due_date).getTime())[0];
+    const totalPaid   = rows.filter(i=>effectiveStatus(i)==='paid').reduce((s,i)=>s+i.amount_cents,0);
+    const outstanding = rows.filter(i=>effectiveStatus(i)==='due').reduce((s,i)=>s+i.amount_cents,0);
+    const overdue     = rows.filter(i=>effectiveStatus(i)==='overdue').reduce((s,i)=>s+i.amount_cents,0);
+    const nextDue     = rows.filter(i=>effectiveStatus(i)==='due').sort((a,b)=>new Date(a.due_date).getTime()-new Date(b.due_date).getTime())[0];
     setStatCards([
       { label:'Total Paid',  value:fmtCurrency(totalPaid),   color:'#0cf574' },
       { label:'Outstanding', value:fmtCurrency(outstanding), color:'#fd6100' },
@@ -56,7 +63,26 @@ export default function InvoicesPage() {
   }, []);
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
-  useEffect(() => { if (justPaid) loadInvoices(); }, [justPaid, loadInvoices]);
+
+  useEffect(() => {
+    if (!justPaid || !sessionId) return;
+    let cancelled = false;
+    (async () => {
+      setConfirming(true);
+      try {
+        await fetch('/api/portal/stripe/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId }),
+        });
+      } catch { /* ignore — webhook is a fallback */ }
+      if (!cancelled) {
+        await loadInvoices();
+        setConfirming(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [justPaid, sessionId, loadInvoices]);
 
   async function handleExportPDF(inv: DbInvoice) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
@@ -100,7 +126,7 @@ export default function InvoicesPage() {
 
       {justPaid && (
         <div style={{ background:'#f0fff8', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#0a7a3a' }}>
-          Payment received — your invoice has been updated.
+          {confirming ? 'Confirming payment…' : 'Payment received — your invoice has been updated.'}
         </div>
       )}
 
@@ -119,8 +145,27 @@ export default function InvoicesPage() {
 
       {/* Invoice list */}
       <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', overflow:'hidden' }}>
-        <div style={{ padding:'20px 24px 16px' }}>
-          <h2 style={{ fontFamily:F.bungee, fontSize:13, color:'#0a0a0a', letterSpacing:'-0.01em', margin:0 }}>INVOICE HISTORY</h2>
+        <div style={{ padding:'20px 24px 8px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+          <h2 style={{ fontFamily:F.bungee, fontSize:13, color:'#0a0a0a', letterSpacing:'-0.01em', margin:0 }}>INVOICES &amp; PAYMENTS</h2>
+          <div role="tablist" aria-label="Filter invoices" style={{ display:'flex', gap:4, background:'#f1f0ef', borderRadius:999, padding:3 }}>
+            {([
+              { key:'all',     label:'All',      count: invoices.length },
+              { key:'due',     label:'Due',      count: invoices.filter(i=>effectiveStatus(i)==='due').length },
+              { key:'overdue', label:'Overdue',  count: invoices.filter(i=>effectiveStatus(i)==='overdue').length },
+              { key:'paid',    label:'Paid',     count: invoices.filter(i=>effectiveStatus(i)==='paid').length },
+            ] as const).map(t => {
+              const active = filter === t.key;
+              return (
+                <button key={t.key} role="tab" aria-selected={active} onClick={() => setFilter(t.key)}
+                  style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, border:'none', borderRadius:999, padding:'6px 12px', cursor:'pointer',
+                           background: active ? '#fff' : 'transparent',
+                           color: active ? '#0a0a0a' : '#808080',
+                           boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none' }}>
+                  {t.label} <span style={{ color: active ? '#bfbfbf' : '#bfbfbf', fontWeight:600 }}>{t.count}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div style={{ height:1, background:'#f1f0ef' }} />
 
@@ -143,11 +188,19 @@ export default function InvoicesPage() {
           </div>
         )}
 
+        {/* Filtered-empty */}
+        {!loading && invoices.length > 0 && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter).length === 0 && (
+          <div style={{ padding:'40px 24px', textAlign:'center' }}>
+            <p style={{ fontFamily:F.inter, fontSize:14, color:'#808080', margin:0 }}>No {filter} invoices.</p>
+          </div>
+        )}
+
         {/* Rows */}
-        {!loading && invoices.map((inv, i) => {
-          const sc     = STATUS_COLOR[inv.status] ?? '#808080';
-          const sbg    = STATUS_BG[inv.status]    ?? '#f1f0ef';
-          const canPay = inv.status === 'due' || inv.status === 'overdue';
+        {!loading && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter).map((inv, i) => {
+          const es     = effectiveStatus(inv);
+          const sc     = STATUS_COLOR[es] ?? '#808080';
+          const sbg    = STATUS_BG[es]    ?? '#f1f0ef';
+          const canPay = es === 'due' || es === 'overdue';
 
           return (
             <div key={inv.id}>
@@ -159,7 +212,7 @@ export default function InvoicesPage() {
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.invoice_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.due_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, color:sc, background:sbg, padding:'3px 8px', borderRadius:999, width:'fit-content' }}>
-                  {STATUS_LABEL[inv.status] ?? inv.status}
+                  {STATUS_LABEL[es] ?? es}
                 </span>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => handleExportPDF(inv)}
@@ -183,7 +236,7 @@ export default function InvoicesPage() {
                     <div style={{ fontFamily:F.inter, fontSize:13, color:'#808080', marginTop:2 }}>{inv.project_name}</div>
                   </div>
                   <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, color:sc, background:sbg, padding:'3px 10px', borderRadius:999, flexShrink:0 }}>
-                    {STATUS_LABEL[inv.status] ?? inv.status}
+                    {STATUS_LABEL[es] ?? es}
                   </span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>

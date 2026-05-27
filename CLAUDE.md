@@ -20,10 +20,13 @@ Required in `.env.local`:
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=      # Server-only (contact form API route)
+SUPABASE_SERVICE_ROLE_KEY=      # Server-only (contact form API route, admin actions)
 RESEND_API_KEY=                  # Email notifications
 CONTACT_NOTIFY_TO=               # Email address to receive inquiries
 CONTACT_NOTIFY_FROM=             # Verified Resend sender address
+STRIPE_SECRET_KEY=               # Stripe Checkout for invoice payments
+STRIPE_WEBHOOK_SECRET=           # Stripe webhook signature verification
+CRON_SECRET=                     # Bearer token required by Vercel Cron to call /api/portal/admin/generate-invoices
 ```
 
 ## Architecture
