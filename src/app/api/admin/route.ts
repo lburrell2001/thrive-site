@@ -256,8 +256,10 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_invoice': {
-        const { clientId, invoice_number, project_name, amount_cents, invoice_date, due_date, status } = params as Record<string, unknown>;
-        const { data, error } = await admin.from('portal_invoices').insert({ client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status }).select().single();
+        const { clientId, invoice_number, project_name, amount_cents, invoice_date, due_date, status, subscription_id } = params as Record<string, unknown>;
+        const row: Record<string, unknown> = { client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status };
+        if (subscription_id) row.subscription_id = subscription_id;
+        const { data, error } = await admin.from('portal_invoices').insert(row).select().single();
         if (error) return err(error.message);
         const fmtAmt = ((Number(amount_cents)) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
         logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);

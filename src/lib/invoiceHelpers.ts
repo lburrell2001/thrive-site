@@ -91,13 +91,14 @@ export async function generateDueInvoices(admin: SupabaseClient, today = new Dat
   for (const sub of subs) {
     const invoiceNumber = await nextInvoiceNumberFor(admin, sub.client_id, sub.invoice_prefix || 'INV');
     const { data: invoice, error: insertErr } = await admin.from('portal_invoices').insert({
-      client_id:      sub.client_id,
-      invoice_number: invoiceNumber,
-      project_name:   sub.project_name,
-      amount_cents:   sub.amount_cents,
-      invoice_date:   sub.next_due_date,
-      due_date:       sub.next_due_date,
-      status:         'due',
+      client_id:       sub.client_id,
+      invoice_number:  invoiceNumber,
+      project_name:    sub.project_name,
+      amount_cents:    sub.amount_cents,
+      invoice_date:    sub.next_due_date,
+      due_date:        sub.next_due_date,
+      status:          'due',
+      subscription_id: sub.id,
     }).select().single();
 
     if (insertErr) { errors.push({ subscription_id: sub.id, error: insertErr.message }); continue; }

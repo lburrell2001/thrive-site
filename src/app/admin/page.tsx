@@ -48,7 +48,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
-interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; }
+interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
@@ -118,6 +118,14 @@ function Badge({ status }: { status: string }) {
   return (
     <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
       {status.replace('_', ' ')}
+    </span>
+  );
+}
+
+function RecurringBadge({ title }: { title?: string }) {
+  return (
+    <span title={title ?? 'Generated from a recurring schedule'} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#edfff6', color: '#1a8a4a', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      ↻ Recurring
     </span>
   );
 }
@@ -872,6 +880,7 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                 {inv.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{inv.project_name}</span>}
                 {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
                 <Badge status={inv.status} />
+                {inv.subscription_id && <RecurringBadge />}
               </div>
             ))}
           </div>
@@ -1362,15 +1371,21 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
     if (!invNum || !amountDol) { setAddErr('Invoice # and amount required'); return; }
     setAdding(true); setAddErr('');
     const amountCents = Math.round(parseFloat(amountDol) * 100);
-    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
-    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
+    let subscriptionId: string | undefined;
     if (repeat) {
       const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
       const baseDate = invDate || todayIso();
       const next = addIntervalClient(baseDate, preset.count, preset.unit);
       const dayOfMonth = parseInt(next.slice(8, 10), 10);
-      await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+      const subRes = await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
+      if (subRes.error) { setAddErr(subRes.error); setAdding(false); return; }
+      subscriptionId = subRes.data?.id;
     }
+
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus, subscription_id: subscriptionId }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
     setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
     setAdding(false); onRefresh();
   }
@@ -1431,11 +1446,14 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
               {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
               <Badge status={inv.status} />
+              {inv.subscription_id && <RecurringBadge />}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {inv.status !== 'paid' && (
                   <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>
                 )}
-                <Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '3px 8px', fontSize: 11 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>
+                {!inv.subscription_id && (
+                  <Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '3px 8px', fontSize: 11 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>
+                )}
                 <Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '3px 8px', fontSize: 11 }}>PDF</Btn>
                 <Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditVals({ invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '3px 8px', fontSize: 11 }}>Edit</Btn>
                 <Btn variant="danger" onClick={async () => { if (!confirm('Delete invoice?')) return; await api({ action: 'delete_invoice', id: inv.id }); onRefresh(); }} style={{ padding: '3px 8px', fontSize: 11 }}>Delete</Btn>
@@ -1630,15 +1648,21 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
     if (!invNum || !amountDol) { setAddErr('Invoice # and Amount required'); return; }
     setAdding(true); setAddErr('');
     const amountCents = Math.round(parseFloat(amountDol) * 100);
-    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: projName, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus }) as { error?: string };
-    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
+    let subscriptionId: string | undefined;
     if (repeat) {
       const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
       const baseDate = invDate || todayIso();
       const next = addIntervalClient(baseDate, preset.count, preset.unit);
       const dayOfMonth = parseInt(next.slice(8, 10), 10);
-      await api({ action: 'add_subscription', clientId, project_name: projName, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+      const subRes = await api({ action: 'add_subscription', clientId, project_name: projName, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
+      if (subRes.error) { setAddErr(subRes.error); setAdding(false); return; }
+      subscriptionId = subRes.data?.id;
     }
+
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: projName, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus, subscription_id: subscriptionId }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
     setInvNum(''); setProjName(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
     setAdding(false); onRefresh();
   }
@@ -1780,8 +1804,8 @@ function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                   <td style={{ padding: '12px 12px', fontWeight: 700, color: DARK }}>{fmtAmount(inv.amount_cents)}</td>
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
                   <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.due_date)}</td>
-                  <td style={{ padding: '12px 12px' }}><Badge status={inv.status} /></td>
-                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{inv.status !== 'paid' && (<Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '5px 12px', fontSize: 12, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>)}<Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '5px 12px', fontSize: 12 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn><Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}><Badge status={inv.status} />{inv.subscription_id && <RecurringBadge />}</div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{inv.status !== 'paid' && (<Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '5px 12px', fontSize: 12, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>)}{!inv.subscription_id && (<Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '5px 12px', fontSize: 12 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>)}<Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
                 </tr>
               ))}
             </tbody>
