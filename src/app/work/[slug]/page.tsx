@@ -7,6 +7,9 @@ import { projectCover } from "@/lib/storage";
 import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 import ProjectGallery from "./ProjectGallery";
 
+// Always read fresh project data from Supabase so admin-added projects appear immediately.
+export const dynamic = "force-dynamic";
+
 // ── Static per-project data ───────────────────────────────────────────────────
 
 type ProjectData = {

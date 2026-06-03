@@ -3,6 +3,9 @@ import { supabase } from "@/lib/supabaseServer";
 import { buildPageMetadata } from "@/lib/seo";
 import PortfolioClient from "./PortfolioClient";
 
+// Always read fresh project data from Supabase so admin-added projects appear immediately.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = buildPageMetadata({
   title: "Portfolio",
   description:
