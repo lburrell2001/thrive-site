@@ -11,7 +11,7 @@ const F = {
 const inp: React.CSSProperties = {
   border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '9px 12px',
   fontFamily: `var(--font-inter), 'Inter', sans-serif`, fontSize: 14,
-  outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff',
+  outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff', color: '#0a0a0a',
 };
 
 export default function SettingsPage() {

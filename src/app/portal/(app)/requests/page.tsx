@@ -7,8 +7,13 @@ type FilterTab = 'All' | 'In Progress' | 'Review' | 'Completed';
 
 interface DbRequest {
   id: string; title: string; description: string; type: string;
-  status: string; priority: string; created_at: string;
+  status: string; priority: string; created_at: string; project_name?: string | null;
 }
+
+interface DbProject { id: string; name: string; archived?: boolean; }
+
+// Sentinel for the "this is something new" option in the project picker.
+const NEW_PROJECT = '__new__';
 
 const F = {
   bungee: `var(--font-bungee), 'Bungee', sans-serif`,
@@ -21,9 +26,6 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_COLOR: Record<string, string> = {
   in_progress: '#e40586', review: '#fd6100', kickoff: '#1e3add', completed: '#0cf574',
 };
-const PRIORITY_COLOR: Record<string, string> = { high: '#e40586', normal: '#fd6100', low: '#bfbfbf' };
-
-const REQUEST_TYPES = ['Brand Design', 'Digital Design', 'Social Media', 'UX Design', 'Photography'];
 const TABS: FilterTab[] = ['All', 'In Progress', 'Review', 'Completed'];
 
 function fmt(d: string) {
@@ -44,21 +46,26 @@ export default function RequestsPage() {
   const [submitting,  setSubmitting]  = useState(false);
   const [formError,   setFormError]   = useState('');
 
+  const [projects,  setProjects]  = useState<DbProject[]>([]);
   const [fTitle,    setFTitle]    = useState('');
   const [fDesc,     setFDesc]     = useState('');
-  const [fType,     setFType]     = useState('Brand Design');
-  const [fPriority, setFPriority] = useState('normal');
+  const [fProject,  setFProject]  = useState('');
+  const [fNewProj,  setFNewProj]  = useState('');
 
   const load = useCallback(async () => {
     setError(false);
     const { data: { user } } = await supabasePortal.auth.getUser();
     if (!user) return;
     setUserId(user.id);
-    const { data, error: qErr } = await supabasePortal
-      .from('portal_requests').select('*')
-      .eq('client_id', user.id).order('created_at', { ascending: false });
-    if (qErr) { setError(true); setLoading(false); return; }
-    setRequests(data ?? []);
+    const [reqRes, projRes] = await Promise.all([
+      supabasePortal.from('portal_requests').select('*')
+        .eq('client_id', user.id).order('created_at', { ascending: false }),
+      supabasePortal.from('portal_projects').select('id, name, archived')
+        .eq('client_id', user.id).order('created_at', { ascending: false }),
+    ]);
+    if (reqRes.error) { setError(true); setLoading(false); return; }
+    setRequests(reqRes.data ?? []);
+    setProjects((projRes.data ?? []).filter((p: DbProject) => !p.archived));
     setLoading(false);
   }, []);
 
@@ -66,14 +73,22 @@ export default function RequestsPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!fTitle.trim() || !userId) { setFormError('Title is required'); return; }
+    if (!fTitle.trim() || !userId) { setFormError('Tell us what you need, even roughly'); return; }
+    if (fProject === NEW_PROJECT && !fNewProj.trim()) {
+      setFormError('What would you call this new project?'); return;
+    }
     setSubmitting(true); setFormError('');
+    // A name that doesn't match an existing project reads as a proposal — it lands
+    // in Thrive's inbox, where it becomes a real project or gets filed elsewhere.
+    const projectName = fProject === NEW_PROJECT ? fNewProj.trim() : fProject;
+    // Type and priority are Thrive's to decide when the brain dump is filed.
     const { error: insErr } = await supabasePortal.from('portal_requests').insert({
       client_id: userId, title: fTitle.trim(), description: fDesc.trim(),
-      type: fType, priority: fPriority, status: 'kickoff',
+      project_name: projectName || null,
+      type: '', priority: 'normal', status: 'kickoff',
     });
     if (insErr) { setFormError(insErr.message); setSubmitting(false); return; }
-    setFTitle(''); setFDesc(''); setFType('Brand Design'); setFPriority('normal');
+    setFTitle(''); setFDesc(''); setFProject(''); setFNewProj('');
     setShowForm(false); setSubmitting(false);
     load();
   }
@@ -88,7 +103,7 @@ export default function RequestsPage() {
   const inp: React.CSSProperties = {
     border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '9px 12px',
     fontFamily: F.inter, fontSize: 14, outline: 'none', width: '100%',
-    boxSizing: 'border-box', background: '#fff',
+    boxSizing: 'border-box', background: '#fff', color: '#0a0a0a',
   };
 
   return (
@@ -101,7 +116,7 @@ export default function RequestsPage() {
           onClick={() => setShowForm(!showForm)}
           style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: showForm ? '#808080' : '#e40586', border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background .15s' }}
         >
-          {showForm ? 'Cancel' : '+ New Request'}
+          {showForm ? 'Cancel' : '+ New Brain Dump'}
         </button>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {TABS.map(tab => (
@@ -115,36 +130,49 @@ export default function RequestsPage() {
       {/* New request form */}
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontFamily: F.bungee, fontSize: 14, color: '#0a0a0a', margin: 0 }}>NEW REQUEST</h3>
+          <h3 style={{ fontFamily: F.bungee, fontSize: 14, color: '#0a0a0a', margin: 0 }}>NEW BRAIN DUMP</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, gridColumn: '1 / -1' }}>
-                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Title *</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>What do you need? *</label>
                 <input style={inp} value={fTitle} onChange={e => setFTitle(e.target.value)} placeholder="e.g. Logo variations" />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Type</label>
-                <select style={{ ...inp, cursor: 'pointer' }} value={fType} onChange={e => setFType(e.target.value)}>
-                  {REQUEST_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tell us more</label>
+                <textarea style={{ ...inp, minHeight: 130, resize: 'vertical', fontFamily: F.inter }} value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Brain dump here — ideas, references, deadlines, anything you're thinking. We'll sort out the details." />
               </div>
+
+              {/* Where it belongs — an existing project, or a brand new one */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Priority</label>
-                <select style={{ ...inp, cursor: 'pointer' }} value={fPriority} onChange={e => setFPriority(e.target.value)}>
-                  <option value="high">High</option>
-                  <option value="normal">Normal</option>
-                  <option value="low">Low</option>
+                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Which project?</label>
+                <select
+                  style={{ ...inp, cursor: 'pointer' }}
+                  value={fProject}
+                  onChange={e => { setFProject(e.target.value); if (e.target.value !== NEW_PROJECT) setFNewProj(''); }}
+                >
+                  <option value="">Not sure yet — you decide</option>
+                  {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                  <option value={NEW_PROJECT}>✦ This is something new</option>
                 </select>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5, gridColumn: '1 / -1' }}>
-                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Description</label>
-                <textarea style={{ ...inp, minHeight: 80, resize: 'vertical', fontFamily: F.inter }} value={fDesc} onChange={e => setFDesc(e.target.value)} placeholder="Describe what you need…" />
+                {fProject === NEW_PROJECT && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 6 }}>
+                    <input
+                      style={inp}
+                      value={fNewProj}
+                      onChange={e => setFNewProj(e.target.value)}
+                      placeholder="What would you call it? e.g. Spring Campaign"
+                    />
+                    <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf' }}>
+                      We&apos;ll set the project up properly on our end — this just tells us what you have in mind.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             {formError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{formError}</p>}
             <div>
               <button type="submit" disabled={submitting} style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#ccc' : '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: submitting ? 'default' : 'pointer' }}>
-                {submitting ? 'Submitting…' : 'Submit Request'}
+                {submitting ? 'Sending…' : 'Send It Over'}
               </button>
             </div>
           </form>
@@ -154,14 +182,14 @@ export default function RequestsPage() {
       {/* Error */}
       {error && (
         <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
-          Something went wrong loading requests — please refresh.
+          Something went wrong loading your brain dumps — please refresh.
         </div>
       )}
 
       {/* Column headers */}
       {!error && (
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 12, padding: '10px 20px', background: '#f1f0ef', borderRadius: 12 }}>
-          {['Request', 'Type', 'Status', 'Priority', 'Date'].map(col => (
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1fr 1fr', gap: 12, padding: '10px 20px', background: '#f1f0ef', borderRadius: 12 }}>
+          {['Brain Dump', 'Project', 'Status', 'Date'].map(col => (
             <span key={col} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#808080' }}>{col}</span>
           ))}
         </div>
@@ -170,8 +198,8 @@ export default function RequestsPage() {
       {/* Loading skeletons */}
       {loading && [1, 2, 3].map(i => (
         <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', padding: '18px 20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 12, alignItems: 'center' }}>
-            <Skel w="70%" h={14} /><Skel w="60%" h={12} /><Skel w={60} h={22} r={999} /><Skel w={50} h={22} r={999} /><Skel w="50%" h={12} />
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1fr 1fr', gap: 12, alignItems: 'center' }}>
+            <Skel w="70%" h={14} /><Skel w="60%" h={12} /><Skel w={60} h={22} r={999} /><Skel w="50%" h={12} />
           </div>
         </div>
       ))}
@@ -182,34 +210,38 @@ export default function RequestsPage() {
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="6" y="8" width="28" height="24" rx="4" stroke="#d0d0d0" strokeWidth="1.5"/><path d="M13 16h14M13 22h10" stroke="#d0d0d0" strokeWidth="1.5" strokeLinecap="round"/></svg>
           <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>
             {activeTab === 'All'
-              ? 'No requests yet — submit your first request to get started'
-              : `No ${activeTab.toLowerCase()} requests`}
+              ? 'Nothing here yet — dump your first idea and we’ll take it from there'
+              : `Nothing ${activeTab.toLowerCase()} right now`}
           </p>
           {activeTab === 'All' && (
             <button onClick={() => setShowForm(true)} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#e40586', background: 'transparent', border: '1.5px solid #e40586', borderRadius: 999, padding: '7px 20px', cursor: 'pointer' }}>
-              + New Request
+              + New Brain Dump
             </button>
           )}
         </div>
       )}
 
-      {/* Request rows */}
+      {/* Brain dump rows */}
       {!loading && !error && filtered.map(req => {
         const sc = STATUS_COLOR[req.status] ?? '#808080';
-        const pc = PRIORITY_COLOR[req.priority] ?? '#808080';
+        // A project name Thrive hasn't set up yet is still just a suggestion.
+        const isRealProject = !!req.project_name && projects.some(p => p.name === req.project_name);
         return (
           <div key={req.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', borderLeft: `4px solid ${sc}`, overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 12, padding: '16px 20px', alignItems: 'center' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1fr 1fr', gap: 12, padding: '16px 20px', alignItems: 'center' }}>
               <div>
                 <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a' }}>{req.title}</div>
-                {req.description && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2 }}>{req.description}</div>}
+                {req.description && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2, whiteSpace: 'pre-wrap' }}>{req.description}</div>}
               </div>
-              <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>
+              {req.project_name ? (
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isRealProject ? '#1e3add' : '#808080', background: isRealProject ? '#eef1ff' : '#f1f0ef', padding: '3px 9px', borderRadius: 999, width: 'fit-content' }}>
+                  {isRealProject ? req.project_name : `New: ${req.project_name}`}
+                </span>
+              ) : (
+                <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf' }}>Unassigned</span>
+              )}
               <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: sc, background: `${sc}18`, padding: '3px 8px', borderRadius: 999, width: 'fit-content' }}>
                 {STATUS_LABEL[req.status] ?? req.status}
-              </span>
-              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: pc, background: `${pc}18`, padding: '3px 8px', borderRadius: 999, width: 'fit-content', textTransform: 'capitalize' }}>
-                {req.priority}
               </span>
               <span style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>{fmt(req.created_at)}</span>
             </div>

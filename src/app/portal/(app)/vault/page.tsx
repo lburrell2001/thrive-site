@@ -48,7 +48,7 @@ function fmtDate(s: string | null) {
 const inp: React.CSSProperties = {
   border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '9px 12px',
   fontFamily: F.inter, fontSize: 14,
-  outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff',
+  outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff', color: '#0a0a0a',
 };
 const labelStyle: React.CSSProperties = {
   fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080',

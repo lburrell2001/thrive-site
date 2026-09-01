@@ -113,13 +113,13 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: 'Active Projects',  value: stats.activeProjects,  color: '#e40586', fmt: (v: number) => String(v) },
-    { label: 'Pending Requests', value: stats.pendingRequests, color: '#fd6100', fmt: (v: number) => String(v) },
+    { label: 'Open Brain Dumps', value: stats.pendingRequests, color: '#fd6100', fmt: (v: number) => String(v) },
     { label: 'Invoices Due',     value: stats.invoicesDue,     color: '#1e3add', fmt: (v: string) => v },
     { label: 'Files Delivered',  value: stats.filesDelivered,  color: '#0cf574', fmt: (v: number) => String(v) },
   ];
 
   const QUICK_ACTIONS = [
-    { label: 'Submit Request', href: '/portal/requests',   bg: '#e40586', color: '#fff' },
+    { label: 'Brain Dump',    href: '/portal/requests',   bg: '#e40586', color: '#fff' },
     { label: 'Upload Files',   href: '/portal/files',      bg: '#fd6100', color: '#fff' },
     { label: 'Pay Invoice',    href: '/portal/invoices',   bg: '#0cf574', color: '#0a0a0a' },
     { label: 'View Proposal',  href: '/portal/files',      bg: '#1e3add', color: '#fff' },
@@ -205,7 +205,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 16px' }}>
             <h2 style={sectionTitle}>ACTIVE PROJECTS</h2>
             <Link href="/portal/requests" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#0a0a0a', background: '#f0fff8', border: '1px solid #0cf574', borderRadius: 999, padding: '4px 12px', textDecoration: 'none' }}>
-              + New Request
+              + New Brain Dump
             </Link>
           </div>
           <div style={divider} />
@@ -247,7 +247,7 @@ export default function DashboardPage() {
             <EmptyState
               icon={<svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect x="4" y="6" width="24" height="20" rx="3" stroke="#d0d0d0" strokeWidth="1.5"/><path d="M4 12h24" stroke="#d0d0d0" strokeWidth="1.5"/><path d="M11 19h10M11 23h6" stroke="#d0d0d0" strokeWidth="1.5" strokeLinecap="round"/></svg>}
               message="No active projects yet"
-              action={<Link href="/portal/requests" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e40586', textDecoration: 'none', border: '1px solid #e40586', borderRadius: 999, padding: '5px 14px' }}>+ New Request</Link>}
+              action={<Link href="/portal/requests" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e40586', textDecoration: 'none', border: '1px solid #e40586', borderRadius: 999, padding: '5px 14px' }}>+ New Brain Dump</Link>}
             />
           )}
         </div>

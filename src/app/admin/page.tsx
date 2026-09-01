@@ -49,7 +49,7 @@ interface Client { id: string; full_name: string; company_name: string; initials
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
-interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string; }
+interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
 interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
@@ -619,6 +619,8 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
         </div>
       </form>
       <Divider />
+      <RequestInboxSection clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+      <Divider />
       <CredentialsSection data={data} api={api} onRefresh={onRefresh} />
       <Divider />
       {/* Every proposal for this client — project-attached ones included. */}
@@ -627,6 +629,147 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       <ActivitySection activity={data.activity} />
       <Divider />
       <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ── Request Inbox ──────────────────────────────────────────────────────────────
+// Clients brain-dump from /portal/requests with no project attached.
+// This is where those get filed into an existing project or turned into a new one.
+function RequestInboxSection({ clientId, data, api, onRefresh }: {
+  clientId: string; data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const projects = data.projects.filter(p => !p.archived);
+  // Unfiled means: no project, or a project name the client proposed that doesn't
+  // exist yet. Both need a decision from you.
+  const isProposal = (r: Request) => !!r.project_name && !data.projects.some(p => p.name === r.project_name);
+  const inbox      = data.requests.filter(r => !r.project_name || isProposal(r));
+
+  const [busyId,     setBusyId]     = useState<string | null>(null);
+  const [newForId,   setNewForId]   = useState<string | null>(null);
+  const [newName,    setNewName]    = useState('');
+  const [newColor,   setNewColor]   = useState(PINK);
+  const [error,      setError]      = useState('');
+
+  async function assignTo(req: Request, projectName: string) {
+    setBusyId(req.id); setError('');
+    const r = await api({ action: 'assign_request', id: req.id, project_name: projectName }) as { error?: string };
+    setBusyId(null);
+    if (r.error) { setError(r.error); return; }
+    onRefresh();
+  }
+
+  function startNewProject(req: Request) {
+    setNewForId(req.id);
+    // If the client proposed a name, start from theirs rather than the dump's title.
+    setNewName(req.project_name || req.title);
+    setNewColor(PINK);
+    setError('');
+  }
+
+  async function createProjectFrom(req: Request) {
+    const name = newName.trim();
+    if (!name) { setError('Give the new project a name'); return; }
+    if (projects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      setError('A project with that name already exists — file it under that one instead.');
+      return;
+    }
+    setBusyId(req.id); setError('');
+    const created = await api({ action: 'add_project', clientId, name, status: 'kickoff', progress: 0, color: newColor }) as { error?: string };
+    if (created.error) { setError(created.error); setBusyId(null); return; }
+    const assigned = await api({ action: 'assign_request', id: req.id, project_name: name }) as { error?: string };
+    setBusyId(null);
+    if (assigned.error) { setError(assigned.error); return; }
+    setNewForId(null); setNewName('');
+    onRefresh();
+  }
+
+  async function handleDelete(req: Request) {
+    if (!confirm(`Delete "${req.title}"? This removes it from the client's list too.`)) return;
+    const r = await api({ action: 'delete_request', id: req.id }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brain Dump Inbox</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: inbox.length ? '#fff4ec' : '#f1f0ef', color: inbox.length ? ORANGE : '#808080', padding: '1px 7px', borderRadius: 999 }}>{inbox.length}</span>
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        Everything the client brain-dumped without a project. File each one under an existing project or spin up a new one.
+      </p>
+
+      <ErrorMsg msg={error} />
+
+      {inbox.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>Inbox is clear — every brain dump is filed under a project.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {inbox.map((req) => {
+            const busy = busyId === req.id;
+            return (
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderLeft: `3px solid ${ORANGE}`, borderRadius: 8, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{req.title}</div>
+                    {req.description && (
+                      <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{req.description}</p>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      {isProposal(req) && (
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f3edfb', color: PURPLE, padding: '2px 9px', borderRadius: 999 }}>
+                          ✦ Wants a new project: {req.project_name}
+                        </span>
+                      )}
+                      {req.type && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{req.type}</span>}
+                      {req.priority !== 'normal' && (
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: req.priority === 'high' ? '#fff0f8' : '#f1f0ef', color: req.priority === 'high' ? PINK : '#808080', padding: '2px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{req.priority}</span>
+                      )}
+                      {req.created_at && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', alignSelf: 'center' }}>{fmtDate(req.created_at)}</span>}
+                    </div>
+                  </div>
+                  <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(req)}>Delete</Btn>
+                </div>
+
+                {newForId === req.id ? (
+                  <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <label style={LABEL}>New Project Name</label>
+                      <input style={INPUT} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Website Redesign" />
+                    </div>
+                    <div>
+                      <label style={LABEL}>Colour</label>
+                      <ColorPicker value={newColor} onChange={setNewColor} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn onClick={() => createProjectFrom(req)} disabled={busy}>{busy ? 'Creating…' : 'Create & File'}</Btn>
+                      <Btn variant="ghost" onClick={() => setNewForId(null)}>Cancel</Btn>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select
+                      style={{ ...SELECT, width: 'auto', minWidth: 200, opacity: busy ? 0.6 : 1 }}
+                      value=""
+                      disabled={busy || projects.length === 0}
+                      onChange={(e) => { if (e.target.value) assignTo(req, e.target.value); }}
+                    >
+                      <option value="">{projects.length === 0 ? 'No projects yet' : busy ? 'Filing…' : 'File under existing project…'}</option>
+                      {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    </select>
+                    <Btn variant="ghost" onClick={() => startNewProject(req)} disabled={busy}>
+                      {isProposal(req) ? `+ Create “${req.project_name}”` : '+ New Project From This'}
+                    </Btn>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -1278,7 +1421,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
           </div>
 
           <ProjectSubInvoices   project={project} invoices={projectInvoices}     clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
-          <ProjectSubRequests   project={project} requests={projectRequests}     clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
@@ -1660,7 +1803,7 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
 }
 
 // ── Per-project: Requests ─────────────────────────────────────────────────────
-function ProjectSubRequests({ project, requests, clientId, api, onRefresh }: SubProps & { requests: Request[] }) {
+function ProjectSubRequests({ project, requests, projects = [], clientId, api, onRefresh }: SubProps & { requests: Request[]; projects?: Project[] }) {
   const [showForm, setShowForm] = useState(false);
   const [title,    setTitle]    = useState('');
   const [type,     setType]     = useState('');
@@ -1701,12 +1844,34 @@ function ProjectSubRequests({ project, requests, clientId, api, onRefresh }: Sub
           {requests.map(req => {
             const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
             return (
-              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
-                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
-                {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
-                <Badge status={req.status} />
-                <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
+                  {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
+                  <Badge status={req.status} />
+                  {/* Refile a mis-sorted request without having to delete and retype it. */}
+                  <select
+                    style={{ ...SELECT, width: 'auto', minWidth: 130, padding: '3px 8px', fontSize: 11 }}
+                    value=""
+                    onChange={async (e) => {
+                      const target = e.target.value;
+                      if (!target) return;
+                      await api({ action: 'assign_request', id: req.id, project_name: target === '__inbox__' ? '' : target });
+                      onRefresh();
+                    }}
+                  >
+                    <option value="">Move…</option>
+                    <option value="__inbox__">← Back to inbox</option>
+                    {projects.filter(p => p.name !== project.name).map(p => (
+                      <option key={p.id} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+                </div>
+                {req.description && (
+                  <p style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{req.description}</p>
+                )}
               </div>
             );
           })}

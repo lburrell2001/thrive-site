@@ -9,7 +9,7 @@ interface DbInvoice  { id: string; invoice_number: string; amount_cents: number;
 interface DbFile     { id: string; name: string; file_url: string; project_name?: string; }
 interface DbProposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; project_id?: string; }
 interface DbMilestone { id: string; title: string; due_date: string; color: string; completed: boolean; project_name?: string; }
-interface DbRequest  { id: string; title: string; type: string; status: string; priority: string; project_name?: string; created_at: string; }
+interface DbRequest  { id: string; title: string; description?: string; type: string; status: string; priority: string; project_name?: string; created_at: string; }
 interface DbActivity { id: string; text: string; dot_color: string; created_at: string; project_name?: string; }
 
 const F = {
@@ -198,8 +198,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
   const [payError, setPayError]     = useState('');
   const [showReqForm, setShowReqForm] = useState(false);
   const [reqTitle,  setReqTitle]    = useState('');
-  const [reqType,   setReqType]     = useState('Brand Design');
-  const [reqPri,    setReqPri]      = useState('normal');
+  const [reqDesc,   setReqDesc]     = useState('');
   const [reqSubmitting, setReqSubmitting] = useState(false);
   const [reqError, setReqError]     = useState('');
 
@@ -223,20 +222,20 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
 
   async function handleSubmitRequest(e: React.FormEvent) {
     e.preventDefault();
-    if (!reqTitle.trim() || !userId) { setReqError('Title is required'); return; }
+    if (!reqTitle.trim() || !userId) { setReqError('Tell us what you need, even roughly'); return; }
     setReqSubmitting(true); setReqError('');
+    // Thrive sets type and priority when the request is triaged.
     const { error } = await supabasePortal.from('portal_requests').insert({
-      client_id: userId, title: reqTitle.trim(), type: reqType,
-      priority: reqPri, status: 'kickoff', project_name: proj.name,
+      client_id: userId, title: reqTitle.trim(), description: reqDesc.trim(),
+      type: '', priority: 'normal', status: 'kickoff', project_name: proj.name,
     });
     setReqSubmitting(false);
     if (error) { setReqError(error.message); return; }
-    setReqTitle(''); setReqType('Brand Design'); setReqPri('normal'); setShowReqForm(false);
+    setReqTitle(''); setReqDesc(''); setShowReqForm(false);
     onRefresh();
   }
 
-  const inp: React.CSSProperties = { border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '8px 12px', fontFamily: F.inter, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff' };
-  const sel: React.CSSProperties = { ...inp, cursor: 'pointer' };
+  const inp: React.CSSProperties = { border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '8px 12px', fontFamily: F.inter, fontSize: 13, outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff', color: '#0a0a0a' };
 
   return (
     <div style={{ background: '#fff', borderRadius: 16, border: expanded ? `2px solid ${dimAccent}` : '1px solid #e5e5e5', overflow: 'hidden', opacity: archived ? 0.8 : 1, transition: 'border-color .15s' }}>
@@ -337,7 +336,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
           {/* Requests */}
           <div className="proj-section" style={{ padding: '20px 24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <SectionLabel label="Requests" count={requests.length} />
+              <SectionLabel label="Brain Dumps" count={requests.length} />
               {!archived && (
                 <button onClick={() => setShowReqForm(v => !v)} style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}>
                   {showReqForm ? 'Cancel' : '+ New'}
@@ -346,40 +345,33 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
             </div>
             {showReqForm && (
               <form onSubmit={handleSubmitRequest} style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 16, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>TITLE *</label>
+                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>WHAT DO YOU NEED? *</label>
                     <input style={inp} value={reqTitle} onChange={e => setReqTitle(e.target.value)} placeholder="Logo revision" />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>TYPE</label>
-                    <select style={sel} value={reqType} onChange={e => setReqType(e.target.value)}>
-                      {['Brand Design','Digital Design','Social Media','UX Design','Photography'].map(t => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>PRIORITY</label>
-                    <select style={sel} value={reqPri} onChange={e => setReqPri(e.target.value)}>
-                      <option value="high">High</option>
-                      <option value="normal">Normal</option>
-                      <option value="low">Low</option>
-                    </select>
+                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>TELL US MORE</label>
+                    <textarea style={{ ...inp, minHeight: 90, resize: 'vertical', fontFamily: F.inter }} value={reqDesc} onChange={e => setReqDesc(e.target.value)} placeholder="Brain dump here — ideas, references, deadlines, anything you're thinking." />
                   </div>
                 </div>
                 {reqError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{reqError}</p>}
                 <button type="submit" disabled={reqSubmitting} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: '#0a0a0a', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: reqSubmitting ? 'default' : 'pointer', opacity: reqSubmitting ? 0.5 : 1, alignSelf: 'flex-start' }}>
-                  {reqSubmitting ? 'Submitting…' : 'Submit Request'}
+                  {reqSubmitting ? 'Sending…' : 'Send It Over'}
                 </button>
               </form>
             )}
             {requests.length === 0
-              ? <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: 0 }}>No requests yet.</p>
+              ? <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: 0 }}>Nothing dumped here yet.</p>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {requests.map(req => (
                     <div key={req.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fafafa' }}>
-                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: PRI_BG[req.priority] ?? '#f1f0ef', color: PRI_COLOR[req.priority] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                      {req.priority !== 'normal' && (
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: PRI_BG[req.priority] ?? '#f1f0ef', color: PRI_COLOR[req.priority] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                      )}
                       <div style={{ flex: 1, minWidth: 100 }}>
                         <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>{req.title}</div>
+                        {req.description && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2, whiteSpace: 'pre-wrap' }}>{req.description}</div>}
                         {req.type && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 1 }}>{req.type}</div>}
                       </div>
                       <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: REQ_BG[req.status] ?? '#f1f0ef', color: REQ_COLOR[req.status] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>

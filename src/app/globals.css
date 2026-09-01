@@ -70,11 +70,23 @@ button {
   max-width: 100%;
 }
 
+/* Never inherit a light text colour into a light-backed field. */
+input,
+textarea,
+select {
+  color: var(--thrive-black, #000);
+}
+
 /* ----------------------------------------------------------------------
    02) DESIGN TOKENS (COLORS / TYPE / RADII / LAYOUT)
    ---------------------------------------------------------------------- */
 
 :root {
+  /* The site is light-only. Without this, a visitor whose OS is in dark mode
+     gets browser-painted form controls with white text, which disappears
+     against the white input backgrounds in the portal. */
+  color-scheme: light;
+
   /* Brand palette */
   --thrive-magenta: #d12e83;
   --thrive-orange: #ea6b2c;

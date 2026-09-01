@@ -374,6 +374,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, data });
       }
 
+      case 'assign_request': {
+        // Files a client's brain-dumped request under a project (or back to the inbox).
+        const { id, project_name } = params as { id: string; project_name?: string };
+        if (!id) return err('id is required');
+        const { data: request } = await admin
+          .from('portal_requests').select('client_id, title').eq('id', id).single();
+        if (!request) return err('Request not found', 404);
+        const { error } = await admin
+          .from('portal_requests').update({ project_name: project_name || null }).eq('id', id);
+        if (error) return err(error.message);
+        if (project_name) {
+          logActivity(admin, request.client_id, `Your brain dump "${request.title}" is now part of ${project_name}`, '#1e3add', project_name);
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       case 'delete_request': {
         const { error } = await admin.from('portal_requests').delete().eq('id', params.id);
         if (error) return err(error.message);

@@ -21,7 +21,7 @@ function buildPageTitles(userName: string, userCompany: string) {
   const welcome = `Welcome back, ${userCompany || userName}`;
   return {
     '/portal/dashboard':  { title: 'DASHBOARD',       subtitle: welcome },
-    '/portal/requests':   { title: 'MY REQUESTS',     subtitle: 'Track and manage your design requests' },
+    '/portal/requests':   { title: 'BRAIN DUMP',      subtitle: 'Everything you want — big, small, half-formed' },
     '/portal/progress':   { title: 'MY PROJECTS',      subtitle: 'Everything organised by project' },
     '/portal/invoices':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
     '/portal/payments':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
