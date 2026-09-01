@@ -56,7 +56,8 @@ interface Activity { id: string; text: string; dot_color: string; created_at: st
 interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
 interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
 interface Subscription { id: string; client_id: string; project_name: string; invoice_prefix: string; amount_cents: number; day_of_month: number; next_due_date: string; last_generated_date: string | null; status: string; notes: string | null; created_at: string; interval_count: number; interval_unit: 'week' | 'month' | 'year'; }
-interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; }
+interface Credential { id: string; project_id: string | null; label: string; category: string; site_url: string; username: string; has_secret: boolean; has_notes: boolean; last_viewed_at: string | null; last_viewed_by: string | null; created_at: string; updated_at: string; }
+interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; }
 type Tab = 'profile' | 'projects' | 'settings';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -618,15 +619,39 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
         </div>
       </form>
       <Divider />
-      <ProposalsSection clientId={clientId} proposals={data.proposals.filter(p => !p.project_id)} api={api} onRefresh={onRefresh} />
+      <CredentialsSection data={data} api={api} onRefresh={onRefresh} />
       <Divider />
-      <div>
-        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Recent Activity</h3>
-        {data.activity.length === 0 ? (
-          <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No activity yet.</p>
-        ) : (
+      {/* Every proposal for this client — project-attached ones included. */}
+      <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} api={api} onRefresh={onRefresh} />
+      <Divider />
+      <ActivitySection activity={data.activity} />
+      <Divider />
+      <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ── Activity Section ───────────────────────────────────────────────────────────
+// Every activity row for the client, across all projects — the profile is meant to
+// read as the whole history, so the list only collapses for length, never filters.
+function ActivitySection({ activity }: { activity: Activity[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL = 10;
+  const visible = showAll ? activity : activity.slice(0, INITIAL);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Activity</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{activity.length}</span>
+      </div>
+
+      {activity.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No activity yet.</p>
+      ) : (
+        <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {data.activity.slice(0, 8).map((item) => (
+            {visible.map((item) => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -639,17 +664,169 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
               </div>
             ))}
           </div>
-        )}
+          {activity.length > INITIAL && (
+            <button
+              type="button"
+              onClick={() => setShowAll(v => !v)}
+              style={{ marginTop: 14, fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              {showAll ? 'Show less' : `Show all ${activity.length} updates`}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Credentials Section ────────────────────────────────────────────────────────
+const CRED_CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
+  website_host: { label: 'Website Host',     color: BLUE,     bg: '#eef1ff' },
+  domain:       { label: 'Domain Registrar', color: PURPLE,   bg: '#f3edfb' },
+  cms:          { label: 'CMS / Admin',      color: PINK,     bg: '#fff0f8' },
+  ftp:          { label: 'FTP / Server',     color: ORANGE,   bg: '#fff4ec' },
+  analytics:    { label: 'Analytics',        color: '#1a8a4a', bg: '#edfff6' },
+  social:       { label: 'Social Account',   color: '#0b7f8f', bg: '#e9f8fa' },
+  email:        { label: 'Email / Mailing',  color: '#8a6d1a', bg: '#fdf7e3' },
+  other:        { label: 'Other',            color: '#808080', bg: '#f1f0ef' },
+};
+
+function CredentialsSection({ data, api, onRefresh }: {
+  data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const credentials = data.credentials ?? [];
+  const [revealed,  setRevealed]  = useState<Record<string, { secret: string; notes: string }>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [copied,    setCopied]    = useState('');
+  const [error,     setError]     = useState('');
+
+  async function toggleReveal(c: Credential) {
+    if (revealed[c.id]) {
+      setRevealed(prev => { const next = { ...prev }; delete next[c.id]; return next; });
+      return;
+    }
+    setRevealing(c.id); setError('');
+    const r = await api({ action: 'reveal_credential', id: c.id }) as { data?: { secret: string; notes: string }; error?: string };
+    setRevealing(null);
+    if (r.error || !r.data) { setError(r.error ?? 'Could not open this credential.'); return; }
+    setRevealed(prev => ({ ...prev, [c.id]: r.data! }));
+    onRefresh();
+  }
+
+  async function handleDelete(c: Credential) {
+    if (!confirm(`Delete "${c.label}"? The client will no longer see it in their vault either.`)) return;
+    const r = await api({ action: 'delete_credential', id: c.id }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  async function copyValue(key: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      setTimeout(() => setCopied(k => (k === key ? '' : k)), 1600);
+    } catch { /* clipboard unavailable — the value is on screen anyway */ }
+  }
+
+  const projectName = (id: string | null) => data.projects.find(p => p.id === id)?.name ?? '';
+
+  const rowLabel: React.CSSProperties = { fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em', width: 72, flexShrink: 0 };
+  const linkBtn: React.CSSProperties = { fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: BLUE, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Secure Vault</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{credentials.length}</span>
       </div>
-      <Divider />
-      <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        Logins the client submitted from their portal. Stored encrypted — revealing one is recorded and shown to the client.
+      </p>
+
+      <ErrorMsg msg={error} />
+
+      {credentials.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No credentials shared yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {credentials.map((c) => {
+            const cat  = CRED_CATEGORIES[c.category] ?? CRED_CATEGORIES.other;
+            const open = revealed[c.id];
+            const proj = projectName(c.project_id);
+            return (
+              <div key={c.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                      <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{c.label}</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: cat.bg, color: cat.color, padding: '2px 9px', borderRadius: 999 }}>{cat.label}</span>
+                      {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
+                    </div>
+                    {c.site_url && (
+                      <a href={c.site_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: BLUE, textDecoration: 'none', wordBreak: 'break-all' }}>
+                        {c.site_url} ↗
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => toggleReveal(c)} disabled={revealing === c.id}>
+                      {revealing === c.id ? 'Opening…' : open ? 'Hide' : 'Reveal'}
+                    </Btn>
+                    <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(c)}>Delete</Btn>
+                  </div>
+                </div>
+
+                <div style={{ background: '#fafafa', border: '1px solid #f1f0ef', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={rowLabel}>User</span>
+                    <span style={{ fontFamily: F.inter, fontSize: 13, color: c.username ? DARK : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>{c.username || 'Not provided'}</span>
+                    {c.username && (
+                      <button type="button" style={linkBtn} onClick={() => copyValue(`u-${c.id}`, c.username)}>
+                        {copied === `u-${c.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={rowLabel}>Password</span>
+                    <span style={{ fontFamily: open ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : F.inter, fontSize: 13, color: c.has_secret ? DARK : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>
+                      {!c.has_secret ? 'Not provided' : open ? (open.secret || '—') : '••••••••••'}
+                    </span>
+                    {c.has_secret && open && (
+                      <button type="button" style={linkBtn} onClick={() => copyValue(`p-${c.id}`, open.secret)}>
+                        {copied === `p-${c.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  {c.has_notes && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ ...rowLabel, paddingTop: 2 }}>Notes</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 13, color: DARK, flex: 1, whiteSpace: 'pre-wrap' }}>
+                        {open ? (open.notes || '—') : '•••••• (shown when revealed)'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 8 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Added {fmtDate(c.created_at)}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Updated {fmtDate(c.updated_at)}</span>
+                  {c.last_viewed_at && (
+                    <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Last revealed {fmtDate(c.last_viewed_at)}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 // ── Proposals Section ──────────────────────────────────────────────────────────
-function ProposalsSection({ clientId, proposals, api, onRefresh }: {
-  clientId: string; proposals: Proposal[];
+function ProposalsSection({ clientId, proposals, projects = [], api, onRefresh }: {
+  clientId: string; proposals: Proposal[]; projects?: Project[];
   api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onRefresh: () => void;
 }) {
@@ -709,9 +886,20 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
     signed:  { bg: '#edfff6', color: '#1a8a4a' },
   };
 
+  const projectName = (id?: string | null) => projects.find(p => p.id === id)?.name ?? '';
+  const signedCount = proposals.filter(p => p.status === 'signed').length;
+
   return (
     <div>
-      <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proposals</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proposals</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{proposals.length}</span>
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        {proposals.length === 0
+          ? 'Every proposal for this client, across all projects.'
+          : `${signedCount} signed of ${proposals.length} — across all projects. Anything uploaded here is not tied to a project.`}
+      </p>
 
       <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
       <ErrorMsg msg={error} />
@@ -729,7 +917,12 @@ function ProposalsSection({ clientId, proposals, api, onRefresh }: {
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{p.name}</span>
+                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.project_id ? '#eef1ff' : '#f1f0ef', color: p.project_id ? BLUE : '#808080', padding: '2px 9px', borderRadius: 999 }}>
+                      {projectName(p.project_id) || (p.project_id ? 'Project' : 'General')}
+                    </span>
+                  </div>
                   <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{fmtDate(p.created_at)}</div>
 
                   {/* Signed copy row */}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
+import { decryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
 
 const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.org'}/portal/dashboard`;
 
@@ -131,7 +132,7 @@ export async function POST(req: NextRequest) {
         const clientId = params.clientId as string;
         // Refresh overdue status so the admin view is always accurate without waiting for cron.
         await markOverdueInvoices(admin);
-        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions] = await Promise.all([
+        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions, credentials] = await Promise.all([
           admin.auth.admin.getUserById(clientId),
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -140,9 +141,14 @@ export async function POST(req: NextRequest) {
           admin.from('portal_files').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
           admin.from('portal_milestones').select('*').eq('client_id', clientId).order('due_date', { ascending: true }),
           admin.from('portal_onboarding_steps').select('*').eq('client_id', clientId).order('step_number', { ascending: true }),
-          admin.from('portal_activity').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(20),
+          // Deep enough that the Profile tab reads as a full history, not a recent-8 teaser.
+          admin.from('portal_activity').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(250),
           admin.from('portal_proposals').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
           admin.from('portal_invoice_subscriptions').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
+          // Secrets stay on the server — only the metadata travels to the admin UI.
+          admin.from('portal_credentials')
+            .select('id, project_id, label, category, site_url, username, secret_encrypted, notes_encrypted, last_viewed_at, last_viewed_by, created_at, updated_at')
+            .eq('client_id', clientId).order('created_at', { ascending: false }),
         ]);
         return NextResponse.json({
           ok: true,
@@ -157,6 +163,20 @@ export async function POST(req: NextRequest) {
             activity: activity.data ?? [],
             proposals: proposals.data ?? [],
             subscriptions: subscriptions.data ?? [],
+            credentials: (credentials.data ?? []).map((c) => ({
+              id: c.id,
+              project_id: c.project_id,
+              label: c.label,
+              category: c.category,
+              site_url: c.site_url,
+              username: c.username,
+              has_secret: !!c.secret_encrypted,
+              has_notes: !!c.notes_encrypted,
+              last_viewed_at: c.last_viewed_at,
+              last_viewed_by: c.last_viewed_by,
+              created_at: c.created_at,
+              updated_at: c.updated_at,
+            })),
           },
         });
       }
@@ -619,6 +639,37 @@ export async function POST(req: NextRequest) {
         const { id, status } = params as { id: string; status: string };
         if (!id || !status) return err('id and status are required');
         const { error } = await admin.from('portal_proposals').update({ status }).eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'reveal_credential': {
+        const { id } = params as { id: string };
+        if (!id) return err('id is required');
+        if (!vaultKeyReady()) return err('PORTAL_CREDENTIALS_KEY is not set on the server.', 503);
+        const { data: row } = await admin
+          .from('portal_credentials')
+          .select('label, secret_encrypted, notes_encrypted')
+          .eq('id', id)
+          .single();
+        if (!row) return err('Credential not found', 404);
+        // Stamp the view so the client can see when their login was last opened.
+        await admin.from('portal_credentials')
+          .update({ last_viewed_at: new Date().toISOString(), last_viewed_by: 'Thrive' })
+          .eq('id', id);
+        return NextResponse.json({
+          ok: true,
+          data: {
+            secret: decryptSecret(row.secret_encrypted ?? ''),
+            notes: decryptSecret(row.notes_encrypted ?? ''),
+          },
+        });
+      }
+
+      case 'delete_credential': {
+        const { id } = params as { id: string };
+        if (!id) return err('id is required');
+        const { error } = await admin.from('portal_credentials').delete().eq('id', id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }

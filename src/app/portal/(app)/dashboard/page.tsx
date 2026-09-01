@@ -123,6 +123,7 @@ export default function DashboardPage() {
     { label: 'Upload Files',   href: '/portal/files',      bg: '#fd6100', color: '#fff' },
     { label: 'Pay Invoice',    href: '/portal/invoices',   bg: '#0cf574', color: '#0a0a0a' },
     { label: 'View Proposal',  href: '/portal/files',      bg: '#1e3add', color: '#fff' },
+    { label: 'Secure Vault',   href: '/portal/vault',      bg: '#0a0a0a', color: '#fff' },
   ];
 
   const latestActivity = activity && activity.length > 0 ? activity[0] : null;
