@@ -27,7 +27,10 @@ CONTACT_NOTIFY_FROM=             # Verified Resend sender address
 STRIPE_SECRET_KEY=               # Stripe Checkout for invoice payments
 STRIPE_WEBHOOK_SECRET=           # Stripe webhook signature verification
 CRON_SECRET=                     # Bearer token required by Vercel Cron to call /api/portal/admin/generate-invoices
+PORTAL_CREDENTIALS_KEY=          # 32 random bytes, base64 (`openssl rand -base64 32`) — AES-256-GCM key for the client credentials vault
 ```
+
+`PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
 
 ## Architecture
 
@@ -65,6 +68,15 @@ The `projects` table columns used by the app: `id`, `title`, `slug`, `category`,
 `POST /api/contact` (`src/app/api/contact/route.ts`):
 1. Writes to `contact_inquiries` table via `supabaseService` (primary — blocks on failure).
 2. Sends HTML email via Resend (secondary — never blocks form submission if it fails).
+
+### Credentials vault
+
+Clients submit website host / CMS / registrar logins at `/portal/vault` instead of texting them.
+
+- Table: `portal_credentials` (migration `011`). RLS is on with **no policies** — the anon key cannot read it at all.
+- Passwords and notes are encrypted with AES-256-GCM in `src/lib/credentialCrypto.ts` before they are written, so the DB holds no plaintext.
+- Every read/write goes through a server route with the service role key: `POST /api/portal/credentials` (client, Supabase bearer token; actions `list` / `reveal` / `create` / `update` / `delete`) and the `reveal_credential` / `delete_credential` actions on `/api/admin` (passcode).
+- List responses carry metadata only (`has_secret`, `has_notes`) — a secret leaves the server only in response to an explicit `reveal`. Admin reveals stamp `last_viewed_at` / `last_viewed_by`, which the client sees in their vault.
 
 ### Styling
 
