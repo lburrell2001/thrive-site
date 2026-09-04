@@ -1,0 +1,46 @@
+/* ======================================================================
+   PRINT SHEET
+   Loaded only by /p/[slug]/print. Everything about how a block looks is
+   already in proposal.module.css — this file only sets up the paper.
+   ====================================================================== */
+
+@page {
+  size: Letter;
+  margin: 0;
+}
+
+.proposalPrintRoot {
+  background: #000;
+  min-height: 100dvh;
+}
+
+/* On screen the print route reads as a stack of Letter-proportioned sheets
+   so it can be checked against the original side by side. */
+.proposalPrintSheet {
+  width: min(816px, 100%);
+  margin: 0 auto;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    /* The document is black with colour accents; a stripped print is not
+       the same document. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .proposalPrintSheet {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  /* Anything that is browser chrome rather than the document itself. */
+  .proposalNoPrint {
+    display: none !important;
+  }
+}

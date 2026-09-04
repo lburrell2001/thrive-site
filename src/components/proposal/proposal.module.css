@@ -1,0 +1,900 @@
+/* ======================================================================
+   PROPOSAL RENDERER
+   One stylesheet for all three surfaces. Web and print differ only by the
+   `mode` prop (which sets .modeWeb / .modePrint) and the @media print
+   block at the bottom — there is no second renderer and no forked CSS.
+
+   Flat, black, typographic. No cards, no rounded corners, no shadows.
+   ====================================================================== */
+
+.proposal {
+  /* The container every cqw in the type scale is measured against. */
+  container-type: inline-size;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: var(--body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Web view: one continuous scroll. Blocks are separated by a hairline,
+   not by paper edges — no fake page shadow anywhere. */
+.modeWeb .pageStart + .pageStart,
+.modeWeb .pageContinues + .pageStart {
+  border-top: 1px solid var(--hairline);
+}
+
+/* Print view: real Letter proportions. `aspect-ratio` sets the preferred
+   height; a block with more content than fits simply grows rather than
+   clipping its own text. */
+.modePrint {
+  --pad-block: clamp(40px, 6cqw, 64px);
+}
+
+.modePrint .pageStart {
+  break-before: page;
+  display: flex;
+  flex-direction: column;
+}
+
+.modePrint .pageStart:first-child {
+  break-before: auto;
+}
+
+.modePrint .pageContinues {
+  break-inside: avoid;
+}
+
+.page {
+  position: relative;
+  padding: var(--pad-block) var(--pad-inline);
+  overflow: hidden;
+}
+
+/*
+ * A block with a display heading opens a sheet; the blocks after it flow on
+ * beneath, sharing that sheet and that running header. So only pageStart
+ * carries the top padding and the page break.
+ */
+.pageContinues {
+  padding-top: 0;
+}
+
+/* ---------------------------------------------------------------- header */
+
+.runningHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(28px, 5cqw, 52px);
+  font-size: var(--label);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.runningHeaderNote {
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- kicker */
+
+.kicker {
+  margin: 0 0 clamp(12px, 1.8cqw, 20px);
+  padding-bottom: 7px;
+  border-bottom: var(--rule) solid var(--accent);
+  font-size: var(--label);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ------------------------------------------------- the clipped heading */
+/* Line 1 is white and fits. Line 2 is set large enough to run past the
+   page edge, and .page's overflow:hidden does the cropping. Nothing here
+   fakes the crop with a fixed width, so it clips identically at 375px,
+   at 1440px, and on Letter. */
+
+.headingClip {
+  margin: 0 0 clamp(12px, 2cqw, 24px);
+  /* Line 2 is sized to fit this box exactly; overflow:hidden is only a guard
+     against a sub-pixel rounding error, not a design device. */
+  overflow: hidden;
+}
+
+.headingLine1,
+.headingLine2 {
+  display: block;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  /*
+   * The face's cap height is 0.70em, so a line-height below that makes the
+   * second line's capitals rise into the first line's baseline. 0.64 puts
+   * them 0.06em into each other — about 8% of the cap height, which reads as
+   * one locked-together mark while both lines stay perfectly legible.
+   */
+  line-height: var(--heading-overlap);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * Each line is sized from its own width. --heading-fill is how much of the
+ * measure the line covers: 1 on the cover, where both lines run to the page
+ * edge, and a little under that on interior pages.
+ */
+.headingLine1 {
+  font-weight: var(--heading-weight-1);
+  font-size: max(
+    20px,
+    min(
+      calc(var(--display-2-fill) * var(--heading-fill) / var(--l1-em, 6)),
+      var(--display-2-max)
+    )
+  );
+  color: var(--paper);
+}
+
+.headingLine2 {
+  font-weight: var(--heading-weight-2);
+  font-size: max(
+    20px,
+    min(
+      calc(var(--display-2-fill) * var(--heading-fill) / var(--l2-em, 6)),
+      var(--display-2-max)
+    )
+  );
+  color: var(--accent);
+}
+
+.page[data-type='cover'] {
+  --heading-fill: 1;
+}
+
+/*
+ * Interior headings are all one size, rather than each being sized to fill
+ * its own page's measure — that made a short heading enormous and a long one
+ * small, and the document read as if every page had its own scale.
+ *
+ * The fill calculation survives as a ceiling: a heading too long to fit at
+ * --heading-size shrinks to the measure instead of running off the page.
+ * Only the cover is still sized to span the full width.
+ */
+.headingClip .headingLine1 {
+  font-size: min(
+    var(--heading-size),
+    calc(var(--display-2-fill) * var(--heading-fill) / var(--l1-em, 6))
+  );
+}
+
+.headingClip .headingLine2 {
+  font-size: min(
+    var(--heading-size),
+    calc(var(--display-2-fill) * var(--heading-fill) / var(--l2-em, 6))
+  );
+}
+
+/* ---------------------------------------------------------------- prose */
+
+.prose {
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: var(--lede);
+}
+
+.prose p {
+  margin: 0 0 1em;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+.prose strong {
+  color: var(--paper);
+  font-weight: 700;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+.prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose ul {
+  margin: 0 0 1em;
+  padding-left: 1.1em;
+}
+
+.prose li {
+  margin-bottom: 0.35em;
+}
+
+/* ---------------------------------------------------------------- cover */
+/*
+ * Black page, heading at the top, then a contained duotone photograph whose
+ * upper edge cuts across the bottom of the display heading. The photo is a
+ * block on the page, not the page's background.
+ */
+
+.cover {
+  display: flex;
+  flex-direction: column;
+  min-height: 78dvh;
+}
+
+.modePrint .cover {
+  min-height: 0;
+  flex: 1;
+}
+
+/* Give the cover sheet a full page of height to distribute. Without this the
+   section is only as tall as its content and the footer rides up under the
+   photograph instead of sitting on the bottom margin. */
+.modePrint .pageStart[data-type='cover'] {
+  min-height: 100vh;
+}
+
+.coverHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: clamp(10px, 1.5cqw, 15px);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.coverEyebrow {
+  margin: clamp(8px, 1.4cqw, 14px) 0 0;
+  font-size: var(--label);
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.coverHeading {
+  margin: clamp(6px, 1.4cqw, 16px) 0 0;
+  overflow: hidden;
+}
+
+/*
+ * The photograph sits just clear of line 2's baseline, so the heading reads
+ * whole with the picture starting immediately under it. The offset is a
+ * fraction of line 2's own computed size, so the relationship holds
+ * whatever the heading says and however wide the page is.
+ */
+.coverFigure {
+  position: relative;
+  margin: calc(var(--display-2-fill) / var(--l2-em, 6) * var(--cover-offset)) 0 0;
+  /* A definite ratio rather than flex: the image inside is height:100%, and
+     with an auto-height parent that resolves to the file's own pixel height,
+     which pushed the cover onto a second sheet. A wide, shallow crop keeps
+     the heading the loudest thing on the page. */
+  aspect-ratio: var(--cover-ratio);
+  overflow: hidden;
+  background: rgba(232, 235, 234, 0.05);
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Duotone: flatten the photograph, then push the accent through it. Held
+     well down in tone so the type over it reads and the page stays black
+     rather than turning into a bright panel. */
+  filter: grayscale(1) contrast(1.3) brightness(var(--cover-brightness));
+}
+
+.coverImageTint {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  mix-blend-mode: color;
+  opacity: var(--cover-tint);
+}
+
+/* A soft vertical scrim, darkest through the middle band where the project
+   name sits, so the caption never depends on what the photograph is doing. */
+.coverImageShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.46) 45%,
+    rgba(0, 0, 0, 0.46) 58%,
+    rgba(0, 0, 0, 0.26) 100%
+  );
+}
+
+.coverCaption {
+  position: absolute;
+  inset-inline: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  font-size: clamp(13px, 2.4cqw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--white);
+  text-align: center;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
+}
+
+.coverTagline {
+  /* Auto top margins on the tagline, the stat strip and the footer share any
+     slack on the cover between them, so a short photograph opens the page up
+     evenly instead of leaving one hole above the footer. */
+  margin: auto 0 0;
+  padding-top: clamp(12px, 1.8cqw, 18px);
+  font-size: var(--lede);
+  color: var(--muted);
+}
+
+.coverStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: clamp(10px, 2.2cqw, 26px);
+  margin-top: auto;
+  padding-top: clamp(10px, 1.8cqw, 18px);
+  border-top: var(--rule) solid var(--accent);
+}
+
+.coverStatValue {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(18px, 3.2cqw, 32px);
+  line-height: 1;
+  color: var(--paper);
+}
+
+.coverStatLabel {
+  margin-top: 5px;
+  font-size: var(--label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.coverMeta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(16px, 4cqw, 48px);
+  /* Pushed to the foot of the page: every bit of slack on the cover collects
+     above this row, so it sits on the bottom margin rather than crowding
+     whatever is above it. */
+  margin-top: auto;
+  padding-top: clamp(18px, 3.2cqw, 38px);
+}
+
+.coverMetaRight {
+  text-align: right;
+}
+
+.coverMetaLabel {
+  font-size: clamp(10px, 1.4cqw, 13px);
+  color: var(--muted);
+}
+
+.coverMetaValue {
+  margin-top: 2px;
+  font-size: clamp(12px, 1.7cqw, 16px);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+/* ============================================================
+   PANELS
+   The document's repeating unit: a filled, softly rounded block of colour
+   holding a bold title and a line or two under it. Scope items, pricing
+   deliverables, phase descriptions and delivery milestones are all this
+   same object in different colours.
+   ============================================================ */
+
+.panelStack {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.5cqw, 6px);
+  margin-top: clamp(8px, 1.3cqw, 14px);
+}
+
+.panel {
+  border-radius: var(--panel-radius);
+  padding: clamp(6px, 1.05cqw, 11px) clamp(9px, 1.6cqw, 17px);
+  background: var(--panel);
+  color: var(--white);
+}
+
+.panelAlt { background: var(--panel-alt); }
+.panelAccent { background: var(--accent); }
+
+.panelTitle {
+  margin: 0;
+  font-size: clamp(10px, 1.28cqw, 13px);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--white);
+}
+
+.panelBody {
+  margin: 2px 0 0;
+  font-size: var(--body);
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+/* ------------------------------------------------------- feature list */
+
+.featureGrid { composes: panelStack; }
+.featureItem { composes: panel; }
+.featureTitle { composes: panelTitle; }
+.featureDescription { composes: panelBody; }
+
+/* ------------------------------------------------------------ moodboard */
+/* The grid runs to the page edges — the imagery is the page here, not a
+   panel sitting on it. */
+
+.moodGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  margin: clamp(14px, 2.2cqw, 24px) calc(var(--pad-inline) * -1) 0;
+}
+
+.moodCell {
+  position: relative;
+  grid-column: span 1;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: rgba(232, 235, 234, 0.06);
+}
+
+.moodCellWide {
+  grid-column: span 2;
+  aspect-ratio: 3 / 2;
+}
+
+.moodImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.moodCaptionRow {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(-18px, -2cqw, -10px);
+  position: relative;
+  z-index: 2;
+}
+
+/* A black pill sitting over the grid, as in the source artwork. */
+.moodCaption {
+  padding: clamp(7px, 1.1cqw, 11px) clamp(14px, 2.4cqw, 26px);
+  border-radius: 999px;
+  background: var(--ink);
+  font-size: clamp(10px, 1.4cqw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--white);
+  text-align: center;
+}
+
+.moodPlaceholder {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1px dashed var(--hairline);
+  font-size: var(--label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  overflow: hidden;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------- showcase */
+
+.showcaseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: clamp(14px, 2.4cqw, 30px);
+  margin-top: clamp(12px, 2cqw, 22px);
+}
+
+.showcaseFrame {
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(232, 235, 234, 0.05);
+}
+
+.showcaseImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.showcaseTitle {
+  margin: clamp(10px, 1.6cqw, 16px) 0 3px;
+  font-size: clamp(11px, 1.5cqw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--paper);
+  text-align: center;
+}
+
+.showcaseSubtitle {
+  margin: 0;
+  font-size: var(--body);
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* -------------------------------------------------------------- pricing */
+
+.pricingList { composes: panelStack; }
+.pricingRow { composes: panel; display: flex; align-items: baseline; justify-content: space-between; gap: clamp(12px, 3cqw, 40px); }
+.pricingRowText { flex: 1; min-width: 0; }
+.pricingRowTitle { composes: panelTitle; }
+.pricingRowDescription { composes: panelBody; }
+
+.pricingRowAmount {
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(12px, 1.7cqw, 17px);
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The total is the loudest object on the page: a full-width orange bar. */
+.pricingTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: clamp(10px, 1.7cqw, 18px);
+  border-radius: var(--panel-radius);
+  background: var(--orange);
+  padding: clamp(9px, 1.5cqw, 16px) clamp(12px, 2cqw, 22px);
+}
+
+.pricingTotalLabel {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(15px, 2.5cqw, 26px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.pricingTotalValue {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(15px, 2.5cqw, 26px);
+  line-height: 1;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
+.pricingFootnote {
+  margin-top: clamp(12px, 2cqw, 20px);
+  max-width: 72ch;
+  font-size: var(--body);
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------------- phases */
+/* A coloured chip naming the phase, then a bar carrying its description. */
+
+.phaseGrid {
+  composes: panelStack;
+  list-style: none;
+  padding: 0;
+}
+
+.phaseItem {
+  display: grid;
+  grid-template-columns: minmax(88px, 0.18fr) 1fr;
+  gap: clamp(4px, 0.62cqw, 7px);
+  align-items: stretch;
+}
+
+.phaseChip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--panel-radius);
+  background: var(--panel);
+  padding: clamp(4px, 0.7cqw, 8px) clamp(5px, 0.9cqw, 10px);
+  text-align: center;
+}
+
+.phaseLabel {
+  margin: 0;
+  font-size: clamp(11px, 1.5cqw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.phaseName {
+  margin: 1px 0 0;
+  font-size: clamp(9px, 1.25cqw, 12px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.phaseBody {
+  display: flex;
+  align-items: center;
+  border-radius: var(--panel-radius);
+  background: var(--panel-alt);
+  padding: clamp(6px, 1.05cqw, 11px) clamp(9px, 1.6cqw, 17px);
+}
+
+.phaseDescription {
+  margin: 0;
+  font-size: var(--body);
+  line-height: 1.35;
+  color: var(--white);
+}
+
+/* ------------------------------------------------------ split narrative */
+
+.splitGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: clamp(14px, 2.6cqw, 34px);
+  margin-top: clamp(8px, 1.3cqw, 14px);
+}
+
+/* The two prose columns run at body size, not lede — they carry a lot of
+   copy and share a sheet with the phase list above them. */
+.splitGrid .prose {
+  font-size: var(--body);
+  max-width: none;
+}
+
+.splitHeading {
+  margin: 0 0 clamp(10px, 1.6cqw, 16px);
+  padding-bottom: 7px;
+  border-bottom: var(--rule) solid var(--accent);
+  font-size: clamp(11px, 1.5cqw, 15px);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------- action items */
+
+.actionList {
+  margin: clamp(10px, 1.6cqw, 18px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actionItem {
+  display: flex;
+  gap: clamp(8px, 1.4cqw, 16px);
+  padding-bottom: clamp(6px, 1.1cqw, 12px);
+}
+
+.actionNumber {
+  flex-shrink: 0;
+  min-width: 1.1em;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(16px, 2.6cqw, 28px);
+  line-height: 0.9;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.actionTitle {
+  margin: 0 0 2px;
+  font-size: clamp(10px, 1.28cqw, 13px);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.actionDescription {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--body);
+  line-height: 1.45;
+}
+
+.actionClosing {
+  margin-top: clamp(12px, 2cqw, 20px);
+  max-width: 64ch;
+  font-size: var(--lede);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+/* ------------------------------------------------------------- timeline */
+
+.timelineList { composes: panelStack; }
+
+.timelineItem {
+  composes: panel;
+  background: var(--magenta);
+}
+
+.timelineLabel { composes: panelTitle; }
+.timelineDescription { composes: panelBody; }
+
+/* ------------------------------------------------------------ signature */
+
+.signatureGrid {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(16px, 4cqw, 48px);
+  margin-top: clamp(12px, 2cqw, 22px);
+}
+
+.signatureLabel {
+  font-size: clamp(10px, 1.4cqw, 13px);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+.signatureMeta {
+  margin: 2px 0 0;
+  font-size: var(--label);
+  color: var(--muted);
+}
+
+.signatureName {
+  font-size: clamp(11px, 1.5cqw, 15px);
+  font-weight: 700;
+  color: var(--paper);
+}
+
+/* The client signs in a white field, as on the printed page. */
+.signatureField {
+  flex: 0 1 46%;
+  text-align: right;
+}
+
+.signatureBox {
+  height: clamp(28px, 3.6cqw, 44px);
+  margin: 6px 0 4px;
+  border-radius: 4px;
+  background: var(--white);
+}
+
+.signatureTerms {
+  margin-top: clamp(16px, 2.6cqw, 26px);
+  font-size: var(--body);
+  color: var(--muted);
+}
+
+.signatureTerms a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ============================================================
+   PAIRED BLOCKS
+   On the printed sheet, "what you need to do" sits beside "what happens
+   next", and the two prose columns of the outcomes page sit beside each
+   other. Pairing them here is what lets each of those pages hold to a
+   single sheet, as the source document does.
+   ============================================================ */
+
+.pageContinues[data-type='action_items'],
+.pageContinues[data-type='delivery_timeline'] {
+  float: left;
+  width: 50%;
+  box-sizing: border-box;
+}
+
+.pageContinues[data-type='action_items'] {
+  padding-right: calc(var(--pad-inline) / 2);
+}
+
+.pageContinues[data-type='delivery_timeline'] {
+  padding-left: calc(var(--pad-inline) / 2);
+}
+
+/* Anything after the pair starts below both of them. */
+.pageContinues[data-type='signature'],
+.pageStart {
+  clear: both;
+}
+
+@media (max-width: 560px) {
+  .pageContinues[data-type='action_items'],
+  .pageContinues[data-type='delivery_timeline'] {
+    float: none;
+    width: 100%;
+    padding-inline: var(--pad-inline);
+  }
+}
+
+/* -------------------------------------------------------------- 420px */
+
+@media (max-width: 420px) {
+  .moodGrid { grid-template-columns: repeat(2, 1fr); }
+  .moodCellWide { grid-column: span 2; }
+  .phaseItem { grid-template-columns: 1fr; }
+  .pricingRow { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .signatureGrid { flex-direction: column; align-items: stretch; }
+  .signatureField { text-align: left; }
+}
+
+/* --------------------------------------------------------------- print */
+
+@media print {
+  .proposal {
+    background: var(--ink);
+    /* Keep the black ground and the accents — this document is the brand. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .pageStart {
+    break-before: page;
+  }
+
+  .pageStart[data-type='cover'] {
+    min-height: 100vh;
+  }
+
+  .pageStart:first-child { break-before: auto; }
+
+  .pageContinues { break-inside: avoid; }
+
+  .cover { min-height: 0; flex: 1; }
+
+  /* Long lists are allowed to split rather than overflow a sheet. */
+  .panelStack,
+  .featureGrid,
+  .phaseGrid,
+  .actionList,
+  .timelineList,
+  .pricingList {
+    break-inside: auto;
+  }
+
+  .panel,
+  .featureItem,
+  .phaseItem,
+  .actionItem,
+  .timelineItem,
+  .pricingRow {
+    break-inside: avoid;
+  }
+}

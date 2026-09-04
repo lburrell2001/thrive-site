@@ -1,0 +1,312 @@
+/* ======================================================================
+   PUBLIC PROPOSAL CHROME
+   Everything on /p/[slug] that is not the document itself: the sticky
+   footer, status notices, and focus rings. Loaded by app/p/layout.tsx.
+   ====================================================================== */
+
+/* ------------------------------------------------------------ focus */
+/* The site has no global focus style and the proposal is black on black,
+   so every focusable thing in here declares its own. Lime on ink is the
+   highest-contrast pairing in the palette. */
+
+.proposalChrome a:focus-visible,
+.proposalChrome button:focus-visible,
+.thriveProposal a:focus-visible {
+  outline: 3px solid #0cf574;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* --------------------------------------------------------- notices */
+
+.proposalNotice {
+  margin: 0;
+  padding: 12px clamp(20px, 6vw, 84px);
+  color: #000;
+  font-family: var(--font-proposal), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.proposalNoticeWarn { background: #fd6100; }
+.proposalNoticeGood { background: #0cf574; }
+
+/* ---------------------------------------------------------- footer */
+
+.proposalFooter {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px clamp(20px, 6vw, 84px);
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(10px);
+  border-top: 2px solid #0cf574;
+  font-family: var(--font-proposal), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+}
+
+.proposalFooterLabel {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  /* 0.62 white on near-black is ~6.4:1 — passes AA for this size. */
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.proposalFooterTotal {
+  font-family: var(--font-proposal), 'Bai Jamjuree', sans-serif;
+  font-weight: 700;
+  font-size: clamp(20px, 4vw, 28px);
+  line-height: 1.1;
+  color: #0cf574;
+}
+
+.proposalFooterAction {
+  border: 2px solid #fff;
+  color: #fff;
+  padding: 10px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  background: transparent;
+  cursor: pointer;
+}
+
+.proposalFooterAction:hover {
+  background: #fff;
+  color: #000;
+}
+
+/* At 375px the total and the button stack rather than crush together. */
+@media (max-width: 400px) {
+  .proposalFooter {
+    gap: 10px;
+  }
+
+  .proposalFooterAction {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+@media print {
+  .proposalFooter,
+  .proposalNotice {
+    display: none !important;
+  }
+}
+
+/* ------------------------------------------------------------ signing */
+
+.proposalFooterActionPrimary {
+  border-color: #0cf574;
+  background: #0cf574;
+  color: #000;
+}
+
+.proposalFooterActionPrimary:hover {
+  background: #0bd964;
+  border-color: #0bd964;
+  color: #000;
+}
+
+.proposalFooterSigned {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #0cf574;
+  white-space: nowrap;
+}
+
+.signOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(6px);
+  overflow-y: auto;
+}
+
+.signDialog {
+  width: 100%;
+  max-width: 460px;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  background: #0a0a0a;
+  border: 2px solid #0cf574;
+  padding: clamp(20px, 5vw, 32px);
+  color: #fff;
+  font-family: var(--font-proposal), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+}
+
+.signHeading {
+  margin: 0 0 8px;
+  font-family: var(--font-proposal), 'Bai Jamjuree', sans-serif;
+  font-weight: 700;
+  font-size: clamp(22px, 5vw, 30px);
+  line-height: 1;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.signIntro {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.signField {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.signField label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.signField input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: #000;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 15px;
+  color: #fff;
+}
+
+.signField input:focus-visible {
+  outline: 3px solid #0cf574;
+  outline-offset: 2px;
+}
+
+/* The signature line reads as a signature, not another form field. */
+.signSignatureInput {
+  font-family: var(--font-proposal), 'Bai Jamjuree', sans-serif !important;
+  font-weight: 700;
+  font-size: 20px !important;
+  letter-spacing: 0.02em;
+  border-width: 0 0 2px 0 !important;
+  border-bottom-color: #0cf574 !important;
+  padding-left: 0 !important;
+}
+
+.signHint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.signCheck {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 16px 0 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+}
+
+.signCheck input {
+  margin-top: 3px;
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  accent-color: #0cf574;
+}
+
+.signCheck a { color: #0cf574; text-decoration: underline; }
+
+.signError {
+  margin: 14px 0 0;
+  border-left: 3px solid #fd6100;
+  padding: 8px 12px;
+  background: rgba(255, 90, 31, 0.12);
+  font-size: 13px;
+  color: #ffb08a;
+}
+
+.signActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+.signButton,
+.signButtonGhost {
+  border: 2px solid #0cf574;
+  padding: 11px 20px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  text-align: center;
+}
+
+.signButton { background: #0cf574; color: #000; }
+.signButton:disabled { opacity: 0.45; cursor: default; }
+.signButtonGhost { background: transparent; border-color: rgba(255, 255, 255, 0.4); color: #fff; }
+.signButtonGhost:hover { border-color: #fff; }
+
+.signSummary {
+  margin: 0 0 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.signSummary > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.signSummary dt {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.signSummary dd {
+  margin: 0;
+  font-family: var(--font-proposal), 'Bai Jamjuree', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  color: #fff;
+}
+
+.signSummaryTotal { border-bottom-color: #0cf574 !important; border-bottom-width: 2px !important; }
+.signSummaryTotal dd { color: #0cf574; font-size: 24px; }
+
+@media (max-width: 400px) {
+  .signActions > * { width: 100%; }
+}

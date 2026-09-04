@@ -1,0 +1,90 @@
+/* ======================================================================
+   PROPOSAL DESIGN TOKENS
+   The single source of truth for the proposal renderer — web, admin
+   preview, and print all read these. Nothing in the proposal system
+   hard-codes a hex value.
+
+   The palette is sampled from Thrive's own proposal artwork, so it is the
+   studio's brand colours rather than a generic set: magenta, purple,
+   orange, blue and green on black.
+
+   Scoped to .thriveProposal rather than :root so it cannot leak into the
+   marketing site, which has its own palette in globals.css.
+   ====================================================================== */
+
+.thriveProposal {
+  --ink: #000000;              /* page background */
+  --paper: #e8ebea;            /* primary type — a warm off-white, not pure */
+  --white: #ffffff;
+
+  --magenta: #e50586;
+  --purple: #9409ce;
+  --orange: #fd6100;
+  --blue: #3943b7;
+  --green: #0cf574;
+
+  --muted: rgba(232, 235, 234, 0.66);
+  --hairline: rgba(232, 235, 234, 0.18);
+
+  /* Accent resolved per block; defaults to magenta, overridden inline. */
+  --accent: var(--magenta);
+  /* The fill used for content panels — deliberately constant so a page's
+     accent can change without the panels changing colour. */
+  --panel: var(--purple);
+  --panel-alt: var(--blue);
+
+  --font-display: var(--font-proposal), "Bai Jamjuree", ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-proposal), "Bai Jamjuree", ui-sans-serif, system-ui, sans-serif;
+  /* Display weight for totals, stat figures and numerals. */
+  --display-weight: 700;
+  /* The two heading lines carry their own weights, so one can be set light
+     against the other. */
+  --heading-weight-1: 700;
+  --heading-weight-2: 400;
+
+  /* Page rhythm. The print sheet overrides --pad-block to fit Letter.
+     Sizes are in cqw (a share of the renderer's own inline size) rather
+     than vw, so the document scales to the box it is drawn in — full page,
+     builder preview pane, or Letter sheet — instead of to the window. */
+  --pad-inline: clamp(18px, 5.4cqw, 64px);
+  --pad-block: clamp(20px, 3.5cqw, 40px);
+  --rule: 2px;
+  --panel-radius: 10px;
+
+  /* Display line 2 is sized to span this — the page's content width, less a
+     hair so a rounding error cannot push it into a clip. */
+  --display-2-fill: calc((100cqw - 2 * var(--pad-inline)) * 0.99);
+  /* Ceiling on the cover's heading, which is sized to fill the measure. */
+  --display-2-max: 20cqw;
+  /* Every interior heading is set at this one size, so the document reads
+     consistently from page to page. A heading too long to fit at this size
+     shrinks rather than overflowing — see .headingClip. */
+  --heading-size: clamp(24px, 12cqw, 100px);
+  /* Share of the measure a heading line covers. Every heading runs to the
+     full measure. */
+  --heading-fill: 1;
+  /* Line-height below the cap height, so line 2 rises into line 1's baseline. */
+  --heading-overlap: 0.64;
+  /* Cover photograph: shape, how far it sits below line 2's baseline, and how
+     far the duotone is held down in tone. */
+  --cover-ratio: 0.8 / 1;
+  --cover-offset: 0.075;
+  --cover-brightness: 0.64;
+  --cover-tint: 1;
+
+  --label: clamp(8px, 1.12cqw, 10.5px);
+  --body: clamp(9.5px, 1.2cqw, 12px);
+  --lede: clamp(10.5px, 1.3cqw, 13px);
+}
+
+.thriveProposal[data-accent="green"]   { --accent: var(--green); }
+.thriveProposal[data-accent="orange"]  { --accent: var(--orange); }
+.thriveProposal[data-accent="magenta"] { --accent: var(--magenta); }
+.thriveProposal[data-accent="purple"]  { --accent: var(--purple); }
+.thriveProposal[data-accent="blue"]    { --accent: var(--blue); }
+
+.thriveProposal [data-accent="green"]   { --accent: var(--green); }
+.thriveProposal [data-accent="orange"]  { --accent: var(--orange); }
+.thriveProposal [data-accent="magenta"] { --accent: var(--magenta); }
+.thriveProposal [data-accent="purple"]  { --accent: var(--purple); }
+.thriveProposal [data-accent="blue"]    { --accent: var(--blue); }

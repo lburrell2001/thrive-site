@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { decryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
+import { loadProposalById } from '@/lib/proposalRepo';
 
 const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.org'}/portal/dashboard`;
 
@@ -657,6 +658,32 @@ export async function POST(req: NextRequest) {
         const { error } = await admin.from('portal_proposals').update({ status }).eq('id', id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
+      }
+
+      // ---------------------------------------------------------- proposals
+
+      case 'get_proposal': {
+        const { id, slug } = params as { id?: string; slug?: string };
+        let proposalId = id;
+
+        if (!proposalId && slug) {
+          const { data } = await admin.from('proposals').select('id').eq('slug', slug).maybeSingle();
+          proposalId = data?.id;
+        }
+        if (!proposalId) return err('id or slug is required', 404);
+
+        const proposal = await loadProposalById(admin, proposalId);
+        if (!proposal) return err('Proposal not found', 404);
+        return NextResponse.json({ ok: true, data: proposal });
+      }
+
+      case 'list_proposals': {
+        const { data, error } = await admin
+          .from('proposals')
+          .select('id, slug, title, status, proposal_date, total_cents, currency, updated_at, client_id')
+          .order('updated_at', { ascending: false });
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true, data });
       }
 
       case 'reveal_credential': {

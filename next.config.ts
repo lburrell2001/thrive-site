@@ -22,6 +22,24 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Proposals are private documents behind a secret link. The noindex
+        // meta tag in app/p/layout.tsx covers crawlers that render; this
+        // covers the ones that only read headers.
+        source: "/p/:path*",
+        headers: [
+          {
+            key: "X-Robots-Tag",
+            value: "noindex, nofollow, noarchive, noimageindex",
+          },
+          {
+            key: "Referrer-Policy",
+            // Keeps the access token out of the Referer header on any
+            // outbound click from inside the proposal.
+            value: "no-referrer",
+          },
+        ],
+      },
     ];
   },
 };
