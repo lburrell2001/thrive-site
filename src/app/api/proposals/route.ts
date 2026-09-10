@@ -19,7 +19,7 @@ export async function GET(req: Request) {
   const { data, error } = await auth.db
     .from('proposals')
     .select(
-      'id, slug, title, status, proposal_date, valid_until, currency, total_cents, deposit_percent, sent_at, first_viewed_at, signed_at, updated_at, client_id, proposal_clients ( id, name, company )',
+      'id, slug, title, status, proposal_date, valid_until, currency, total_cents, deposit_percent, sent_at, first_viewed_at, signed_at, declined_at, decline_reason, updated_at, client_id, proposal_clients ( id, name, company )',
     )
     .order('updated_at', { ascending: false });
 

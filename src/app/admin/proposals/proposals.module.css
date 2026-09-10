@@ -146,6 +146,17 @@
   color: #8a8a8a;
 }
 
+.rowReason {
+  margin: 3px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #b45309;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 .rowNumber {
   font-size: 13px;
   font-weight: 600;
@@ -261,11 +272,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  /* The pane is narrow and there are six actions — let them wrap onto a
+     second line rather than clipping the last one out of reach. */
   flex-wrap: wrap;
-  padding: 10px 16px;
+  padding: 10px 12px;
   background: #fff;
   border-bottom: 1px solid #e4e1de;
+}
+
+.builderBar > span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .saveState {

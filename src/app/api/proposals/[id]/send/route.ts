@@ -28,10 +28,7 @@ export async function POST(req: Request, { params }: Ctx) {
   if (error) return badRequest(error.message);
   if (!proposal) return badRequest('Proposal not found', 404);
 
-  if (proposal.status === 'signed') {
-    return badRequest('This proposal has already been signed.', 409);
-  }
-
+  // A signed proposal keeps its status; the caller just wants the link.
   // Re-publishing an already-sent proposal keeps its original sent_at and
   // does not knock a 'viewed' status back to 'sent'.
   //

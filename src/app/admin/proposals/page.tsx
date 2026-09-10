@@ -16,6 +16,7 @@ interface ProposalRow {
   proposal_date: string;
   currency: string;
   total_cents: number;
+  decline_reason: string | null;
   updated_at: string;
   proposal_clients: { id: string; name: string; company: string | null } | null;
 }
@@ -152,6 +153,11 @@ export default function ProposalsListPage() {
                   {row.proposal_clients?.company ?? row.proposal_clients?.name ?? 'No client'} ·{' '}
                   {formatDate(row.proposal_date)}
                 </p>
+                {/* The reason a client said no is the most useful thing on a
+                    declined row, so it goes here rather than one click in. */}
+                {row.status === 'declined' && row.decline_reason && (
+                  <p className={s.rowReason}>“{row.decline_reason}”</p>
+                )}
               </div>
 
               <span className={`${s.badge} ${BADGE[row.status]}`}>{row.status}</span>

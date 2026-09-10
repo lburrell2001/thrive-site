@@ -268,11 +268,12 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
       setDeclineReason(null);
       setDeclinedAt(null);
       const link = result.url || `${window.location.origin}${result.path}`;
+      const reopened = meta?.status === 'declined';
       try {
         await navigator.clipboard.writeText(link);
-        show('Published. Client link copied.');
+        show(reopened ? 'Reopened. Client link copied.' : 'Published. Client link copied.');
       } catch {
-        show('Published.');
+        show(reopened ? 'Reopened.' : 'Published.');
       }
     } catch (error) {
       show(error instanceof Error ? error.message : 'Could not publish', 'error');
@@ -401,7 +402,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
                 disabled={publishing}
                 onClick={publish}
               >
-                {publishing ? 'Publishing…' : meta.status === 'draft' ? 'Publish' : 'Copy link'}
+                {publishing ? 'Publishing…' : publishLabel(meta.status)}
               </button>
             </span>
           </div>
@@ -718,4 +719,16 @@ function DeclinedBanner({
       </p>
     </div>
   );
+}
+
+/**
+ * The button both publishes and copies, so it has to say which one it is
+ * about to do. A declined proposal in particular reopens to the client when
+ * this is pressed — labelling that "Copy link" would be a quiet way to
+ * un-decline a proposal by accident.
+ */
+function publishLabel(status: ProposalStatus): string {
+  if (status === 'draft') return 'Publish';
+  if (status === 'declined') return 'Publish again';
+  return 'Copy link';
 }
