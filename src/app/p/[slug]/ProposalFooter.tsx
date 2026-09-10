@@ -1,3 +1,4 @@
+import { DeclineAction } from './DeclineAction';
 import { SignAction } from './SignAction';
 
 /**
@@ -15,6 +16,7 @@ export function ProposalFooter({
   pdfHref,
   signed,
   signedAt,
+  declined,
   termsUrl,
 }: {
   slug: string;
@@ -25,6 +27,7 @@ export function ProposalFooter({
   pdfHref: string;
   signed: boolean;
   signedAt: string | null;
+  declined: boolean;
   termsUrl?: string;
 }) {
   return (
@@ -46,7 +49,7 @@ export function ProposalFooter({
           Save as PDF
         </a>
 
-        {signed ? (
+        {signed && (
           <span className="proposalFooterSigned">
             Approved
             {signedAt
@@ -57,8 +60,15 @@ export function ProposalFooter({
                 })}`
               : ''}
           </span>
-        ) : (
-          <SignAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} />
+        )}
+
+        {declined && <span className="proposalFooterDeclined">Declined</span>}
+
+        {!signed && !declined && (
+          <>
+            <DeclineAction slug={slug} token={token} />
+            <SignAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} />
+          </>
         )}
       </div>
     </div>

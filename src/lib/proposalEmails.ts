@@ -120,6 +120,110 @@ function agencyNotification(d: SigningEmailData) {
   `);
 }
 
+export interface DeclineEmailData {
+  proposalTitle: string;
+  declinedBy: string | null;
+  declinerEmail: string | null;
+  reason: string;
+  declinedAt: string;
+  totalLabel: string;
+  proposalUrl: string;
+  adminUrl: string;
+  ipAddress: string | null;
+}
+
+/**
+ * Sent to Lauren. A decline is the message she most needs to see quickly,
+ * and the reason is the whole point of it — so the reason leads.
+ */
+function declineNotification(d: DeclineEmailData) {
+  return SHELL(`
+    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">${esc(d.proposalTitle)} was declined.</h1>
+    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
+      ${d.declinedBy ? `${esc(d.declinedBy)} ` : 'The client '}declined on ${esc(d.declinedAt)}.
+    </p>
+
+    <div style="border-left:3px solid #fd6100;background:rgba(253,97,0,.1);padding:14px 16px;margin-bottom:20px;">
+      <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#fd6100;font-weight:700;margin-bottom:6px;">Reason given</div>
+      <div style="color:#fff;font-size:14px;line-height:1.6;white-space:pre-wrap;">${esc(d.reason)}</div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Value</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.totalLabel)}</td></tr>
+      ${d.declinerEmail ? `<tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Email</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.declinerEmail)}</td></tr>` : ''}
+      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">IP address</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.ipAddress ?? 'not recorded')}</td></tr>
+    </table>
+
+    <p style="color:rgba(255,255,255,.72);font-size:13px;line-height:1.6;margin:0 0 16px;">
+      Revising and publishing again reopens the proposal on the same link.
+    </p>
+
+    ${BUTTON(d.adminUrl, 'Open in admin')}
+  `);
+}
+
+/** A short acknowledgement, only if they left an address. */
+function declineAcknowledgement(d: DeclineEmailData) {
+  return SHELL(`
+    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">Thanks for letting us know.</h1>
+    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
+      We have recorded that you are not moving ahead with
+      <strong style="color:#fff;">${esc(d.proposalTitle)}</strong>, and why. No further action
+      is needed from you.
+    </p>
+    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
+      If anything changes, or you would like a revised version, just reply to this email.
+    </p>
+    <p style="margin:0;font-size:13px;">
+      <a href="${esc(d.proposalUrl)}" style="color:#0cf574;">Read the proposal again</a>
+    </p>
+  `);
+}
+
+/**
+ * A decline is best-effort mail like the signing emails: the decision is
+ * already recorded before either of these is attempted.
+ */
+export async function sendDeclineEmails(data: DeclineEmailData): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.CONTACT_NOTIFY_FROM;
+  const notifyTo = process.env.CONTACT_NOTIFY_TO;
+
+  if (!apiKey || !from) {
+    console.warn('Decline emails skipped: RESEND_API_KEY or CONTACT_NOTIFY_FROM is not set');
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+
+  const results = await Promise.allSettled([
+    notifyTo
+      ? resend.emails.send({
+          from,
+          to: notifyTo,
+          subject: `Declined: ${data.proposalTitle}`,
+          html: declineNotification(data),
+          text: `${data.proposalTitle} was declined on ${data.declinedAt}${data.declinedBy ? ` by ${data.declinedBy}` : ''}.\n\nReason:\n${data.reason}\n\nValue ${data.totalLabel}\nIP ${data.ipAddress ?? 'not recorded'}\n\n${data.adminUrl}`,
+        })
+      : Promise.resolve(null),
+    data.declinerEmail
+      ? resend.emails.send({
+          from,
+          to: data.declinerEmail,
+          subject: `Thanks for letting us know — ${data.proposalTitle}`,
+          html: declineAcknowledgement(data),
+          text: `Thanks for letting us know you are not moving ahead with ${data.proposalTitle}. No further action is needed.\n\nIf anything changes, reply to this email.\n\n${data.proposalUrl}`,
+        })
+      : Promise.resolve(null),
+  ]);
+
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      console.error(`Decline email ${index === 0 ? 'to agency' : 'to client'} failed:`, result.reason);
+    }
+  });
+}
+
 export async function sendSigningEmails(data: SigningEmailData): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_NOTIFY_FROM;

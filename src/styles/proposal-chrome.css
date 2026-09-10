@@ -310,3 +310,72 @@
 @media (max-width: 400px) {
   .signActions > * { width: 100%; }
 }
+
+/* ------------------------------------------------------------ declining */
+/* The quiet counterpart to "Approve and sign": findable, not competing. */
+
+.proposalFooterDecline {
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(232, 235, 234, 0.62);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.proposalFooterDecline:hover { color: var(--paper, #e8ebea); }
+
+.signDialogDecline { border-color: #fd6100; }
+
+.signField textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: #000;
+  padding: 11px 12px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #fff;
+  resize: vertical;
+}
+
+.signField textarea:focus-visible {
+  outline: 3px solid #fd6100;
+  outline-offset: 2px;
+}
+
+.signButtonDecline {
+  border: 2px solid #fd6100;
+  background: #fd6100;
+  color: #fff;
+  padding: 11px 20px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+}
+
+.signButtonDecline:disabled { opacity: 0.45; cursor: default; }
+
+.proposalFooterDeclined {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #fd6100;
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .signButtonDecline { width: 100%; }
+}

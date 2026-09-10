@@ -86,6 +86,14 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         </Notice>
       )}
 
+      {renderable.status === 'declined' && (
+        <Notice tone="warn">
+          You let us know this is not going ahead
+          {renderable.declineReason ? ` — “${renderable.declineReason}”` : ''}. Reply to the email
+          this came in if anything changes.
+        </Notice>
+      )}
+
       <ProposalRenderer
         blocks={renderable.blocks}
         theme={renderable.theme}
@@ -105,6 +113,7 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         pdfHref={`/api/proposals/${row.id}/pdf?t=${encodeURIComponent(token ?? '')}`}
         signed={renderable.status === 'signed'}
         signedAt={row.signed_at}
+        declined={renderable.status === 'declined'}
         termsUrl={termsUrl}
       />
     </main>

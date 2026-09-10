@@ -1,6 +1,7 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface SignResult {
   signedAt: string;
@@ -29,12 +30,12 @@ export function SignAction({
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<SignResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
-  const [signerName, setSignerName] = useState('');
-  const [signerEmail, setSignerEmail] = useState('');
-  const [signerTitle, setSignerTitle] = useState('');
-  const [typedName, setTypedName] = useState('');
+  const [signerName, setSignerName] = useState("");
+  const [signerEmail, setSignerEmail] = useState("");
+  const [signerTitle, setSignerTitle] = useState("");
+  const [typedName, setTypedName] = useState("");
   const [agreedTerms, setAgreedTerms] = useState(false);
 
   const dialog = useRef<HTMLDivElement>(null);
@@ -43,7 +44,7 @@ export function SignAction({
 
   const close = useCallback(() => {
     setOpen(false);
-    setError('');
+    setError("");
     opener.current?.focus();
   }, []);
 
@@ -54,14 +55,14 @@ export function SignAction({
     firstField.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && !result) {
+      if (event.key === "Escape" && !result) {
         close();
         return;
       }
-      if (event.key !== 'Tab' || !dialog.current) return;
+      if (event.key !== "Tab" || !dialog.current) return;
 
       const focusable = dialog.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), textarea, select',
+        "a[href], button:not([disabled]), input:not([disabled]), textarea, select",
       );
       if (focusable.length === 0) return;
 
@@ -77,19 +78,19 @@ export function SignAction({
       }
     }
 
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [open, result, close]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setSubmitting(true);
-    setError('');
+    setError("");
 
     try {
       const res = await fetch(`/p/${encodeURIComponent(slug)}/sign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           signerName,
           signerEmail,
@@ -101,12 +102,14 @@ export function SignAction({
       });
       const body = (await res.json()) as { data?: SignResult; error?: string };
       if (!res.ok || body.error) {
-        setError(body.error ?? 'Something went wrong. Please try again.');
+        setError(body.error ?? "Something went wrong. Please try again.");
       } else if (body.data) {
         setResult(body.data);
       }
     } catch {
-      setError('We could not reach the server. Check your connection and try again.');
+      setError(
+        "We could not reach the server. Check your connection and try again.",
+      );
     }
 
     setSubmitting(false);
@@ -123,121 +126,145 @@ export function SignAction({
         Approve and sign
       </button>
 
-      {open && (
-        <div className="signOverlay" role="presentation">
-          <div
-            ref={dialog}
-            className="signDialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="sign-heading"
-          >
-            {result ? (
-              <Confirmation result={result} pdfHref={pdfHref} />
-            ) : (
-              <form onSubmit={submit}>
-                <h2 id="sign-heading" className="signHeading">
-                  Approve this proposal
-                </h2>
-                <p className="signIntro">
-                  Typing your name below counts as your signature. We record the date, time, and a
-                  copy of exactly what you are approving.
-                </p>
-
-                <SignField
-                  ref={firstField}
-                  id="sign-name"
-                  label="Full name"
-                  value={signerName}
-                  onChange={setSignerName}
-                  autoComplete="name"
-                  required
-                />
-                <SignField
-                  id="sign-email"
-                  label="Email"
-                  type="email"
-                  value={signerEmail}
-                  onChange={setSignerEmail}
-                  autoComplete="email"
-                  hint="Your receipt goes here."
-                  required
-                />
-                <SignField
-                  id="sign-title"
-                  label="Title"
-                  value={signerTitle}
-                  onChange={setSignerTitle}
-                  autoComplete="organization-title"
-                  hint="Optional."
-                />
-                <SignField
-                  id="sign-typed"
-                  label="Type your name to sign"
-                  value={typedName}
-                  onChange={setTypedName}
-                  className="signSignatureInput"
-                  required
-                />
-
-                <label className="signCheck">
-                  <input
-                    type="checkbox"
-                    checked={agreedTerms}
-                    onChange={(e) => setAgreedTerms(e.target.checked)}
-                  />
-                  <span>
-                    I have read this proposal and agree to
-                    {termsUrl ? (
-                      <>
-                        {' '}
-                        the{' '}
-                        <a href={termsUrl} target="_blank" rel="noopener noreferrer">
-                          terms of engagement
-                        </a>
-                        .
-                      </>
-                    ) : (
-                      ' the scope and pricing set out in it.'
-                    )}
-                  </span>
-                </label>
-
-                {error && (
-                  <p className="signError" role="alert">
-                    {error}
+      {/*
+        Portalled to the body on purpose. This lives inside the sticky footer,
+        and that footer has a backdrop-filter — which makes it the containing
+        block for any fixed-position descendant, so the overlay was being
+        confined to the footer's own box instead of covering the viewport.
+      */}
+      {open &&
+        createPortal(
+          <div className="signOverlay" role="presentation">
+            <div
+              ref={dialog}
+              className="signDialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="sign-heading"
+            >
+              {result ? (
+                <Confirmation result={result} pdfHref={pdfHref} />
+              ) : (
+                <form onSubmit={submit}>
+                  <h2 id="sign-heading" className="signHeading">
+                    Approve this proposal
+                  </h2>
+                  <p className="signIntro">
+                    Typing your name below counts as your signature. We record
+                    the date, time, and a copy of exactly what you are
+                    approving.
                   </p>
-                )}
 
-                <div className="signActions">
-                  <button type="button" className="signButtonGhost" onClick={close}>
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="signButton"
-                    disabled={submitting || !agreedTerms || !typedName.trim()}
-                  >
-                    {submitting ? 'Recording…' : 'Approve and sign'}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
+                  <SignField
+                    ref={firstField}
+                    id="sign-name"
+                    label="Full name"
+                    value={signerName}
+                    onChange={setSignerName}
+                    autoComplete="name"
+                    required
+                  />
+                  <SignField
+                    id="sign-email"
+                    label="Email"
+                    type="email"
+                    value={signerEmail}
+                    onChange={setSignerEmail}
+                    autoComplete="email"
+                    hint="Your receipt goes here."
+                    required
+                  />
+                  <SignField
+                    id="sign-title"
+                    label="Title"
+                    value={signerTitle}
+                    onChange={setSignerTitle}
+                    autoComplete="organization-title"
+                    hint="Optional."
+                  />
+                  <SignField
+                    id="sign-typed"
+                    label="Type your name to sign"
+                    value={typedName}
+                    onChange={setTypedName}
+                    className="signSignatureInput"
+                    required
+                  />
+
+                  <label className="signCheck">
+                    <input
+                      type="checkbox"
+                      checked={agreedTerms}
+                      onChange={(e) => setAgreedTerms(e.target.checked)}
+                    />
+                    <span>
+                      I have read this proposal and agree to
+                      {termsUrl ? (
+                        <>
+                          {" "}
+                          the{" "}
+                          <a
+                            href={termsUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            terms of engagement
+                          </a>
+                          .
+                        </>
+                      ) : (
+                        " the scope and pricing set out in it."
+                      )}
+                    </span>
+                  </label>
+
+                  {error && (
+                    <p className="signError" role="alert">
+                      {error}
+                    </p>
+                  )}
+
+                  <div className="signActions">
+                    <button
+                      type="button"
+                      className="signButtonGhost"
+                      onClick={close}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="signButton"
+                      disabled={submitting || !agreedTerms || !typedName.trim()}
+                    >
+                      {submitting ? "Recording…" : "Approve and sign"}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
 
-function Confirmation({ result, pdfHref }: { result: SignResult; pdfHref: string }) {
+function Confirmation({
+  result,
+  pdfHref,
+}: {
+  result: SignResult;
+  pdfHref: string;
+}) {
   return (
     <div>
       <h2 id="sign-heading" className="signHeading">
         Approved. Thank you.
       </h2>
       <p className="signIntro">
-        A receipt is on its way to {result.receiptEmail}. Here is what happens next.
+        A receipt is on its way to {result.receiptEmail}. Here is what happens
+        next.
       </p>
 
       <dl className="signSummary">
@@ -278,7 +305,7 @@ function SignField({
   label,
   value,
   onChange,
-  type = 'text',
+  type = "text",
   hint,
   required,
   autoComplete,
@@ -299,7 +326,7 @@ function SignField({
     <div className="signField">
       <label htmlFor={id}>
         {label}
-        {!required && ''}
+        {!required && ""}
       </label>
       <input
         ref={ref}

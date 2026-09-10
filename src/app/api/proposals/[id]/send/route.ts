@@ -21,7 +21,7 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const { data: proposal, error } = await auth.db
     .from('proposals')
-    .select('slug, access_token, status, sent_at')
+    .select('slug, access_token, status, sent_at, declined_at')
     .eq('id', id)
     .maybeSingle();
 
@@ -34,10 +34,19 @@ export async function POST(req: Request, { params }: Ctx) {
 
   // Re-publishing an already-sent proposal keeps its original sent_at and
   // does not knock a 'viewed' status back to 'sent'.
-  if (proposal.status === 'draft') {
+  //
+  // A declined proposal is the exception: publishing again is how a revised
+  // version is sent, so it reopens on the same link and clears the decline.
+  // The 'declined' event stays in the log.
+  if (proposal.status === 'draft' || proposal.status === 'declined') {
     const { error: updateError } = await auth.db
       .from('proposals')
-      .update({ status: 'sent', sent_at: proposal.sent_at ?? new Date().toISOString() })
+      .update({
+        status: 'sent',
+        sent_at: proposal.sent_at ?? new Date().toISOString(),
+        declined_at: null,
+        decline_reason: null,
+      })
       .eq('id', id);
     if (updateError) return badRequest(updateError.message);
   }

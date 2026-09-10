@@ -218,6 +218,9 @@ export interface Proposal {
   sent_at: string | null;
   first_viewed_at: string | null;
   signed_at: string | null;
+  declined_at: string | null;
+  /** Why the client declined, in their words. */
+  decline_reason: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -233,6 +236,7 @@ export interface RenderableProposal {
   currency: string;
   totalCents: number;
   depositPercent: number;
+  declineReason: string | null;
   theme: ProposalTheme;
   blocks: ProposalBlock[];
   lineItems: ProposalLineItem[];

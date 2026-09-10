@@ -73,6 +73,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   const [meta, setMeta] = useState<{ slug: string; status: ProposalStatus; currency: string } | null>(
     null,
   );
+  const [declineReason, setDeclineReason] = useState<string | null>(null);
+  const [declinedAt, setDeclinedAt] = useState<string | null>(null);
   const [totalCents, setTotalCents] = useState(0);
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
@@ -120,6 +122,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
           currency: loaded.proposal.currency,
         });
         setTotalCents(loaded.proposal.total_cents);
+        setDeclineReason(loaded.proposal.decline_reason);
+        setDeclinedAt(loaded.proposal.declined_at);
         setImageUrls(loaded.imageUrls);
         setSignatures(loaded.signatures ?? []);
         setClients(clientRows ?? []);
@@ -261,6 +265,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         'POST',
       );
       setMeta((current) => (current ? { ...current, status: 'sent' } : current));
+      setDeclineReason(null);
+      setDeclinedAt(null);
       const link = result.url || `${window.location.origin}${result.path}`;
       try {
         await navigator.clipboard.writeText(link);
@@ -401,6 +407,9 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
           </div>
 
           {signatures.length > 0 && <SignedBanner signature={signatures[0]} currency={meta.currency} />}
+          {meta.status === 'declined' && (
+            <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />
+          )}
 
           <div className={s.railSection}>
             <details style={{ marginBottom: 14 }}>
@@ -655,6 +664,58 @@ function SignedBanner({
           {signature.content_hash}
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Shown when a client has said no. The reason is the useful part, so it is
+ * the thing the banner is built around — publishing again reopens the
+ * proposal on the same link and clears this.
+ */
+function DeclinedBanner({
+  reason,
+  declinedAt,
+}: {
+  reason: string | null;
+  declinedAt: string | null;
+}) {
+  return (
+    <div
+      style={{
+        margin: '12px 12px 0',
+        border: '1px solid #fed7aa',
+        borderLeft: '3px solid #c2410c',
+        borderRadius: 8,
+        background: '#fff7ed',
+        padding: '12px 14px',
+      }}
+    >
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', marginBottom: 4 }}>
+        Declined
+        {declinedAt
+          ? ` ${new Date(declinedAt).toLocaleString('en-US', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+            })}`
+          : ''}
+      </div>
+      {reason && (
+        <p
+          style={{
+            margin: '0 0 6px',
+            fontSize: 12,
+            color: '#7c2d12',
+            lineHeight: 1.55,
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          “{reason}”
+        </p>
+      )}
+      <p style={{ margin: 0, fontSize: 11, color: '#9a5b3d', lineHeight: 1.5 }}>
+        Revise and publish again to reopen it on the same link.
+      </p>
     </div>
   );
 }

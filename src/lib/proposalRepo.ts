@@ -120,6 +120,7 @@ export async function toRenderable(
     currency: proposal.currency,
     totalCents: proposal.total_cents,
     depositPercent: proposal.deposit_percent,
+    declineReason: proposal.decline_reason,
     theme: proposal.theme ?? {},
     blocks,
     lineItems,
