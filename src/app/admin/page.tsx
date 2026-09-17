@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { usePortalReminder, lastRemindedLabel } from './ReminderDialog';
+import { formatPhone } from '@/lib/phone';
 
 const F = {
   inter: `var(--font-inter), 'Inter', sans-serif`,
@@ -45,7 +47,8 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; }
+interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; }
+interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
@@ -57,7 +60,7 @@ interface Milestone { id: string; project_name: string; title: string; due_date:
 interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
 interface Subscription { id: string; client_id: string; project_name: string; invoice_prefix: string; amount_cents: number; day_of_month: number; next_due_date: string; last_generated_date: string | null; status: string; notes: string | null; created_at: string; interval_count: number; interval_unit: 'week' | 'month' | 'year'; }
 interface Credential { id: string; project_id: string | null; label: string; category: string; site_url: string; username: string; has_secret: boolean; has_notes: boolean; last_viewed_at: string | null; last_viewed_by: string | null; created_at: string; updated_at: string; }
-interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; }
+interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; reminders?: ReminderLog[]; }
 type Tab = 'profile' | 'projects' | 'settings';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -592,14 +595,17 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
   const [companyName, setCompanyName] = useState(p?.company_name ?? '');
   const [initials, setInitials] = useState(p?.initials ?? '');
   const [email, setEmail] = useState(p?.email ?? '');
+  const [phone, setPhone] = useState(formatPhone(p?.phone));
+  const [smsOptIn, setSmsOptIn] = useState(Boolean(p?.sms_opt_in));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true); setError(''); setSuccess('');
-    const r = await api({ action: 'update_profile', clientId, full_name: fullName, company_name: companyName, initials, email }) as { ok?: boolean; error?: string };
+    const r = await api({ action: 'update_profile', clientId, full_name: fullName, company_name: companyName, initials, email, phone, sms_opt_in: smsOptIn }) as { ok?: boolean; error?: string };
     if (r.error) setError(r.error); else { setSuccess('Saved.'); onRefresh(); }
     setSaving(false);
   }
@@ -612,19 +618,30 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
           <FormRow label="Email"><input style={INPUT} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></FormRow>
           <FormRow label="Company"><input style={INPUT} value={companyName} onChange={(e) => setCompanyName(e.target.value)} /></FormRow>
           <FormRow label="Initials"><input style={INPUT} value={initials} onChange={(e) => setInitials(e.target.value)} maxLength={3} /></FormRow>
+          <FormRow label="Mobile"><input style={INPUT} type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" /></FormRow>
         </FormGrid>
-        <div>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? DARK : '#bfbfbf' }}>
+          <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={(e) => setSmsOptIn(e.target.checked)} style={{ marginTop: 2, accentColor: PINK }} />
+          <span>
+            Client agreed to receive text messages
+            {p?.sms_opt_in && p.sms_opt_in_at && <span style={{ color: '#808080' }}> · since {fmtDate(p.sms_opt_in_at)}</span>}
+            <span style={{ display: 'block', fontSize: 11, color: '#bfbfbf' }}>Clients can also turn this on or off themselves in portal settings.</span>
+          </span>
+        </label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Btn>
+          <Btn variant="ghost" onClick={() => remind({ kind: 'custom', clientId }, 'Message client')}>✉ Message Client</Btn>
           <ErrorMsg msg={error} /><SuccessMsg msg={success} />
         </div>
       </form>
+      {dialog}
       <Divider />
       <RequestInboxSection clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
       <Divider />
       <CredentialsSection data={data} api={api} onRefresh={onRefresh} />
       <Divider />
       {/* Every proposal for this client — project-attached ones included. */}
-      <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} api={api} onRefresh={onRefresh} />
+      <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} reminders={data.reminders} api={api} onRefresh={onRefresh} />
       <Divider />
       <ActivitySection activity={data.activity} />
       <Divider />
@@ -968,11 +985,12 @@ function CredentialsSection({ data, api, onRefresh }: {
 }
 
 // ── Proposals Section ──────────────────────────────────────────────────────────
-function ProposalsSection({ clientId, proposals, projects = [], api, onRefresh }: {
-  clientId: string; proposals: Proposal[]; projects?: Project[];
+function ProposalsSection({ clientId, proposals, projects = [], reminders, api, onRefresh }: {
+  clientId: string; proposals: Proposal[]; projects?: Project[]; reminders?: ReminderLog[];
   api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onRefresh: () => void;
 }) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
   const [uploading,        setUploading]        = useState(false);
   const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
   const [error,            setError]            = useState('');
@@ -1046,6 +1064,7 @@ function ProposalsSection({ clientId, proposals, projects = [], api, onRefresh }
 
       <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
       <ErrorMsg msg={error} />
+      {dialog}
 
       {proposals.length === 0 ? (
         <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '12px 0 0' }}>No proposals uploaded yet.</p>
@@ -1090,7 +1109,13 @@ function ProposalsSection({ clientId, proposals, projects = [], api, onRefresh }
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
                   <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
+                  {p.status !== 'signed' && lastRemindedLabel(reminders, 'portal_proposal', p.id) && (
+                    <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(reminders, 'portal_proposal', p.id)}</span>
+                  )}
                   <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                  {p.status !== 'signed' && (
+                    <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => remind({ kind: 'portal_proposal', id: p.id }, 'Remind about proposal')}>Remind</Btn>
+                  )}
                   <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => toggleStatus(p)}>
                     {p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}
                   </Btn>
@@ -1422,7 +1447,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 
           <ProjectSubInvoices   project={project} invoices={projectInvoices}     clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
           <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
-          <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} reminders={data.reminders} api={api} onRefresh={onRefresh} />
           <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubActivity   project={project} activity={projectActivity}     clientId={clientId} api={api} onRefresh={onRefresh} />
@@ -1435,7 +1460,8 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
 // ── Per-project sub-sections ───────────────────────────────────────────────────
 type SubProps = { project: Project; clientId: string; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void; };
 
-function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: SubProps & { proposals: Proposal[] }) {
+function ProjectSubProposals({ project, proposals, clientId, reminders, api, onRefresh }: SubProps & { proposals: Proposal[]; reminders?: ReminderLog[] }) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
   const [uploading,         setUploading]         = useState(false);
   const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
   const [error,             setError]             = useState('');
@@ -1481,6 +1507,7 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
       <SubSectionHead title="Proposal" />
       <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
       <ErrorMsg msg={error} />
+      {dialog}
       {proposals.length > 0 && (
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {proposals.map((p) => {
@@ -1507,6 +1534,9 @@ function ProjectSubProposals({ project, proposals, clientId, api, onRefresh }: S
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
                   <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
                   <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                  {p.status !== 'signed' && (
+                    <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(reminders, 'portal_proposal', p.id) ?? 'Not reminded yet'} onClick={() => remind({ kind: 'portal_proposal', id: p.id }, 'Remind about proposal')}>Remind</Btn>
+                  )}
                   <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { const next = p.status === 'pending' ? 'signed' : 'pending'; await api({ action: 'set_proposal_status', id: p.id, status: next }); onRefresh(); }}>{p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}</Btn>
                   <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_proposal', id: p.id }); onRefresh(); }}>Delete</Btn>
                 </div>
@@ -1654,6 +1684,7 @@ function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: Sub
 
 // ── Per-project: Invoices ─────────────────────────────────────────────────────
 function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; data: ClientData }) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
   const [showForm, setShowForm] = useState(false);
   const [invNum,    setInvNum]    = useState('');
   const [amountDol, setAmountDol] = useState('');
@@ -1739,6 +1770,7 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
 
   return (
     <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      {dialog}
       <SubSectionHead title="Invoices" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
       {showForm && (
         <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1783,9 +1815,15 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
               {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
               <Badge status={inv.status} />
               {inv.subscription_id && <RecurringBadge />}
+              {inv.status !== 'paid' && lastRemindedLabel(data.reminders, 'invoice', inv.id) && (
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(data.reminders, 'invoice', inv.id)}</span>
+              )}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 {inv.status !== 'paid' && (
                   <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>
+                )}
+                {inv.status !== 'paid' && (
+                  <Btn variant="ghost" onClick={() => remind({ kind: 'invoice', id: inv.id }, `Remind about ${inv.invoice_number}`)} style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(data.reminders, 'invoice', inv.id) ?? 'Not reminded yet'}>Remind</Btn>
                 )}
                 {!inv.subscription_id && (
                   <Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '3px 8px', fontSize: 11 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>
@@ -2339,6 +2377,8 @@ function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; d
   const [adding, setAdding] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const done = data.onboarding.filter((s) => s.completed).length;
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const onboardingReminded = lastRemindedLabel(data.reminders, 'onboarding', null);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -2356,11 +2396,17 @@ function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; d
         <div>
           <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Onboarding</h3>
           {data.onboarding.length > 0 && (
-            <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{done} of {data.onboarding.length} completed</div>
+            <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{done} of {data.onboarding.length} completed{done < data.onboarding.length && onboardingReminded ? ` · ${onboardingReminded}` : ''}</div>
           )}
         </div>
-        <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Step'}</Btn>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {done < data.onboarding.length && (
+            <Btn variant="ghost" onClick={() => remind({ kind: 'onboarding', clientId }, 'Remind about onboarding')}>Remind</Btn>
+          )}
+          <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Step'}</Btn>
+        </div>
       </div>
+      {dialog}
 
       {data.onboarding.length > 0 && (
         <div style={{ background: '#f0f0f0', borderRadius: 999, height: 6, marginBottom: 20 }}>

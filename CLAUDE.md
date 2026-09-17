@@ -28,6 +28,10 @@ STRIPE_SECRET_KEY=               # Stripe Checkout for invoice payments
 STRIPE_WEBHOOK_SECRET=           # Stripe webhook signature verification
 CRON_SECRET=                     # Bearer token required by Vercel Cron to call /api/portal/admin/generate-invoices
 PORTAL_CREDENTIALS_KEY=          # 32 random bytes, base64 (`openssl rand -base64 32`) — AES-256-GCM key for the client credentials vault
+TWILIO_ACCOUNT_SID=              # Text messages (optional — texts are simply off without these)
+TWILIO_AUTH_TOKEN=
+TWILIO_MESSAGING_SERVICE_SID=    # Preferred; or TWILIO_FROM_NUMBER=+1... for testing
+CONTACT_NOTIFY_PHONE=            # Lauren's mobile, for texts on signings, declines and new inquiries
 ```
 
 `PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
@@ -77,6 +81,13 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - Passwords and notes are encrypted with AES-256-GCM in `src/lib/credentialCrypto.ts` before they are written, so the DB holds no plaintext.
 - Every read/write goes through a server route with the service role key: `POST /api/portal/credentials` (client, Supabase bearer token; actions `list` / `reveal` / `create` / `update` / `delete`) and the `reveal_credential` / `delete_credential` actions on `/api/admin` (passcode).
 - List responses carry metadata only (`has_secret`, `has_notes`) — a secret leaves the server only in response to an explicit `reveal`. Admin reveals stamp `last_viewed_at` / `last_viewed_by`, which the client sees in their vault.
+
+### Reminders and text messages
+
+- Admin sends reminders from the Remind buttons on unpaid invoices, unsigned proposals (uploaded and builder), unfinished onboarding, and "Message Client" on the profile. The logic is in `src/lib/reminders.ts`; routes are the `reminder_preview` / `send_reminder` actions on `/api/admin` and `GET`/`POST /api/proposals/[id]/remind`.
+- Every client email and text goes through `src/lib/clientNotify.ts`, which resolves a portal client or proposal recipient to one `Contact`. A text is sent only when the client has a phone **and** `sms_opt_in` is true. A Twilio STOP (error 21610) turns `sms_opt_in` off.
+- Every reminder attempt is logged in `client_reminders` (migration `018`, RLS on with no policies).
+- `portal_clients` writes from the browser are limited by column grants to `full_name, company_name, initials, phone, sms_opt_in`. Clients cannot change `role`.
 
 ### Styling
 

@@ -45,6 +45,8 @@ export default function NewProposalPage() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientCompany, setNewClientCompany] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientSms, setNewClientSms] = useState(false);
   const [addingClient, setAddingClient] = useState(false);
 
   useEffect(() => {
@@ -74,12 +76,16 @@ export default function NewProposalPage() {
         name: newClientName.trim(),
         company: newClientCompany.trim() || null,
         email: newClientEmail.trim() || null,
+        phone: newClientPhone.trim() || null,
+        sms_opt_in: newClientSms,
       });
       setClients((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setClientId(created.id);
       setNewClientName('');
       setNewClientCompany('');
       setNewClientEmail('');
+      setNewClientPhone('');
+      setNewClientSms(false);
       show('Client added.');
     } catch (error) {
       show(error instanceof Error ? error.message : 'Could not add client', 'error');
@@ -187,6 +193,27 @@ export default function NewProposalPage() {
                   value={newClientEmail}
                   onChange={(e) => setNewClientEmail(e.target.value)}
                 />
+              </div>
+              <div className={s.field}>
+                <label className={s.label}>Mobile (optional)</label>
+                <input
+                  className={s.input}
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="(555) 123-4567"
+                  value={newClientPhone}
+                  onChange={(e) => setNewClientPhone(e.target.value)}
+                />
+                {newClientPhone.trim() && (
+                  <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={newClientSms}
+                      onChange={(e) => setNewClientSms(e.target.checked)}
+                    />
+                    They agreed to receive text messages
+                  </label>
+                )}
               </div>
               <button
                 type="button"

@@ -356,7 +356,9 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               <a href="/portfolio">Portfolio</a><br />
               <a href="/about">About</a><br />
               <a href="/contact">Contact</a><br />
-              <a href="/portal/login">Client Portal</a>
+              <a href="/portal/login">Client Portal</a><br />
+              <a href="/privacy">Privacy</a><br />
+              <a href="/sms">Text Terms</a>
             </div>
           </div>
           <div>

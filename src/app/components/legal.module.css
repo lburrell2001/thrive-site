@@ -1,0 +1,145 @@
+/* Shared layout for the plain-text legal pages (/privacy, /sms). */
+
+.page {
+  background: #fff;
+  color: #0a0a0a;
+  padding: 80px 24px 96px;
+}
+
+.inner {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.eyebrow {
+  font-family: var(--font-bai), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #e50586;
+  margin: 0 0 12px;
+}
+
+.title {
+  font-family: var(--font-bungee), system-ui, sans-serif;
+  font-size: clamp(32px, 6vw, 52px);
+  line-height: 1.05;
+  margin: 0 0 12px;
+}
+
+.updated {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.55);
+  margin: 0 0 40px;
+}
+
+.page h2 {
+  font-family: var(--font-bungee), system-ui, sans-serif;
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 40px 0 12px;
+}
+
+.page p,
+.page li {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.page ul {
+  padding-left: 20px;
+  margin: 0 0 16px;
+}
+
+.page a {
+  color: #e50586;
+}
+
+.callout {
+  border-left: 4px solid #e50586;
+  background: #fff4fa;
+  padding: 14px 18px;
+  margin: 16px 0;
+  font-weight: 600;
+}
+
+/* A faithful, static copy of the opt-in control in portal settings. */
+.mockCard {
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 16px 0 8px;
+  background: #f6f5f4;
+}
+
+.mockBar {
+  height: 3px;
+  background: #e40586;
+}
+
+.mockBody {
+  background: #fff;
+  margin: 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e5e5;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mockLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: #808080;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.mockInput {
+  border: 1.5px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 14px;
+  color: #808080;
+  background: #fff;
+}
+
+.mockCheck {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mockCheck input {
+  margin-top: 3px;
+  accent-color: #e40586;
+}
+
+.mockFine {
+  display: block;
+  font-size: 11px;
+  color: #808080;
+}
+
+.caption {
+  font-size: 13px !important;
+  color: rgba(0, 0, 0, 0.55) !important;
+  margin: 0 0 16px;
+}
+
+.sample {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  background: #f6f5f4;
+  border-radius: 10px;
+  padding: 14px 16px;
+  white-space: pre-wrap;
+  margin: 8px 0 16px;
+}

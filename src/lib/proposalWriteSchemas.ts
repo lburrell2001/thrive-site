@@ -75,4 +75,11 @@ export const createClientSchema = z.object({
   company: z.string().max(160).nullable().optional(),
   email: z.string().email().max(200).nullable().optional(),
   phone: z.string().max(60).nullable().optional(),
+  /** The client agreed to receive text messages. */
+  sms_opt_in: z.boolean().optional(),
+});
+
+export const updateClientContactSchema = z.object({
+  phone: z.string().max(60).nullable().optional(),
+  sms_opt_in: z.boolean().optional(),
 });

@@ -24,7 +24,23 @@ export async function GET(req: Request) {
     .order('updated_at', { ascending: false });
 
   if (error) return badRequest(error.message);
-  return NextResponse.json({ ok: true, data });
+
+  // When each proposal was last chased, for the list's Remind button.
+  const { data: reminders } = await auth.db
+    .from('client_reminders')
+    .select('target_id, created_at')
+    .eq('target_type', 'proposal')
+    .or('email_status.eq.sent,sms_status.eq.sent')
+    .order('created_at', { ascending: false });
+  const lastReminded = new Map<string, string>();
+  for (const r of reminders ?? []) {
+    if (r.target_id && !lastReminded.has(r.target_id)) lastReminded.set(r.target_id, r.created_at);
+  }
+
+  return NextResponse.json({
+    ok: true,
+    data: (data ?? []).map((row) => ({ ...row, last_reminded_at: lastReminded.get(row.id) ?? null })),
+  });
 }
 
 /** Create a proposal: blank, from a template, or copied from another proposal. */

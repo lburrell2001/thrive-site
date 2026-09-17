@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { formatPhone, normalizePhone } from '@/lib/phone';
+import { SMS_CONSENT_LABEL, SMS_CONSENT_SUMMARY, SMS_CONSENT_TEXT } from '@/lib/smsConsent';
 
 const F = {
   bungee: `var(--font-bungee), 'Bungee', sans-serif`,
@@ -24,6 +26,8 @@ export default function SettingsPage() {
   const [companyName,  setCompanyName]  = useState('');
   const [initials,     setInitials]     = useState('');
   const [email,        setEmail]        = useState('');
+  const [phone,        setPhone]        = useState('');
+  const [smsOptIn,     setSmsOptIn]     = useState(false);
   const [userId,       setUserId]       = useState('');
 
 
@@ -34,12 +38,14 @@ export default function SettingsPage() {
       setUserId(user.id);
       setEmail(user.email ?? '');
       const { data } = await supabasePortal
-        .from('portal_clients').select('full_name, company_name, initials')
+        .from('portal_clients').select('full_name, company_name, initials, phone, sms_opt_in')
         .eq('id', user.id).single();
       if (data) {
         setFullName(data.full_name ?? '');
         setCompanyName(data.company_name ?? '');
         setInitials(data.initials ?? '');
+        setPhone(formatPhone(data.phone));
+        setSmsOptIn(Boolean(data.sms_opt_in));
       }
       setLoading(false);
     }
@@ -49,10 +55,22 @@ export default function SettingsPage() {
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!userId) return;
+    const normalizedPhone = normalizePhone(phone);
+    if (phone.trim() && !normalizedPhone) {
+      setSaveErr('Enter a valid mobile number, e.g. (555) 123-4567');
+      return;
+    }
     setSaving(true); setSaveMsg(''); setSaveErr('');
     const { error: upErr } = await supabasePortal
       .from('portal_clients')
-      .update({ full_name: fullName.trim(), company_name: companyName.trim(), initials: initials.trim().slice(0, 2).toUpperCase() })
+      .update({
+        full_name: fullName.trim(),
+        company_name: companyName.trim(),
+        initials: initials.trim().slice(0, 2).toUpperCase(),
+        phone: normalizedPhone,
+        // No number, nothing to text.
+        sms_opt_in: Boolean(normalizedPhone) && smsOptIn,
+      })
       .eq('id', userId);
     if (upErr) { setSaveErr(upErr.message); setSaving(false); return; }
     setSaveMsg('Profile updated.');
@@ -95,7 +113,21 @@ export default function SettingsPage() {
                   <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</label>
                   <input style={{ ...inp, background: '#f9f9f9', color: '#808080' }} value={email} readOnly />
                 </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mobile</label>
+                  <input style={inp} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 123-4567" />
+                </div>
               </div>
+
+              <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? '#0a0a0a' : '#bfbfbf', lineHeight: 1.5 }}>
+                <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={e => setSmsOptIn(e.target.checked)} style={{ marginTop: 3, accentColor: '#e40586' }} />
+                <span>
+                  <strong>{SMS_CONSENT_LABEL}</strong> — {SMS_CONSENT_SUMMARY}
+                  <span style={{ display: 'block', fontSize: 11, color: '#808080' }}>
+                    {SMS_CONSENT_TEXT} <a href="/sms" target="_blank" style={{ color: '#808080' }}>Terms</a> · <a href="/privacy" target="_blank" style={{ color: '#808080' }}>Privacy</a>
+                  </span>
+                </span>
+              </label>
 
               {saveErr && (
                 <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{saveErr}</p>

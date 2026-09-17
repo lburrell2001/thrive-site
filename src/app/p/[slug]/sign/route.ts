@@ -13,6 +13,7 @@ import {
   parseIpAddress,
 } from '@/lib/proposalSignature';
 import { sendSigningEmails } from '@/lib/proposalEmails';
+import { textAgency } from '@/lib/sms';
 import { pdfFilename } from '@/lib/proposalPdf';
 import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/proposalUrls';
 import { formatMoney } from '@/components/proposal/context';
@@ -160,6 +161,10 @@ export async function POST(
   // watching a spinner, and their approval is already committed, so this runs
   // after the response goes out rather than inside it.
   after(async () => {
+    // First, so a slow PDF render does not delay the good news.
+    await textAgency(
+      `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/proposals/${row.id}/edit`,
+    );
     const pdf = await fetchProposalPdf(site, row.id, row.access_token, renderable.title);
     await sendSigningEmails({
       proposalTitle: renderable.title,

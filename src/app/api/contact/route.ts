@@ -1,9 +1,10 @@
 // src/app/api/contact/route.ts
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { Resend } from "resend";
 import { supabaseService } from "@/lib/supabaseService";
+import { textAgency } from "@/lib/sms";
 
 type Payload = {
   name: string;
@@ -143,6 +144,13 @@ export async function POST(req: Request) {
         { status: 500 }
       );
     }
+
+    // Text Lauren too, if CONTACT_NOTIFY_PHONE is set. After the response.
+    after(() =>
+      textAgency(
+        `New Thrive inquiry from ${name}${projectType && projectType !== "—" ? ` (${projectType})` : ""} — ${email}`
+      )
+    );
 
     // 2) Email notification (secondary outcome) — NEVER block submission
     const RESEND_API_KEY = getEnv("RESEND_API_KEY");

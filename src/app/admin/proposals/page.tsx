@@ -7,6 +7,8 @@ import s from './proposals.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from './adminApi';
 import { Toast, useToast } from './Toast';
 import type { ProposalStatus } from '@/types/proposal';
+import type { ReminderPreview, ReminderResult } from '@/lib/reminders';
+import { ReminderDialog } from '../ReminderDialog';
 
 interface ProposalRow {
   id: string;
@@ -17,6 +19,7 @@ interface ProposalRow {
   currency: string;
   total_cents: number;
   decline_reason: string | null;
+  last_reminded_at: string | null;
   updated_at: string;
   proposal_clients: { id: string; name: string; company: string | null } | null;
 }
@@ -45,6 +48,7 @@ export default function ProposalsListPage() {
   const [rows, setRows] = useState<ProposalRow[] | null>(null);
   const [filter, setFilter] = useState<ProposalStatus | 'all'>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reminding, setReminding] = useState<ProposalRow | null>(null);
   const { toast, show } = useToast();
 
   // Bumped to re-fetch after a delete.
@@ -92,6 +96,11 @@ export default function ProposalsListPage() {
     }
     setBusyId(null);
   }
+
+  const loadReminderPreview = useCallback(
+    () => apiGet<ReminderPreview>(`/api/proposals/${reminding?.id}/remind`),
+    [reminding],
+  );
 
   const visible = rows?.filter((row) => filter === 'all' || row.status === filter) ?? [];
 
@@ -158,6 +167,9 @@ export default function ProposalsListPage() {
                 {row.status === 'declined' && row.decline_reason && (
                   <p className={s.rowReason}>“{row.decline_reason}”</p>
                 )}
+                {(row.status === 'sent' || row.status === 'viewed') && row.last_reminded_at && (
+                  <p className={s.rowMeta}>Reminded {formatDate(row.last_reminded_at)}</p>
+                )}
               </div>
 
               <span className={`${s.badge} ${BADGE[row.status]}`}>{row.status}</span>
@@ -171,6 +183,15 @@ export default function ProposalsListPage() {
               </span>
 
               <div className={s.rowActions}>
+                {(row.status === 'sent' || row.status === 'viewed') && (
+                  <button
+                    type="button"
+                    className={`${s.btn} ${s.btnSmall}`}
+                    onClick={() => setReminding(row)}
+                  >
+                    Remind
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`${s.btn} ${s.btnSmall}`}
@@ -198,6 +219,25 @@ export default function ProposalsListPage() {
           ))}
         </div>
       </div>
+
+      {reminding && (
+        <ReminderDialog
+          key={reminding.id}
+          title="Remind about proposal"
+          loadPreview={loadReminderPreview}
+          send={(input) =>
+            apiSend<ReminderResult>(`/api/proposals/${reminding.id}/remind`, 'POST', {
+              channels: input.channels,
+              note: input.note,
+            })
+          }
+          saveContact={async (clientId, phone, smsOptIn) => {
+            await apiSend(`/api/proposal-clients/${clientId}`, 'PATCH', { phone, sms_opt_in: smsOptIn });
+          }}
+          onClose={() => setReminding(null)}
+          onSent={reload}
+        />
+      )}
 
       <Toast toast={toast} />
     </div>

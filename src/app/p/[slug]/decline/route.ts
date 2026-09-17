@@ -9,6 +9,7 @@ import {
 } from '@/lib/proposalAccess';
 import { parseIpAddress } from '@/lib/proposalSignature';
 import { sendDeclineEmails } from '@/lib/proposalEmails';
+import { textAgency } from '@/lib/sms';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { formatMoney } from '@/components/proposal/context';
 
@@ -117,6 +118,9 @@ export async function POST(
       adminUrl: `${site}/admin/proposals/${row.id}/edit`,
       ipAddress,
     });
+    await textAgency(
+      `Declined: ${renderable.title}${input.declinedBy ? ` by ${input.declinedBy}` : ''}. Reason: ${input.reason.slice(0, 200)} ${site}/admin/proposals/${row.id}/edit`,
+    );
   });
 
   return NextResponse.json({

@@ -1,69 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { Resend } from 'resend';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { decryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
 import { loadProposalById } from '@/lib/proposalRepo';
+import { notifyPortalClient } from '@/lib/clientNotify';
+import { normalizePhone } from '@/lib/phone';
+import { resolveSiteOrigin } from '@/lib/proposalUrls';
+import {
+  ReminderError,
+  previewReminder,
+  reminderTargetSchema,
+  sendReminder,
+  sendReminderSchema,
+} from '@/lib/reminders';
 
-const PORTAL_URL = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.org'}/portal/dashboard`;
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://thrivecreativestudios.org').replace(/\/$/, '');
 
-function escHtml(s: string) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+const PORTAL_URL = `${SITE_URL}/portal/dashboard`;
 
-async function notifyClient(
+/**
+ * Portal update: always emailed, and texted too when `sms` is given and the
+ * client has opted in. Fire-and-forget — never blocks the admin action.
+ */
+function notifyClient(
   admin: ReturnType<typeof getAdmin>,
   clientId: string,
   subject: string,
   headline: string,
   detail: string,
+  opts: { sms?: string; path?: string; ctaLabel?: string } = {},
 ) {
-  const resendKey  = process.env.RESEND_API_KEY;
-  const notifyFrom = process.env.CONTACT_NOTIFY_FROM;
-  if (!resendKey || !notifyFrom) return;
-  try {
-    const [authRes, profileRes] = await Promise.all([
-      admin.auth.admin.getUserById(clientId),
-      admin.from('portal_clients').select('full_name').eq('id', clientId).single(),
-    ]);
-    const clientEmail = authRes.data.user?.email;
-    if (!clientEmail) return;
-    const firstName = (profileRes.data?.full_name ?? '').split(' ')[0] || 'there';
-
-    const resend = new Resend(resendKey);
-    await resend.emails.send({
-      from: notifyFrom,
-      to: clientEmail,
+  // after() keeps the function alive until the email and text are out,
+  // without making the admin wait on them.
+  after(() =>
+    notifyPortalClient(admin, clientId, {
       subject,
-      text: `Hi ${firstName},\n\n${headline}\n\n${detail}\n\nLog in to your portal:\n${PORTAL_URL}`,
-      html: `
-        <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
-          <div style="max-width:600px;margin:0 auto;padding:28px;">
-            <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
-              <div style="background:#0b0b0f;border-radius:16px;padding:20px 22px 16px;">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div style="width:12px;height:12px;border-radius:999px;background:#ff2ea6;box-shadow:0 0 0 4px rgba(255,46,166,.18);"></div>
-                  <div style="color:#fff;font-weight:900;font-size:15px;">Thrive Creative Studios</div>
-                </div>
-                <div style="margin-top:6px;color:#d7d7e0;font-size:13px;">Your client portal has been updated.</div>
-              </div>
-            </div>
-            <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
-              <div style="color:#fff;font-size:17px;font-weight:900;margin-bottom:6px;">Hi ${escHtml(firstName)},</div>
-              <div style="color:#d7d7e0;font-size:14px;line-height:1.6;margin-bottom:8px;">${escHtml(headline)}</div>
-              ${detail ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;color:#fff;font-size:13px;line-height:1.6;margin-bottom:16px;">${escHtml(detail)}</div>` : ''}
-              <a href="${PORTAL_URL}" style="display:inline-block;background:#ff2ea6;color:#0b0b0f;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">View Portal →</a>
-            </div>
-            <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
-              Thrive Creative Studios · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-            </div>
-          </div>
-        </div>
-      `,
-    });
-  } catch (e) {
-    console.error('Client notification failed:', e);
-  }
+      headline,
+      detail,
+      ctaUrl: opts.path ? `${SITE_URL}${opts.path}` : PORTAL_URL,
+      ctaLabel: opts.ctaLabel ?? 'View Portal',
+      sms: opts.sms ?? null,
+    }),
+  );
 }
 
 async function logActivity(
@@ -133,7 +111,7 @@ export async function POST(req: NextRequest) {
         const clientId = params.clientId as string;
         // Refresh overdue status so the admin view is always accurate without waiting for cron.
         await markOverdueInvoices(admin);
-        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions, credentials] = await Promise.all([
+        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions, credentials, reminders] = await Promise.all([
           admin.auth.admin.getUserById(clientId),
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -150,6 +128,10 @@ export async function POST(req: NextRequest) {
           admin.from('portal_credentials')
             .select('id, project_id, label, category, site_url, username, secret_encrypted, notes_encrypted, last_viewed_at, last_viewed_by, created_at, updated_at')
             .eq('client_id', clientId).order('created_at', { ascending: false }),
+          admin.from('client_reminders')
+            .select('id, target_type, target_id, email_status, sms_status, created_at')
+            .eq('portal_client_id', clientId).or('email_status.eq.sent,sms_status.eq.sent')
+            .order('created_at', { ascending: false }).limit(200),
         ]);
         return NextResponse.json({
           ok: true,
@@ -164,6 +146,7 @@ export async function POST(req: NextRequest) {
             activity: activity.data ?? [],
             proposals: proposals.data ?? [],
             subscriptions: subscriptions.data ?? [],
+            reminders: reminders.data ?? [],
             credentials: (credentials.data ?? []).map((c) => ({
               id: c.id,
               project_id: c.project_id,
@@ -203,12 +186,21 @@ export async function POST(req: NextRequest) {
       }
 
       case 'update_profile': {
-        const { clientId, full_name, company_name, initials, email } = params as Record<string, string>;
+        const { clientId, full_name, company_name, initials, email, phone, sms_opt_in } = params as Record<string, string> & { sms_opt_in?: boolean };
+        const profile: Record<string, unknown> = { full_name, company_name, initials };
+        if (phone !== undefined) {
+          const normalized = normalizePhone(phone);
+          if (phone.trim() && !normalized) return err('Enter a valid mobile number, e.g. (555) 123-4567');
+          profile.phone = normalized;
+          // No number, nothing to consent to.
+          if (!normalized) profile.sms_opt_in = false;
+        }
+        if (sms_opt_in !== undefined && profile.sms_opt_in === undefined) profile.sms_opt_in = Boolean(sms_opt_in);
         if (email) {
           const { error: emailErr } = await admin.auth.admin.updateUserById(clientId, { email });
           if (emailErr) return err(emailErr.message);
         }
-        const { error } = await admin.from('portal_clients').update({ full_name, company_name, initials }).eq('id', clientId);
+        const { error } = await admin.from('portal_clients').update(profile).eq('id', clientId);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }
@@ -289,6 +281,7 @@ export async function POST(req: NextRequest) {
           `Invoice ${invoice_number} — ${fmtAmt} due`,
           `A new invoice has been added to your portal.`,
           project_name ? `Project: ${project_name as string}\nAmount: ${fmtAmt}` : `Amount: ${fmtAmt}`,
+          { sms: `new invoice ${invoice_number} for ${fmtAmt}. View and pay:`, path: '/portal/invoices', ctaLabel: 'View invoice' },
         );
         return NextResponse.json({ ok: true, data });
       }
@@ -418,6 +411,7 @@ export async function POST(req: NextRequest) {
           'A new file has been delivered to your portal',
           `A new file is ready for you: ${name}`,
           projectName ? `Project: ${projectName}` : '',
+          { sms: `a new file is ready for you: ${name}.`, path: '/portal/files' },
         );
         return NextResponse.json({ ok: true, data });
       }
@@ -618,6 +612,7 @@ export async function POST(req: NextRequest) {
           'A proposal is ready for your review',
           `A proposal has been uploaded for you to review and sign: ${name}`,
           'Log in to your portal to download, sign, and return it.',
+          { sms: `a proposal is ready for you to review and sign: ${name}.`, path: '/portal/files', ctaLabel: 'Review proposal' },
         );
         return NextResponse.json({ ok: true, data });
       }
@@ -638,6 +633,7 @@ export async function POST(req: NextRequest) {
           'Your signed proposal is ready',
           `The signed version of "${proposal.name}" is now available in your portal.`,
           'Log in to download your copy.',
+          { sms: `your signed copy of "${proposal.name}" is ready to download.`, path: '/portal/files' },
         );
         return NextResponse.json({ ok: true });
       }
@@ -684,6 +680,32 @@ export async function POST(req: NextRequest) {
           .order('updated_at', { ascending: false });
         if (error) return err(error.message);
         return NextResponse.json({ ok: true, data });
+      }
+
+      // ---------------------------------------------------------- reminders
+
+      case 'reminder_preview': {
+        const parsed = reminderTargetSchema.safeParse(params.target);
+        if (!parsed.success) return err('Invalid reminder target');
+        try {
+          const data = await previewReminder(admin, parsed.data, resolveSiteOrigin(req));
+          return NextResponse.json({ ok: true, data });
+        } catch (e) {
+          if (e instanceof ReminderError) return err(e.message);
+          throw e;
+        }
+      }
+
+      case 'send_reminder': {
+        const parsed = sendReminderSchema.safeParse(params);
+        if (!parsed.success) return err(parsed.error.issues[0]?.message ?? 'Invalid reminder');
+        try {
+          const data = await sendReminder(admin, parsed.data, resolveSiteOrigin(req));
+          return NextResponse.json({ ok: true, data });
+        } catch (e) {
+          if (e instanceof ReminderError) return err(e.message);
+          throw e;
+        }
       }
 
       case 'reveal_credential': {
