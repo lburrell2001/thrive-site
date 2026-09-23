@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Bai_Jamjuree } from 'next/font/google';
+import { markThisBrowserAsAdmin } from '../components/SiteTracker';
 
 const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
@@ -41,6 +42,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
       sessionStorage.setItem('admin_passcode', passcode);
+      // Lauren's own visits to the site should not count as traffic.
+      markThisBrowserAsAdmin();
       setAuthed(true);
     } catch {
       setError('Connection error. Try again.');
@@ -135,6 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isServices  = pathname?.startsWith('/admin/services');
   const isProposals = pathname?.startsWith('/admin/proposals');
   const isCrm       = pathname?.startsWith('/admin/crm');
+  const isAnalytics = pathname?.startsWith('/admin/analytics');
 
   return (
     <div className={`${baiJamjuree.variable}`} style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f6f5f4' }}>
@@ -197,8 +201,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             style={{
               fontFamily: F.inter, fontSize: 12, fontWeight: 600,
               padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
-              background: !isPortfolio && !isServices && !isProposals && !isCrm ? '#1f1f1f' : 'transparent',
-              color: !isPortfolio && !isServices && !isProposals && !isCrm ? '#fff' : '#666',
+              background: !isPortfolio && !isServices && !isProposals && !isCrm && !isAnalytics ? '#1f1f1f' : 'transparent',
+              color: !isPortfolio && !isServices && !isProposals && !isCrm && !isAnalytics ? '#fff' : '#666',
               transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
             }}
           >
@@ -215,6 +219,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
           >
             CRM
+          </a>
+          <a
+            href="/admin/analytics"
+            style={{
+              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
+              background: isAnalytics ? '#0a7d4a' : 'transparent',
+              color: isAnalytics ? '#fff' : '#666',
+              transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+            }}
+          >
+            Analytics
           </a>
           <a
             href="/admin/proposals"

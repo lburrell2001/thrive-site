@@ -143,7 +143,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       .order('due_date', { ascending: true, nullsFirst: false }),
     db.from('crm_activities').select('*').eq('contact_id', id).order('created_at', { ascending: false }).limit(300),
     db.from('contact_inquiries')
-      .select('id, created_at, project_type, budget, timeline, message, status')
+      .select('id, created_at, project_type, budget, timeline, message, status, source, first_source')
       .eq('crm_contact_id', id).order('created_at', { ascending: false }),
     db.from('client_reminders').select('*').or(reminderFilter).order('created_at', { ascending: false }).limit(200),
     recipientIds.length
@@ -188,7 +188,11 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       kind: 'inquiry',
       at: i.created_at,
       title: `Website inquiry${i.project_type ? ` · ${i.project_type}` : ''}`,
-      meta: [i.budget && `Budget ${i.budget}`, i.timeline && `Timeline ${i.timeline}`].filter(Boolean).join(' · ') || null,
+      meta: [
+        i.source && `Via ${i.source}${i.first_source && i.first_source !== i.source ? ` (first found via ${i.first_source})` : ''}`,
+        i.budget && `Budget ${i.budget}`,
+        i.timeline && `Timeline ${i.timeline}`,
+      ].filter(Boolean).join(' · ') || null,
       body: i.message,
     });
   }

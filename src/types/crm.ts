@@ -78,6 +78,9 @@ export interface CrmInquiry {
   timeline: string | null;
   message: string | null;
   status: string;
+  /** Where the visit that sent it came from; null before tracking. */
+  source: string | null;
+  first_source: string | null;
 }
 
 export interface CrmLinkedProposal {

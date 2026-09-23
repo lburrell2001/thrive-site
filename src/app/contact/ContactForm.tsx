@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { readAttribution } from "../components/SiteTracker";
 
 declare global {
   interface Window {
@@ -93,6 +94,7 @@ export default function ContactForm() {
       message: String(formData.get("message") || "").trim(),
       pageUrl: typeof window !== "undefined" ? window.location.href : "",
       referrer: typeof document !== "undefined" ? document.referrer : "",
+      attribution: readAttribution(),
     };
 
     try {

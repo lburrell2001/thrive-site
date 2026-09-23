@@ -98,6 +98,15 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - The contact timeline is assembled at read time in `src/lib/crmRepo.ts` from `crm_activities`, inquiries, `client_reminders`, builder proposals, uploaded proposals and invoices. It is not copied into one table.
 - Routes: `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, all gated by `requireAdmin`. "Message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
 
+### Site analytics
+
+`/admin/analytics` reports first-party traffic from `site_pageviews` (migration `020`, RLS on with no policies). Vercel Analytics and GTM/Google Ads still run alongside it, but their data can't be read back into admin; this can, and it joins to the CRM.
+
+- `src/app/components/SiteTracker.tsx` (mounted in the root layout, production only) posts page views to `POST /api/track`. No cookies: a session id in sessionStorage, the first-ever visit's source in localStorage. `/admin`, `/portal`, `/p/` and `/api` are never tracked, nor is any browser that has signed in to admin (`thrive_no_track` in localStorage).
+- `/api/track` is public: it drops bots, caps every field, classifies the source server-side (`src/lib/trafficSource.ts`), and stores a daily-rotating HMAC of IP + user agent instead of the IP (`ANALYTICS_SALT` if set, else the service role key).
+- The contact form sends its session id and first-touch source; `/api/contact` stores `source`, `channel`, `landing_path`, `first_source` etc. on the inquiry. If those columns are missing it retries the insert without them, so the form never fails on attribution.
+- `src/lib/analyticsReport.ts` aggregates in TypeScript (days in America/Chicago); `src/lib/trafficInsights.ts` holds the rules behind "How to grow traffic".
+
 ### Styling
 
 Global design tokens (CSS custom properties) are defined in `src/app/globals.css` under the `:root` block — brand palette, spacing, typography. Page-level scoped styles use CSS Modules (e.g. `WorkPage.module.css`, `ProjectPage.module.css`). Tailwind utility classes are used inline for layout/spacing throughout.
