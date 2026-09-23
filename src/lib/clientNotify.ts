@@ -32,6 +32,7 @@ export interface ClientMessage {
   detail?: string;
   /** A personal line from Lauren, shown on its own. */
   note?: string | null;
+  /** Empty for a message with no button, e.g. to a lead with no portal. */
   ctaUrl: string;
   ctaLabel: string;
   /** Text message body without the brand prefix or link; null for no text. */
@@ -111,11 +112,54 @@ export async function proposalClientContact(
   };
 }
 
+/**
+ * A CRM contact: through their portal login when they have one, else their
+ * most recent proposal recipient record (both carry text consent), else the
+ * contact's own email. A contact with neither has never agreed to texts, so
+ * they can only be emailed.
+ */
+export async function crmContact(db: SupabaseClient, crmContactId: string): Promise<Contact | null> {
+  const { data } = await db
+    .from('crm_contacts')
+    .select('id, name, email, phone, portal_client_id, proposal_clients ( id, created_at )')
+    .eq('id', crmContactId)
+    .maybeSingle();
+  if (!data) return null;
+
+  const linked = data.portal_client_id
+    ? await portalContact(db, data.portal_client_id)
+    : null;
+  if (linked) return { ...linked, email: linked.email ?? data.email ?? null };
+
+  const recipients = ((data.proposal_clients ?? []) as { id: string; created_at: string }[])
+    .toSorted((a, b) => b.created_at.localeCompare(a.created_at));
+  if (recipients[0]) {
+    const viaProposal = await proposalClientContact(db, recipients[0].id);
+    if (viaProposal) return { ...viaProposal, email: viaProposal.email ?? data.email ?? null };
+  }
+
+  const name = data.name ?? '';
+  return {
+    portalClientId: null,
+    proposalClientId: null,
+    name,
+    firstName: firstNameOf(name),
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    smsOptIn: false,
+    smsSource: null,
+  };
+}
+
 /** Why a text cannot go to this contact, or null if it can. */
 export function smsBlockedReason(contact: Contact): string | null {
   if (!smsConfigured()) return 'Text messages are not set up yet';
   if (!contact.phone) return 'No mobile number on file';
-  if (!contact.smsOptIn) return 'Client has not agreed to receive texts';
+  if (!contact.smsOptIn) {
+    return contact.smsSource
+      ? 'Client has not agreed to receive texts'
+      : 'No text consent on file — send a proposal or portal invite first';
+  }
   return null;
 }
 
@@ -141,7 +185,7 @@ function emailHtml(contact: Contact, m: ClientMessage): string {
           <div style="color:#d7d7e0;font-size:14px;line-height:1.6;margin-bottom:8px;white-space:pre-line;">${esc(m.headline)}</div>
           ${m.detail ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;color:#fff;font-size:13px;line-height:1.6;margin-bottom:16px;white-space:pre-line;">${esc(m.detail)}</div>` : ''}
           ${m.note ? `<div style="border-left:3px solid #ff2ea6;padding:4px 0 4px 14px;color:#fff;font-size:14px;line-height:1.6;margin-bottom:16px;white-space:pre-line;">${esc(m.note)}</div>` : ''}
-          <a href="${esc(m.ctaUrl)}" style="display:inline-block;background:#ff2ea6;color:#0b0b0f;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">${esc(m.ctaLabel)} →</a>
+          ${m.ctaUrl ? `<a href="${esc(m.ctaUrl)}" style="display:inline-block;background:#ff2ea6;color:#0b0b0f;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">${esc(m.ctaLabel)} →</a>` : ''}
         </div>
         <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
           Thrive Creative Studios · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -157,7 +201,7 @@ function emailText(contact: Contact, m: ClientMessage): string {
     m.headline,
     m.detail,
     m.note,
-    `${m.ctaLabel}:\n${m.ctaUrl}`,
+    m.ctaUrl && `${m.ctaLabel}:\n${m.ctaUrl}`,
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -165,7 +209,8 @@ function emailText(contact: Contact, m: ClientMessage): string {
 
 function smsText(m: ClientMessage): string {
   const note = m.note ? `\n\n${m.note.trim()}` : '';
-  return `Thrive Creative Studios: ${m.sms} ${m.ctaUrl}${note}\n\nReply STOP to opt out.`;
+  const link = m.ctaUrl ? ` ${m.ctaUrl}` : '';
+  return `Thrive Creative Studios: ${m.sms}${link}${note}\n\nReply STOP to opt out.`;
 }
 
 const SKIPPED: ChannelReport = { status: 'skipped', to: null, error: null };

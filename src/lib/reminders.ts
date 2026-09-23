@@ -9,6 +9,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import {
+  crmContact,
   deliver,
   portalContact,
   proposalClientContact,
@@ -29,9 +30,22 @@ export const reminderTargetSchema = z.discriminatedUnion('kind', [
     // Optional so the dialog can preview before a subject is typed.
     subject: z.string().trim().max(160).optional(),
   }),
+  // A free-form message to anyone in the CRM, portal login or not.
+  z.object({
+    kind: z.literal('crm_contact'),
+    id: z.string().uuid(),
+    subject: z.string().trim().max(160).optional(),
+  }),
 ]);
 
 export type ReminderTarget = z.infer<typeof reminderTargetSchema>;
+
+/** Targets whose note is the whole message, with a subject Lauren writes. */
+function isFreeForm(
+  target: ReminderTarget,
+): target is Extract<ReminderTarget, { kind: 'custom' | 'crm_contact' }> {
+  return target.kind === 'custom' || target.kind === 'crm_contact';
+}
 
 export const sendReminderSchema = z
   .object({
@@ -40,10 +54,10 @@ export const sendReminderSchema = z
     note: z.string().trim().max(600).optional(),
   })
   .refine((v) => v.channels.email || v.channels.sms, { message: 'Choose email, text, or both' })
-  .refine((v) => v.target.kind !== 'custom' || Boolean(v.target.subject), {
+  .refine((v) => !isFreeForm(v.target) || Boolean(v.target.subject), {
     message: 'Add a subject',
   })
-  .refine((v) => v.target.kind !== 'custom' || Boolean(v.note), {
+  .refine((v) => !isFreeForm(v.target) || Boolean(v.note), {
     message: 'Write the message to send',
   });
 
@@ -217,6 +231,27 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
         },
       };
     }
+
+    case 'crm_contact': {
+      const contact = await crmContact(db, target.id);
+      if (!contact) throw new ReminderError('Contact not found');
+      const portal = Boolean(contact.portalClientId);
+      return {
+        contact,
+        targetType: 'crm_contact',
+        targetId: target.id,
+        summary: 'Message',
+        message: {
+          subject: target.subject || 'A note from Thrive Creative Studios',
+          eyebrow: 'A note from Thrive Creative Studios',
+          headline: '',
+          // Only portal clients have somewhere to go.
+          ctaUrl: portal ? `${site}/portal/dashboard` : '',
+          ctaLabel: portal ? 'Open your portal' : '',
+          sms: '',
+        },
+      };
+    }
   }
 }
 
@@ -294,7 +329,7 @@ export async function sendReminder(
   const prepared = await prepare(db, input.target, site);
   const note = input.note || null;
   const message: ClientMessage =
-    input.target.kind === 'custom'
+    isFreeForm(input.target)
       ? { ...prepared.message, headline: note ?? '', note: null, sms: note }
       : { ...prepared.message, note };
 

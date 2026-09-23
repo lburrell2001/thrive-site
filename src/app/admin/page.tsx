@@ -303,6 +303,9 @@ export default function AdminPage() {
     api({ action: 'list_clients' }).then((r) => {
       if (!r.error) setClients((r.data as Client[]) ?? []);
       setLoading(false);
+      // Deep link from the CRM: /admin?client=<id>
+      const wanted = new URLSearchParams(window.location.search).get('client');
+      if (wanted && ((r.data as Client[]) ?? []).some((c) => c.id === wanted)) setSelectedId(wanted);
     });
   }, [api]);
 
@@ -501,6 +504,9 @@ export default function AdminPage() {
                         <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{label}</div>
                       </div>
                     ))}
+                    <a href={`/admin/crm?portal=${selectedId}`} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
+                      View in CRM →
+                    </a>
                     <Btn variant="danger" onClick={async () => {
                       if (!confirm(`Delete ${clientData.profile?.full_name} and all their data?`)) return;
                       await api({ action: 'delete_client', clientId: selectedId });

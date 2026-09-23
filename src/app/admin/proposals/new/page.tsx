@@ -59,8 +59,14 @@ export default function NewProposalPage() {
       if (t.status === 'fulfilled') setTemplates(t.value ?? []);
       if (c.status === 'fulfilled') setClients(c.value ?? []);
       if (p.status === 'fulfilled') setProposals(p.value ?? []);
+      // ?client=<id> when started from a CRM contact.
+      const params = new URLSearchParams(window.location.search);
+      const requestedClient = params.get('client');
+      if (requestedClient && c.status === 'fulfilled' && (c.value ?? []).some((row) => row.id === requestedClient)) {
+        setClientId(requestedClient);
+      }
       // An explicit ?template=<id> beats the default, which beats blank.
-      const requested = new URLSearchParams(window.location.search).get('template');
+      const requested = params.get('template');
       const available = t.status === 'fulfilled' ? t.value ?? [] : [];
       const chosen =
         available.find((row) => row.id === requested) ?? available.find((row) => row.is_default);

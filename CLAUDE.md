@@ -89,6 +89,15 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - Every reminder attempt is logged in `client_reminders` (migration `018`, RLS on with no policies).
 - `portal_clients` writes from the browser are limited by column grants to `full_name, company_name, initials, phone, sms_opt_in`. Clients cannot change `role`.
 
+### CRM
+
+`/admin/crm` is a pipeline board (New lead → Contacted → Proposal sent → Won / Lost) over `crm_contacts` (migration `019`, RLS on with no policies).
+
+- One contact per person, whichever way they arrived. `contact_inquiries.crm_contact_id` and `proposal_clients.crm_contact_id` point at a contact; `crm_contacts.portal_client_id` links a portal login. Database triggers create or link the contact (matched on lowercased email) whenever one of those rows is inserted, so no route has to remember to.
+- Proposals move contacts forward automatically: sent/viewed → `proposal`, signed → `won`. Stages never move backward on their own. Every stage change is logged to `crm_activities` by trigger.
+- The contact timeline is assembled at read time in `src/lib/crmRepo.ts` from `crm_activities`, inquiries, `client_reminders`, builder proposals, uploaded proposals and invoices. It is not copied into one table.
+- Routes: `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, all gated by `requireAdmin`. "Message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
+
 ### Styling
 
 Global design tokens (CSS custom properties) are defined in `src/app/globals.css` under the `:root` block — brand palette, spacing, typography. Page-level scoped styles use CSS Modules (e.g. `WorkPage.module.css`, `ProjectPage.module.css`). Tailwind utility classes are used inline for layout/spacing throughout.
