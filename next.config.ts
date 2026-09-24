@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  async redirects() {
+    return [
+      // The homepage is served from app/newhomepage; keep its old address
+      // from being indexed as a second copy of the homepage.
+      { source: "/newhomepage", destination: "/", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {
