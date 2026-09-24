@@ -26,6 +26,8 @@ const pageviewSchema = z.object({
   utm_medium: text(100),
   utm_campaign: text(150),
   utm_content: text(150),
+  // utm_term is accepted but not stored: site_pageviews has no column for
+  // it, and paid-search keywords are not something these links carry.
   utm_term: text(150),
   click: z.enum(['gclid', 'fbclid', 'msclkid']).nullish(),
 });
@@ -121,7 +123,6 @@ export async function POST(req: Request) {
       utm_medium: data.landing ? data.utm_medium : null,
       utm_campaign: data.landing ? data.utm_campaign : null,
       utm_content: data.landing ? data.utm_content : null,
-      utm_term: data.landing ? data.utm_term : null,
       click_id: data.landing ? data.click ?? null : null,
       device: deviceOf(ua),
       country: header(req, 'x-vercel-ip-country'),
