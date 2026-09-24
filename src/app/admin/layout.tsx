@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Bai_Jamjuree } from 'next/font/google';
 import { markThisBrowserAsAdmin } from '../components/SiteTracker';
@@ -140,6 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isCrm       = pathname?.startsWith('/admin/crm');
   const isAnalytics = pathname?.startsWith('/admin/analytics');
   const isClients   = pathname?.startsWith('/admin/clients');
+  const isJournal   = pathname?.startsWith('/admin/journal');
+  const isReviews   = pathname?.startsWith('/admin/reviews');
+  const isCalls     = pathname?.startsWith('/admin/calls');
   const isHome      = pathname === '/admin';
 
   return (
@@ -235,6 +239,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             CRM
           </a>
           <a
+            href="/admin/calls"
+            style={{
+              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
+              background: isCalls ? '#0f766e' : 'transparent',
+              color: isCalls ? '#fff' : '#666',
+              transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+            }}
+          >
+            Calls
+          </a>
+          <a
             href="/admin/analytics"
             style={{
               fontFamily: F.inter, fontSize: 12, fontWeight: 600,
@@ -245,6 +261,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             }}
           >
             Analytics
+          </a>
+          <Link
+            href="/admin/journal"
+            style={{
+              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
+              background: isJournal ? '#c2410c' : 'transparent',
+              color: isJournal ? '#fff' : '#666',
+              transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+            }}
+          >
+            Journal
+          </Link>
+          <a
+            href="/admin/reviews"
+            style={{
+              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
+              background: isReviews ? '#b45309' : 'transparent',
+              color: isReviews ? '#fff' : '#666',
+              transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+            }}
+          >
+            Reviews
           </a>
           <a
             href="/admin/proposals"

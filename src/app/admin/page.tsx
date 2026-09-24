@@ -150,6 +150,22 @@ export default function AdminHome() {
                 ))}
               </Panel>
 
+              <Panel id="calls" title="Upcoming calls" link={{ href: '/admin/calls', label: 'Calls' }} empty={d.upcomingCalls.length === 0 ? 'No calls booked this week.' : null}>
+                {d.upcomingCalls.map((c) => (
+                  <li key={c.id} className={s.item}>
+                    <div className={s.itemMain}>
+                      <Link href={c.contact_id ? `/admin/crm?contact=${c.contact_id}` : '/admin/calls'} className={s.itemTitle}>
+                        {c.name}{c.company ? ` · ${c.company}` : ''}
+                      </Link>
+                      {c.notes && <p className={s.itemSub}>“{c.notes.length > 100 ? `${c.notes.slice(0, 100)}…` : c.notes}”</p>}
+                    </div>
+                    <span className={`${s.when} ${new Date(c.starts_at).toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }) === d.today ? s.today : ''}`}>
+                      {new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+                    </span>
+                  </li>
+                ))}
+              </Panel>
+
               <Panel id="proposals" title="Waiting on a signature" link={{ href: '/admin/proposals', label: 'Proposals' }} empty={d.proposalsAwaiting.length === 0 ? 'Nothing out for signature.' : null}>
                 {d.proposalsAwaiting.map((pr) => (
                   <li key={`${pr.kind}:${pr.id}`} className={s.item}>
@@ -198,6 +214,29 @@ export default function AdminHome() {
                     >
                       Remind
                     </button>
+                  </li>
+                ))}
+              </Panel>
+
+              <Panel id="reviews" title="Reviews" link={{ href: '/admin/reviews', label: 'Reviews' }} empty={d.reviewsToApprove.length === 0 && d.reviewCandidates.length === 0 ? 'Nothing to approve, and no recent wins waiting for a review request.' : null}>
+                {d.reviewsToApprove.map((r) => (
+                  <li key={r.id} className={s.item}>
+                    <span className={s.dot} aria-hidden="true" />
+                    <div className={s.itemMain}>
+                      <Link href="/admin/reviews" className={s.itemTitle}>
+                        {r.display_name ?? 'Client'}{r.rating ? ` · ${'★'.repeat(r.rating)}` : ''} — approve?
+                      </Link>
+                      {r.body && <p className={s.itemSub}>“{r.body.length > 110 ? `${r.body.slice(0, 110)}…` : r.body}”</p>}
+                    </div>
+                    <span className={s.when}>{ago(r.submitted_at)}</span>
+                  </li>
+                ))}
+                {d.reviewCandidates.map((c) => (
+                  <li key={c.deal_id} className={s.item}>
+                    <div className={s.itemMain}>
+                      <Link href={`/admin/crm?contact=${c.contact_id}&deal=${c.deal_id}`} className={s.itemTitle}>Ask {c.contact_name} for a review</Link>
+                      <p className={s.itemSub}>{c.deal_title} · won {ago(c.won_at)}</p>
+                    </div>
                   </li>
                 ))}
               </Panel>

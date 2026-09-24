@@ -1,0 +1,292 @@
+/* ======================================================================
+   JOURNAL — the public index and article pages. .prose is also used by
+   the admin editor's preview, so what Lauren sees is what gets published.
+   ====================================================================== */
+
+.page {
+  background: #fff;
+  color: #0a0a0a;
+  padding: 160px 80px 100px;
+  box-sizing: border-box;
+}
+
+.eyebrow {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #888;
+  margin: 0 0 12px;
+}
+
+.pageTitle {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 20px;
+}
+
+.lede {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 18px;
+  line-height: 1.7;
+  color: #555;
+  max-width: 620px;
+  margin: 0 0 56px;
+}
+
+/* ------------------------------------------------------------ index */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  transition: transform 0.2s, border-color 0.2s;
+}
+
+.card:hover { transform: translateY(-4px); border-color: #ccc; }
+.card:focus-visible { outline: 3px solid #e40586; outline-offset: 3px; }
+
+.cardImage {
+  aspect-ratio: 16 / 10;
+  background: #f5f4f2;
+  overflow: hidden;
+}
+
+.cardImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 22px 24px;
+  flex: 1;
+}
+
+.cardMeta {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #999;
+  margin: 0;
+}
+
+.cardTitle {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.cardExcerpt {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: #666;
+  margin: 0;
+}
+
+.empty {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 16px;
+  color: #777;
+}
+
+/* ---------------------------------------------------------- article */
+
+.article {
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+.back {
+  display: inline-block;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #888;
+  text-decoration: none;
+  margin-bottom: 28px;
+}
+
+.back:hover { color: #0a0a0a; }
+
+.articleTitle {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: clamp(32px, 5vw, 54px);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin: 0 0 18px;
+}
+
+.articleMeta {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 14px;
+  color: #777;
+  margin: 0 0 32px;
+}
+
+.cover {
+  margin: 0 0 40px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f5f4f2;
+}
+
+.cover img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.prose {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 18px;
+  line-height: 1.8;
+  color: #222;
+}
+
+.prose p { margin: 0 0 1.3em; }
+
+.prose h2 {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 1.8em 0 0.6em;
+  color: #0a0a0a;
+  scroll-margin-top: 120px;
+}
+
+.prose h3 {
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 1.5em 0 0.5em;
+  color: #0a0a0a;
+  scroll-margin-top: 120px;
+}
+
+.prose ul,
+.prose ol { margin: 0 0 1.3em; padding-left: 1.3em; }
+.prose li { margin: 0.35em 0; }
+.prose li::marker { color: #e40586; }
+
+.prose a {
+  color: #0a0a0a;
+  text-decoration: underline;
+  text-decoration-color: #e40586;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.prose a:hover { color: #e40586; }
+
+.prose blockquote {
+  margin: 1.6em 0;
+  padding: 4px 0 4px 22px;
+  border-left: 4px solid #e40586;
+  font-size: 20px;
+  font-weight: 600;
+  color: #0a0a0a;
+}
+
+.prose blockquote p { margin: 0; }
+
+.prose figure { margin: 2em 0; }
+
+.prose img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  display: block;
+}
+
+.prose figcaption {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #888;
+}
+
+.cta {
+  margin-top: 56px;
+  border-radius: 16px;
+  padding: 36px;
+  color: #fff;
+}
+
+.ctaTitle {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 0 0 10px;
+}
+
+.ctaText {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0 0 22px;
+  opacity: 0.85;
+}
+
+.ctaActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ctaButton {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 13px 24px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-decoration: none;
+}
+
+.more {
+  max-width: 1120px;
+  margin: 96px auto 0;
+}
+
+.moreTitle {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin: 0 0 24px;
+}
+
+@media (max-width: 960px) {
+  .page { padding: 140px 48px 80px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+  .page { padding: 120px 20px 64px; }
+  .grid { grid-template-columns: 1fr; }
+  .prose { font-size: 17px; }
+  .prose h2 { font-size: 24px; }
+  .cta { padding: 26px 22px; }
+}

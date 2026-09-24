@@ -1,0 +1,139 @@
+/* Journal editor layout. Controls come from proposals.module.css. */
+
+.editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 24px 80px;
+}
+
+.main { min-width: 0; }
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.titleInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  margin-bottom: 14px;
+  font: inherit;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111;
+}
+
+.titleInput:focus { outline: none; box-shadow: inset 0 -2px 0 #e40586; }
+
+.bodyBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.linkSelect { width: auto; padding: 5px 8px; font-size: 12px; }
+
+.bodyInput {
+  width: 100%;
+  min-height: 62vh;
+  box-sizing: border-box;
+  border: 1px solid #d8d5d2;
+  border-radius: 10px;
+  background: #fff;
+  padding: 18px 20px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #111;
+  resize: vertical;
+}
+
+.bodyInput:focus-visible { outline: 2px solid #e40586; outline-offset: 2px; }
+
+.preview {
+  min-height: 62vh;
+  border: 1px solid #e4e1de;
+  border-radius: 10px;
+  background: #fff;
+  padding: 28px 36px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions > * { flex: 1; justify-content: center; }
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.checks li {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  line-height: 1.45;
+}
+
+.checkOk { color: #15803d; }
+.checkOk strong { font-weight: 600; }
+.checkTodo { color: #111; }
+
+.hint {
+  display: block;
+  margin-top: 2px;
+  color: #6b6b6b;
+  font-size: 12px;
+}
+
+.coverPreview {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+@media (max-width: 960px) {
+  .editor { grid-template-columns: 1fr; padding: 16px 16px 60px; }
+  .preview { padding: 20px; }
+}

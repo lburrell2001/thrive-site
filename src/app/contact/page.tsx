@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
+import { readAttribution } from "../components/SiteTracker";
 
 const bungee = Bungee({
   weight: "400",
@@ -51,6 +53,7 @@ export default function ContactPage() {
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -61,17 +64,36 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setError("");
     try {
+      // Field names are the ones /api/contact reads. Until Sept 2026 this
+      // sent `service` and `description`, which the route ignored, so
+      // inquiries arrived without them.
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          company: formData.company,
+          projectType: formData.service,
+          message: formData.description,
+          pageUrl: window.location.href,
+          referrer: document.referrer,
+          attribution: readAttribution(),
+        }),
       });
       if (res.ok) {
         setSubmitted(true);
+        // Google Ads conversion, as the site's other contact form reports it.
+        const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+        gtag?.("event", "conversion", { send_to: "AW-18142291257/UtwfCIi36agcELnK9cpD" });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data?.error || "Something went wrong. Please try again, or email hello@thrivecreativestudios.org.");
       }
     } catch {
-      // silently fail — user can try again
+      setError("Network error. Please try again, or email hello@thrivecreativestudios.org.");
     } finally {
       setSubmitting(false);
     }
@@ -373,6 +395,10 @@ export default function ContactPage() {
               <div className="ct-form-bar" />
               <div className="ct-form-inner">
                 <span className="ct-form-label-heading">START A PROJECT</span>
+                <p style={{ fontFamily: "var(--font-bai, 'Bai Jamjuree', sans-serif)", fontSize: 15, color: "#555", margin: "0 0 20px" }}>
+                  Rather talk it through?{" "}
+                  <Link href="/book" style={{ color: "#e40586", fontWeight: 700 }}>Book a free intro call →</Link>
+                </p>
 
                 {submitted ? (
                   <div className="ct-success">
@@ -447,6 +473,11 @@ export default function ContactPage() {
                         onChange={handleChange}
                       />
                     </div>
+                    {error && (
+                      <p role="alert" style={{ color: "#b00020", fontFamily: "var(--font-bai, 'Bai Jamjuree', sans-serif)", fontSize: 14, margin: "0 0 12px" }}>
+                        {error}
+                      </p>
+                    )}
                     <button
                       type="submit"
                       className="ct-submit-btn"

@@ -35,6 +35,7 @@ CONTACT_NOTIFY_PHONE=            # Lauren's mobile, for texts on signings, decli
 GSC_SERVICE_ACCOUNT_JSON=        # Search Console (optional): the Google service account's JSON key, pasted whole
 GSC_SITE_URL=                    # e.g. sc-domain:thrivecreativestudios.org — the service account must be a user on this property
 ANALYTICS_SALT=                  # Optional key for the daily visitor hash; falls back to the service role key
+NEXT_PUBLIC_GOOGLE_REVIEW_URL=   # Optional: Google Business Profile "write a review" link, offered after a client submits a review
 ```
 
 `PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
@@ -115,9 +116,27 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 
 - `src/app/components/SiteTracker.tsx` (mounted in the root layout, production only) posts page views to `POST /api/track`. No cookies: a session id in sessionStorage, the first-ever visit's source in localStorage. `/admin`, `/portal`, `/p/` and `/api` are never tracked, nor is any browser that has signed in to admin (`thrive_no_track` in localStorage).
 - `/api/track` is public: it drops bots, caps every field, classifies the source server-side (`src/lib/trafficSource.ts`), and stores a daily-rotating HMAC of IP + user agent instead of the IP (`ANALYTICS_SALT` if set, else the service role key).
-- The contact form sends its session id and first-touch source; `/api/contact` stores `source`, `channel`, `landing_path`, `first_source` etc. on the inquiry. If those columns are missing it retries the insert without them, so the form never fails on attribution.
+- The contact page (`src/app/contact/page.tsx` — `ContactForm.tsx` is unused) sends its session id and first-touch source; `/api/contact` stores `source`, `channel`, `landing_path`, `first_source` and `company` on the inquiry (`src/lib/inquiryAttribution.ts`). If those columns are missing it retries the insert without them, so the form never fails on extras. The route reads `projectType`/`message` and also accepts `service`/`description`.
 - `src/lib/analyticsReport.ts` aggregates in TypeScript (days in America/Chicago); `src/lib/trafficInsights.ts` holds the rules behind "How to grow traffic". Won work is attributed through the inquiry's deal.
 - Google Search Console (`src/lib/searchConsole.ts`) is optional: with `GSC_SERVICE_ACCOUNT_JSON` and `GSC_SITE_URL` set, the analytics page, suggestions and digest include search queries, clicks and positions. It signs a service-account JWT itself — no Google SDK. Without them, the panel shows setup steps.
+
+### Service page SEO
+
+- `src/lib/serviceSeo.ts` holds each service page's `<title>`, meta description and FAQs. FAQ answers only restate what the pages already say — keep them true; Google and AI assistants quote them.
+- `ServiceFaq` renders the FAQ plus `Service`, `FAQPage` and `BreadcrumbList` JSON-LD; the root layout's `ProfessionalService` (`@id` = `BUSINESS_ID`) lists the services and DFW cities. Always serialize JSON-LD with `jsonLd()` from `src/lib/seo.ts`.
+- The canonical host is `thrivecreativestudios.org` (Vercel 308-redirects www to it). `robots.txt` disallows `/admin`, `/portal`, `/api/`; `/p/` and `/review/` stay crawlable because they carry `noindex`.
+
+### Journal
+
+Articles at `/journal`, written at `/admin/journal` (migration `022`). Bodies are markdown rendered by `src/lib/articleMarkdown.tsx` as React elements — no raw HTML. Public reads use the anon key; RLS returns only published posts. Publishing/editing calls `revalidatePath` for the index, the article and the sitemap. The editor's search checklist is `src/lib/journalChecklist.ts`. Cover uploads are capped at 4 MB (Vercel's body limit is 4.5 MB).
+
+### Reviews
+
+Requested from a won deal in the CRM (`POST /api/reviews/request`), submitted at `/review/[token]`, approved at `/admin/reviews` (migration `023`). A DB check refuses `approved` without `consent_publish`; anon can read only approved rows and only the display columns (column grants — the token is never readable). Approved reviews show on service pages via `ServiceTestimonials`. There is deliberately no Review/AggregateRating markup: Google ignores self-serving review stars.
+
+### Book a call
+
+`/book` (migration `025`). Weekly hours, length, buffer, notice and days off are set at `/admin/calls`; slots are computed in `src/lib/bookingTime.ts` (pure, DST-safe) and re-checked on booking, with a unique index on confirmed `starts_at` as the race guard. A booking also inserts a `contact_inquiries` row, so the CRM triggers create the contact/deal as for the contact form, and adds a CRM task on the call day. Both sides get an email with an `.ics` invite; `/book/[token]` cancels. No calendar sync — availability is the configured hours only.
 
 ### Styling
 

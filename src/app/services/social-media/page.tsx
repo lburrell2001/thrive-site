@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
 import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
+import { SERVICE_SEO } from "@/lib/serviceSeo";
+import ServiceFaq from "../../components/ServiceFaq";
+import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Social Media Management",
-  description:
-    "Strategy, content creation, and community management that grows your audience and turns followers into loyal clients.",
+  title: SERVICE_SEO["social-media"].title,
+  description: SERVICE_SEO["social-media"].description,
   path: "/services/social-media",
   keywords: [
     "social media management Dallas TX",
@@ -370,6 +372,12 @@ export default async function SocialMediaPage() {
               </a>
             </div>
           )}
+
+          {/* REVIEWS */}
+          <ServiceTestimonials slug="social-media" accent={ACCENT} />
+
+          {/* FAQ */}
+          <ServiceFaq slug="social-media" accent={ACCENT} />
 
           <section className="sp-cta" style={{ background: ACCENT }}>
             <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY TO GROW<br />YOUR AUDIENCE?</h2>

@@ -353,6 +353,25 @@ function searchInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
     });
   }
 
+  // Questions people ask where the site shows up but ranks poorly: each is
+  // an article waiting to be written.
+  const question = /^(how|what|why|when|which|who|where|should|can|do|does|is|are)\b|\b(cost|price|pricing|worth|vs|best|ideas|examples)\b/i;
+  const ideas = search.queries
+    .filter((q) => question.test(q.key) && q.impressions >= 5 && q.position > 10 && !/thrive/i.test(q.key))
+    .toSorted((a, b) => b.impressions - a.impressions)
+    .slice(0, 3);
+  if (ideas.length) {
+    out.push({
+      id: 'search-article-ideas', tone: 'opportunity', priority: 70,
+      title: `People are searching ${ideas.length === 1 ? 'a question' : 'questions'} your site barely answers`,
+      evidence: ideas.map((q) => `"${q.key}" — seen ${q.impressions} times, position ${pos(q.position)}`).join('; ') + '.',
+      actions: [
+        'Write a Journal article answering each one, with the question as the title and the answer in the first paragraph.',
+        'Link each article to the matching service page so readers have somewhere to go next.',
+      ],
+    });
+  }
+
   const local = /dallas|dfw|fort worth|plano|frisco|arlington|texas|\btx\b/i;
   if (search.queries.length >= 10 && !search.queries.some((q) => local.test(q.key))) {
     out.push({

@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
 import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
+import { SERVICE_SEO } from "@/lib/serviceSeo";
+import ServiceFaq from "../../components/ServiceFaq";
+import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Photography",
-  description:
-    "Brand photography and visual storytelling that captures real culture, real beauty, and real depth — bold, intentional, unforgettable.",
+  title: SERVICE_SEO["photography"].title,
+  description: SERVICE_SEO["photography"].description,
   path: "/services/photography",
   keywords: [
     "brand photography Dallas TX",
@@ -370,6 +372,12 @@ export default async function PhotographyPage() {
               </a>
             </div>
           )}
+
+          {/* REVIEWS */}
+          <ServiceTestimonials slug="photography" accent={"#0a0a0a"} />
+
+          {/* FAQ */}
+          <ServiceFaq slug="photography" accent={"#0a0a0a"} />
 
           <section className="sp-cta" style={{ background: ACCENT }}>
             <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY TO CAPTURE<br />YOUR BRAND?</h2>

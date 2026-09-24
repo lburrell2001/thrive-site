@@ -42,3 +42,14 @@ export function buildPageMetadata(args: {
   };
 }
 
+
+/** The @id every page's structured data uses to point at the business. */
+export const BUSINESS_ID = `${SITE_URL}/#business`;
+
+/**
+ * Serialize structured data for a <script type="application/ld+json">.
+ * `<` is escaped so no string inside can close the script tag early.
+ */
+export function jsonLd(data: unknown): string {
+  return JSON.stringify(data).replace(/</g, "\\u003c");
+}

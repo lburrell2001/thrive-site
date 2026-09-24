@@ -17,6 +17,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/services/photography`,        lastModified: now, changeFrequency: "monthly", priority: 0.85 },
     { url: `${SITE_URL}/about`,                       lastModified: now, changeFrequency: "monthly", priority: 0.8  },
     { url: `${SITE_URL}/contact`,                     lastModified: now, changeFrequency: "monthly", priority: 0.8  },
+    { url: `${SITE_URL}/journal`,                     lastModified: now, changeFrequency: "weekly",  priority: 0.8  },
+    { url: `${SITE_URL}/book`,                        lastModified: now, changeFrequency: "monthly", priority: 0.7  },
     { url: `${SITE_URL}/privacy`,                     lastModified: now, changeFrequency: "yearly",  priority: 0.3  },
     { url: `${SITE_URL}/sms`,                         lastModified: now, changeFrequency: "yearly",  priority: 0.3  },
   ];
@@ -36,5 +38,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticUrls, ...projectUrls];
+  // Published articles only — the anon key cannot see drafts.
+  const { data: posts } = await supabase
+    .from("journal_posts")
+    .select("slug, updated_at")
+    .order("published_at", { ascending: false });
+
+  const postUrls: MetadataRoute.Sitemap = ((posts ?? []) as { slug: string; updated_at: string }[]).map((post) => ({
+    url: `${SITE_URL}/journal/${post.slug}`,
+    lastModified: new Date(post.updated_at),
+    changeFrequency: "monthly",
+    priority: 0.75,
+  }));
+
+  return [...staticUrls, ...projectUrls, ...postUrls];
 }

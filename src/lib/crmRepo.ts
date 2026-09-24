@@ -171,12 +171,20 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   const recipientIds = (recipientRows ?? []).map((r) => r.id);
   const portalId = c.portal_client_id;
 
+  const { data: reviewRows } = await db
+    .from('reviews')
+    .select('id, crm_deal_id, status, rating, body, display_name, requested_at, submitted_at')
+    .eq('crm_contact_id', id)
+    .order('created_at', { ascending: false });
+  const reviewIds = (reviewRows ?? []).map((r) => r.id);
+
   // Messages to this person by any route: from the CRM, or reminders sent
   // from the client page or proposal list.
   const reminderFilter = [
     `and(target_type.eq.crm_contact,target_id.eq.${id})`,
     portalId && `portal_client_id.eq.${portalId}`,
     recipientIds.length > 0 && `proposal_client_id.in.(${recipientIds.join(',')})`,
+    reviewIds.length > 0 && `and(target_type.eq.review,target_id.in.(${reviewIds.join(',')}))`,
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
@@ -249,7 +257,9 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       key: `message:${r.id}`,
       kind: 'message',
       at: r.created_at,
-      title: r.target_type === 'crm_contact' || r.target_type === 'custom' ? r.subject : `Reminder · ${r.subject}`,
+      title: r.target_type === 'review'
+        ? 'Review requested'
+        : r.target_type === 'crm_contact' || r.target_type === 'custom' ? r.subject : `Reminder · ${r.subject}`,
       body: r.note,
       meta: deliveryLine(r) || null,
     });
@@ -282,6 +292,22 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     });
   }
 
+  // Review requests show as messages (from client_reminders); the review
+  // itself shows when it arrives.
+  for (const r of reviewRows ?? []) {
+    if (!r.submitted_at) continue;
+    timeline.push({
+      key: `review:${r.id}`,
+      kind: 'review',
+      at: r.submitted_at,
+      title: `Review received${r.rating ? ` · ${'★'.repeat(r.rating)}` : ''}`,
+      body: r.body ? `“${r.body}”` : null,
+      meta: r.status === 'approved' ? 'On the website' : r.status === 'hidden' ? 'Hidden' : 'Waiting for approval in Reviews',
+      href: '/admin/reviews',
+      dealId: r.crm_deal_id,
+    });
+  }
+
   let paid = 0;
   let outstanding = 0;
   for (const inv of invoices.data ?? []) {
@@ -301,6 +327,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   return {
     contact: c,
     deals: (deals.data ?? []) as CrmDeal[],
+    reviews: (reviewRows ?? []).map(({ id: rid, crm_deal_id, status, rating, requested_at }) => ({ id: rid, crm_deal_id, status, rating, requested_at })),
     tasks: (tasks.data ?? []) as CrmTask[],
     timeline,
     inquiries: (inquiries.data ?? []) as CrmInquiry[],

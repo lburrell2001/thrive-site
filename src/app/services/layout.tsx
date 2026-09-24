@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Services",
+  title: "Branding, Web Design & Creative Services in Dallas, TX",
   description:
-    "Thrive Creative Studios offers brand design, digital design, UX design, social media management, and photography — everything your business needs to look and show up boldly.",
+    "Brand identity, website design, UX design, social media management and brand photography from a Dallas creative studio — in person across DFW, remote across the US.",
   path: "/services",
   keywords: [
     "branding services Dallas TX",

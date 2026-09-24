@@ -75,7 +75,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */
@@ -121,6 +121,8 @@ export interface CrmContactDetail {
   contact: CrmContact;
   /** Newest first. */
   deals: CrmDeal[];
+  /** Review requests and reviews, for the "Ask for a review" button on each deal. */
+  reviews: { id: string; crm_deal_id: string | null; status: string; rating: number | null; requested_at: string | null }[];
   tasks: CrmTask[];
   timeline: TimelineItem[];
   inquiries: CrmInquiry[];

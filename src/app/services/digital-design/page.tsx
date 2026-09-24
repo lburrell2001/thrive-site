@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
 import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
+import { SERVICE_SEO } from "@/lib/serviceSeo";
+import ServiceFaq from "../../components/ServiceFaq";
+import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Digital Design",
-  description:
-    "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
+  title: SERVICE_SEO["digital-design"].title,
+  description: SERVICE_SEO["digital-design"].description,
   path: "/services/digital-design",
   keywords: [
     "web design Dallas TX",
@@ -378,6 +380,12 @@ export default async function DigitalDesignPage() {
               </a>
             </div>
           )}
+
+          {/* REVIEWS */}
+          <ServiceTestimonials slug="digital-design" accent={ACCENT} />
+
+          {/* FAQ */}
+          <ServiceFaq slug="digital-design" accent={ACCENT} />
 
           <section className="sp-cta" style={{ background: ACCENT }}>
             <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY TO LEVEL UP<br />YOUR DIGITAL PRESENCE?</h2>

@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
 import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
+import { SERVICE_SEO } from "@/lib/serviceSeo";
+import ServiceFaq from "../../components/ServiceFaq";
+import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "UX Design",
-  description:
-    "Human-centered product design that makes digital experiences feel effortless and intuitive — from wireframes to polished prototypes.",
+  title: SERVICE_SEO["ux-design"].title,
+  description: SERVICE_SEO["ux-design"].description,
   path: "/services/ux-design",
   keywords: [
     "UX design Dallas TX",
@@ -376,6 +378,12 @@ export default async function UXDesignPage() {
               </a>
             </div>
           )}
+
+          {/* REVIEWS */}
+          <ServiceTestimonials slug="ux-design" accent={ACCENT} />
+
+          {/* FAQ */}
+          <ServiceFaq slug="ux-design" accent={ACCENT} />
 
           <section className="sp-cta" style={{ background: ACCENT }}>
             <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>GOT A PRODUCT<br />THAT NEEDS LOVE?</h2>

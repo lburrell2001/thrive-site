@@ -53,6 +53,32 @@ export interface UnpaidInvoice {
   last_reminded_at: string | null;
 }
 
+export interface ReviewToApprove {
+  id: string;
+  display_name: string | null;
+  rating: number | null;
+  body: string | null;
+  submitted_at: string | null;
+}
+
+/** A deal won recently with no review asked for yet. */
+export interface ReviewCandidate {
+  deal_id: string;
+  deal_title: string;
+  contact_id: string;
+  contact_name: string;
+  won_at: string;
+}
+
+export interface UpcomingCall {
+  id: string;
+  starts_at: string;
+  name: string;
+  company: string | null;
+  notes: string | null;
+  contact_id: string | null;
+}
+
 export interface AdminSummary {
   /** Dallas date the summary was built for, YYYY-MM-DD. */
   today: string;
@@ -67,6 +93,10 @@ export interface AdminSummary {
   proposalsAwaiting: AwaitingProposal[];
   unpaidInvoices: UnpaidInvoice[];
   unpaidTotals: { overdue_cents: number; due_cents: number };
+  reviewsToApprove: ReviewToApprove[];
+  /** Booked calls in the next 7 days. */
+  upcomingCalls: UpcomingCall[];
+  reviewCandidates: ReviewCandidate[];
   /** Last 7 days vs the 7 before; null if analytics could not load. */
   traffic: {
     visits: number;

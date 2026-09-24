@@ -25,6 +25,7 @@ import {
   type TimelineKind,
 } from '@/types/crm';
 import { STAGE_COLOR, parseDollars, todayIso } from './shared';
+import { ReviewRequestDialog } from './ReviewRequestDialog';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
@@ -44,6 +45,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   proposal: '#5b2d8e',
   portal_proposal: '#5b2d8e',
   invoice: '#1a8a4a',
+  review: '#e40586',
 };
 
 function when(iso: string) {
@@ -296,6 +298,7 @@ function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify
 }) {
   const [title, setTitle] = useState('');
   const [adding, setAdding] = useState(false);
+  const [askingReview, setAskingReview] = useState<CrmDeal | null>(null);
   const focused = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -370,6 +373,7 @@ function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify
                 {proposals.map((pr) => <ProposalLine key={pr.id} proposal={pr} />)}
               </ul>
             )}
+            {deal.stage === 'won' && <ReviewLine deal={deal} reviews={detail.reviews} onAsk={() => setAskingReview(deal)} />}
             <p className={s.eventMeta} style={{ marginTop: 8 }}>
               Opened {formatDate(deal.created_at)}{deal.source !== 'manual' ? ` from ${deal.source === 'inquiry' ? 'a website inquiry' : deal.source === 'proposal' ? 'a proposal' : 'the portal'}` : ''}
               {' · '}{STAGE_LABEL[deal.stage]} since {formatDate(deal.stage_changed_at)}
@@ -391,7 +395,38 @@ function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify
         <input className={p.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New deal, e.g. Website refresh" aria-label="New deal" />
         <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={adding || !title.trim()}>Add deal</button>
       </form>
+
+      {askingReview && (
+        <ReviewRequestDialog
+          contactId={contactId}
+          deal={askingReview}
+          onClose={() => setAskingReview(null)}
+          onSent={async () => { setAskingReview(null); notify('Review request sent.'); await onChange(); }}
+        />
+      )}
     </section>
+  );
+}
+
+/** On a won deal: ask for a review, or show where the request stands. */
+function ReviewLine({ deal, reviews, onAsk }: { deal: CrmDeal; reviews: CrmContactDetail['reviews']; onAsk: () => void }) {
+  const review = reviews.find((r) => r.crm_deal_id === deal.id);
+  if (!review) {
+    return (
+      <button type="button" className={`${p.btn} ${p.btnSmall}`} style={{ marginTop: 8 }} onClick={onAsk}>
+        ★ Ask for a review
+      </button>
+    );
+  }
+  const text =
+    review.status === 'requested' ? `Review requested ${formatDate(review.requested_at)} — not answered yet`
+    : review.status === 'approved' ? `Review on the website${review.rating ? ` · ${'★'.repeat(review.rating)}` : ''}`
+    : review.status === 'hidden' ? 'Review received (hidden)'
+    : `Review received${review.rating ? ` · ${'★'.repeat(review.rating)}` : ''} — approve it in Reviews`;
+  return (
+    <p className={s.eventMeta} style={{ marginTop: 8 }}>
+      <Link href="/admin/reviews" style={{ color: 'inherit' }}>{text}</Link>
+    </p>
   );
 }
 

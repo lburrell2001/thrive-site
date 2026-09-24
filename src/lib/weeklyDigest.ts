@@ -54,6 +54,16 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
     });
   }
 
+  if (d.upcomingCalls.length) {
+    sections.push({
+      title: `Calls this week (${d.upcomingCalls.length})`,
+      lines: d.upcomingCalls.map((c) => ({
+        text: `${new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — ${c.name}${c.company ? `, ${c.company}` : ''}`,
+        href: c.contact_id ? `${site}/admin/crm?contact=${c.contact_id}` : `${site}/admin/calls`,
+      })),
+    });
+  }
+
   if (d.newInquiries.length) {
     sections.push({
       title: `New inquiries (${d.newInquiries.length})`,
@@ -90,6 +100,22 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
         href: `${site}/admin/clients?client=${i.client_id}`,
         tone: i.overdue ? 'late' : undefined,
       })),
+    });
+  }
+
+  if (d.reviewsToApprove.length || d.reviewCandidates.length) {
+    sections.push({
+      title: 'Reviews',
+      lines: [
+        ...d.reviewsToApprove.slice(0, 5).map((r) => ({
+          text: `${r.display_name ?? 'A client'}${r.rating ? ` left ${'★'.repeat(r.rating)}` : ' left a review'} — approve it to put it on the site`,
+          href: `${site}/admin/reviews`,
+        })),
+        ...d.reviewCandidates.map((c) => ({
+          text: `Ask ${c.contact_name} for a review — ${c.deal_title}, won ${shortDate(c.won_at)}`,
+          href: `${site}/admin/crm?contact=${c.contact_id}&deal=${c.deal_id}`,
+        })),
+      ],
     });
   }
 

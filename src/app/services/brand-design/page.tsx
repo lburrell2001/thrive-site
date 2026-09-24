@@ -2,12 +2,14 @@ import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
 import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
+import { SERVICE_SEO } from "@/lib/serviceSeo";
+import ServiceFaq from "../../components/ServiceFaq";
+import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Brand Design",
-  description:
-    "Complete visual identities — logos, color systems, typography, and brand guidelines built from the ground up to set your brand apart.",
+  title: SERVICE_SEO["brand-design"].title,
+  description: SERVICE_SEO["brand-design"].description,
   path: "/services/brand-design",
   keywords: [
     "brand design Dallas TX",
@@ -416,6 +418,12 @@ export default async function BrandDesignPage() {
               </a>
             </div>
           )}
+
+          {/* REVIEWS */}
+          <ServiceTestimonials slug="brand-design" accent={ACCENT} />
+
+          {/* FAQ */}
+          <ServiceFaq slug="brand-design" accent={ACCENT} />
 
           {/* CTA */}
           <section className="sp-cta" style={{ background: ACCENT }}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const [navScrolled, setNavScrolled] = useState(false);
@@ -324,6 +325,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           <a href="/about"       onClick={() => setDrawerOpen(false)} style={{ color: '#5b2d8e' }}>ABOUT</a>
           <a href="/services"    onClick={() => setDrawerOpen(false)}>SERVICES</a>
           <a href="/portfolio"   onClick={() => setDrawerOpen(false)}>PORTFOLIO</a>
+          <Link href="/journal"  onClick={() => setDrawerOpen(false)}>JOURNAL</Link>
           <a href="/contact"     onClick={() => setDrawerOpen(false)}>CONTACT</a>
           <a href="/portal/login" className="pl-drawer-portal" onClick={() => setDrawerOpen(false)}>CLIENT PORTAL</a>
         </div>
@@ -354,6 +356,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <div className="pl-footer-col-text">
               <a href="/services">Services</a><br />
               <a href="/portfolio">Portfolio</a><br />
+              <Link href="/journal">Journal</Link><br />
               <a href="/about">About</a><br />
               <a href="/contact">Contact</a><br />
               <a href="/portal/login">Client Portal</a><br />

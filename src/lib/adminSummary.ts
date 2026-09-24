@@ -30,7 +30,9 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
 
   const [paths, search] = await Promise.all([sitemapPaths(), searchReport(7)]);
 
-  const [tasks, inquiries, deals, proposals, reminders, portalProposals, invoices, clients, report] = await Promise.all([
+  const since60 = new Date(Date.now() - 60 * 86_400_000).toISOString();
+
+  const [tasks, inquiries, deals, proposals, reminders, portalProposals, invoices, clients, report, reviewQueue, recentWins, askedDeals, calls] = await Promise.all([
     db.from('crm_tasks')
       .select('id, title, due_date, contact_id, crm_contacts ( name, company )')
       .is('completed_at', null)
@@ -58,7 +60,22 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
       .order('due_date'),
     db.from('portal_clients').select('id, full_name, company_name'),
     buildReport(db, 7, paths, search).catch(() => null),
+    db.from('reviews').select('id, display_name, rating, body, submitted_at').eq('status', 'submitted').order('submitted_at', { ascending: false }),
+    db.from('crm_deals')
+      .select('id, title, contact_id, stage_changed_at, crm_contacts ( name, company )')
+      .eq('stage', 'won')
+      .gte('stage_changed_at', since60)
+      .order('stage_changed_at', { ascending: false }),
+    db.from('reviews').select('crm_deal_id').not('crm_deal_id', 'is', null),
+    db.from('bookings')
+      .select('id, starts_at, name, company, notes, crm_contact_id')
+      .eq('status', 'confirmed')
+      .gte('starts_at', new Date(Date.now() - 30 * 60_000).toISOString())
+      .lte('starts_at', new Date(Date.now() + 7 * 86_400_000).toISOString())
+      .order('starts_at'),
   ]);
+
+  const asked = new Set((askedDeals.data ?? []).map((r) => r.crm_deal_id));
 
   const lastReminded = new Map<string, string>();
   for (const r of reminders.data ?? []) {
@@ -154,6 +171,23 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
       })),
     ],
     unpaidInvoices: unpaid,
+    reviewsToApprove: (reviewQueue.data ?? []) as AdminSummary['reviewsToApprove'],
+    upcomingCalls: (calls.data ?? []).map((c) => ({
+      id: c.id, starts_at: c.starts_at, name: c.name, company: c.company, notes: c.notes, contact_id: c.crm_contact_id,
+    })),
+    reviewCandidates: (recentWins.data ?? [])
+      .filter((d) => !asked.has(d.id))
+      .slice(0, 5)
+      .map((d) => {
+        const contact = d.crm_contacts as unknown as { name: string; company: string | null } | null;
+        return {
+          deal_id: d.id,
+          deal_title: d.title,
+          contact_id: d.contact_id,
+          contact_name: contact?.name || contact?.company || 'Client',
+          won_at: d.stage_changed_at,
+        };
+      }),
     unpaidTotals: {
       overdue_cents: unpaid.filter((i) => i.overdue).reduce((s, i) => s + i.amount_cents, 0),
       due_cents: unpaid.filter((i) => !i.overdue).reduce((s, i) => s + i.amount_cents, 0),

@@ -5,7 +5,8 @@ import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import { SiteTracker } from "./components/SiteTracker";
 import "./globals.css";
-import { DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { BUSINESS_ID, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL, jsonLd } from "@/lib/seo";
+import { DFW_AREAS, SERVICE_SEO } from "@/lib/serviceSeo";
 
 const GOOGLE_ADS_ID = "AW-18142291257";
 const GTM_ID = "GTM-M3WHLQR6";
@@ -136,20 +137,38 @@ export default function RootLayout({
     inLanguage: "en-US",
   };
 
+  // The business itself. Service pages point back here by @id, so Google
+  // reads one Dallas studio offering five services, not five strangers.
   const organizationJsonLd = {
     "@context": "https://schema.org",
     "@type": "ProfessionalService",
+    "@id": BUSINESS_ID,
     name: SITE_NAME,
     url: SITE_URL,
+    logo: `${SITE_URL}/new-thrive/logomark.svg`,
     image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
     description:
-      "Branding, web design, UX, social media management, and graphics creation for small businesses and creators.",
-    areaServed: "United States",
+      "Dallas creative studio for brand identity, website design, UX design, social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
+    email: "hello@thrivecreativestudios.org",
+    founder: { "@type": "Person", name: "Lauren Burrell" },
     address: {
       "@type": "PostalAddress",
       addressLocality: "Dallas",
       addressRegion: "TX",
       addressCountry: "US",
+    },
+    areaServed: [
+      ...DFW_AREAS.map((name) => ({ "@type": "City", name, containedInPlace: { "@type": "State", name: "Texas" } })),
+      { "@type": "Country", name: "United States" },
+    ],
+    knowsAbout: ["Brand identity design", "Logo design", "Website design", "UX design", "Social media management", "Brand photography"],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Creative services",
+      itemListElement: Object.values(SERVICE_SEO).map((service) => ({
+        "@type": "Offer",
+        itemOffered: { "@id": `${SITE_URL}${service.path}#service`, "@type": "Service", name: service.name },
+      })),
     },
     sameAs: [
       "https://www.instagram.com/thrivecreativestudio_/",
@@ -179,11 +198,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </noscript>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(websiteJsonLd) }}
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationJsonLd) }}
         />
         {children}
         <Analytics />

@@ -11,12 +11,12 @@ import { Fragment, type ReactNode } from 'react';
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
 
 /** Only these schemes are allowed to become an href. */
-function safeHref(url: string): string | null {
+export function safeHref(url: string): string | null {
   const trimmed = url.trim();
   return /^(https?:|mailto:|\/)/i.test(trimmed) ? trimmed : null;
 }
 
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
+export function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return text.split(INLINE).filter(Boolean).map((token, i) => {
     const key = `${keyPrefix}-${i}`;
 
