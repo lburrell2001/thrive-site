@@ -26,12 +26,15 @@ CONTACT_NOTIFY_TO=               # Email address to receive inquiries
 CONTACT_NOTIFY_FROM=             # Verified Resend sender address
 STRIPE_SECRET_KEY=               # Stripe Checkout for invoice payments
 STRIPE_WEBHOOK_SECRET=           # Stripe webhook signature verification
-CRON_SECRET=                     # Bearer token required by Vercel Cron to call /api/portal/admin/generate-invoices
+CRON_SECRET=                     # Bearer token Vercel Cron sends to /api/portal/admin/generate-invoices and /api/cron/weekly-digest
 PORTAL_CREDENTIALS_KEY=          # 32 random bytes, base64 (`openssl rand -base64 32`) — AES-256-GCM key for the client credentials vault
 TWILIO_ACCOUNT_SID=              # Text messages (optional — texts are simply off without these)
 TWILIO_AUTH_TOKEN=
 TWILIO_MESSAGING_SERVICE_SID=    # Preferred; or TWILIO_FROM_NUMBER=+1... for testing
 CONTACT_NOTIFY_PHONE=            # Lauren's mobile, for texts on signings, declines and new inquiries
+GSC_SERVICE_ACCOUNT_JSON=        # Search Console (optional): the Google service account's JSON key, pasted whole
+GSC_SITE_URL=                    # e.g. sc-domain:thrivecreativestudios.org — the service account must be a user on this property
+ANALYTICS_SALT=                  # Optional key for the daily visitor hash; falls back to the service role key
 ```
 
 `PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
@@ -89,14 +92,22 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - Every reminder attempt is logged in `client_reminders` (migration `018`, RLS on with no policies).
 - `portal_clients` writes from the browser are limited by column grants to `full_name, company_name, initials, phone, sms_opt_in`. Clients cannot change `role`.
 
+### Admin home and weekly digest
+
+`/admin` is the home page: follow-ups due, unread inquiries, proposals awaiting signature, unpaid invoices, the pipeline and this week's traffic, with Remind buttons and task checkboxes inline. The client list lives at `/admin/clients` (`?client=<id>` opens one).
+
+- Both the home page (`GET /api/dashboard`) and the Monday digest read `buildAdminSummary()` in `src/lib/adminSummary.ts`, so they always agree. Days are Dallas days.
+- The digest (`src/lib/weeklyDigest.ts`) emails `CONTACT_NOTIFY_TO` and texts `CONTACT_NOTIFY_PHONE` if set. Vercel Cron calls `GET /api/cron/weekly-digest` at 13:00 UTC Mondays with `Bearer CRON_SECRET`; "Send me the weekly digest" on the home page calls `POST /api/dashboard/digest`.
+
 ### CRM
 
-`/admin/crm` is a pipeline board (New lead → Contacted → Proposal sent → Won / Lost) over `crm_contacts` (migration `019`, RLS on with no policies).
+`/admin/crm` has a pipeline board of **deals** (New lead → Contacted → Proposal sent → Won / Lost) and a Contacts list.
 
-- One contact per person, whichever way they arrived. `contact_inquiries.crm_contact_id` and `proposal_clients.crm_contact_id` point at a contact; `crm_contacts.portal_client_id` links a portal login. Database triggers create or link the contact (matched on lowercased email) whenever one of those rows is inserted, so no route has to remember to.
-- Proposals move contacts forward automatically: sent/viewed → `proposal`, signed → `won`. Stages never move backward on their own. Every stage change is logged to `crm_activities` by trigger.
+- `crm_contacts` (migration `019`) is the person; `crm_deals` (migration `021`) is one piece of work with them, carrying the stage, value and lost reason. A contact can have many deals, so a returning client's new project is its own card. RLS is on with no policies on both.
+- One contact per person, whichever way they arrived. `contact_inquiries.crm_contact_id` and `proposal_clients.crm_contact_id` point at a contact; `crm_contacts.portal_client_id` links a portal login. Database triggers create or link the contact (matched on lowercased email) whenever one of those rows is inserted.
+- Triggers also attach work to deals: an inquiry (`contact_inquiries.crm_deal_id`) or a new proposal (`proposals.crm_deal_id`) joins the contact's most recent open deal, or opens a new lead if they have none. Sent/viewed moves that deal to `proposal`, signed to `won`; a portal login wins the open deal. Stages never move backward on their own. Every stage change is logged to `crm_activities` with the deal id and title.
 - The contact timeline is assembled at read time in `src/lib/crmRepo.ts` from `crm_activities`, inquiries, `client_reminders`, builder proposals, uploaded proposals and invoices. It is not copied into one table.
-- Routes: `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, all gated by `requireAdmin`. "Message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
+- Routes: `/api/crm/deals` (+ `[id]`), `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, all gated by `requireAdmin`. "Message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
 
 ### Site analytics
 
@@ -105,7 +116,8 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - `src/app/components/SiteTracker.tsx` (mounted in the root layout, production only) posts page views to `POST /api/track`. No cookies: a session id in sessionStorage, the first-ever visit's source in localStorage. `/admin`, `/portal`, `/p/` and `/api` are never tracked, nor is any browser that has signed in to admin (`thrive_no_track` in localStorage).
 - `/api/track` is public: it drops bots, caps every field, classifies the source server-side (`src/lib/trafficSource.ts`), and stores a daily-rotating HMAC of IP + user agent instead of the IP (`ANALYTICS_SALT` if set, else the service role key).
 - The contact form sends its session id and first-touch source; `/api/contact` stores `source`, `channel`, `landing_path`, `first_source` etc. on the inquiry. If those columns are missing it retries the insert without them, so the form never fails on attribution.
-- `src/lib/analyticsReport.ts` aggregates in TypeScript (days in America/Chicago); `src/lib/trafficInsights.ts` holds the rules behind "How to grow traffic".
+- `src/lib/analyticsReport.ts` aggregates in TypeScript (days in America/Chicago); `src/lib/trafficInsights.ts` holds the rules behind "How to grow traffic". Won work is attributed through the inquiry's deal.
+- Google Search Console (`src/lib/searchConsole.ts`) is optional: with `GSC_SERVICE_ACCOUNT_JSON` and `GSC_SITE_URL` set, the analytics page, suggestions and digest include search queries, clicks and positions. It signs a service-account JWT itself — no Google SDK. Without them, the panel shows setup steps.
 
 ### Styling
 

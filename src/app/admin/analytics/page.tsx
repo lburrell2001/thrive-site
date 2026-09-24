@@ -10,6 +10,7 @@ import { CHANNEL_LABEL } from '@/lib/trafficSource';
 import type { AnalyticsReport, BreakdownRow, Insight } from '@/types/analytics';
 import { DailyTable, VisitsChart } from './VisitsChart';
 import { LinkBuilder } from './LinkBuilder';
+import { SearchPanel } from './SearchPanel';
 
 const RANGES = [
   { days: 7, label: '7 days' },
@@ -209,6 +210,8 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </section>
+
+            <SearchPanel search={r.search} />
 
             <section className={s.panel}>
               <div className={s.panelHead}>

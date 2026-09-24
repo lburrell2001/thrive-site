@@ -6,6 +6,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Channel } from '@/lib/trafficSource';
+import type { SearchSection } from '@/types/searchConsole';
 import { buildInsights } from '@/lib/trafficInsights';
 import type {
   AnalyticsReport,
@@ -45,7 +46,7 @@ interface InquiryRow {
   session_id: string | null;
   source: string | null;
   channel: Channel | null;
-  crm_contact_id: string | null;
+  crm_deal_id: string | null;
 }
 
 interface Session {
@@ -145,6 +146,7 @@ export async function buildReport(
   db: SupabaseClient,
   days: number,
   sitemapPaths: string[],
+  search: SearchSection = { status: 'not_configured' },
 ): Promise<AnalyticsReport> {
   const now = new Date();
   const from = new Date(now.getTime() - days * 86_400_000);
@@ -155,7 +157,7 @@ export async function buildReport(
     readAll<ViewRow>((a, b) =>
       db.from('site_pageviews').select(viewCols).gte('created_at', prevFrom.toISOString()).order('created_at').range(a, b)),
     readAll<InquiryRow>((a, b) =>
-      db.from('contact_inquiries').select('created_at, session_id, source, channel, crm_contact_id')
+      db.from('contact_inquiries').select('created_at, session_id, source, channel, crm_deal_id')
         .gte('created_at', prevFrom.toISOString()).order('created_at').range(a, b)),
     db.from('site_pageviews').select('created_at').order('created_at').limit(1).maybeSingle(),
   ]);
@@ -169,12 +171,12 @@ export async function buildReport(
   const sessions = sessionsFrom(views, inquiries);
   const prevSessions = sessionsFrom(prevViews, prevInquiries);
 
-  // CRM outcome for each inquiry's contact.
-  const contactIds = [...new Set(inquiries.map((i) => i.crm_contact_id).filter(Boolean))] as string[];
+  // CRM outcome of the deal each inquiry opened or joined.
+  const dealIds = [...new Set(inquiries.map((i) => i.crm_deal_id).filter(Boolean))] as string[];
   const outcomes = new Map<string, { won: boolean; value: number }>();
-  if (contactIds.length) {
-    const { data } = await db.from('crm_contacts').select('id, stage, value_cents').in('id', contactIds);
-    for (const c of data ?? []) outcomes.set(c.id, { won: c.stage === 'won', value: c.value_cents ?? 0 });
+  if (dealIds.length) {
+    const { data } = await db.from('crm_deals').select('id, stage, value_cents').in('id', dealIds);
+    for (const d of data ?? []) outcomes.set(d.id, { won: d.stage === 'won', value: d.value_cents ?? 0 });
   }
 
   // ---------------------------------------------------------- daily
@@ -231,9 +233,9 @@ export async function buildReport(
   for (const i of inquiries) {
     const r = sourceRow(i.source ?? 'Unknown', i.channel ?? 'direct');
     r.inquiries += 1;
-    const outcome = i.crm_contact_id ? outcomes.get(i.crm_contact_id) : undefined;
-    if (outcome?.won && !wonCounted.has(i.crm_contact_id!)) {
-      wonCounted.add(i.crm_contact_id!);
+    const outcome = i.crm_deal_id ? outcomes.get(i.crm_deal_id) : undefined;
+    if (outcome?.won && !wonCounted.has(i.crm_deal_id!)) {
+      wonCounted.add(i.crm_deal_id!);
       r.won += 1;
       r.wonValueCents += outcome.value;
     }
@@ -286,6 +288,7 @@ export async function buildReport(
     devices,
     locations,
     unseenPages,
+    search,
   };
 
   return { ...report, insights: buildInsights(report) };

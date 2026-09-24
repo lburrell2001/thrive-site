@@ -1,6 +1,7 @@
 // The admin analytics report, built by src/lib/analyticsReport.ts.
 
 import type { Channel } from '@/lib/trafficSource';
+import type { SearchSection } from '@/types/searchConsole';
 
 export interface Totals {
   visits: number;
@@ -39,7 +40,7 @@ export interface SourceRow {
   visits: number;
   bounceRate: number;
   inquiries: number;
-  /** CRM contacts from these inquiries now marked Won. */
+  /** CRM deals opened or joined by these inquiries that are now Won. */
   won: number;
   wonValueCents: number;
 }
@@ -94,5 +95,7 @@ export interface AnalyticsReport {
   locations: BreakdownRow[];
   /** Sitemap pages nobody visited in the period. */
   unseenPages: string[];
+  /** Google Search Console for the same length of period. */
+  search: SearchSection;
   insights: Insight[];
 }

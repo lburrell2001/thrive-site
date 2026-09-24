@@ -8,7 +8,12 @@
 import type { AnalyticsReport, Insight, PageRow } from '@/types/analytics';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+function plural(n: number, word: string) {
+  if (n === 1) return `${n} ${word}`;
+  if (/(s|sh|ch|x)$/.test(word)) return `${n} ${word}es`;
+  if (/[^aeiou]y$/.test(word)) return `${n} ${word.slice(0, -1)}ies`;
+  return `${n} ${word}s`;
+}
 
 function money(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
@@ -22,7 +27,7 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
   const visits = t.visits;
 
   if (visits === 0) {
-    return [{
+    const noData: Insight = {
       id: 'no-data',
       tone: 'info',
       priority: 100,
@@ -31,11 +36,16 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
         ? `The first visit was recorded ${new Date(r.trackingSince).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}. Try a longer range.`
         : 'Visits are counted from the moment this update went live. Your own visits from this browser are not counted.',
       actions: ['Share a tagged link (link builder below) in your Instagram bio so the first visits have a source.'],
-    }];
+    };
+    // With Search Console data to act on, the tracking note goes last.
+    const fromSearch = searchInsights(r);
+    if (fromSearch.length) noData.priority = 1;
+    return [...fromSearch, noData].sort((a, b) => b.priority - a.priority);
   }
 
   const channelShare = (c: string) => (r.channels.find((x) => x.channel === c)?.visits ?? 0) / visits;
   const enough = visits >= 30;
+  const search = r.search.status === 'ok' ? r.search : null;
 
   if (!enough) {
     out.push({
@@ -80,7 +90,9 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
       evidence: `${Math.round(searchShare * visits)} of ${visits} visits arrived from a search engine. Search is the one source that keeps sending people without you posting.`,
       actions: [
         'Set up or complete your Google Business Profile as a Dallas design studio, with photos of your work, and link it with the "Google Business Profile" preset below.',
-        'Add the site to Google Search Console and submit /sitemap.xml so every project page gets indexed.',
+        search
+          ? 'Check the Google search section below for searches you already appear in, and build on those first.'
+          : 'Add the site to Google Search Console and submit /sitemap.xml so every project page gets indexed.',
         'Give each case study a title and first paragraph that say what and where — e.g. "Brand identity for a Dallas wellness studio" — since that is what people type.',
         'Get listed where clients compare studios (Clutch, Behance, Dribbble, local Dallas business directories), each linking back to the site.',
       ],
@@ -106,6 +118,8 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
       actions: ['Start with your Instagram bio link using the link builder below.'],
     });
   }
+
+  out.push(...searchInsights(r));
 
   // ------------------------------------------------------------ social
   const social = r.sources.filter((s) => s.channel === 'social');
@@ -148,7 +162,7 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
     out.push({
       id: `revenue-${topRevenue.source}`, tone: 'win', priority: 55,
       title: `${topRevenue.source} has brought ${money(topRevenue.wonValueCents)} in won work`,
-      evidence: `${plural(topRevenue.won, 'client')} who wrote in after arriving from ${topRevenue.source} this period ${topRevenue.won === 1 ? 'is' : 'are'} now marked Won in the CRM.`,
+      evidence: `${plural(topRevenue.won, 'deal')} that started with an inquiry from ${topRevenue.source} this period ${topRevenue.won === 1 ? 'is' : 'are'} now marked Won in the CRM.`,
       actions: ['Ask those clients for a testimonial or referral while the project is fresh.'],
     });
   }
@@ -276,4 +290,102 @@ export function buildInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
   }
 
   return out.sort((a, b) => b.priority - a.priority).slice(0, 8);
+}
+
+/**
+ * Rules over Google Search Console data. Separate from the visit rules
+ * because Search Console has months of history even when on-site tracking
+ * has only just started.
+ */
+function searchInsights(r: Omit<AnalyticsReport, 'insights'>): Insight[] {
+  if (r.search.status !== 'ok') return [];
+  const search = r.search;
+  const out: Insight[] = [];
+  const pos = (n: number) => n.toFixed(1);
+
+  // Page two: a little work moves these onto page one, where the clicks are.
+  const close = search.queries
+    .filter((q) => q.position >= 8 && q.position <= 20 && q.impressions >= 15)
+    .toSorted((a, b) => b.impressions - a.impressions)
+    .slice(0, 3);
+  if (close.length) {
+    out.push({
+      id: 'search-striking', tone: 'opportunity', priority: 80,
+      title: `You're close to page one of Google for ${plural(close.length, 'search')}`,
+      evidence: close.map((q) => `"${q.key}" — position ${pos(q.position)}, seen ${q.impressions} times`).join('; ') + '.',
+      actions: [
+        'Use the exact phrase in the headline and first paragraph of the page that should rank for it (see Pages under Google search).',
+        'Link to that page from the homepage and from related case studies, using the phrase as the link text.',
+        'Add a short question-and-answer section on that page that answers the search directly.',
+      ],
+    });
+  }
+
+  // Seen but not clicked: the listing itself is the problem.
+  const ignored = search.queries
+    .filter((q) => q.position <= 10 && q.impressions >= 50 && q.ctr < 0.02)
+    .toSorted((a, b) => b.impressions - a.impressions)
+    .slice(0, 2);
+  if (ignored.length) {
+    out.push({
+      id: 'search-ctr', tone: 'opportunity', priority: 66,
+      title: 'People see you on Google but don\'t click',
+      evidence: ignored.map((q) => `"${q.key}" — seen ${q.impressions} times on page one, ${pct(q.ctr)} clicked`).join('; ') + '.',
+      actions: [
+        'Rewrite that page\'s title and meta description to say what someone gets and where — e.g. "Brand Identity Design in Dallas | Thrive Creative Studios".',
+        'Mention something concrete in the description: a result, a starting price, or turnaround time.',
+      ],
+    });
+  }
+
+  // Only found by name: search is not bringing new people.
+  const brand = /thrive/i;
+  const nonBrandClicks = search.queries.filter((q) => !brand.test(q.key)).reduce((sum, q) => sum + q.clicks, 0);
+  if (search.totals.clicks >= 10 && nonBrandClicks / search.totals.clicks < 0.3) {
+    out.push({
+      id: 'search-brand-only', tone: 'opportunity', priority: 72,
+      title: 'Google mostly sends people who already know your name',
+      evidence: `${pct(1 - nonBrandClicks / search.totals.clicks)} of search clicks came from searches for "Thrive". New clients search for the service, not the studio.`,
+      actions: [
+        'Give each service page a clear target search — "brand designer Dallas", "small business website design Dallas" — and use it in the page title and headline.',
+        'Write a case study per project that names the client\'s industry and city.',
+      ],
+    });
+  }
+
+  const local = /dallas|dfw|fort worth|plano|frisco|arlington|texas|\btx\b/i;
+  if (search.queries.length >= 10 && !search.queries.some((q) => local.test(q.key))) {
+    out.push({
+      id: 'search-local', tone: 'opportunity', priority: 44,
+      title: 'You are not showing up for Dallas searches',
+      evidence: `None of the ${search.queries.length} searches that showed your site mention Dallas or Texas.`,
+      actions: [
+        'Say "Dallas" in the homepage title, service page headlines and footer.',
+        'Complete your Google Business Profile — it is what shows up for "near me" and city searches.',
+      ],
+    });
+  }
+
+  if (search.previous.clicks >= 10) {
+    const change = (search.totals.clicks - search.previous.clicks) / search.previous.clicks;
+    if (change >= 0.3) {
+      out.push({
+        id: 'search-up', tone: 'win', priority: 38,
+        title: `Clicks from Google are up ${pct(change)}`,
+        evidence: `${search.totals.clicks} clicks vs ${search.previous.clicks} the period before.`,
+        actions: ['Whatever you changed on the site recently is working — keep going on the same pages.'],
+      });
+    } else if (change <= -0.3) {
+      out.push({
+        id: 'search-down', tone: 'warning', priority: 64,
+        title: `Clicks from Google are down ${pct(-change)}`,
+        evidence: `${search.totals.clicks} clicks vs ${search.previous.clicks} the period before.`,
+        actions: [
+          'Check the Pages table under Google search for the page that lost the most, and whether anything on it changed.',
+          'Make sure the page still loads, and its title has not been changed by accident.',
+        ],
+      });
+    }
+  }
+  return out;
 }

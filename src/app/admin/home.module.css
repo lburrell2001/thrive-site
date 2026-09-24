@@ -1,0 +1,192 @@
+/* ======================================================================
+   ADMIN HOME — what needs attention today
+   ====================================================================== */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid #e4e1de;
+  border-radius: 12px;
+  background: #fff;
+  padding: 14px 16px;
+  color: #111;
+  text-decoration: none;
+}
+
+.tile:hover { border-color: #bbb; }
+.tile:focus-visible { outline: 2px solid #e40586; outline-offset: 2px; }
+
+.tileAlert { border-color: #fbcfe8; background: #fff7fb; }
+
+.tileLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6b6b;
+}
+
+.tileValue {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNote {
+  font-size: 12px;
+  color: #6b6b6b;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.panel {
+  border: 1px solid #e4e1de;
+  border-radius: 12px;
+  background: #fff;
+  padding: 16px 18px;
+  min-width: 0;
+  scroll-margin-top: 16px;
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.panelLink {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  text-decoration: none;
+}
+
+.panelLink:hover { color: #111; text-decoration: underline; }
+
+.empty {
+  margin: 8px 0 4px;
+  font-size: 13px;
+  color: #8a8a8a;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #f5f4f3;
+}
+
+.item:last-child { border-bottom: none; }
+
+.itemMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemTitle,
+.itemTitlePlain {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.itemTitle:hover { text-decoration: underline; }
+
+.itemSub {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #777;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  font-size: 12px;
+  color: #777;
+  white-space: nowrap;
+}
+
+.late  { color: #b91c1c; font-weight: 600; }
+.today { color: #92400e; font-weight: 600; }
+
+.check {
+  width: 16px;
+  height: 16px;
+  accent-color: #e40586;
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e40586;
+  flex-shrink: 0;
+}
+
+.stageDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.num {
+  min-width: 28px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.value {
+  min-width: 80px;
+  font-weight: 600;
+}
+
+.insight {
+  margin-top: 8px;
+  border-left: 3px solid #4f46e5;
+  border-radius: 4px;
+  background: #f7f7fe;
+  padding: 10px 12px;
+}
+
+.insightLabel {
+  margin: 0 0 2px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3730a3;
+}
+
+@media (max-width: 800px) {
+  .grid { grid-template-columns: 1fr; }
+}

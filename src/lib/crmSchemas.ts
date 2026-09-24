@@ -25,24 +25,40 @@ const contactFields = {
   company: optionalText(160),
   email,
   phone: optionalText(40),
-  stage: z.enum(CRM_STAGES),
-  value_cents: z.number().int().min(0).nullable(),
   source: z.string().trim().min(1).max(60),
   tags: z.array(z.string().trim().min(1).max(40)).max(20),
 };
 
-export const createContactSchema = z.object({
-  ...contactFields,
-  stage: contactFields.stage.default('lead'),
-  value_cents: contactFields.value_cents.optional(),
-  source: contactFields.source.default('manual'),
-  tags: contactFields.tags.default([]),
+const dealFields = {
+  title: z.string().trim().min(1, 'Name the deal').max(160),
+  stage: z.enum(CRM_STAGES),
+  value_cents: z.number().int().min(0).nullable(),
+  lost_reason: optionalText(600),
+};
+
+export const createDealSchema = z.object({
+  title: dealFields.title,
+  stage: dealFields.stage.default('lead'),
+  value_cents: dealFields.value_cents.optional(),
 });
 
-// No defaults here: under Zod 4 a default inside .partial() still fills in,
-// and a PATCH of one field would reset the others.
+/** A new contact, optionally with their first deal. */
+export const createContactSchema = z.object({
+  ...contactFields,
+  source: contactFields.source.default('manual'),
+  tags: contactFields.tags.default([]),
+  deal: createDealSchema.optional(),
+});
+
+// No defaults on updates: under Zod 4 a default inside .partial() still
+// fills in, and a PATCH of one field would reset the others.
 export const updateContactSchema = z
-  .object({ ...contactFields, lost_reason: optionalText(600) })
+  .object(contactFields)
+  .partial()
+  .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
+
+export const updateDealSchema = z
+  .object(dealFields)
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 

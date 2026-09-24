@@ -139,6 +139,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isProposals = pathname?.startsWith('/admin/proposals');
   const isCrm       = pathname?.startsWith('/admin/crm');
   const isAnalytics = pathname?.startsWith('/admin/analytics');
+  const isClients   = pathname?.startsWith('/admin/clients');
+  const isHome      = pathname === '/admin';
 
   return (
     <div className={`${baiJamjuree.variable}`} style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f6f5f4' }}>
@@ -201,8 +203,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             style={{
               fontFamily: F.inter, fontSize: 12, fontWeight: 600,
               padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
-              background: !isPortfolio && !isServices && !isProposals && !isCrm && !isAnalytics ? '#1f1f1f' : 'transparent',
-              color: !isPortfolio && !isServices && !isProposals && !isCrm && !isAnalytics ? '#fff' : '#666',
+              background: isHome ? '#1f1f1f' : 'transparent',
+              color: isHome ? '#fff' : '#666',
+              transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+            }}
+          >
+            Home
+          </a>
+          <a
+            href="/admin/clients"
+            style={{
+              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6, textDecoration: 'none',
+              background: isClients ? '#1f1f1f' : 'transparent',
+              color: isClients ? '#fff' : '#666',
               transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
             }}
           >

@@ -1,0 +1,2667 @@
+'use client';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
+import { formatPhone } from '@/lib/phone';
+
+const F = {
+  inter: `var(--font-inter), 'Inter', sans-serif`,
+};
+
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const PINK   = '#e40586';
+const PURPLE = '#5b2d8e';
+const GREEN  = '#0cf574';
+const ORANGE = '#fd6100';
+const BLUE   = '#1e3add';
+const DARK   = '#0a0a0a';
+
+const INPUT: React.CSSProperties = {
+  border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '9px 12px',
+  fontFamily: F.inter, fontSize: 13, outline: 'none',
+  width: '100%', boxSizing: 'border-box', background: '#fff', color: DARK,
+};
+const SELECT: React.CSSProperties = { ...INPUT, cursor: 'pointer' };
+const LABEL: React.CSSProperties = {
+  fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080',
+  marginBottom: 5, display: 'block', textTransform: 'uppercase', letterSpacing: '0.06em',
+};
+const AVATAR_COLORS = [PINK, PURPLE, BLUE, ORANGE, '#1a8a4a', '#c07000'];
+
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+const COLOR_SWATCHES = [PINK, ORANGE, GREEN, BLUE, PURPLE, DARK, '#808080'];
+
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  due:         { bg: '#fff4ec', color: ORANGE },
+  paid:        { bg: '#edfff6', color: '#1a8a4a' },
+  overdue:     { bg: '#fff0f8', color: PINK },
+  kickoff:     { bg: '#eef1ff', color: BLUE },
+  in_progress: { bg: '#fff0f8', color: PINK },
+  review:      { bg: '#fff4ec', color: ORANGE },
+  completed:   { bg: '#edfff6', color: '#1a8a4a' },
+};
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; }
+interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
+interface Stage   { key: string; label: string; }
+interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
+interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
+interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
+interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
+interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
+interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
+interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
+interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
+interface Subscription { id: string; client_id: string; project_name: string; invoice_prefix: string; amount_cents: number; day_of_month: number; next_due_date: string; last_generated_date: string | null; status: string; notes: string | null; created_at: string; interval_count: number; interval_unit: 'week' | 'month' | 'year'; }
+interface Credential { id: string; project_id: string | null; label: string; category: string; site_url: string; username: string; has_secret: boolean; has_notes: boolean; last_viewed_at: string | null; last_viewed_by: string | null; created_at: string; updated_at: string; }
+interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; reminders?: ReminderLog[]; }
+type Tab = 'profile' | 'projects' | 'settings';
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function fmtAmount(cents: number) { return (cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' }); }
+function fmtDate(s: string) { if (!s) return '—'; return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+type IntervalUnit = 'week' | 'month' | 'year';
+function addIntervalClient(dateStr: string, count: number, unit: IntervalUnit): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  if (unit === 'week') {
+    d.setUTCDate(d.getUTCDate() + 7 * count);
+    return d.toISOString().slice(0, 10);
+  }
+  const monthsToAdd = unit === 'year' ? 12 * count : count;
+  const targetMonthIdx = d.getUTCMonth() + monthsToAdd;
+  const targetYear  = d.getUTCFullYear() + Math.floor(targetMonthIdx / 12);
+  const normMonth   = ((targetMonthIdx % 12) + 12) % 12;
+  const dayInTarget = new Date(Date.UTC(targetYear, normMonth + 1, 0)).getUTCDate();
+  const day         = Math.min(d.getUTCDate(), dayInTarget);
+  return new Date(Date.UTC(targetYear, normMonth, day)).toISOString().slice(0, 10);
+}
+const FREQUENCY_PRESETS = [
+  { key: 'weekly',      label: 'Weekly',         count: 1, unit: 'week'  as IntervalUnit },
+  { key: 'biweekly',    label: 'Every 2 weeks',  count: 2, unit: 'week'  as IntervalUnit },
+  { key: 'monthly',     label: 'Monthly',        count: 1, unit: 'month' as IntervalUnit },
+  { key: 'bimonthly',   label: 'Every 2 months', count: 2, unit: 'month' as IntervalUnit },
+  { key: 'quarterly',   label: 'Quarterly',      count: 3, unit: 'month' as IntervalUnit },
+  { key: 'semiannual',  label: 'Every 6 months', count: 6, unit: 'month' as IntervalUnit },
+  { key: 'yearly',      label: 'Yearly',         count: 1, unit: 'year'  as IntervalUnit },
+];
+function intervalLabel(count: number, unit: IntervalUnit): string {
+  const preset = FREQUENCY_PRESETS.find(p => p.count === count && p.unit === unit);
+  if (preset) return preset.label;
+  return `Every ${count} ${unit}${count === 1 ? '' : 's'}`;
+}
+function extractPrefix(invoiceNumber: string): string {
+  const m = invoiceNumber.match(/^([A-Za-z][A-Za-z0-9]*)-\d+$/);
+  return m ? m[1] : 'INV';
+}
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function addDaysIso(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function relTime(d: string) {
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  return days < 7 ? `${days}d ago` : `${Math.floor(days / 7)}w ago`;
+}
+
+// ── Small components ───────────────────────────────────────────────────────────
+function Badge({ status }: { status: string }) {
+  const s = STATUS_COLORS[status] ?? { bg: '#f1f0ef', color: '#808080' };
+  return (
+    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+      {status.replace('_', ' ')}
+    </span>
+  );
+}
+
+function RecurringBadge({ title }: { title?: string }) {
+  return (
+    <span title={title ?? 'Generated from a recurring schedule'} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#edfff6', color: '#1a8a4a', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      ↻ Recurring
+    </span>
+  );
+}
+
+function Avatar({ name, initials, size = 40 }: { name: string; initials: string; size?: number }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: '50%', background: avatarColor(name), display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <span style={{ fontFamily: F.inter, color: '#fff', fontSize: size * 0.3, fontWeight: 800 }}>{initials || name.slice(0, 2).toUpperCase()}</span>
+    </div>
+  );
+}
+
+function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {COLOR_SWATCHES.map((c) => (
+        <button key={c} type="button" onClick={() => onChange(c)}
+          style={{ width: 26, height: 26, borderRadius: '50%', background: c, border: value === c ? `3px solid ${DARK}` : '2px solid transparent', outline: value === c ? '2px solid #fff' : 'none', cursor: 'pointer', padding: 0 }} />
+      ))}
+    </div>
+  );
+}
+
+function FormRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      <label style={LABEL}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function FormGrid({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>{children}</div>;
+}
+
+function Divider() { return <div style={{ height: 1, background: '#f0f0f0', margin: '24px 0' }} />; }
+
+async function directUpload(
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>,
+  file: File,
+  storagePath: string,
+  upsert = false,
+): Promise<string> {
+  const res = await api({ action: 'create_upload_url', path: storagePath, upsert }) as { signedUrl?: string; path?: string; error?: string };
+  if (res.error || !res.signedUrl) throw new Error(res.error ?? 'Could not get upload URL');
+  const up = await fetch(res.signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  if (!up.ok) throw new Error(`Storage upload failed (${up.status})`);
+  return res.path ?? storagePath;
+}
+
+function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,.csv,.mp4,.mov', maxMB = 20, uploading = false }: {
+  onFile: (f: File) => void; accept?: string; maxMB?: number; uploading?: boolean;
+}) {
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function pick(file: File) {
+    if (file.size > maxMB * 1024 * 1024) return;
+    onFile(file);
+  }
+
+  return (
+    <div
+      onClick={() => !uploading && inputRef.current?.click()}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragging(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files?.[0]; if (f) pick(f); }}
+      style={{
+        border: `2px dashed ${dragging ? PINK : '#e5e5e5'}`,
+        borderRadius: 10, padding: '20px 16px', textAlign: 'center',
+        cursor: uploading ? 'default' : 'pointer',
+        background: dragging ? '#fff0f8' : '#fafafa',
+        transition: 'border-color .15s, background .15s',
+        userSelect: 'none',
+      }}
+    >
+      <input ref={inputRef} type="file" accept={accept} style={{ display: 'none' }} disabled={uploading}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) pick(f); }} />
+      {uploading ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: 0 }}>Uploading…</p>
+      ) : dragging ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: PINK, margin: 0 }}>Drop to upload</p>
+      ) : (
+        <>
+          <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, margin: '0 0 3px' }}>Drop file here or click to browse</p>
+          <p style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', margin: 0 }}>Max {maxMB} MB</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ErrorMsg({ msg }: { msg: string }) {
+  if (!msg) return null;
+  return <p style={{ fontFamily: F.inter, fontSize: 13, color: PINK, background: '#fff0f8', border: `1px solid #fbc8e8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
+}
+
+function SuccessMsg({ msg }: { msg: string }) {
+  if (!msg) return null;
+  return <p style={{ fontFamily: F.inter, fontSize: 13, color: '#1a8a4a', background: '#edfff6', border: `1px solid #a3f0c8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
+}
+
+function Btn({ children, onClick, type = 'button', variant = 'primary', disabled, style, title }: {
+  children: React.ReactNode; onClick?: () => void; type?: 'button' | 'submit';
+  variant?: 'primary' | 'danger' | 'ghost'; disabled?: boolean; style?: React.CSSProperties; title?: string;
+}) {
+  const base: React.CSSProperties = { fontFamily: F.inter, fontWeight: 700, fontSize: 13, borderRadius: 8, border: 'none', cursor: disabled ? 'default' : 'pointer', padding: '8px 16px', transition: 'opacity .15s', opacity: disabled ? 0.5 : 1 };
+  const variants = {
+    primary: { background: DARK, color: '#fff' },
+    danger:  { background: PINK, color: '#fff' },
+    ghost:   { background: 'transparent', color: '#808080', border: '1.5px solid #e5e5e5' },
+  };
+  return <button type={type} onClick={onClick} disabled={disabled} title={title} style={{ ...base, ...variants[variant], ...style }}>{children}</button>;
+}
+
+function SubSectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+      <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</div>
+      {action}
+    </div>
+  );
+}
+
+function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{title}</h3>
+      {action}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+export default function AdminPage() {
+  const [loading,          setLoading]          = useState(true);
+  const [clients,          setClients]          = useState<Client[]>([]);
+  const [search,           setSearch]           = useState('');
+  const [selectedId,       setSelectedId]       = useState<string | 'new' | ''>('');
+  const [clientData,       setClientData]       = useState<ClientData | null>(null);
+  const [dataLoading,      setDataLoading]      = useState(false);
+  const [activeTab,        setActiveTab]        = useState<Tab>('profile');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const api = useCallback(async (body: Record<string, unknown>) => {
+    const passcode = sessionStorage.getItem('admin_passcode') ?? '';
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'X-Admin-Passcode': passcode, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return { error: `Server error ${res.status}: ${text.slice(0, 200)}` } as Record<string, unknown>;
+    }
+  }, []);
+
+  const refreshClients = useCallback(async () => {
+    const r = await api({ action: 'list_clients' });
+    if (!r.error) setClients((r.data as Client[]) ?? []);
+  }, [api]);
+
+  useEffect(() => {
+    api({ action: 'list_clients' }).then((r) => {
+      if (!r.error) setClients((r.data as Client[]) ?? []);
+      setLoading(false);
+      // Deep link from the CRM or dashboard: /admin/clients?client=<id>
+      const wanted = new URLSearchParams(window.location.search).get('client');
+      if (wanted && ((r.data as Client[]) ?? []).some((c) => c.id === wanted)) setSelectedId(wanted);
+    });
+  }, [api]);
+
+  useEffect(() => {
+    if (!selectedId || selectedId === 'new') { setClientData(null); return; }
+    setDataLoading(true);
+    api({ action: 'get_client_data', clientId: selectedId }).then((r) => {
+      if (!r.error) setClientData(r.data as ClientData);
+      setDataLoading(false);
+    });
+  }, [selectedId, api]);
+
+  const refreshClientData = useCallback(async () => {
+    if (!selectedId || selectedId === 'new') return;
+    const r = await api({ action: 'get_client_data', clientId: selectedId });
+    if (!r.error) setClientData(r.data as ClientData);
+  }, [selectedId, api]);
+
+  const filtered = clients.filter((c) =>
+    `${c.full_name} ${c.company_name}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'profile',  label: 'Profile' },
+    { id: 'projects', label: 'Projects', count: clientData?.projects.filter(p => !p.archived).length },
+    { id: 'settings', label: 'Settings' },
+  ];
+
+  const selectedClient = clients.find(c => c.id === selectedId);
+
+  return (
+    <div style={{ display: 'flex', height: '100%', fontFamily: F.inter }}>
+      <style>{`
+        .admin-list-item:hover { background: #fafafa; }
+        .admin-list-item.active { background: #fff0f8; }
+        .admin-list-item.active .admin-list-name { color: ${PINK}; }
+        .admin-sidebar {
+          width: 260px; background: #fff; border-right: 1px solid #e5e5e5;
+          display: flex; flex-direction: column; flex-shrink: 0;
+        }
+        .admin-mobile-bar { display: none; }
+        .admin-client-hdr { padding: 24px 32px; }
+        .admin-tab-bar { padding: 0 32px; }
+        .admin-tab-content { padding: 24px 32px; }
+        .admin-tab-inner { padding: 28px; border-radius: 12px; }
+        @media (max-width: 640px) {
+          .admin-sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
+            width: 280px !important;
+            transform: translateX(-100%);
+            transition: transform .22s ease;
+            box-shadow: 4px 0 24px rgba(0,0,0,.15);
+          }
+          .admin-sidebar.mobile-open { transform: translateX(0); }
+          .admin-mobile-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; flex-shrink: 0; }
+          .admin-client-hdr { padding: 16px !important; }
+          .admin-tab-bar { padding: 0 16px !important; }
+          .admin-tab-content { padding: 12px !important; }
+          .admin-tab-inner { padding: 16px !important; border-radius: 8px; }
+        }
+      `}</style>
+
+      {/* Mobile overlay backdrop */}
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 40 }}
+        />
+      )}
+
+      {/* ── Left sidebar: client list ── */}
+      <aside className={`admin-sidebar${mobileSidebarOpen ? ' mobile-open' : ''}`}>
+        <div style={{ padding: '16px 16px 12px' }}>
+          <div style={{ position: 'relative' }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+              <circle cx="6" cy="6" r="4.5" stroke="#bfbfbf" strokeWidth="1.5" />
+              <path d="M10 10l2.5 2.5" stroke="#bfbfbf" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search clients…"
+              style={{ ...INPUT, paddingLeft: 32, fontSize: 13 }}
+            />
+          </div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '24px 16px', color: '#bfbfbf', fontSize: 13 }}>Loading…</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: '24px 16px', color: '#bfbfbf', fontSize: 13 }}>No clients found</div>
+          ) : (
+            filtered.map((c) => (
+              <div
+                key={c.id}
+                className={`admin-list-item${selectedId === c.id ? ' active' : ''}`}
+                onClick={() => { setSelectedId(c.id); setActiveTab('profile'); setMobileSidebarOpen(false); }}
+                style={{ padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderLeft: selectedId === c.id ? `3px solid ${PINK}` : '3px solid transparent', transition: 'background .15s' }}
+              >
+                <Avatar name={c.full_name} initials={c.initials} size={34} />
+                <div style={{ minWidth: 0 }}>
+                  <div className="admin-list-name" style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', transition: 'color .15s' }}>{c.full_name}</div>
+                  {c.company_name && <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.company_name}</div>}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={{ padding: 16, borderTop: '1px solid #f0f0f0' }}>
+          <button
+            onClick={() => { setSelectedId('new'); setActiveTab('profile'); }}
+            style={{ width: '100%', background: selectedId === 'new' ? PINK : DARK, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 0', fontFamily: F.inter, fontSize: 13, fontWeight: 700, cursor: 'pointer', transition: 'background .15s' }}
+          >
+            + New Client
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Right panel ── */}
+      <div style={{ flex: 1, overflow: 'hidden', background: '#f6f5f4', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+        {/* Mobile client selector bar */}
+        <div className="admin-mobile-bar">
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f6f5f4', border: '1.5px solid #e5e5e5', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: DARK, cursor: 'pointer', flex: 1 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="6" r="2.5" stroke="#808080" strokeWidth="1.5"/>
+              <path d="M3 13c0-2.76 2.239-5 5-5s5 2.24 5 5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            {selectedClient ? selectedClient.full_name : selectedId === 'new' ? 'New Client' : 'Select Client'}
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 'auto' }}>
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => { setSelectedId('new'); setActiveTab('profile'); setMobileSidebarOpen(false); }}
+            style={{ background: DARK, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            + New
+          </button>
+        </div>
+
+        {/* No selection */}
+        {!selectedId && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 12, padding: 40 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#fff', border: '1.5px solid #e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="#bfbfbf" strokeWidth="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="#bfbfbf" strokeWidth="1.5" strokeLinecap="round"/></svg>
+            </div>
+            <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>Select a client to get started</p>
+            <button onClick={() => setSelectedId('new')} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: PINK, background: 'transparent', border: `1.5px solid ${PINK}`, borderRadius: 8, padding: '8px 20px', cursor: 'pointer' }}>
+              + Add first client
+            </button>
+          </div>
+        )}
+
+        {/* New client form */}
+        {selectedId === 'new' && (
+          <div className="admin-tab-content" style={{ maxWidth: 600, flex: 1, overflowY: 'auto' }}>
+            <h2 style={{ fontFamily: F.inter, fontSize: 18, fontWeight: 800, color: DARK, margin: '0 0 6px' }}>New Client</h2>
+            <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 28px' }}>Create a new client account. They'll receive a login invite.</p>
+            <NewClientForm api={api} onCreated={(id) => { refreshClients(); setSelectedId(id); setActiveTab('profile'); }} />
+          </div>
+        )}
+
+        {/* Client editor */}
+        {selectedId && selectedId !== 'new' && (
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+
+            {/* Client header */}
+            {clientData?.profile && (
+              <div className="admin-client-hdr" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <Avatar name={clientData.profile.full_name} initials={clientData.profile.initials} size={52} />
+                    <div>
+                      <div style={{ fontFamily: F.inter, fontSize: 20, fontWeight: 800, color: DARK, lineHeight: 1.2 }}>{clientData.profile.full_name}</div>
+                      {clientData.profile.company_name && (
+                        <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', marginTop: 2 }}>{clientData.profile.company_name}</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                    {/* Quick stats */}
+                    {[
+                      { label: 'Projects',   n: clientData.projects.length },
+                      { label: 'Invoices',   n: clientData.invoices.length },
+                      { label: 'Requests',   n: clientData.requests.length },
+                    ].map(({ label, n }) => (
+                      <div key={label} style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: F.inter, fontSize: 22, fontWeight: 800, color: DARK, lineHeight: 1 }}>{n}</div>
+                        <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{label}</div>
+                      </div>
+                    ))}
+                    <a href={`/admin/crm?portal=${selectedId}`} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
+                      View in CRM →
+                    </a>
+                    <Btn variant="danger" onClick={async () => {
+                      if (!confirm(`Delete ${clientData.profile?.full_name} and all their data?`)) return;
+                      await api({ action: 'delete_client', clientId: selectedId });
+                      setSelectedId(''); refreshClients();
+                    }}>Delete Client</Btn>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab bar */}
+            <div className="admin-tab-bar" style={{ background: '#fff', borderBottom: '1px solid #e5e5e5', display: 'flex', gap: 0, overflowX: 'auto', flexShrink: 0 }}>
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    fontFamily: F.inter, fontWeight: 600, fontSize: 13,
+                    padding: '14px 16px', background: 'transparent', border: 'none',
+                    borderBottom: activeTab === t.id ? `2px solid ${PINK}` : '2px solid transparent',
+                    color: activeTab === t.id ? PINK : '#808080',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                    transition: 'color .15s',
+                  }}
+                >
+                  {t.label}
+                  {t.count !== undefined && (
+                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: activeTab === t.id ? '#fff0f8' : '#f1f0ef', color: activeTab === t.id ? PINK : '#808080', padding: '1px 7px', borderRadius: 999 }}>
+                      {t.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div className="admin-tab-content" style={{ flex: 1, overflowY: 'auto' }}>
+              {dataLoading ? (
+                <div style={{ color: '#bfbfbf', fontSize: 13, fontFamily: F.inter }}>Loading…</div>
+              ) : clientData ? (
+                <div className="admin-tab-inner" style={{ background: '#fff', border: '1px solid #e5e5e5' }}>
+                  {activeTab === 'profile'  && <ProfileTab  clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
+                  {activeTab === 'projects' && <ProjectsTab clientId={selectedId} data={clientData} api={api} onRefresh={refreshClientData} />}
+                  {activeTab === 'settings' && <SettingsTab api={api} clientId={selectedId} clientEmail={clientData?.profile?.email ?? null} onRefresh={refreshClientData} />}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── New Client Form ────────────────────────────────────────────────────────────
+function NewClientForm({ api, onCreated }: { api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onCreated: (id: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email || !fullName) { setError('Email and full name are required'); return; }
+    setSaving(true); setError('');
+    const r = await api({ action: 'create_client', email, full_name: fullName, company_name: companyName }) as { ok?: boolean; data?: { id: string }; error?: string };
+    if (r.error) { setError(r.error); setSaving(false); return; }
+    onCreated(r.data!.id);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <FormGrid>
+        <FormRow label="Email *"><input style={INPUT} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="client@example.com" /></FormRow>
+        <FormRow label="Full Name *"><input style={INPUT} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Smith" /></FormRow>
+        <FormRow label="Company"><input style={INPUT} value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Acme Inc." /></FormRow>
+      </FormGrid>
+      <div>
+        <Btn type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create Client'}</Btn>
+        <ErrorMsg msg={error} />
+      </div>
+    </form>
+  );
+}
+
+// ── Profile Tab ────────────────────────────────────────────────────────────────
+function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const p = data.profile;
+  const [fullName, setFullName] = useState(p?.full_name ?? '');
+  const [companyName, setCompanyName] = useState(p?.company_name ?? '');
+  const [initials, setInitials] = useState(p?.initials ?? '');
+  const [email, setEmail] = useState(p?.email ?? '');
+  const [phone, setPhone] = useState(formatPhone(p?.phone));
+  const [smsOptIn, setSmsOptIn] = useState(Boolean(p?.sms_opt_in));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setError(''); setSuccess('');
+    const r = await api({ action: 'update_profile', clientId, full_name: fullName, company_name: companyName, initials, email, phone, sms_opt_in: smsOptIn }) as { ok?: boolean; error?: string };
+    if (r.error) setError(r.error); else { setSuccess('Saved.'); onRefresh(); }
+    setSaving(false);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <FormGrid>
+          <FormRow label="Full Name"><input style={INPUT} value={fullName} onChange={(e) => setFullName(e.target.value)} /></FormRow>
+          <FormRow label="Email"><input style={INPUT} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></FormRow>
+          <FormRow label="Company"><input style={INPUT} value={companyName} onChange={(e) => setCompanyName(e.target.value)} /></FormRow>
+          <FormRow label="Initials"><input style={INPUT} value={initials} onChange={(e) => setInitials(e.target.value)} maxLength={3} /></FormRow>
+          <FormRow label="Mobile"><input style={INPUT} type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" /></FormRow>
+        </FormGrid>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? DARK : '#bfbfbf' }}>
+          <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={(e) => setSmsOptIn(e.target.checked)} style={{ marginTop: 2, accentColor: PINK }} />
+          <span>
+            Client agreed to receive text messages
+            {p?.sms_opt_in && p.sms_opt_in_at && <span style={{ color: '#808080' }}> · since {fmtDate(p.sms_opt_in_at)}</span>}
+            <span style={{ display: 'block', fontSize: 11, color: '#bfbfbf' }}>Clients can also turn this on or off themselves in portal settings.</span>
+          </span>
+        </label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Btn>
+          <Btn variant="ghost" onClick={() => remind({ kind: 'custom', clientId }, 'Message client')}>✉ Message Client</Btn>
+          <ErrorMsg msg={error} /><SuccessMsg msg={success} />
+        </div>
+      </form>
+      {dialog}
+      <Divider />
+      <RequestInboxSection clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+      <Divider />
+      <CredentialsSection data={data} api={api} onRefresh={onRefresh} />
+      <Divider />
+      {/* Every proposal for this client — project-attached ones included. */}
+      <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} reminders={data.reminders} api={api} onRefresh={onRefresh} />
+      <Divider />
+      <ActivitySection activity={data.activity} />
+      <Divider />
+      <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ── Request Inbox ──────────────────────────────────────────────────────────────
+// Clients brain-dump from /portal/requests with no project attached.
+// This is where those get filed into an existing project or turned into a new one.
+function RequestInboxSection({ clientId, data, api, onRefresh }: {
+  clientId: string; data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const projects = data.projects.filter(p => !p.archived);
+  // Unfiled means: no project, or a project name the client proposed that doesn't
+  // exist yet. Both need a decision from you.
+  const isProposal = (r: Request) => !!r.project_name && !data.projects.some(p => p.name === r.project_name);
+  const inbox      = data.requests.filter(r => !r.project_name || isProposal(r));
+
+  const [busyId,     setBusyId]     = useState<string | null>(null);
+  const [newForId,   setNewForId]   = useState<string | null>(null);
+  const [newName,    setNewName]    = useState('');
+  const [newColor,   setNewColor]   = useState(PINK);
+  const [error,      setError]      = useState('');
+
+  async function assignTo(req: Request, projectName: string) {
+    setBusyId(req.id); setError('');
+    const r = await api({ action: 'assign_request', id: req.id, project_name: projectName }) as { error?: string };
+    setBusyId(null);
+    if (r.error) { setError(r.error); return; }
+    onRefresh();
+  }
+
+  function startNewProject(req: Request) {
+    setNewForId(req.id);
+    // If the client proposed a name, start from theirs rather than the dump's title.
+    setNewName(req.project_name || req.title);
+    setNewColor(PINK);
+    setError('');
+  }
+
+  async function createProjectFrom(req: Request) {
+    const name = newName.trim();
+    if (!name) { setError('Give the new project a name'); return; }
+    if (projects.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+      setError('A project with that name already exists — file it under that one instead.');
+      return;
+    }
+    setBusyId(req.id); setError('');
+    const created = await api({ action: 'add_project', clientId, name, status: 'kickoff', progress: 0, color: newColor }) as { error?: string };
+    if (created.error) { setError(created.error); setBusyId(null); return; }
+    const assigned = await api({ action: 'assign_request', id: req.id, project_name: name }) as { error?: string };
+    setBusyId(null);
+    if (assigned.error) { setError(assigned.error); return; }
+    setNewForId(null); setNewName('');
+    onRefresh();
+  }
+
+  async function handleDelete(req: Request) {
+    if (!confirm(`Delete "${req.title}"? This removes it from the client's list too.`)) return;
+    const r = await api({ action: 'delete_request', id: req.id }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Brain Dump Inbox</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: inbox.length ? '#fff4ec' : '#f1f0ef', color: inbox.length ? ORANGE : '#808080', padding: '1px 7px', borderRadius: 999 }}>{inbox.length}</span>
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        Everything the client brain-dumped without a project. File each one under an existing project or spin up a new one.
+      </p>
+
+      <ErrorMsg msg={error} />
+
+      {inbox.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>Inbox is clear — every brain dump is filed under a project.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {inbox.map((req) => {
+            const busy = busyId === req.id;
+            return (
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderLeft: `3px solid ${ORANGE}`, borderRadius: 8, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{req.title}</div>
+                    {req.description && (
+                      <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{req.description}</p>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      {isProposal(req) && (
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f3edfb', color: PURPLE, padding: '2px 9px', borderRadius: 999 }}>
+                          ✦ Wants a new project: {req.project_name}
+                        </span>
+                      )}
+                      {req.type && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{req.type}</span>}
+                      {req.priority !== 'normal' && (
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: req.priority === 'high' ? '#fff0f8' : '#f1f0ef', color: req.priority === 'high' ? PINK : '#808080', padding: '2px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{req.priority}</span>
+                      )}
+                      {req.created_at && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', alignSelf: 'center' }}>{fmtDate(req.created_at)}</span>}
+                    </div>
+                  </div>
+                  <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(req)}>Delete</Btn>
+                </div>
+
+                {newForId === req.id ? (
+                  <div style={{ background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 12, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <label style={LABEL}>New Project Name</label>
+                      <input style={INPUT} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Website Redesign" />
+                    </div>
+                    <div>
+                      <label style={LABEL}>Colour</label>
+                      <ColorPicker value={newColor} onChange={setNewColor} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Btn onClick={() => createProjectFrom(req)} disabled={busy}>{busy ? 'Creating…' : 'Create & File'}</Btn>
+                      <Btn variant="ghost" onClick={() => setNewForId(null)}>Cancel</Btn>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select
+                      style={{ ...SELECT, width: 'auto', minWidth: 200, opacity: busy ? 0.6 : 1 }}
+                      value=""
+                      disabled={busy || projects.length === 0}
+                      onChange={(e) => { if (e.target.value) assignTo(req, e.target.value); }}
+                    >
+                      <option value="">{projects.length === 0 ? 'No projects yet' : busy ? 'Filing…' : 'File under existing project…'}</option>
+                      {projects.map(p => <option key={p.id} value={p.name}>{p.name}</option>)}
+                    </select>
+                    <Btn variant="ghost" onClick={() => startNewProject(req)} disabled={busy}>
+                      {isProposal(req) ? `+ Create “${req.project_name}”` : '+ New Project From This'}
+                    </Btn>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Activity Section ───────────────────────────────────────────────────────────
+// Every activity row for the client, across all projects — the profile is meant to
+// read as the whole history, so the list only collapses for length, never filters.
+function ActivitySection({ activity }: { activity: Activity[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL = 10;
+  const visible = showAll ? activity : activity.slice(0, INITIAL);
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Activity</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{activity.length}</span>
+      </div>
+
+      {activity.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No activity yet.</p>
+      ) : (
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {visible.map((item) => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {item.project_name && (
+                    <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: item.dot_color, marginBottom: 1 }}>{item.project_name}</div>
+                  )}
+                  <div style={{ fontFamily: F.inter, fontSize: 13, color: DARK }}>{item.text}</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 1 }}>{relTime(item.created_at)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {activity.length > INITIAL && (
+            <button
+              type="button"
+              onClick={() => setShowAll(v => !v)}
+              style={{ marginTop: 14, fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              {showAll ? 'Show less' : `Show all ${activity.length} updates`}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Credentials Section ────────────────────────────────────────────────────────
+const CRED_CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
+  website_host: { label: 'Website Host',     color: BLUE,     bg: '#eef1ff' },
+  domain:       { label: 'Domain Registrar', color: PURPLE,   bg: '#f3edfb' },
+  cms:          { label: 'CMS / Admin',      color: PINK,     bg: '#fff0f8' },
+  ftp:          { label: 'FTP / Server',     color: ORANGE,   bg: '#fff4ec' },
+  analytics:    { label: 'Analytics',        color: '#1a8a4a', bg: '#edfff6' },
+  social:       { label: 'Social Account',   color: '#0b7f8f', bg: '#e9f8fa' },
+  email:        { label: 'Email / Mailing',  color: '#8a6d1a', bg: '#fdf7e3' },
+  other:        { label: 'Other',            color: '#808080', bg: '#f1f0ef' },
+};
+
+function CredentialsSection({ data, api, onRefresh }: {
+  data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const credentials = data.credentials ?? [];
+  const [revealed,  setRevealed]  = useState<Record<string, { secret: string; notes: string }>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [copied,    setCopied]    = useState('');
+  const [error,     setError]     = useState('');
+
+  async function toggleReveal(c: Credential) {
+    if (revealed[c.id]) {
+      setRevealed(prev => { const next = { ...prev }; delete next[c.id]; return next; });
+      return;
+    }
+    setRevealing(c.id); setError('');
+    const r = await api({ action: 'reveal_credential', id: c.id }) as { data?: { secret: string; notes: string }; error?: string };
+    setRevealing(null);
+    if (r.error || !r.data) { setError(r.error ?? 'Could not open this credential.'); return; }
+    setRevealed(prev => ({ ...prev, [c.id]: r.data! }));
+    onRefresh();
+  }
+
+  async function handleDelete(c: Credential) {
+    if (!confirm(`Delete "${c.label}"? The client will no longer see it in their vault either.`)) return;
+    const r = await api({ action: 'delete_credential', id: c.id }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  async function copyValue(key: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      setTimeout(() => setCopied(k => (k === key ? '' : k)), 1600);
+    } catch { /* clipboard unavailable — the value is on screen anyway */ }
+  }
+
+  const projectName = (id: string | null) => data.projects.find(p => p.id === id)?.name ?? '';
+
+  const rowLabel: React.CSSProperties = { fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em', width: 72, flexShrink: 0 };
+  const linkBtn: React.CSSProperties = { fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: BLUE, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Secure Vault</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{credentials.length}</span>
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        Logins the client submitted from their portal. Stored encrypted — revealing one is recorded and shown to the client.
+      </p>
+
+      <ErrorMsg msg={error} />
+
+      {credentials.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No credentials shared yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {credentials.map((c) => {
+            const cat  = CRED_CATEGORIES[c.category] ?? CRED_CATEGORIES.other;
+            const open = revealed[c.id];
+            const proj = projectName(c.project_id);
+            return (
+              <div key={c.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                      <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{c.label}</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: cat.bg, color: cat.color, padding: '2px 9px', borderRadius: 999 }}>{cat.label}</span>
+                      {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
+                    </div>
+                    {c.site_url && (
+                      <a href={c.site_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: BLUE, textDecoration: 'none', wordBreak: 'break-all' }}>
+                        {c.site_url} ↗
+                      </a>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                    <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => toggleReveal(c)} disabled={revealing === c.id}>
+                      {revealing === c.id ? 'Opening…' : open ? 'Hide' : 'Reveal'}
+                    </Btn>
+                    <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(c)}>Delete</Btn>
+                  </div>
+                </div>
+
+                <div style={{ background: '#fafafa', border: '1px solid #f1f0ef', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={rowLabel}>User</span>
+                    <span style={{ fontFamily: F.inter, fontSize: 13, color: c.username ? DARK : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>{c.username || 'Not provided'}</span>
+                    {c.username && (
+                      <button type="button" style={linkBtn} onClick={() => copyValue(`u-${c.id}`, c.username)}>
+                        {copied === `u-${c.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <span style={rowLabel}>Password</span>
+                    <span style={{ fontFamily: open ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : F.inter, fontSize: 13, color: c.has_secret ? DARK : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>
+                      {!c.has_secret ? 'Not provided' : open ? (open.secret || '—') : '••••••••••'}
+                    </span>
+                    {c.has_secret && open && (
+                      <button type="button" style={linkBtn} onClick={() => copyValue(`p-${c.id}`, open.secret)}>
+                        {copied === `p-${c.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                    )}
+                  </div>
+                  {c.has_notes && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <span style={{ ...rowLabel, paddingTop: 2 }}>Notes</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 13, color: DARK, flex: 1, whiteSpace: 'pre-wrap' }}>
+                        {open ? (open.notes || '—') : '•••••• (shown when revealed)'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 8 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Added {fmtDate(c.created_at)}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Updated {fmtDate(c.updated_at)}</span>
+                  {c.last_viewed_at && (
+                    <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>Last revealed {fmtDate(c.last_viewed_at)}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Proposals Section ──────────────────────────────────────────────────────────
+function ProposalsSection({ clientId, proposals, projects = [], reminders, api, onRefresh }: {
+  clientId: string; proposals: Proposal[]; projects?: Project[]; reminders?: ReminderLog[];
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const [uploading,        setUploading]        = useState(false);
+  const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
+  const [error,            setError]            = useState('');
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploading(true); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_proposal', clientId, name: file.name, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploading(false); }
+  }
+
+  async function handleUploadSigned(proposal: Proposal, file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploadingSignedId(proposal.id); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/signed/${Date.now()}-${safeName}`, true);
+      const r = await api({ action: 'upload_signed_proposal', id: proposal.id, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploadingSignedId(null); }
+  }
+
+  function pickSignedFile(proposal: Proposal) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleUploadSigned(proposal, file);
+    };
+    input.click();
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this proposal?')) return;
+    const r = await api({ action: 'delete_proposal', id }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  async function toggleStatus(p: Proposal) {
+    const next = p.status === 'pending' ? 'signed' : 'pending';
+    const r = await api({ action: 'set_proposal_status', id: p.id, status: next }) as { error?: string };
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+    pending: { bg: '#fff4ec', color: ORANGE },
+    signed:  { bg: '#edfff6', color: '#1a8a4a' },
+  };
+
+  const projectName = (id?: string | null) => projects.find(p => p.id === id)?.name ?? '';
+  const signedCount = proposals.filter(p => p.status === 'signed').length;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Proposals</h3>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{proposals.length}</span>
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
+        {proposals.length === 0
+          ? 'Every proposal for this client, across all projects.'
+          : `${signedCount} signed of ${proposals.length} — across all projects. Anything uploaded here is not tied to a project.`}
+      </p>
+
+      <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
+      <ErrorMsg msg={error} />
+      {dialog}
+
+      {proposals.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '12px 0 0' }}>No proposals uploaded yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+          {proposals.map((p) => {
+            const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.pending;
+            const signingThis = uploadingSignedId === p.id;
+            return (
+              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{p.name}</span>
+                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.project_id ? '#eef1ff' : '#f1f0ef', color: p.project_id ? BLUE : '#808080', padding: '2px 9px', borderRadius: 999 }}>
+                      {projectName(p.project_id) || (p.project_id ? 'Project' : 'General')}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{fmtDate(p.created_at)}</div>
+
+                  {/* Signed copy row */}
+                  {p.signed_file_url ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download
+                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '4px 10px', borderRadius: 8 }}>
+                        ↓ Signed Copy
+                      </a>
+                      <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
+                        {signingThis ? 'Uploading…' : 'Replace Signed'}
+                      </Btn>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 8 }}>
+                      <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
+                        {signingThis ? 'Uploading…' : '↑ Upload Signed Copy'}
+                      </Btn>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
+                  {p.status !== 'signed' && lastRemindedLabel(reminders, 'portal_proposal', p.id) && (
+                    <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(reminders, 'portal_proposal', p.id)}</span>
+                  )}
+                  <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                  {p.status !== 'signed' && (
+                    <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => remind({ kind: 'portal_proposal', id: p.id }, 'Remind about proposal')}>Remind</Btn>
+                  )}
+                  <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => toggleStatus(p)}>
+                    {p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}
+                  </Btn>
+                  <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(p.id)}>Delete</Btn>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Projects Tab ───────────────────────────────────────────────────────────────
+function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [status, setStatus] = useState('kickoff');
+  const [progress, setProgress] = useState(0);
+  const [color, setColor] = useState(PINK);
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const active   = data.projects.filter(p => !p.archived);
+  const archived = data.projects.filter(p => p.archived);
+  const projectNames = new Set(data.projects.map(p => p.name));
+  const standaloneInvoices = data.invoices.filter(i => !i.project_name || !projectNames.has(i.project_name));
+  const standaloneRequests = data.requests.filter(r => !r.project_name || !projectNames.has(r.project_name));
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name) { setAddErr('Name required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_project', clientId, name, status, progress, color }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setName(''); setStatus('kickoff'); setProgress(0); setColor(PINK); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  function renderCard(p: Project) {
+    return (
+      <ProjectCard
+        key={p.id}
+        project={p}
+        expanded={expandedId === p.id}
+        onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
+        clientId={clientId}
+        data={data}
+        api={api}
+        onRefresh={onRefresh}
+      />
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <SectionHead title="Projects" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Project'}</Btn>} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormGrid>
+              <FormRow label="Name *"><input style={INPUT} value={name} onChange={(e) => setName(e.target.value)} placeholder="Brand Identity" /></FormRow>
+              <FormRow label="Status">
+                <select style={SELECT} value={status} onChange={(e) => setStatus(e.target.value)}>
+                  <option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option>
+                </select>
+              </FormRow>
+              <FormRow label="Progress (0–100)"><input style={INPUT} type="number" min={0} max={100} value={progress} onChange={(e) => setProgress(Number(e.target.value))} /></FormRow>
+            </FormGrid>
+            <FormRow label="Color"><ColorPicker value={color} onChange={setColor} /></FormRow>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Project'}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {/* Active projects */}
+      {active.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: '8px 0' }}>No active projects yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {active.map(renderCard)}
+        </div>
+      )}
+
+      {/* Archived projects */}
+      {archived.length > 0 && (
+        <div style={{ marginTop: 24 }}>
+          <button
+            type="button"
+            onClick={() => setShowArchived(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', marginBottom: showArchived ? 10 : 0 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transition: 'transform .2s', transform: showArchived ? 'rotate(90deg)' : 'rotate(0)' }}>
+              <path d="M4 2.5l4 3.5-4 3.5" stroke="#808080" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Archived ({archived.length})
+            </span>
+          </button>
+          {showArchived && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {archived.map(renderCard)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Standalone invoices — not linked to any project */}
+      {standaloneInvoices.length > 0 && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Standalone Invoices
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {standaloneInvoices.map(inv => (
+              <div key={inv.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
+                {inv.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{inv.project_name}</span>}
+                {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+                <Badge status={inv.status} />
+                {inv.subscription_id && <RecurringBadge />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Standalone requests — submitted by client without a project */}
+      {standaloneRequests.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+            Standalone Requests
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {standaloneRequests.map(req => {
+              const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+              const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
+              return (
+                <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
+                  {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
+                  <Badge status={req.status} />
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Project Card (accordion) ───────────────────────────────────────────────────
+const DEFAULT_STAGES: Stage[] = [
+  { key: 'kickoff', label: 'Kickoff' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'review', label: 'Review' },
+  { key: 'completed', label: 'Completed' },
+];
+
+function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefresh }: {
+  project: Project; expanded: boolean; onToggle: () => void;
+  clientId: string; data: ClientData;
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onRefresh: () => void;
+}) {
+  const [editData, setEditData] = useState<Partial<Project>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
+  const [stages, setStages] = useState<Stage[]>(project.stages?.length ? project.stages : DEFAULT_STAGES);
+
+  const projectProposals  = data.proposals.filter(p => p.project_id === project.id);
+  const projectFiles      = data.files.filter(f => f.project_name === project.name);
+  const projectMilestones = data.milestones.filter(m => m.project_name === project.name);
+  const projectActivity   = data.activity.filter(a => a.project_name === project.name);
+  const projectInvoices   = data.invoices.filter(i => i.project_name === project.name);
+  const projectRequests   = data.requests.filter(r => r.project_name === project.name);
+
+  async function handleSave() {
+    setSaving(true);
+    setSaveErr('');
+    const r = await api({
+      action: 'update_project',
+      id: project.id,
+      name: editData.name ?? project.name,
+      status: editData.status ?? project.status,
+      progress: editData.progress ?? project.progress,
+      stages,
+    }) as { error?: string };
+    setSaving(false);
+    if (r.error) { setSaveErr(r.error); return; }
+    setEditData({});
+    onRefresh();
+  }
+
+  function addStage() {
+    const label = 'New Stage';
+    const key = `stage_${Date.now()}`;
+    setStages(s => [...s, { key, label }]);
+  }
+
+  function renameStage(key: string, label: string) {
+    setStages(s => s.map(st => st.key === key ? { ...st, label } : st));
+  }
+
+  function deleteStage(key: string) {
+    setStages(s => {
+      const remaining = s.filter(st => st.key !== key);
+      if ((editData.status ?? project.status) === key && remaining.length) {
+        setEditData(d => ({ ...d, status: remaining[0].key }));
+      }
+      return remaining;
+    });
+  }
+
+  return (
+    <div style={{ borderRadius: 10, border: expanded ? `1.5px solid ${PINK}` : '1px solid #f0f0f0', overflow: 'hidden', transition: 'border-color .15s' }}>
+      {/* Header row — click to expand */}
+      <div onClick={onToggle} style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', background: expanded ? '#fff0f8' : '#fff', userSelect: 'none' }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: expanded ? PINK : DARK }}>{project.name}</div>
+          <div style={{ marginTop: 5, background: '#f0f0f0', borderRadius: 999, height: 4, width: '100%', maxWidth: 180 }}>
+            <div style={{ height: 4, borderRadius: 999, background: project.color, width: `${project.progress}%`, transition: 'width .3s' }} />
+          </div>
+        </div>
+        {project.archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '2px 8px', borderRadius: 999, flexShrink: 0 }}>ARCHIVED</span>}
+        <Badge status={project.status} />
+        <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', minWidth: 32 }}>{project.progress}%</span>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, transition: 'transform .2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+          <path d="M3 5l4 4 4-4" stroke="#bfbfbf" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+
+      {/* Expanded body */}
+      {expanded && (
+        <div>
+          {/* Edit project */}
+          <div style={{ padding: 16, background: '#fff', borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0' }}>
+            <SubSectionHead title="Edit Project" action={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {saveErr && <span style={{ fontFamily: F.inter, fontSize: 11, color: PINK, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={saveErr}>⚠ {saveErr}</span>}
+                <Btn onClick={handleSave} disabled={saving} style={{ padding: '4px 12px', fontSize: 12 }}>{saving ? 'Saving…' : 'Save'}</Btn>
+                <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { await api({ action: 'archive_project', id: project.id, archived: !project.archived }); onRefresh(); }}>{project.archived ? 'Unarchive' : 'Archive'}</Btn>
+                <Btn variant="danger" style={{ padding: '4px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete this project?')) return; await api({ action: 'delete_project', id: project.id }); onRefresh(); }}>Delete</Btn>
+              </div>
+            } />
+
+            {/* Name */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={LABEL}>Name</label>
+              <input style={INPUT} value={editData.name ?? project.name} onChange={(e) => setEditData(d => ({ ...d, name: e.target.value }))} />
+            </div>
+
+            {/* Stage management */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <label style={{ ...LABEL, margin: 0 }}>Stages</label>
+                <button type="button" onClick={addStage} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: PINK, background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>+ Add Stage</button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                {stages.map((st, idx) => {
+                  const currentStatus = editData.status ?? project.status;
+                  const activeIdx = stages.findIndex(s => s.key === currentStatus);
+                  const isCurrent = currentStatus === st.key;
+                  const isPast    = activeIdx > idx;
+                  const accent    = project.color || PINK;
+                  return (
+                    <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
+                        style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 6, cursor: 'pointer', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1.5px solid #e5e5e5', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', fontFamily: F.inter, fontSize: 10, fontWeight: 800, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>
+                        {String(idx + 1).padStart(2, '0')}
+                      </button>
+                      <input
+                        style={{ ...INPUT, flex: 1 }}
+                        value={st.label}
+                        onChange={e => renameStage(st.key, e.target.value)}
+                        placeholder="Stage name"
+                      />
+                      <button type="button" onClick={() => deleteStage(st.key)} disabled={stages.length <= 1}
+                        style={{ flexShrink: 0, background: 'none', border: 'none', cursor: stages.length <= 1 ? 'default' : 'pointer', color: stages.length <= 1 ? '#e5e5e5' : '#bfbfbf', fontSize: 16, lineHeight: 1, padding: '0 4px' }}>
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <label style={{ ...LABEL, marginBottom: 6 }}>Active Stage</label>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(stages.length, 4)}, 1fr)`, gap: 6 }}>
+                {stages.map((st, idx) => {
+                  const currentStatus = editData.status ?? project.status;
+                  const activeIdx = stages.findIndex(s => s.key === currentStatus);
+                  const isCurrent = currentStatus === st.key;
+                  const isPast    = activeIdx > idx;
+                  const accent    = project.color || PINK;
+                  return (
+                    <button key={st.key} type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
+                      style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1.5px solid #e5e5e5', opacity: (!isCurrent && !isPast) ? 0.6 : 1, transition: 'all .15s' }}>
+                      <div style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: isCurrent ? '#fff' : isPast ? accent : '#808080', marginBottom: 3 }}>{String(idx + 1).padStart(2, '0')}</div>
+                      <div style={{ fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>{st.label}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Progress slider */}
+            <div>
+              <label style={LABEL}>Progress — {editData.progress ?? project.progress}%</label>
+              <input
+                type="range" min={0} max={100} step={5}
+                value={editData.progress ?? project.progress}
+                onChange={(e) => setEditData(d => ({ ...d, progress: Number(e.target.value) }))}
+                style={{ width: '100%', accentColor: project.color || PINK, cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>0%</span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf' }}>100%</span>
+              </div>
+            </div>
+          </div>
+
+          <ProjectSubInvoices   project={project} invoices={projectInvoices}     clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+          <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} reminders={data.reminders} api={api} onRefresh={onRefresh} />
+          <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubActivity   project={project} activity={projectActivity}     clientId={clientId} api={api} onRefresh={onRefresh} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project sub-sections ───────────────────────────────────────────────────
+type SubProps = { project: Project; clientId: string; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void; };
+
+function ProjectSubProposals({ project, proposals, clientId, reminders, api, onRefresh }: SubProps & { proposals: Proposal[]; reminders?: ReminderLog[] }) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const [uploading,         setUploading]         = useState(false);
+  const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
+  const [error,             setError]             = useState('');
+  const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploading(true); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_proposal', clientId, projectId: project.id, name: file.name, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploading(false); }
+  }
+
+  async function handleUploadSigned(proposal: Proposal, file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploadingSignedId(proposal.id); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `proposals/${clientId}/signed/${Date.now()}-${safeName}`, true);
+      const r = await api({ action: 'upload_signed_proposal', id: proposal.id, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploadingSignedId(null); }
+  }
+
+  function pickSignedFile(proposal: Proposal) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) handleUploadSigned(proposal, file);
+    };
+    input.click();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Proposal" />
+      <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
+      <ErrorMsg msg={error} />
+      {dialog}
+      {proposals.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {proposals.map((p) => {
+            const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.pending;
+            const signingThis = uploadingSignedId === p.id;
+            return (
+              <div key={p.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap', background: '#fff' }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                  {p.signed_file_url ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '2px 8px', borderRadius: 6 }}>↓ Signed</a>
+                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? '…' : 'Replace'}</Btn>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 6 }}>
+                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? 'Uploading…' : '↑ Upload Signed'}</Btn>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 0 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{p.status}</span>
+                  <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                  {p.status !== 'signed' && (
+                    <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(reminders, 'portal_proposal', p.id) ?? 'Not reminded yet'} onClick={() => remind({ kind: 'portal_proposal', id: p.id }, 'Remind about proposal')}>Remind</Btn>
+                  )}
+                  <Btn variant="ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { const next = p.status === 'pending' ? 'signed' : 'pending'; await api({ action: 'set_proposal_status', id: p.id, status: next }); onRefresh(); }}>{p.status === 'pending' ? 'Mark Signed' : 'Mark Pending'}</Btn>
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_proposal', id: p.id }); onRefresh(); }}>Delete</Btn>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps & { files: PortalFile[] }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    setUploading(true); setError('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `client-files/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, path }) as { error?: string };
+      if (r.error) setError(r.error); else onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploading(false); }
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Files" />
+      <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
+      <ErrorMsg msg={error} />
+      {files.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {files.map((f) => (
+            <div key={f.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+              <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>View ↗</a>
+              <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubMilestones({ project, milestones, clientId, api, onRefresh }: SubProps & { milestones: Milestone[] }) {
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [color, setColor] = useState(PINK);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setError('Title required'); return; }
+    setAdding(true); setError('');
+    const r = await api({ action: 'add_milestone', clientId, project_name: project.name, title, due_date: dueDate, color }) as { error?: string };
+    if (r.error) { setError(r.error); setAdding(false); return; }
+    setTitle(''); setDueDate(''); setColor(PINK); setShowForm(false); setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Milestones" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Title *"><input style={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Final Delivery" /></FormRow>
+            <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
+          </FormGrid>
+          <FormRow label="Color"><ColorPicker value={color} onChange={setColor} /></FormRow>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add'}</Btn><ErrorMsg msg={error} /></div>
+        </form>
+      )}
+      {milestones.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No milestones yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {milestones.map((m) => (
+            <div key={m.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <input type="checkbox" checked={m.completed} onChange={() => { api({ action: 'update_milestone', id: m.id, title: m.title, due_date: m.due_date, completed: !m.completed }); onRefresh(); }} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: GREEN }} />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: m.completed ? '#bfbfbf' : DARK, textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
+              {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
+              <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_milestone', id: m.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: SubProps & { activity: Activity[] }) {
+  const [text, setText] = useState('');
+  const [dotColor, setDotColor] = useState(GREEN);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text) { setError('Text required'); return; }
+    setAdding(true); setError('');
+    const r = await api({ action: 'add_activity', clientId, text, dot_color: dotColor, project_name: project.name }) as { error?: string };
+    if (r.error) { setError(r.error); setAdding(false); return; }
+    setText(''); setDotColor(GREEN); setShowForm(false); setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa' }}>
+      <SubSectionHead title="Activity" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormRow label="Activity Text *"><input style={INPUT} value={text} onChange={(e) => setText(e.target.value)} placeholder="Project kicked off" /></FormRow>
+          <FormRow label="Dot Color"><ColorPicker value={dotColor} onChange={setDotColor} /></FormRow>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add'}</Btn><ErrorMsg msg={error} /></div>
+        </form>
+      )}
+      {activity.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No activity yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {activity.map((item, i) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, paddingBottom: i < activity.length - 1 ? 10 : 0, borderBottom: i < activity.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
+              <div style={{ flex: 1 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, color: DARK }}>{item.text}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginLeft: 8 }}>{relTime(item.created_at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project: Invoices ─────────────────────────────────────────────────────
+function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; data: ClientData }) {
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const [showForm, setShowForm] = useState(false);
+  const [invNum,    setInvNum]    = useState('');
+  const [amountDol, setAmountDol] = useState('');
+  const [invDate,   setInvDate]   = useState('');
+  const [dueDate,   setDueDate]   = useState('');
+  const [invStatus, setInvStatus] = useState('due');
+  const [repeat, setRepeat] = useState(false);
+  const [frequencyKey, setFrequencyKey] = useState('monthly');
+  const [editId,    setEditId]    = useState<string | null>(null);
+  const [editVals,  setEditVals]  = useState<Partial<Invoice>>({});
+  const [saving,    setSaving]    = useState(false);
+  const [addErr,    setAddErr]    = useState('');
+  const [adding,    setAdding]    = useState(false);
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+
+  // When opening the form, auto-populate the next sequential invoice number for this client.
+  useEffect(() => {
+    if (!showForm || invNum) return;
+    let active = true;
+    (async () => {
+      const r = await api({ action: 'next_invoice_number', clientId }) as { data?: { invoice_number?: string } };
+      if (active && r.data?.invoice_number) setInvNum(r.data.invoice_number);
+    })();
+    return () => { active = false; };
+  }, [showForm, invNum, clientId, api]);
+
+  async function handleMarkPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    await api({ action: 'update_invoice', id: inv.id, status: 'paid' });
+    setMarkingPaid(null); onRefresh();
+  }
+
+  async function handleMakeRecurring(inv: Invoice) {
+    const presetKey = window.prompt(
+      `Set up recurring schedule for ${fmtAmount(inv.amount_cents)}.\nFrequency:\n  w = Weekly\n  2w = Every 2 weeks\n  m = Monthly\n  2m = Every 2 months\n  q = Quarterly\n  6m = Every 6 months\n  y = Yearly\n\nEnter shortcut:`,
+      'm',
+    );
+    if (!presetKey) return;
+    const shortcuts: Record<string, string> = { w:'weekly','2w':'biweekly', m:'monthly','2m':'bimonthly', q:'quarterly','6m':'semiannual', y:'yearly' };
+    const key = shortcuts[presetKey.trim().toLowerCase()] || presetKey.trim().toLowerCase();
+    const preset = FREQUENCY_PRESETS.find(p => p.key === key) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+    const baseDate = inv.due_date || inv.invoice_date || todayIso();
+    const next = addIntervalClient(baseDate, preset.count, preset.unit);
+    const dayOfMonth = parseInt(next.slice(8, 10), 10);
+    await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    onRefresh();
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!invNum || !amountDol) { setAddErr('Invoice # and amount required'); return; }
+    setAdding(true); setAddErr('');
+    const amountCents = Math.round(parseFloat(amountDol) * 100);
+
+    let subscriptionId: string | undefined;
+    if (repeat) {
+      const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+      const baseDate = invDate || todayIso();
+      const next = addIntervalClient(baseDate, preset.count, preset.unit);
+      const dayOfMonth = parseInt(next.slice(8, 10), 10);
+      const subRes = await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
+      if (subRes.error) { setAddErr(subRes.error); setAdding(false); return; }
+      subscriptionId = subRes.data?.id;
+    }
+
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus, subscription_id: subscriptionId }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
+    setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  async function handleEditSave(inv: Invoice) {
+    setSaving(true);
+    await api({ action: 'update_invoice', id: inv.id, invoice_number: editVals.invoice_number ?? inv.invoice_number, project_name: project.name, amount_cents: editVals.amount_cents !== undefined ? Number(editVals.amount_cents) : inv.amount_cents, due_date: editVals.due_date ?? inv.due_date, status: editVals.status ?? inv.status });
+    setEditId(null); setEditVals({}); setSaving(false); onRefresh();
+  }
+
+  async function handleExportPDF(inv: Invoice) {
+    const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    await generateInvoicePDF(inv, data.profile?.full_name ?? null);
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      {dialog}
+      <SubSectionHead title="Invoices" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Invoice # *"><input style={INPUT} value={invNum} onChange={e => setInvNum(e.target.value)} placeholder="INV-001" /></FormRow>
+            <FormRow label="Amount (USD) *"><input style={INPUT} type="number" step="0.01" value={amountDol} onChange={e => setAmountDol(e.target.value)} placeholder="1200.00" /></FormRow>
+            <FormRow label="Invoice Date"><input style={INPUT} type="date" value={invDate} onChange={e => setInvDate(e.target.value)} /></FormRow>
+            <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></FormRow>
+            <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={e => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
+          </FormGrid>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: repeat ? '#edfff6' : '#f6f5f4', border: `1.5px solid ${repeat ? '#0cf574' : '#e5e5e5'}`, borderRadius: 8, padding: '10px 14px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, cursor: 'pointer' }}>
+              <input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#0cf574' }} />
+              <span>Repeat <span style={{ fontWeight: 500, color: '#808080' }}>— auto-generate a new invoice on a schedule until paused</span></span>
+            </label>
+            {repeat && (
+              <select value={frequencyKey} onChange={e => setFrequencyKey(e.target.value)} style={{ ...SELECT, width: 'auto', minWidth: 160, marginLeft: 'auto' }}>
+                {FREQUENCY_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+            )}
+          </div>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : (repeat ? 'Add + Schedule' : 'Add Invoice')}</Btn><ErrorMsg msg={addErr} /></div>
+        </form>
+      )}
+      {invoices.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No invoices yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {invoices.map(inv => editId === inv.id ? (
+            <div key={inv.id} style={{ border: '1px solid #e5e5e5', borderRadius: 8, padding: '10px 14px', background: '#fff', display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <input style={{ ...INPUT, width: 90 }} value={editVals.invoice_number ?? inv.invoice_number} onChange={e => setEditVals(d => ({ ...d, invoice_number: e.target.value }))} />
+              <input style={{ ...INPUT, width: 90 }} type="number" value={editVals.amount_cents !== undefined ? editVals.amount_cents / 100 : inv.amount_cents / 100} onChange={e => setEditVals(d => ({ ...d, amount_cents: parseFloat(e.target.value) * 100 }))} />
+              <input style={{ ...INPUT, width: 130 }} type="date" value={editVals.due_date ?? inv.due_date} onChange={e => setEditVals(d => ({ ...d, due_date: e.target.value }))} />
+              <select style={{ ...SELECT, width: 100 }} value={editVals.status ?? inv.status} onChange={e => setEditVals(d => ({ ...d, status: e.target.value }))}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select>
+              <Btn onClick={() => handleEditSave(inv)} disabled={saving} style={{ padding: '3px 10px', fontSize: 11 }}>{saving ? '…' : 'Save'}</Btn>
+              <Btn variant="ghost" onClick={() => { setEditId(null); setEditVals({}); }} style={{ padding: '3px 8px', fontSize: 11 }}>✕</Btn>
+            </div>
+          ) : (
+            <div key={inv.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
+              {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+              <Badge status={inv.status} />
+              {inv.subscription_id && <RecurringBadge />}
+              {inv.status !== 'paid' && lastRemindedLabel(data.reminders, 'invoice', inv.id) && (
+                <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(data.reminders, 'invoice', inv.id)}</span>
+              )}
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {inv.status !== 'paid' && (
+                  <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>
+                )}
+                {inv.status !== 'paid' && (
+                  <Btn variant="ghost" onClick={() => remind({ kind: 'invoice', id: inv.id }, `Remind about ${inv.invoice_number}`)} style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(data.reminders, 'invoice', inv.id) ?? 'Not reminded yet'}>Remind</Btn>
+                )}
+                {!inv.subscription_id && (
+                  <Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '3px 8px', fontSize: 11 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>
+                )}
+                <Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '3px 8px', fontSize: 11 }}>PDF</Btn>
+                <Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditVals({ invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '3px 8px', fontSize: 11 }}>Edit</Btn>
+                <Btn variant="danger" onClick={async () => { if (!confirm('Delete invoice?')) return; await api({ action: 'delete_invoice', id: inv.id }); onRefresh(); }} style={{ padding: '3px 8px', fontSize: 11 }}>Delete</Btn>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Per-project: Requests ─────────────────────────────────────────────────────
+function ProjectSubRequests({ project, requests, projects = [], clientId, api, onRefresh }: SubProps & { requests: Request[]; projects?: Project[] }) {
+  const [showForm, setShowForm] = useState(false);
+  const [title,    setTitle]    = useState('');
+  const [type,     setType]     = useState('');
+  const [status,   setStatus]   = useState('kickoff');
+  const [priority, setPriority] = useState('normal');
+  const [addErr,   setAddErr]   = useState('');
+  const [adding,   setAdding]   = useState(false);
+  const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setAddErr('Title required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_request', clientId, title, type, status, priority, project_name: project.name }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setTitle(''); setType(''); setStatus('kickoff'); setPriority('normal'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ padding: 16, background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+      <SubSectionHead title="Requests" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      {showForm && (
+        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid #e5e5e5', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <FormGrid>
+            <FormRow label="Title *"><input style={INPUT} value={title} onChange={e => setTitle(e.target.value)} placeholder="Logo revision" /></FormRow>
+            <FormRow label="Type"><input style={INPUT} value={type} onChange={e => setType(e.target.value)} placeholder="Design, Copy…" /></FormRow>
+            <FormRow label="Status"><select style={SELECT} value={status} onChange={e => setStatus(e.target.value)}><option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option></select></FormRow>
+            <FormRow label="Priority"><select style={SELECT} value={priority} onChange={e => setPriority(e.target.value)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></FormRow>
+          </FormGrid>
+          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : 'Add Request'}</Btn><ErrorMsg msg={addErr} /></div>
+        </form>
+      )}
+      {requests.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No requests yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {requests.map(req => {
+            const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
+            return (
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '10px 14px', background: '#fff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{req.title}</span>
+                  {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{req.type}</span>}
+                  <Badge status={req.status} />
+                  {/* Refile a mis-sorted request without having to delete and retype it. */}
+                  <select
+                    style={{ ...SELECT, width: 'auto', minWidth: 130, padding: '3px 8px', fontSize: 11 }}
+                    value=""
+                    onChange={async (e) => {
+                      const target = e.target.value;
+                      if (!target) return;
+                      await api({ action: 'assign_request', id: req.id, project_name: target === '__inbox__' ? '' : target });
+                      onRefresh();
+                    }}
+                  >
+                    <option value="">Move…</option>
+                    <option value="__inbox__">← Back to inbox</option>
+                    {projects.filter(p => p.name !== project.name).map(p => (
+                      <option key={p.id} value={p.name}>{p.name}</option>
+                    ))}
+                  </select>
+                  <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+                </div>
+                {req.description && (
+                  <p style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{req.description}</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Recurring Invoices list (subscriptions) ────────────────────────────────────
+function SubscriptionsList({ data, api, onRefresh }: { data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const subs = data.subscriptions ?? [];
+  const [busy, setBusy] = useState<string | null>(null);
+  if (subs.length === 0) return null;
+
+  async function toggle(s: Subscription) {
+    setBusy(s.id);
+    await api({ action: 'update_subscription', id: s.id, status: s.status === 'active' ? 'paused' : 'active' });
+    setBusy(null); onRefresh();
+  }
+  async function cancel(s: Subscription) {
+    if (!confirm(`Cancel this recurring schedule? Future invoices will stop generating.`)) return;
+    setBusy(s.id);
+    await api({ action: 'delete_subscription', id: s.id });
+    setBusy(null); onRefresh();
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Recurring invoices</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {subs.map((s) => {
+          const isPaused = s.status === 'paused';
+          return (
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid #f0f0f0', borderRadius: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK }}>{fmtAmount(s.amount_cents)} · {intervalLabel(s.interval_count || 1, s.interval_unit || 'month')}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{s.project_name || '—'}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Next: {fmtDate(s.next_due_date)}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isPaused ? '#808080' : '#1a8a4a', background: isPaused ? '#f1f0ef' : '#edfff6', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{s.status}</span>
+              <div style={{ flex: 1 }} />
+              <Btn variant="ghost" disabled={busy === s.id} onClick={() => toggle(s)} style={{ padding: '4px 10px', fontSize: 11 }}>{isPaused ? 'Resume' : 'Pause'}</Btn>
+              <Btn variant="danger" disabled={busy === s.id} onClick={() => cancel(s)} style={{ padding: '4px 10px', fontSize: 11 }}>Cancel</Btn>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Invoices Tab ───────────────────────────────────────────────────────────────
+function InvoicesTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editData, setEditData] = useState<Partial<Invoice>>({});
+  const [saving, setSaving] = useState(false);
+  const [invNum, setInvNum] = useState('');
+  const [projName, setProjName] = useState('');
+  const [amountDol, setAmountDol] = useState('');
+  const [invDate, setInvDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [invStatus, setInvStatus] = useState('due');
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'due' | 'paid' | 'overdue'>('all');
+  const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(false);
+  const [frequencyKey, setFrequencyKey] = useState('monthly');
+  const [generating, setGenerating] = useState(false);
+  const [genMsg, setGenMsg] = useState('');
+
+  useEffect(() => {
+    if (!showForm || invNum) return;
+    let active = true;
+    (async () => {
+      const r = await api({ action: 'next_invoice_number', clientId }) as { data?: { invoice_number?: string } };
+      if (active && r.data?.invoice_number) setInvNum(r.data.invoice_number);
+    })();
+    return () => { active = false; };
+  }, [showForm, invNum, clientId, api]);
+
+  async function handleGenerateDue() {
+    setGenerating(true); setGenMsg('');
+    const r = await api({ action: 'generate_due_invoices' }) as { generated?: number; error?: string };
+    if (r.error) { setGenMsg(r.error); setGenerating(false); return; }
+    setGenMsg(r.generated ? `Generated ${r.generated} invoice${r.generated === 1 ? '' : 's'}.` : 'Nothing due right now.');
+    setGenerating(false);
+    onRefresh();
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete invoice?')) return;
+    await api({ action: 'delete_invoice', id }); onRefresh();
+  }
+
+  async function handleExportPDF(inv: Invoice) {
+    const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    await generateInvoicePDF(inv, data.profile?.full_name ?? null);
+  }
+
+  async function handleEditSave(id: string) {
+    setSaving(true);
+    const payload = { ...editData, amount_cents: editData.amount_cents !== undefined ? Number(editData.amount_cents) : undefined };
+    await api({ action: 'update_invoice', id, ...payload });
+    setEditId(null); setEditData({}); setSaving(false); onRefresh();
+  }
+
+  async function handleMarkPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    await api({ action: 'update_invoice', id: inv.id, status: 'paid' });
+    setMarkingPaid(null); onRefresh();
+  }
+
+  async function handleMakeRecurring(inv: Invoice) {
+    const presetKey = window.prompt(
+      `Set up recurring schedule for ${fmtAmount(inv.amount_cents)}.\nFrequency:\n  w = Weekly\n  2w = Every 2 weeks\n  m = Monthly\n  2m = Every 2 months\n  q = Quarterly\n  6m = Every 6 months\n  y = Yearly\n\nEnter shortcut:`,
+      'm',
+    );
+    if (!presetKey) return;
+    const shortcuts: Record<string, string> = { w:'weekly','2w':'biweekly', m:'monthly','2m':'bimonthly', q:'quarterly','6m':'semiannual', y:'yearly' };
+    const key = shortcuts[presetKey.trim().toLowerCase()] || presetKey.trim().toLowerCase();
+    const preset = FREQUENCY_PRESETS.find(p => p.key === key) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+    const baseDate = inv.due_date || inv.invoice_date || todayIso();
+    const next = addIntervalClient(baseDate, preset.count, preset.unit);
+    const dayOfMonth = parseInt(next.slice(8, 10), 10);
+    await api({ action: 'add_subscription', clientId, project_name: inv.project_name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    onRefresh();
+  }
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!invNum || !amountDol) { setAddErr('Invoice # and Amount required'); return; }
+    setAdding(true); setAddErr('');
+    const amountCents = Math.round(parseFloat(amountDol) * 100);
+
+    let subscriptionId: string | undefined;
+    if (repeat) {
+      const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
+      const baseDate = invDate || todayIso();
+      const next = addIntervalClient(baseDate, preset.count, preset.unit);
+      const dayOfMonth = parseInt(next.slice(8, 10), 10);
+      const subRes = await api({ action: 'add_subscription', clientId, project_name: projName, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
+      if (subRes.error) { setAddErr(subRes.error); setAdding(false); return; }
+      subscriptionId = subRes.data?.id;
+    }
+
+    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: projName, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus, subscription_id: subscriptionId }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+
+    setInvNum(''); setProjName(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  const paid        = data.invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + i.amount_cents, 0);
+  const outstanding = data.invoices.filter((i) => i.status === 'due').reduce((s, i) => s + i.amount_cents, 0);
+  const overdueAmt  = data.invoices.filter((i) => i.status === 'overdue').reduce((s, i) => s + i.amount_cents, 0);
+
+  const STAT_CARDS = [
+    { label: 'Paid',        value: fmtAmount(paid),        color: '#0cf574' },
+    { label: 'Outstanding', value: fmtAmount(outstanding), color: '#fd6100' },
+    { label: 'Overdue',     value: fmtAmount(overdueAmt),  color: '#e40586' },
+  ];
+
+  const counts = {
+    all:     data.invoices.length,
+    due:     data.invoices.filter((i) => i.status === 'due').length,
+    overdue: data.invoices.filter((i) => i.status === 'overdue').length,
+    paid:    data.invoices.filter((i) => i.status === 'paid').length,
+  };
+
+  const visibleInvoices = filter === 'all' ? data.invoices : data.invoices.filter((i) => i.status === filter);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 16 }}>
+        {STAT_CARDS.map((c) => (
+          <div key={c.label} style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: 10, overflow: 'hidden' }}>
+            <div style={{ height: 3, background: c.color }} />
+            <div style={{ padding: '10px 14px' }}>
+              <div style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{c.label}</div>
+              <div style={{ fontFamily: F.inter, fontSize: 18, fontWeight: 800, color: DARK, marginTop: 4 }}>{c.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <div role="tablist" aria-label="Filter invoices" style={{ display: 'flex', gap: 4, background: '#f1f0ef', borderRadius: 999, padding: 3 }}>
+          {([
+            { key: 'all',     label: 'All' },
+            { key: 'due',     label: 'Due' },
+            { key: 'overdue', label: 'Overdue' },
+            { key: 'paid',    label: 'Paid' },
+          ] as const).map((t) => {
+            const active = filter === t.key;
+            return (
+              <button key={t.key} role="tab" aria-selected={active} onClick={() => setFilter(t.key)}
+                style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, border: 'none', borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
+                         background: active ? '#fff' : 'transparent',
+                         color: active ? DARK : '#808080',
+                         boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none' }}>
+                {t.label} <span style={{ color: '#bfbfbf', fontWeight: 600 }}>{counts[t.key]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <Btn variant="ghost" onClick={handleGenerateDue} disabled={generating} style={{ padding: '6px 12px', fontSize: 12 }}>{generating ? 'Generating…' : 'Run recurring now'}</Btn>
+          <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Invoice'}</Btn>
+        </div>
+      </div>
+      {genMsg && (
+        <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: -8, marginBottom: 12 }}>{genMsg}</div>
+      )}
+
+      <SubscriptionsList data={data} api={api} onRefresh={onRefresh} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormGrid>
+              <FormRow label="Invoice # *"><input style={INPUT} value={invNum} onChange={(e) => setInvNum(e.target.value)} placeholder="INV-001" /></FormRow>
+              <FormRow label="Project">
+                <select style={SELECT} value={projName} onChange={(e) => setProjName(e.target.value)}>
+                  <option value="">— None —</option>
+                  {data.projects.map((p) => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </FormRow>
+              <FormRow label="Amount (USD) *"><input style={INPUT} type="number" step="0.01" value={amountDol} onChange={(e) => setAmountDol(e.target.value)} placeholder="1200.00" /></FormRow>
+              <FormRow label="Invoice Date"><input style={INPUT} type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)} /></FormRow>
+              <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
+              <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={(e) => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
+            </FormGrid>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: repeat ? '#edfff6' : '#f6f5f4', border: `1.5px solid ${repeat ? '#0cf574' : '#e5e5e5'}`, borderRadius: 8, padding: '10px 14px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, cursor: 'pointer' }}>
+                <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#0cf574' }} />
+                <span>Repeat <span style={{ fontWeight: 500, color: '#808080' }}>— auto-generate a new invoice on a schedule until paused</span></span>
+              </label>
+              {repeat && (
+                <select value={frequencyKey} onChange={(e) => setFrequencyKey(e.target.value)} style={{ ...SELECT, width: 'auto', minWidth: 160, marginLeft: 'auto' }}>
+                  {FREQUENCY_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                </select>
+              )}
+            </div>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : (repeat ? 'Add + Schedule' : 'Add Invoice')}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {data.invoices.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No invoices yet.</p>
+      ) : visibleInvoices.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No {filter} invoices.</p>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: F.inter, fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #f0f0f0' }}>
+                {['Invoice #', 'Project', 'Amount', 'Invoice Date', 'Due', 'Status', ''].map((h) => (
+                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', color: '#bfbfbf', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleInvoices.map((inv) => editId === inv.id ? (
+                <tr key={inv.id} style={{ background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 100 }} value={editData.invoice_number ?? inv.invoice_number} onChange={(e) => setEditData((d) => ({ ...d, invoice_number: e.target.value }))} /></td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <select style={{ ...SELECT, width: 150 }} value={editData.project_name ?? inv.project_name} onChange={(e) => setEditData((d) => ({ ...d, project_name: e.target.value }))}>
+                      <option value="">— None —</option>
+                      {data.projects.map((p) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 90 }} type="number" value={editData.amount_cents !== undefined ? editData.amount_cents / 100 : inv.amount_cents / 100} onChange={(e) => setEditData((d) => ({ ...d, amount_cents: parseFloat(e.target.value) * 100 }))} /></td>
+                  <td style={{ padding: '10px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
+                  <td style={{ padding: '10px 12px' }}><input style={{ ...INPUT, width: 130 }} type="date" value={editData.due_date ?? inv.due_date} onChange={(e) => setEditData((d) => ({ ...d, due_date: e.target.value }))} /></td>
+                  <td style={{ padding: '10px 12px' }}><select style={{ ...SELECT, width: 110 }} value={editData.status ?? inv.status} onChange={(e) => setEditData((d) => ({ ...d, status: e.target.value }))}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></td>
+                  <td style={{ padding: '10px 12px' }}><div style={{ display: 'flex', gap: 6 }}><Btn onClick={() => handleEditSave(inv.id)} disabled={saving} style={{ padding: '5px 12px', fontSize: 12 }}>{saving ? '…' : 'Save'}</Btn><Btn variant="ghost" onClick={() => { setEditId(null); setEditData({}); }} style={{ padding: '5px 12px', fontSize: 12 }}>✕</Btn></div></td>
+                </tr>
+              ) : (
+                <tr key={inv.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '12px 12px', fontWeight: 700, color: DARK }}>{inv.invoice_number}</td>
+                  <td style={{ padding: '12px 12px', color: '#808080' }}>{inv.project_name || '—'}</td>
+                  <td style={{ padding: '12px 12px', fontWeight: 700, color: DARK }}>{fmtAmount(inv.amount_cents)}</td>
+                  <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.invoice_date)}</td>
+                  <td style={{ padding: '12px 12px', color: '#808080', fontSize: 12 }}>{fmtDate(inv.due_date)}</td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}><Badge status={inv.status} />{inv.subscription_id && <RecurringBadge />}</div></td>
+                  <td style={{ padding: '12px 12px' }}><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{inv.status !== 'paid' && (<Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '5px 12px', fontSize: 12, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>)}{!inv.subscription_id && (<Btn variant="ghost" onClick={() => handleMakeRecurring(inv)} style={{ padding: '5px 12px', fontSize: 12 }} title="Set up monthly recurring schedule from this invoice">↻ Recurring</Btn>)}<Btn variant="ghost" onClick={() => handleExportPDF(inv)} style={{ padding: '5px 12px', fontSize: 12 }}>PDF</Btn><Btn variant="ghost" onClick={() => { setEditId(inv.id); setEditData({ invoice_number: inv.invoice_number, project_name: inv.project_name, amount_cents: inv.amount_cents, due_date: inv.due_date, status: inv.status }); }} style={{ padding: '5px 12px', fontSize: 12 }}>Edit</Btn><Btn variant="danger" onClick={() => handleDelete(inv.id)} style={{ padding: '5px 12px', fontSize: 12 }}>Delete</Btn></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Requests Tab ───────────────────────────────────────────────────────────────
+function RequestsTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('kickoff');
+  const [priority, setPriority] = useState('normal');
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setAddErr('Title required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_request', clientId, title, type, status, priority }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setTitle(''); setType(''); setStatus('kickoff'); setPriority('normal'); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <SectionHead title="Requests" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Request'}</Btn>} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormGrid>
+              <FormRow label="Title *"><input style={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Logo revision" /></FormRow>
+              <FormRow label="Type"><input style={INPUT} value={type} onChange={(e) => setType(e.target.value)} placeholder="Design, Copy…" /></FormRow>
+              <FormRow label="Status"><select style={SELECT} value={status} onChange={(e) => setStatus(e.target.value)}><option value="kickoff">Kickoff</option><option value="in_progress">In Progress</option><option value="review">Review</option><option value="completed">Completed</option></select></FormRow>
+              <FormRow label="Priority"><select style={SELECT} value={priority} onChange={(e) => setPriority(e.target.value)}><option value="high">High</option><option value="normal">Normal</option><option value="low">Low</option></select></FormRow>
+            </FormGrid>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Request'}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {data.requests.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No requests yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.requests.map((req) => {
+            const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
+            return (
+              <div key={req.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: pr.bg, color: pr.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{req.priority}</span>
+                  <div>
+                    <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{req.title}</span>
+                    {req.type && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginLeft: 8 }}>{req.type}</span>}
+                  </div>
+                  <Badge status={req.status} />
+                </div>
+                <Btn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_request', id: req.id }); onRefresh(); }}>Delete</Btn>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Files Tab ──────────────────────────────────────────────────────────────────
+function FilesTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [projName, setProjName]   = useState('');
+  const [fileUrl, setFileUrl]     = useState('');
+  const [urlName, setUrlName]     = useState('');
+  const [addErr, setAddErr]       = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [showUrl, setShowUrl]     = useState(false);
+  const [showForm, setShowForm]   = useState(false);
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setAddErr('File must be under 50 MB'); return; }
+    setUploading(true); setAddErr('');
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = await directUpload(api, file, `client-files/${clientId}/${Date.now()}-${safeName}`);
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: projName, path }) as { error?: string };
+      if (r.error) setAddErr(r.error);
+      else { setProjName(''); setShowForm(false); onRefresh(); }
+    } catch (e) { setAddErr(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
+    finally { setUploading(false); }
+  }
+
+  async function handleUrlAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!urlName || !fileUrl) { setAddErr('Name and URL are required'); return; }
+    setUploading(true); setAddErr('');
+    const r = await api({ action: 'add_file', clientId, name: urlName, project_name: projName, file_url: fileUrl }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setUploading(false); return; }
+    setUrlName(''); setProjName(''); setFileUrl(''); setShowUrl(false); setShowForm(false);
+    setUploading(false); onRefresh();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <SectionHead title="Files & Assets" action={<Btn onClick={() => { setShowForm(!showForm); setAddErr(''); }}>{showForm ? 'Cancel' : '+ Add File'}</Btn>} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <FormRow label="Project (optional)">
+            <input style={INPUT} value={projName} onChange={(e) => setProjName(e.target.value)} placeholder="Brand Identity" />
+          </FormRow>
+          <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
+
+          {/* URL fallback */}
+          <button type="button" onClick={() => setShowUrl(!showUrl)}
+            style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, textDecoration: 'underline' }}>
+            {showUrl ? 'Hide URL option' : 'Or link an external URL instead'}
+          </button>
+
+          {showUrl && (
+            <form onSubmit={handleUrlAdd} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <FormGrid>
+                <FormRow label="File Name *"><input style={INPUT} value={urlName} onChange={(e) => setUrlName(e.target.value)} placeholder="brand-guide.pdf" /></FormRow>
+                <FormRow label="URL *"><input style={INPUT} value={fileUrl} onChange={(e) => setFileUrl(e.target.value)} placeholder="https://…" /></FormRow>
+              </FormGrid>
+              <div><Btn type="submit" disabled={uploading}>Add Link</Btn></div>
+            </form>
+          )}
+
+          <ErrorMsg msg={addErr} />
+        </div>
+      )}
+
+      {data.files.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No files yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.files.map((f) => (
+            <div key={f.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{f.name}</div>
+                  <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{f.project_name || ''}</div>
+                </div>
+                {f.file_url && <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: BLUE }}>↗ Open</a>}
+              </div>
+              <Btn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Onboarding Tab ─────────────────────────────────────────────────────────────
+function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [stepNum, setStepNum] = useState(data.onboarding.length + 1);
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
+  const [actLabel, setActLabel] = useState('');
+  const [actHref, setActHref] = useState('');
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const done = data.onboarding.filter((s) => s.completed).length;
+  const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const onboardingReminded = lastRemindedLabel(data.reminders, 'onboarding', null);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setAddErr('Title required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_onboarding_step', clientId, step_number: stepNum, title, description: desc, action_label: actLabel, action_href: actHref }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setStepNum((n) => n + 1); setTitle(''); setDesc(''); setActLabel(''); setActHref(''); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Onboarding</h3>
+          {data.onboarding.length > 0 && (
+            <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{done} of {data.onboarding.length} completed{done < data.onboarding.length && onboardingReminded ? ` · ${onboardingReminded}` : ''}</div>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {done < data.onboarding.length && (
+            <Btn variant="ghost" onClick={() => remind({ kind: 'onboarding', clientId }, 'Remind about onboarding')}>Remind</Btn>
+          )}
+          <Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Step'}</Btn>
+        </div>
+      </div>
+      {dialog}
+
+      {data.onboarding.length > 0 && (
+        <div style={{ background: '#f0f0f0', borderRadius: 999, height: 6, marginBottom: 20 }}>
+          <div style={{ height: 6, borderRadius: 999, background: GREEN, width: `${data.onboarding.length ? (done / data.onboarding.length) * 100 : 0}%`, transition: 'width .4s' }} />
+        </div>
+      )}
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormGrid>
+              <FormRow label="Step # *"><input style={INPUT} type="number" min={1} value={stepNum} onChange={(e) => setStepNum(Number(e.target.value))} /></FormRow>
+              <FormRow label="Title *"><input style={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Sign Contract" /></FormRow>
+            </FormGrid>
+            <FormRow label="Description"><input style={INPUT} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Please review and sign…" /></FormRow>
+            <FormGrid>
+              <FormRow label="Action Label"><input style={INPUT} value={actLabel} onChange={(e) => setActLabel(e.target.value)} placeholder="Sign Now" /></FormRow>
+              <FormRow label="Action URL"><input style={INPUT} value={actHref} onChange={(e) => setActHref(e.target.value)} placeholder="/portal/files" /></FormRow>
+            </FormGrid>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Step'}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {data.onboarding.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No steps yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.onboarding.map((step) => (
+            <div key={step.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <input type="checkbox" checked={step.completed} onChange={() => { api({ action: 'toggle_onboarding', id: step.id, completed: !step.completed }); onRefresh(); }}
+                style={{ marginTop: 3, width: 16, height: 16, cursor: 'pointer', accentColor: GREEN }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf' }}>STEP {step.step_number}</span>
+                  <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: step.completed ? '#bfbfbf' : DARK, textDecoration: step.completed ? 'line-through' : 'none' }}>{step.title}</span>
+                  {step.completed && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', background: '#edfff6', padding: '2px 8px', borderRadius: 999 }}>Done</span>}
+                </div>
+                {step.description && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '4px 0 0' }}>{step.description}</p>}
+                {step.action_label && <span style={{ fontFamily: F.inter, fontSize: 12, color: BLUE, marginTop: 4, display: 'inline-block' }}>{step.action_label} → {step.action_href}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Milestones Tab ─────────────────────────────────────────────────────────────
+function MilestonesTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [projName, setProjName] = useState('');
+  const [title, setTitle] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [color, setColor] = useState(PINK);
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title) { setAddErr('Title required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_milestone', clientId, project_name: projName, title, due_date: dueDate, color }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setProjName(''); setTitle(''); setDueDate(''); setColor(PINK); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <SectionHead title="Milestones" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Milestone'}</Btn>} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormGrid>
+              <FormRow label="Title *"><input style={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Final Delivery" /></FormRow>
+              <FormRow label="Project"><input style={INPUT} value={projName} onChange={(e) => setProjName(e.target.value)} placeholder="Brand Identity" /></FormRow>
+              <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></FormRow>
+            </FormGrid>
+            <FormRow label="Color"><ColorPicker value={color} onChange={setColor} /></FormRow>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Milestone'}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {data.milestones.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No milestones yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {data.milestones.map((m) => (
+            <div key={m.id} style={{ border: '1px solid #f0f0f0', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="checkbox" checked={m.completed} onChange={() => { api({ action: 'update_milestone', id: m.id, title: m.title, due_date: m.due_date, completed: !m.completed }); onRefresh(); }}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: GREEN }} />
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
+                <div>
+                  <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: m.completed ? '#bfbfbf' : DARK, textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
+                  {m.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginLeft: 8 }}>{m.project_name}</span>}
+                </div>
+                {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
+              </div>
+              <Btn variant="danger" style={{ padding: '5px 12px', fontSize: 12 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_milestone', id: m.id }); onRefresh(); }}>Delete</Btn>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Activity Tab ───────────────────────────────────────────────────────────────
+function ActivityTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const [text, setText] = useState('');
+  const [dotColor, setDotColor] = useState(GREEN);
+  const [addErr, setAddErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text) { setAddErr('Text required'); return; }
+    setAdding(true); setAddErr('');
+    const r = await api({ action: 'add_activity', clientId, text, dot_color: dotColor }) as { error?: string };
+    if (r.error) { setAddErr(r.error); setAdding(false); return; }
+    setText(''); setDotColor(GREEN); setShowForm(false);
+    setAdding(false); onRefresh();
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      <SectionHead title="Activity Feed" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Activity'}</Btn>} />
+
+      {showForm && (
+        <div style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 20, marginBottom: 20 }}>
+          <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <FormRow label="Activity Text *"><input style={INPUT} value={text} onChange={(e) => setText(e.target.value)} placeholder="Invoice #005 sent to client" /></FormRow>
+            <FormRow label="Dot Color"><ColorPicker value={dotColor} onChange={setDotColor} /></FormRow>
+            <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add'}</Btn><ErrorMsg msg={addErr} /></div>
+          </form>
+        </div>
+      )}
+
+      {data.activity.length === 0 ? (
+        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf' }}>No activity yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {data.activity.map((item, i) => (
+            <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, paddingBottom: i < data.activity.length - 1 ? 16 : 0, marginBottom: i < data.activity.length - 1 ? 16 : 0, borderBottom: i < data.activity.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 4 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <span style={{ fontFamily: F.inter, fontSize: 14, color: DARK }}>{item.text}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', marginLeft: 10 }}>{relTime(item.created_at)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Settings Tab ───────────────────────────────────────────────────────────────
+const DEMO_EMAIL = 'lauren@thrivecreativestudios.org';
+
+function SettingsTab({ api, clientId, clientEmail, onRefresh }: {
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  clientId: string;
+  clientEmail: string | null;
+  onRefresh: () => Promise<void>;
+}) {
+  const [newPass, setNewPass] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [demoConfirm, setDemoConfirm] = useState(false);
+  const [demoRemoving, setDemoRemoving] = useState(false);
+  const [demoError, setDemoError] = useState('');
+  const [demoSuccess, setDemoSuccess] = useState('');
+
+  async function handleChange(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPass.length < 4) { setError('Must be at least 4 characters'); return; }
+    if (newPass !== confirm) { setError('Passcodes do not match'); return; }
+    setSaving(true); setError(''); setSuccess('');
+    const r = await api({ action: 'change_passcode', new_passcode: newPass }) as { ok?: boolean; error?: string };
+    if (r.error) { setError(r.error); setSaving(false); return; }
+    sessionStorage.setItem('admin_passcode', newPass);
+    setSuccess('Passcode updated. Use the new passcode next time you sign in.');
+    setNewPass(''); setConfirm(''); setSaving(false);
+  }
+
+  async function handleRemoveDemo() {
+    setDemoRemoving(true); setDemoError(''); setDemoSuccess('');
+    const r = await api({ action: 'remove_demo_data', clientId }) as { ok?: boolean; error?: string };
+    if (r.error) { setDemoError(r.error); setDemoRemoving(false); return; }
+    setDemoSuccess('Demo data removed. The portal is now clean.');
+    setDemoConfirm(false); setDemoRemoving(false);
+    await onRefresh();
+  }
+
+  return (
+    <div style={{ maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 40 }}>
+
+      {/* Passcode */}
+      <div>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Change Admin Passcode</h3>
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 24px', lineHeight: 1.6 }}>Must be at least 4 characters. Stored securely in your database.</p>
+        <form onSubmit={handleChange} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <FormRow label="New Passcode"><input style={INPUT} type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="Enter new passcode" /></FormRow>
+          <FormRow label="Confirm Passcode"><input style={INPUT} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat new passcode" /></FormRow>
+          <div>
+            <Btn type="submit" disabled={saving || !newPass || !confirm}>{saving ? 'Saving…' : 'Update Passcode'}</Btn>
+            <ErrorMsg msg={error} /><SuccessMsg msg={success} />
+          </div>
+        </form>
+      </div>
+
+      {/* Demo data — only visible for the demo account */}
+      {clientEmail === DEMO_EMAIL && (
+        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 32 }}>
+          <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: PINK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Remove Demo Data</h3>
+          <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 20px', lineHeight: 1.6 }}>
+            Permanently deletes all projects, invoices, requests, files, milestones, onboarding steps, and activity for this account. The account itself is kept. This cannot be undone.
+          </p>
+          {!demoConfirm ? (
+            <Btn variant="danger" onClick={() => setDemoConfirm(true)}>Remove Demo Data</Btn>
+          ) : (
+            <div style={{ background: '#fff0f8', border: `1px solid ${PINK}`, borderRadius: 10, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: PINK, margin: 0 }}>Are you sure? This will wipe all portal data for this client.</p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <Btn variant="danger" disabled={demoRemoving} onClick={handleRemoveDemo}>{demoRemoving ? 'Removing…' : 'Yes, remove it all'}</Btn>
+                <Btn variant="ghost" onClick={() => setDemoConfirm(false)}>Cancel</Btn>
+              </div>
+            </div>
+          )}
+          <ErrorMsg msg={demoError} />
+          <SuccessMsg msg={demoSuccess} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Shared divider (used only if needed) ──────────────────────────────────────
+function _Divider() { return <Divider />; }
+void _Divider;

@@ -7,7 +7,8 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /**
  * Turn a contact into a portal client: create the login and profile, same
- * as "New client" on the Clients page, and link it to this contact. Doing it
+ * as "New client" on the Clients page, link it to this contact, and win
+ * their open deal. Doing it
  * here rather than there means the link does not depend on email matching.
  */
 export async function POST(req: Request, { params }: Ctx) {
@@ -59,9 +60,33 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const { error: linkErr } = await db
     .from('crm_contacts')
-    .update({ portal_client_id: portalId, stage: 'won' })
+    .update({ portal_client_id: portalId })
     .eq('id', id);
   if (linkErr) return badRequest(linkErr.message);
+
+  // A portal login means the work was won: the open deal if there is one,
+  // otherwise a won deal so the client shows on the board.
+  const { data: open } = await db
+    .from('crm_deals')
+    .select('id')
+    .eq('contact_id', id)
+    .in('stage', ['lead', 'contacted', 'proposal'])
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (open) {
+    await db.from('crm_deals').update({ stage: 'won' }).eq('id', open.id);
+  } else {
+    const { count } = await db.from('crm_deals').select('id', { count: 'exact', head: true }).eq('contact_id', id);
+    if (!count) {
+      await db.from('crm_deals').insert({
+        contact_id: id,
+        title: contact.company || fullName,
+        stage: 'won',
+        source: 'portal',
+      });
+    }
+  }
 
   // Proposal recipients for this person should know about the login too.
   await db

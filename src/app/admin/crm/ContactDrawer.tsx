@@ -4,7 +4,7 @@
 // notes and calls, and a timeline of everything that has happened with them
 // across the site — inquiries, messages, proposals, invoices.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import p from '../proposals/proposals.module.css';
@@ -20,6 +20,7 @@ import {
   type CrmActivityKind,
   type CrmContact,
   type CrmContactDetail,
+  type CrmDeal,
   type CrmStage,
   type TimelineKind,
 } from '@/types/crm';
@@ -53,8 +54,10 @@ function dollars(cents: number | null) {
   return cents == null ? '' : String(cents / 100);
 }
 
-export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
+export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, notify }: {
   id: string;
+  /** The deal whose card was clicked: highlighted and scrolled to. */
+  focusDealId?: string | null;
   onClose: () => void;
   /** Something on the board may have changed — stage, value, tasks. */
   onChanged: () => void;
@@ -104,14 +107,27 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
       setDetail((d) => (d ? { ...d, contact: updated } : d));
       if (okMessage) notify(okMessage);
       onChanged();
-      // A stage change adds a timeline entry.
-      if (patch.stage) void reload();
       return true;
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Could not save', 'error');
       return false;
     }
-  }, [id, notify, onChanged, reload]);
+  }, [id, notify, onChanged]);
+
+  const saveDeal = useCallback(async (dealId: string, patch: Partial<CrmDeal>, okMessage?: string) => {
+    try {
+      const updated = await apiSend<CrmDeal>(`/api/crm/deals/${dealId}`, 'PATCH', patch);
+      setDetail((d) => (d ? { ...d, deals: d.deals.map((x) => (x.id === dealId ? updated : x)) } : d));
+      if (okMessage) notify(okMessage);
+      onChanged();
+      // A stage change adds a timeline entry.
+      if (patch.stage) void reload();
+      return true;
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not save deal', 'error');
+      return false;
+    }
+  }, [notify, onChanged, reload]);
 
   const loadPreview = useCallback(
     () => apiSend<ReminderPreview>('/api/admin', 'POST', { action: 'reminder_preview', target: { kind: 'crm_contact', id } }),
@@ -132,7 +148,7 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
   async function createPortal() {
     const c = detail?.contact;
     if (!c) return;
-    if (!window.confirm(`Create a portal login for ${c.email}? They will be moved to Won.`)) return;
+    if (!window.confirm(`Create a portal login for ${c.email}? Their open deal will be marked Won.`)) return;
     setBusy('portal');
     try {
       await apiSend(`/api/crm/contacts/${id}/portal`, 'POST');
@@ -186,25 +202,6 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
                 <button type="button" className={s.close} onClick={onClose} aria-label="Close">×</button>
               </div>
 
-              <div className={s.headGrid}>
-                <label>
-                  <span className={s.miniLabel}>Stage</span>
-                  <select
-                    className={p.select}
-                    value={c.stage}
-                    style={{ borderColor: STAGE_COLOR[c.stage] }}
-                    onChange={(e) => save({ stage: e.target.value as CrmStage }, `Moved to ${STAGE_LABEL[e.target.value as CrmStage]}`)}
-                  >
-                    {CRM_STAGES.map((st) => <option key={st} value={st}>{STAGE_LABEL[st]}</option>)}
-                  </select>
-                </label>
-                <ValueField key={c.value_cents ?? 'none'} cents={c.value_cents} onSave={(value_cents) => save({ value_cents }, 'Value saved.')} />
-              </div>
-
-              {c.stage === 'lost' && (
-                <LostReason key={c.lost_reason ?? ''} reason={c.lost_reason} onSave={(lost_reason) => save({ lost_reason }, 'Saved.')} />
-              )}
-
               <div className={s.actions}>
                 <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => setMessaging(true)} disabled={!c.email && !c.phone && !c.portal_client_id}>
                   Message
@@ -213,7 +210,7 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
                   New proposal
                 </button>
                 {detail.portal ? (
-                  <Link href={`/admin?client=${detail.portal.id}`} className={`${p.btn} ${p.btnSmall}`}>Open client page</Link>
+                  <Link href={`/admin/clients?client=${detail.portal.id}`} className={`${p.btn} ${p.btnSmall}`}>Open client page</Link>
                 ) : (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={createPortal} disabled={busy === 'portal'}>
                     {busy === 'portal' ? 'Creating…' : 'Create portal account'}
@@ -226,35 +223,23 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
             </div>
 
             <div className={s.drawerBody}>
-              {(detail.portal || detail.proposals.length > 0) && (
+              {detail.portal && (
                 <section className={s.section}>
                   <div className={s.summary}>
-                    {detail.portal && (
-                      <>
-                        <div className={s.summaryItem}>Paid<strong>{formatMoneyCents(detail.portal.paid_cents)}</strong></div>
-                        <div className={s.summaryItem}>Outstanding<strong>{formatMoneyCents(detail.portal.outstanding_cents)}</strong></div>
-                      </>
-                    )}
-                    {detail.proposals.length > 0 && (
-                      <div className={s.summaryItem}>
-                        Proposals
-                        <strong>{detail.proposals.length}</strong>
-                      </div>
-                    )}
+                    <div className={s.summaryItem}>Paid<strong>{formatMoneyCents(detail.portal.paid_cents)}</strong></div>
+                    <div className={s.summaryItem}>Outstanding<strong>{formatMoneyCents(detail.portal.outstanding_cents)}</strong></div>
                   </div>
-                  {detail.proposals.length > 0 && (
-                    <ul style={{ listStyle: 'none', padding: 0, margin: '10px 0 0' }}>
-                      {detail.proposals.map((pr) => (
-                        <li key={pr.id} className={s.task}>
-                          <Link href={`/admin/proposals/${pr.id}/edit`} className={s.taskTitle} style={{ color: '#111' }}>{pr.title}</Link>
-                          <span className={s.chip}>{pr.status}</span>
-                          <span className={s.taskDue}>{formatMoneyCents(pr.total_cents, pr.currency)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </section>
               )}
+
+              <DealsSection
+                contactId={id}
+                detail={detail}
+                focusDealId={focusDealId ?? null}
+                onSave={saveDeal}
+                onChange={async () => { await reload(); onChanged(); }}
+                notify={notify}
+              />
 
               <TasksSection contactId={id} detail={detail} onChange={async () => { await reload(); onChanged(); }} notify={notify} />
 
@@ -298,6 +283,143 @@ export function ContactDrawer({ id, onClose, onChanged, onDeleted, notify }: {
         />
       )}
     </>
+  );
+}
+
+function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify }: {
+  contactId: string;
+  detail: CrmContactDetail;
+  focusDealId: string | null;
+  onSave: (dealId: string, patch: Partial<CrmDeal>, okMessage?: string) => Promise<boolean>;
+  onChange: () => Promise<void>;
+  notify: (message: string, tone?: 'ok' | 'error') => void;
+}) {
+  const [title, setTitle] = useState('');
+  const [adding, setAdding] = useState(false);
+  const focused = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    focused.current?.scrollIntoView({ block: 'nearest' });
+  }, []);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setAdding(true);
+    try {
+      await apiSend('/api/crm/deals', 'POST', { contact_id: contactId, title: title.trim(), stage: 'lead' });
+      setTitle('');
+      notify('Deal added.');
+      await onChange();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not add deal', 'error');
+    }
+    setAdding(false);
+  }
+
+  async function remove(deal: CrmDeal) {
+    if (!window.confirm(`Delete the deal "${deal.title}"? Its proposals and inquiries stay on this contact.`)) return;
+    try {
+      await apiSend(`/api/crm/deals/${deal.id}`, 'DELETE');
+      notify('Deal deleted.');
+      await onChange();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not delete deal', 'error');
+    }
+  }
+
+  const unassigned = detail.proposals.filter((pr) => !pr.crm_deal_id || !detail.deals.some((d) => d.id === pr.crm_deal_id));
+
+  return (
+    <section className={s.section}>
+      <div className={s.sectionHead}><h3 className={s.sectionTitle}>Deals</h3></div>
+      {detail.deals.length === 0 && <p className={s.eventMeta} style={{ margin: '0 0 8px' }}>No deals with this person yet.</p>}
+      {detail.deals.map((deal) => {
+        const proposals = detail.proposals.filter((pr) => pr.crm_deal_id === deal.id);
+        const isFocused = deal.id === focusDealId;
+        return (
+          <article
+            key={deal.id}
+            ref={isFocused ? focused : undefined}
+            className={`${s.deal} ${isFocused ? s.dealFocused : ''}`}
+            aria-label={deal.title}
+          >
+            <div className={s.dealHead}>
+              <span className={s.dot} style={{ background: STAGE_COLOR[deal.stage] }} aria-hidden="true" />
+              <DealTitle key={deal.title} title={deal.title} onSave={(next) => onSave(deal.id, { title: next }, 'Renamed.')} />
+              <button type="button" className={s.iconButton} aria-label={`Delete deal "${deal.title}"`} onClick={() => remove(deal)}>×</button>
+            </div>
+            <div className={s.dealGrid}>
+              <label>
+                <span className={s.miniLabel}>Stage</span>
+                <select
+                  className={p.select}
+                  value={deal.stage}
+                  onChange={(e) => onSave(deal.id, { stage: e.target.value as CrmStage }, `Moved to ${STAGE_LABEL[e.target.value as CrmStage]}`)}
+                >
+                  {CRM_STAGES.map((st) => <option key={st} value={st}>{STAGE_LABEL[st]}</option>)}
+                </select>
+              </label>
+              <ValueField key={deal.value_cents ?? 'none'} cents={deal.value_cents} onSave={(value_cents) => onSave(deal.id, { value_cents }, 'Value saved.')} />
+            </div>
+            {deal.stage === 'lost' && (
+              <LostReason key={deal.lost_reason ?? ''} reason={deal.lost_reason} onSave={(lost_reason) => onSave(deal.id, { lost_reason }, 'Saved.')} />
+            )}
+            {proposals.length > 0 && (
+              <ul className={s.dealProposals}>
+                {proposals.map((pr) => <ProposalLine key={pr.id} proposal={pr} />)}
+              </ul>
+            )}
+            <p className={s.eventMeta} style={{ marginTop: 8 }}>
+              Opened {formatDate(deal.created_at)}{deal.source !== 'manual' ? ` from ${deal.source === 'inquiry' ? 'a website inquiry' : deal.source === 'proposal' ? 'a proposal' : 'the portal'}` : ''}
+              {' · '}{STAGE_LABEL[deal.stage]} since {formatDate(deal.stage_changed_at)}
+            </p>
+          </article>
+        );
+      })}
+
+      {unassigned.length > 0 && (
+        <>
+          <p className={s.miniLabel} style={{ marginTop: 12 }}>Proposals not on a deal</p>
+          <ul className={s.dealProposals}>
+            {unassigned.map((pr) => <ProposalLine key={pr.id} proposal={pr} />)}
+          </ul>
+        </>
+      )}
+
+      <form className={s.addRow} onSubmit={add}>
+        <input className={p.input} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="New deal, e.g. Website refresh" aria-label="New deal" />
+        <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={adding || !title.trim()}>Add deal</button>
+      </form>
+    </section>
+  );
+}
+
+function ProposalLine({ proposal: pr }: { proposal: CrmContactDetail['proposals'][number] }) {
+  return (
+    <li className={s.task}>
+      <Link href={`/admin/proposals/${pr.id}/edit`} className={s.taskTitle} style={{ color: '#111' }}>{pr.title}</Link>
+      <span className={s.chip}>{pr.status}</span>
+      <span className={s.taskDue}>{formatMoneyCents(pr.total_cents, pr.currency)}</span>
+    </li>
+  );
+}
+
+function DealTitle({ title, onSave }: { title: string; onSave: (title: string) => Promise<boolean> }) {
+  const [value, setValue] = useState(title);
+  return (
+    <input
+      className={s.dealTitleInput}
+      value={value}
+      aria-label="Deal name"
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => {
+        const next = value.trim();
+        if (!next) setValue(title);
+        else if (next !== title) void onSave(next);
+      }}
+      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+    />
   );
 }
 

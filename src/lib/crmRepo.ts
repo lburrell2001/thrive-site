@@ -11,8 +11,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   STAGE_LABEL,
   type CrmContact,
-  type CrmContactCard,
   type CrmContactDetail,
+  type CrmContactRow,
+  type CrmDeal,
+  type CrmDealCard,
   type CrmInquiry,
   type CrmLinkedProposal,
   type CrmStage,
@@ -34,18 +36,39 @@ function latest(a: string | undefined, b: string | null | undefined): string | u
   return !a || b > a ? b : a;
 }
 
-export async function loadBoard(db: SupabaseClient): Promise<CrmContactCard[]> {
-  const [contacts, tasks, inquiries, proposals, activities] = await Promise.all([
-    db.from('crm_contacts').select('*').order('stage_changed_at', { ascending: false }),
-    db.from('crm_tasks').select('contact_id, title, due_date').is('completed_at', null),
-    db.from('contact_inquiries').select('crm_contact_id, status, created_at').not('crm_contact_id', 'is', null),
-    db
-      .from('proposals')
-      .select('status, total_cents, currency, updated_at, proposal_clients!inner ( crm_contact_id )')
-      .order('updated_at', { ascending: false }),
+/** Last time anything happened with each contact: inquiry, note, proposal. */
+async function lastTouches(db: SupabaseClient) {
+  const [inquiries, activities, proposals] = await Promise.all([
+    db.from('contact_inquiries').select('crm_contact_id, crm_deal_id, status, created_at').not('crm_contact_id', 'is', null),
     db.from('crm_activities').select('contact_id, created_at').order('created_at', { ascending: false }),
+    db.from('proposals')
+      .select('crm_deal_id, status, total_cents, currency, updated_at, proposal_clients ( crm_contact_id )')
+      .order('updated_at', { ascending: false }),
   ]);
-  if (contacts.error) throw new Error(contacts.error.message);
+  const touched = new Map<string, string>();
+  const bump = (id: string | null | undefined, at: string) => {
+    if (id) touched.set(id, latest(touched.get(id), at)!);
+  };
+  for (const i of inquiries.data ?? []) bump(i.crm_contact_id, i.created_at);
+  for (const a of activities.data ?? []) bump(a.contact_id, a.created_at);
+  for (const p of proposals.data ?? []) {
+    const link = p.proposal_clients as unknown as { crm_contact_id: string | null } | null;
+    bump(link?.crm_contact_id, p.updated_at);
+  }
+  return { touched, inquiries: inquiries.data ?? [], proposals: proposals.data ?? [] };
+}
+
+const isOpen = (stage: CrmStage) => stage === 'lead' || stage === 'contacted' || stage === 'proposal';
+
+export async function loadDealBoard(db: SupabaseClient): Promise<CrmDealCard[]> {
+  const [deals, tasks, touches] = await Promise.all([
+    db.from('crm_deals')
+      .select('*, crm_contacts ( id, name, company, email, tags, portal_client_id )')
+      .order('stage_changed_at', { ascending: false }),
+    db.from('crm_tasks').select('contact_id, title, due_date').is('completed_at', null),
+    lastTouches(db),
+  ]);
+  if (deals.error) throw new Error(deals.error.message);
 
   const openTasks = new Map<string, { count: number; due: string | null; title: string | null }>();
   for (const t of tasks.data ?? []) {
@@ -60,38 +83,58 @@ export async function loadBoard(db: SupabaseClient): Promise<CrmContactCard[]> {
   }
 
   const newInquiries = new Map<string, number>();
-  const touched = new Map<string, string>();
-  for (const i of inquiries.data ?? []) {
-    if (i.status === 'new') newInquiries.set(i.crm_contact_id, (newInquiries.get(i.crm_contact_id) ?? 0) + 1);
-    touched.set(i.crm_contact_id, latest(touched.get(i.crm_contact_id), i.created_at)!);
-  }
-  for (const a of activities.data ?? []) {
-    touched.set(a.contact_id, latest(touched.get(a.contact_id), a.created_at)!);
+  for (const i of touches.inquiries) {
+    if (i.status === 'new' && i.crm_deal_id) newInquiries.set(i.crm_deal_id, (newInquiries.get(i.crm_deal_id) ?? 0) + 1);
   }
 
-  const latestProposal = new Map<string, CrmContactCard['latest_proposal']>();
-  for (const p of proposals.data ?? []) {
-    const link = p.proposal_clients as unknown as { crm_contact_id: string | null } | null;
-    const cid = link?.crm_contact_id;
-    if (!cid) continue;
-    touched.set(cid, latest(touched.get(cid), p.updated_at)!);
-    if (!latestProposal.has(cid)) {
-      latestProposal.set(cid, { status: p.status, total_cents: p.total_cents, currency: p.currency });
+  const latestProposal = new Map<string, CrmDealCard['latest_proposal']>();
+  for (const p of touches.proposals) {
+    if (p.crm_deal_id && !latestProposal.has(p.crm_deal_id)) {
+      latestProposal.set(p.crm_deal_id, { status: p.status, total_cents: p.total_cents, currency: p.currency });
     }
   }
 
-  return (contacts.data as CrmContact[]).map((c) => {
-    const t = openTasks.get(c.id);
+  return (deals.data ?? []).map(({ crm_contacts: contact, ...deal }) => {
+    const d = deal as CrmDeal;
+    // Follow-ups are the contact's; show them on open deals, not closed ones.
+    const t = isOpen(d.stage) ? openTasks.get(d.contact_id) : undefined;
     return {
-      ...c,
+      ...d,
+      contact: contact as unknown as CrmDealCard['contact'],
       open_tasks: t?.count ?? 0,
       next_task_due: t?.due ?? null,
       next_task_title: t?.title ?? null,
-      new_inquiries: newInquiries.get(c.id) ?? 0,
-      latest_proposal: latestProposal.get(c.id) ?? null,
-      last_touch_at: latest(touched.get(c.id), c.updated_at) ?? c.created_at,
+      new_inquiries: newInquiries.get(d.id) ?? 0,
+      latest_proposal: latestProposal.get(d.id) ?? null,
+      last_touch_at: latest(touches.touched.get(d.contact_id), d.updated_at) ?? d.created_at,
     };
   });
+}
+
+export async function loadContactList(db: SupabaseClient): Promise<CrmContactRow[]> {
+  const [contacts, deals, touches] = await Promise.all([
+    db.from('crm_contacts').select('*').order('created_at', { ascending: false }),
+    db.from('crm_deals').select('contact_id, stage, value_cents'),
+    lastTouches(db),
+  ]);
+  if (contacts.error) throw new Error(contacts.error.message);
+
+  const counts = new Map<string, { deals: number; open: number; won: number }>();
+  for (const d of deals.data ?? []) {
+    const cur = counts.get(d.contact_id) ?? { deals: 0, open: 0, won: 0 };
+    cur.deals += 1;
+    if (isOpen(d.stage)) cur.open += 1;
+    if (d.stage === 'won') cur.won += d.value_cents ?? 0;
+    counts.set(d.contact_id, cur);
+  }
+
+  return (contacts.data as CrmContact[]).map((c) => ({
+    ...c,
+    deals: counts.get(c.id)?.deals ?? 0,
+    open_deals: counts.get(c.id)?.open ?? 0,
+    won_value_cents: counts.get(c.id)?.won ?? 0,
+    last_touch_at: latest(touches.touched.get(c.id), c.updated_at) ?? c.created_at,
+  }));
 }
 
 const ACTIVITY_TITLE: Record<string, string> = {
@@ -137,18 +180,19 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices] = await Promise.all([
+    db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
       .order('due_date', { ascending: true, nullsFirst: false }),
     db.from('crm_activities').select('*').eq('contact_id', id).order('created_at', { ascending: false }).limit(300),
     db.from('contact_inquiries')
-      .select('id, created_at, project_type, budget, timeline, message, status, source, first_source')
+      .select('id, crm_deal_id, created_at, project_type, budget, timeline, message, status, source, first_source')
       .eq('crm_contact_id', id).order('created_at', { ascending: false }),
     db.from('client_reminders').select('*').or(reminderFilter).order('created_at', { ascending: false }).limit(200),
     recipientIds.length
       ? db.from('proposals')
-          .select('id, title, status, total_cents, currency, created_at, updated_at, sent_at, first_viewed_at, signed_at, declined_at, decline_reason')
+          .select('id, crm_deal_id, title, status, total_cents, currency, created_at, updated_at, sent_at, first_viewed_at, signed_at, declined_at, decline_reason')
           .in('client_id', recipientIds).order('updated_at', { ascending: false })
       : none,
     portalId ? db.from('portal_clients').select('id, full_name').eq('id', portalId).maybeSingle() : Promise.resolve({ data: null }),
@@ -162,13 +206,15 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     if (a.kind === 'stage') {
       const to = a.metadata?.to as CrmStage | undefined;
       const from = a.metadata?.from as CrmStage | undefined;
+      const deal = a.metadata?.deal as string | undefined;
       timeline.push({
         key: `activity:${a.id}`,
         kind: 'stage',
         at: a.created_at,
-        title: `Moved to ${to ? STAGE_LABEL[to] : 'a new stage'}`,
+        title: `${deal ? `${deal} → ` : 'Moved to '}${to ? STAGE_LABEL[to] : 'a new stage'}`,
         meta: from ? `from ${STAGE_LABEL[from]}` : null,
         body: a.body || null,
+        dealId: a.deal_id ?? null,
       });
     } else {
       timeline.push({
@@ -188,6 +234,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       kind: 'inquiry',
       at: i.created_at,
       title: `Website inquiry${i.project_type ? ` · ${i.project_type}` : ''}`,
+      dealId: i.crm_deal_id,
       meta: [
         i.source && `Via ${i.source}${i.first_source && i.first_source !== i.source ? ` (first found via ${i.first_source})` : ''}`,
         i.budget && `Budget ${i.budget}`,
@@ -216,7 +263,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     const href = `/admin/proposals/${p.id}/edit`;
     const amount = money(p.total_cents, p.currency);
     const push = (suffix: string, at: string | null, title: string, body?: string | null) => {
-      if (at) timeline.push({ key: `proposal:${p.id}:${suffix}`, kind: 'proposal', at, title, meta: amount, href, body });
+      if (at) timeline.push({ key: `proposal:${p.id}:${suffix}`, kind: 'proposal', at, title, meta: amount, href, body, dealId: p.crm_deal_id });
     };
     push('created', p.created_at, `Proposal drafted · ${p.title}`);
     push('sent', p.sent_at, `Proposal sent · ${p.title}`);
@@ -253,11 +300,12 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
 
   return {
     contact: c,
+    deals: (deals.data ?? []) as CrmDeal[],
     tasks: (tasks.data ?? []) as CrmTask[],
     timeline,
     inquiries: (inquiries.data ?? []) as CrmInquiry[],
-    proposals: proposalRows.map(({ id: pid, title, status, total_cents, currency, updated_at }) => ({
-      id: pid, title, status, total_cents, currency, updated_at,
+    proposals: proposalRows.map(({ id: pid, crm_deal_id, title, status, total_cents, currency, updated_at }) => ({
+      id: pid, crm_deal_id, title, status, total_cents, currency, updated_at,
     })),
     proposal_client_id: recipientIds[0] ?? null,
     portal: portalProfile.data

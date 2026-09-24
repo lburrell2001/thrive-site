@@ -3,7 +3,8 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { buildReport } from '@/lib/analyticsReport';
-import sitemap from '@/app/sitemap';
+import { sitemapPaths } from '@/lib/sitemapPaths';
+import { searchReport } from '@/lib/searchConsole';
 
 const RANGES = new Set([7, 30, 90, 365]);
 
@@ -16,18 +17,10 @@ export async function GET(req: Request) {
   if (!RANGES.has(days)) return badRequest('days must be 7, 30, 90 or 365');
 
   // The sitemap is the list of pages that should be getting visits.
-  let paths: string[] = [];
-  try {
-    paths = (await sitemap())
-      .map((entry) => new URL(entry.url).pathname)
-      // Legal pages are there to exist, not to be visited.
-      .filter((path) => !/^\/(privacy|sms)$/.test(path));
-  } catch {
-    paths = [];
-  }
+  const [paths, search] = await Promise.all([sitemapPaths(), searchReport(days)]);
 
   try {
-    return NextResponse.json({ ok: true, data: await buildReport(auth.db, days, paths) });
+    return NextResponse.json({ ok: true, data: await buildReport(auth.db, days, paths, search) });
   } catch (error) {
     return badRequest(error instanceof Error ? error.message : 'Could not build report', 500);
   }

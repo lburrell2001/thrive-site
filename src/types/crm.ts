@@ -14,32 +14,53 @@ export const STAGE_LABEL: Record<CrmStage, string> = {
 export const ACTIVITY_KINDS = ['note', 'call', 'meeting', 'email'] as const;
 export type CrmActivityKind = (typeof ACTIVITY_KINDS)[number];
 
+/** A person. Their pieces of work are deals. */
 export interface CrmContact {
   id: string;
   name: string;
   company: string | null;
   email: string | null;
   phone: string | null;
-  stage: CrmStage;
-  stage_changed_at: string;
-  value_cents: number | null;
   source: string;
   tags: string[];
-  lost_reason: string | null;
   portal_client_id: string | null;
   created_at: string;
   updated_at: string;
 }
 
-/** A contact on the board, with just enough to sort and flag it. */
-export interface CrmContactCard extends CrmContact {
+/** One opportunity with a contact: what the pipeline board shows. */
+export interface CrmDeal {
+  id: string;
+  contact_id: string;
+  title: string;
+  stage: CrmStage;
+  stage_changed_at: string;
+  value_cents: number | null;
+  lost_reason: string | null;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A deal on the board, with its contact and just enough to flag it. */
+export interface CrmDealCard extends CrmDeal {
+  contact: Pick<CrmContact, 'id' | 'name' | 'company' | 'email' | 'tags' | 'portal_client_id'>;
+  /** Open follow-ups are per contact; shown on each of their open deals. */
   open_tasks: number;
   /** Earliest due date among open tasks, YYYY-MM-DD. */
   next_task_due: string | null;
   next_task_title: string | null;
   new_inquiries: number;
-  /** Latest builder proposal, for the card's one-line status. */
+  /** Latest builder proposal on this deal, for the card's one-line status. */
   latest_proposal: { status: string; total_cents: number; currency: string } | null;
+  last_touch_at: string;
+}
+
+/** A contact in the Contacts list. */
+export interface CrmContactRow extends CrmContact {
+  deals: number;
+  open_deals: number;
+  won_value_cents: number;
   last_touch_at: string;
 }
 
@@ -68,10 +89,13 @@ export interface TimelineItem {
   href?: string | null;
   /** Set on notes Lauren wrote, which she can delete. */
   activityId?: string;
+  /** The deal this entry is about, when it is about one. */
+  dealId?: string | null;
 }
 
 export interface CrmInquiry {
   id: string;
+  crm_deal_id: string | null;
   created_at: string;
   project_type: string | null;
   budget: string | null;
@@ -85,6 +109,7 @@ export interface CrmInquiry {
 
 export interface CrmLinkedProposal {
   id: string;
+  crm_deal_id: string | null;
   title: string;
   status: string;
   total_cents: number;
@@ -94,6 +119,8 @@ export interface CrmLinkedProposal {
 
 export interface CrmContactDetail {
   contact: CrmContact;
+  /** Newest first. */
+  deals: CrmDeal[];
   tasks: CrmTask[];
   timeline: TimelineItem[];
   inquiries: CrmInquiry[];
