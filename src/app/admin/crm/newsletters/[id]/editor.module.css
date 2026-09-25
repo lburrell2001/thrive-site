@@ -1,0 +1,35 @@
+/* Designed newsletter: blocks on the left, live email preview on the right. */
+
+.builder {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.builderEdit { min-width: 0; }
+
+.builderPreview {
+  position: sticky;
+  top: 12px;
+  min-width: 0;
+}
+
+.previewFrame {
+  width: 100%;
+  height: calc(100vh - 140px);
+  min-height: 520px;
+  border: 1px solid #e4e1de;
+  border-radius: 10px;
+  background: #f6f5f4;
+}
+
+/* The Preview/Edit switch only matters when the two can't sit side by side. */
+.previewToggle { display: none; }
+
+@media (max-width: 1000px) {
+  .builder { grid-template-columns: 1fr; }
+  .builderPreview { position: static; }
+  .previewToggle { display: inline; }
+  .hideSmall { display: none; }
+}

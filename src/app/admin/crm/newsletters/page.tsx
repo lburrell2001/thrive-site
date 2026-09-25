@@ -23,6 +23,7 @@ interface Row {
 }
 
 interface Settings { address: string | null; subscribed: number; pending: number; unsubscribed: number }
+interface Template { id: string; name: string }
 
 const AUDIENCE: Record<string, string> = { subscribers: 'Everyone subscribed', clients: 'Clients', leads: 'Leads', tag: 'Tag' };
 const BADGE: Record<Row['status'], string> = { draft: p.badgeDraft, sending: p.badgeViewed, sent: p.badgeSigned, failed: p.badgeDeclined };
@@ -33,6 +34,8 @@ export default function NewslettersPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [address, setAddress] = useState('');
   const [creating, setCreating] = useState(false);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [startFrom, setStartFrom] = useState('designed');
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
@@ -49,8 +52,8 @@ export default function NewslettersPage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiGet<Row[]>('/api/newsletters'), apiGet<Settings>('/api/newsletters/settings')])
-      .then(([r, st]) => { if (!cancelled) { setRows(r); setSettings(st); setAddress(st.address ?? ''); } })
+    Promise.all([apiGet<Row[]>('/api/newsletters'), apiGet<Settings>('/api/newsletters/settings'), apiGet<Template[]>('/api/newsletters/templates').catch(() => [])])
+      .then(([r, st, t]) => { if (!cancelled) { setRows(r); setSettings(st); setAddress(st.address ?? ''); setTemplates(t); } })
       .catch((e) => { if (!cancelled) { show(e instanceof Error ? e.message : 'Could not load newsletters', 'error'); setRows([]); } });
     return () => { cancelled = true; };
   }, [show]);
@@ -58,7 +61,8 @@ export default function NewslettersPage() {
   async function create() {
     setCreating(true);
     try {
-      const created = await apiSend<{ id: string }>('/api/newsletters', 'POST');
+      const body = startFrom === 'designed' || startFrom === 'plain' ? { kind: startFrom } : { template_id: startFrom };
+      const created = await apiSend<{ id: string }>('/api/newsletters', 'POST', body);
       router.push(`/admin/crm/newsletters/${created.id}`);
     } catch (e) {
       show(e instanceof Error ? e.message : 'Could not start a newsletter', 'error');
@@ -86,9 +90,16 @@ export default function NewslettersPage() {
             <h1 className={p.pageTitle}>Newsletters</h1>
             <p className={p.pageSub}>Only people who subscribed are emailed. Every newsletter includes an unsubscribe link and your mailing address.</p>
           </div>
-          <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={create} disabled={creating}>
-            {creating ? 'Starting…' : 'New newsletter'}
-          </button>
+          <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <select className={p.select} style={{ width: 'auto' }} value={startFrom} onChange={(e) => setStartFrom(e.target.value)} aria-label="Start from">
+              <option value="designed">Designed layout</option>
+              {templates.map((t) => <option key={t.id} value={t.id}>Template: {t.name}</option>)}
+              <option value="plain">Plain text</option>
+            </select>
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={create} disabled={creating}>
+              {creating ? 'Starting…' : 'New newsletter'}
+            </button>
+          </span>
         </div>
 
         {settings && (
@@ -115,6 +126,34 @@ export default function NewslettersPage() {
               {!settings.address && <p className={p.rowMeta} style={{ color: '#b45309', marginTop: 8 }}>Sending is blocked until this is set.</p>}
             </form>
           </div>
+        )}
+
+        {templates.length > 0 && (
+          <section className={p.card} style={{ marginBottom: 16 }}>
+            <h2 className={p.cardTitle}>Templates</h2>
+            <p className={p.rowMeta}>Save one from any designed newsletter; pick it next to “New newsletter”.</p>
+            {templates.map((t) => (
+              <div key={t.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 0', fontSize: 14 }}>
+                <span style={{ flex: 1 }}>{t.name}</span>
+                <button
+                  type="button"
+                  className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`}
+                  onClick={async () => {
+                    if (!window.confirm(`Delete the template "${t.name}"? Newsletters made from it are not affected.`)) return;
+                    try {
+                      await apiSend(`/api/newsletters/templates/${t.id}`, 'DELETE');
+                      setTemplates((list) => list.filter((x) => x.id !== t.id));
+                      if (startFrom === t.id) setStartFrom('designed');
+                    } catch (e) {
+                      show(e instanceof Error ? e.message : 'Could not delete', 'error');
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            ))}
+          </section>
         )}
 
         <div className={p.list}>

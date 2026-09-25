@@ -9,14 +9,21 @@ import { useRouter } from 'next/navigation';
 import p from '../../../proposals/proposals.module.css';
 import { apiGet, apiSend, formatDate } from '../../../proposals/adminApi';
 import { Toast, useToast } from '../../../proposals/Toast';
+import s2 from './editor.module.css';
 import { renderNewsletter } from '@/lib/newsletterEmail';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 import type { Audience, Newsletter } from '@/lib/newsletter';
+import { newBlock, resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
+import { BlockEditor } from './BlockEditor';
 
-type Draft = Pick<Newsletter, 'subject' | 'preheader' | 'body' | 'audience' | 'audience_tag'>;
+type Draft = Pick<Newsletter, 'subject' | 'preheader' | 'body' | 'audience' | 'audience_tag'> & {
+  blocks: NewsletterBlock[];
+  design: NewsletterDesign;
+};
 
 const draftOf = (n: Newsletter): Draft => ({
   subject: n.subject, preheader: n.preheader, body: n.body, audience: n.audience, audience_tag: n.audience_tag,
+  blocks: n.blocks ?? [], design: resolveDesign(n.design),
 });
 
 const AUDIENCES: { value: Audience; label: string }[] = [
@@ -159,11 +166,34 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
     }
   }
 
-  const canSend = !locked && draft.subject.trim() && draft.body.trim() && address && (count ?? 0) > 0;
+  const designed = draft.blocks.length > 0;
+  const canSend = !locked && draft.subject.trim() && (draft.body.trim() || designed) && address && (count ?? 0) > 0;
+
+  /** Turn a plain draft into a designed one, keeping what was written. */
+  function toDesigned() {
+    const blocks: NewsletterBlock[] = [
+      { ...newBlock('image'), alt: 'Banner' } as NewsletterBlock,
+      ...(draft!.body.trim() ? [{ ...newBlock('text'), text: draft!.body } as NewsletterBlock] : [newBlock('heading'), newBlock('text')]),
+      newBlock('button'),
+      newBlock('social'),
+    ];
+    set('blocks', blocks);
+  }
+
+  async function saveTemplate() {
+    const name = window.prompt('Name this template (e.g. "Monthly update")');
+    if (!name?.trim()) return;
+    try {
+      await apiSend('/api/newsletters/templates', 'POST', { name: name.trim(), blocks: draft!.blocks, design: draft!.design });
+      show('Template saved — pick it when you start the next newsletter.');
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not save the template', 'error');
+    }
+  }
 
   return (
     <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: 1000 }}>
+      <div className={p.wrap} style={{ maxWidth: draft.blocks.length ? 1320 : 1000 }}>
         <div className={p.pageHead}>
           <div>
             <p className={p.rowMeta} style={{ margin: 0 }}><Link href="/admin/crm/newsletters">← Newsletters</Link></p>
@@ -222,12 +252,49 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
           </p>
         </div>
 
+        {designed ? (
+          <>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+              <p className={p.rowMeta} style={{ margin: 0, flex: 1 }}>
+                Design images in Canva or Adobe Express, export as JPG or PNG (about 1200px wide), and upload them into image blocks. Keep words that matter in text blocks, so they show even when images don’t.
+              </p>
+              <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={saveTemplate} disabled={!draft.blocks.length}>Save as template</button>
+              <span className={s2.previewToggle}>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setTab(tab === 'preview' ? 'write' : 'preview')}>
+                  {tab === 'preview' ? 'Edit blocks' : 'Preview'}
+                </button>
+              </span>
+            </div>
+            <div className={s2.builder}>
+              <div className={`${s2.builderEdit} ${tab === 'preview' ? s2.hideSmall : ''}`}>
+                <BlockEditor
+                  blocks={draft.blocks}
+                  design={draft.design}
+                  onBlocks={(b) => set('blocks', b)}
+                  onDesign={(d) => set('design', d)}
+                  notify={show}
+                  disabled={locked}
+                />
+              </div>
+              <div className={`${s2.builderPreview} ${tab === 'write' ? s2.hideSmall : ''}`}>
+                <iframe title="Email preview" srcDoc={preview} sandbox="" className={s2.previewFrame} />
+                <p className={p.rowMeta} style={{ marginTop: 6 }}>Live preview. The greeting uses the name “Maya”; each person sees their own.</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
         <div className={p.filters} role="tablist" aria-label="Editor view" style={{ alignItems: 'center' }}>
           {(['write', 'preview'] as const).map((t) => (
             <button key={t} type="button" role="tab" aria-selected={tab === t} className={`${p.filterChip} ${tab === t ? p.filterChipOn : ''}`} onClick={() => setTab(t)}>
               {t === 'write' ? 'Write' : 'Email preview'}
             </button>
           ))}
+          {!locked && (
+            <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={toDesigned} style={{ marginLeft: 'auto' }}>
+              Switch to designed layout
+            </button>
+          )}
           {tab === 'write' && !locked && (
             <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>
               <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => insert('\n## ', '\n', 'Heading')}>H2</button>
@@ -263,6 +330,9 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
         <p className={p.rowMeta} style={{ marginTop: 8 }}>
           Same formatting as the Journal: <code>## Heading</code>, <code>**bold**</code>, <code>- list</code>, <code>[text](/page)</code>, <code>![description](https://image-url)</code>. The preview uses the name “Maya”; each person sees their own.
         </p>
+
+          </>
+        )}
 
         {n.status !== 'sent' && (
           <button type="button" className={`${p.btn} ${p.btnDanger}`} style={{ marginTop: 18 }} onClick={remove}>Delete newsletter</button>

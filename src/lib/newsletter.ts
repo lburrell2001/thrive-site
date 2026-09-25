@@ -14,6 +14,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { renderNewsletter } from '@/lib/newsletterEmail';
+import type { NewsletterBlock, NewsletterDesign } from '@/lib/newsletterBlocks';
 import { signToken, verifyToken } from '@/lib/newsletterTokens';
 
 export class NewsletterError extends Error {}
@@ -25,6 +26,9 @@ export interface Newsletter {
   subject: string;
   preheader: string;
   body: string;
+  /** Designed newsletters: when non-empty, rendered instead of `body`. */
+  blocks: NewsletterBlock[];
+  design: Partial<NewsletterDesign>;
   audience: Audience;
   audience_tag: string | null;
   status: 'draft' | 'sending' | 'sent' | 'failed';
@@ -207,7 +211,11 @@ function messageFor(n: Newsletter, r: Recipient, site: string, address: string, 
 function ready(n: Newsletter, address: string | null) {
   if (!address) throw new NewsletterError('Add your mailing address first — the law requires it in every marketing email.');
   if (!n.subject.trim()) throw new NewsletterError('Add a subject line');
-  if (!n.body.trim()) throw new NewsletterError('Write the newsletter first');
+  if (!n.body.trim() && !(n.blocks ?? []).length) throw new NewsletterError('Write the newsletter first');
+  const emptyImage = (n.blocks ?? []).find((b) => (b.type === 'image' && !b.src) || (b.type === 'columns' && !b.image.src));
+  if (emptyImage) throw new NewsletterError('An image block has no image yet — upload one or remove the block');
+  const noAlt = (n.blocks ?? []).find((b) => (b.type === 'image' && b.src && !b.alt.trim()) || (b.type === 'columns' && b.image.src && !b.image.alt.trim()));
+  if (noAlt) throw new NewsletterError('Describe every image (alt text) — it is what people see when images are blocked');
   return address;
 }
 

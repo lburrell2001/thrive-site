@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
+import { blocksSchema, designSchema } from '@/lib/newsletterBlocks';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,6 +13,8 @@ const updateSchema = z.object({
   body: z.string().max(60_000),
   audience: z.enum(['subscribers', 'clients', 'leads', 'tag']),
   audience_tag: z.string().trim().max(40).nullable().transform((v) => v || null),
+  blocks: blocksSchema,
+  design: designSchema.partial(),
 }).partial().refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 
 export async function GET(req: Request, { params }: Ctx) {
@@ -57,7 +60,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { data: src } = await auth.db.from('newsletters').select('subject, preheader, body, audience, audience_tag').eq('id', id).maybeSingle();
+  const { data: src } = await auth.db.from('newsletters').select('subject, preheader, body, blocks, design, audience, audience_tag').eq('id', id).maybeSingle();
   if (!src) return badRequest('Newsletter not found', 404);
   const { data, error } = await auth.db.from('newsletters').insert({ ...src, subject: src.subject ? `${src.subject} (copy)` : '' }).select('id').single();
   if (error) return badRequest(error.message);
