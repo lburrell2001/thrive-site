@@ -70,12 +70,12 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Website and landing page design',
     title: 'Website & Landing Page Design in Dallas, TX',
     description:
-      'Website design, landing pages and digital assets for Dallas businesses — strategy-led, mobile-first, and delivered in 2–4 weeks. Remote projects across the US.',
+      'Website design, landing pages and digital assets for Dallas businesses — strategy-led, mobile-first, and scoped to your project. Remote projects across the US.',
     remote: true,
     faqs: [
       {
         q: 'How long does a website design take?',
-        a: 'Most website and landing page designs take 2–4 weeks: discovery, wireframes, full visual design, then handoff.',
+        a: 'It depends on the scope — a single landing page moves faster than a multi-page site. Your proposal includes a timeline before anything starts. Every project runs through discovery, wireframes, full visual design, then handoff.',
       },
       {
         q: 'Will my site work on phones?',

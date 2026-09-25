@@ -308,7 +308,7 @@ export default async function DigitalDesignPage() {
                 <h1 className="sp-hero-h1">DIGITAL<br />DESIGN</h1>
               </div>
               <div>
-                <p className="sp-hero-sub" style={{ color: ACCENT }}>ALL YOURS IN ONLY 2–4 WEEKS</p>
+                <p className="sp-hero-sub" style={{ color: ACCENT }}>TIMELINE SCOPED TO YOUR PROJECT</p>
                 <p className="sp-hero-desc">
                   Web design, landing pages, and digital assets built from the ground up —
                   infused with strategy and a visual identity that sets you apart.

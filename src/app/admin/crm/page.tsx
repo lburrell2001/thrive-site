@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from '../proposals/adminApi';
@@ -159,6 +160,7 @@ export default function CrmPage() {
               </button>
             ))}
           </div>
+          <Link href="/admin/crm/newsletters" className={p.filterChip} style={{ textDecoration: 'none' }}>Newsletters →</Link>
           <input
             className={`${p.input} ${s.search}`}
             type="search"
@@ -203,7 +205,10 @@ export default function CrmPage() {
                   {c.open_deals > 0 ? `${c.open_deals} open` : c.deals > 0 ? `${c.deals} deal${c.deals === 1 ? '' : 's'}` : 'No deals'}
                 </span>
                 <span className={`${s.cardValue} ${s.hideSmall}`}>{c.won_value_cents ? formatMoneyCents(c.won_value_cents) : ''}</span>
-                <span className={`${s.cardSub} ${s.hideSmall}`}>{c.portal_client_id ? 'Portal client' : c.source}</span>
+                <span className={`${s.cardSub} ${s.hideSmall}`}>
+                  {c.portal_client_id ? 'Portal client' : c.source}
+                  {c.newsletter_status === 'subscribed' ? ' · ✉ subscribed' : c.newsletter_status === 'pending' ? ' · ✉ unconfirmed' : ''}
+                </span>
                 <span className={`${s.cardSub} ${s.hideSmall}`}>{daysAgo(c.last_touch_at)}</span>
               </button>
             ))}

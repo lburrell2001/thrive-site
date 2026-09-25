@@ -23,7 +23,7 @@ const baiJamjuree = Bai_Jamjuree({
 
 const SERVICES = [
   {
-    tag: "01 — Digital", name: "DIGITAL DESIGN", sub: "ALL YOURS IN ONLY 2–4 WEEKS",
+    tag: "01 — Digital", name: "DIGITAL DESIGN", sub: "TIMELINE SCOPED TO YOUR PROJECT",
     desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
     href: "/services/digital-design",
     media: { type: "video" as const, src: "branding-hero-v2.mp4" },

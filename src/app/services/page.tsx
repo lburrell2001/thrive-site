@@ -24,7 +24,7 @@ const SERVICES = [
   {
     tag: "01 — Digital",
     name: "DIGITAL DESIGN",
-    sub: "ALL YOURS IN ONLY 2–4 WEEKS",
+    sub: "TIMELINE SCOPED TO YOUR PROJECT",
     desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
     color: "#1e3add",
     textColor: "#fff",

@@ -31,7 +31,7 @@ const INFO_ROWS = [
 const FAQ_ITEMS = [
   {
     q: "How long does a project take?",
-    a: "Brand identities 4–6 weeks. Web design 6–8 weeks. Social retainers are monthly.",
+    a: "Brand identities take 4–6 weeks. Web design depends on the scope — your proposal includes a timeline before anything starts. Social retainers are monthly.",
   },
   {
     q: "Do you work with startups?",

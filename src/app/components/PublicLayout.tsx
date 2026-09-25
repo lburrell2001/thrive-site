@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import NewsletterSignup from "./NewsletterSignup";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const [navScrolled, setNavScrolled] = useState(false);
@@ -366,10 +367,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           </div>
           <div>
             <div className="pl-footer-col-label">Stay in the Loop</div>
-            <div className="pl-footer-subscribe">
-              <input type="email" placeholder="Your email address" />
-              <button type="button">SUBSCRIBE →</button>
-            </div>
+            <NewsletterSignup className="pl-footer-subscribe" />
           </div>
         </div>
 

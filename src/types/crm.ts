@@ -24,6 +24,12 @@ export interface CrmContact {
   source: string;
   tags: string[];
   portal_client_id: string | null;
+  /** Null = never asked; only 'subscribed' receives newsletters. */
+  newsletter_status: 'pending' | 'subscribed' | 'unsubscribed' | null;
+  newsletter_source: string | null;
+  newsletter_consent_note: string | null;
+  newsletter_subscribed_at: string | null;
+  newsletter_unsubscribed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -75,7 +81,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */

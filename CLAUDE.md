@@ -138,6 +138,15 @@ Requested from a won deal in the CRM (`POST /api/reviews/request`), submitted at
 
 `/book` (migration `025`). Weekly hours, length, buffer, notice and days off are set at `/admin/calls`; slots are computed in `src/lib/bookingTime.ts` (pure, DST-safe) and re-checked on booking, with a unique index on confirmed `starts_at` as the race guard. A booking also inserts a `contact_inquiries` row, so the CRM triggers create the contact/deal as for the contact form, and adds a CRM task on the call day. Both sides get an email with an `.ics` invite; `/book/[token]` cancels. No calendar sync — availability is the configured hours only.
 
+### Newsletter
+
+Subscription lives on the CRM contact (`crm_contacts.newsletter_status`, migration `026`): `pending` → `subscribed` → `unsubscribed`, or null for never asked. Only `subscribed` contacts are ever emailed.
+
+- The footer signup (`NewsletterSignup` → `POST /api/newsletter/subscribe`) is double opt-in: it emails a confirm link (`/newsletter/confirm/[token]`), throttled to one per 10 minutes per address, and always answers the same way so it can't reveal who is subscribed. Admin can subscribe a contact from their CRM drawer only with a note of how they agreed.
+- Confirm and unsubscribe links are HMAC-signed tokens (`src/lib/newsletterTokens.ts`) bound to purpose. Unsubscribe is POST-only (`/api/newsletter/unsubscribe?t=`, also the RFC 8058 one-click target in the `List-Unsubscribe` header) so link scanners can't unsubscribe anyone; the `/newsletter/unsubscribe/[token]` page just has the button.
+- Newsletters are written at `/admin/crm/newsletters` in the journal's markdown, rendered to inline-styled email HTML by `src/lib/newsletterEmail.ts` (pure — the editor preview uses it too). Sending (`src/lib/newsletter.ts`) claims the row (`draft|failed` → `sending`) so it can't double-send, batches 100 per Resend call with an idempotency key, and records every recipient in `newsletter_sends` (unique per newsletter+contact) so a failed send resumes with only the people it missed.
+- Sending is refused until a mailing address is saved (`admin_config` key `newsletter_postal_address`) — CAN-SPAM requires one in every marketing email.
+
 ### Styling
 
 Global design tokens (CSS custom properties) are defined in `src/app/globals.css` under the `:root` block — brand palette, spacing, typography. Page-level scoped styles use CSS Modules (e.g. `WorkPage.module.css`, `ProjectPage.module.css`). Tailwind utility classes are used inline for layout/spacing throughout.

@@ -46,6 +46,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   portal_proposal: '#5b2d8e',
   invoice: '#1a8a4a',
   review: '#e40586',
+  newsletter: '#0f766e',
 };
 
 function when(iso: string) {
@@ -244,6 +245,8 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
               />
 
               <TasksSection contactId={id} detail={detail} onChange={async () => { await reload(); onChanged(); }} notify={notify} />
+
+              <NewsletterSection contact={c} onChange={async () => { await reload(); onChanged(); }} notify={notify} />
 
               <DetailsSection key={c.updated_at} contact={c} onSave={(patch) => save(patch, 'Details saved.')} />
 
@@ -455,6 +458,70 @@ function DealTitle({ title, onSave }: { title: string; onSave: (title: string) =
       }}
       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
     />
+  );
+}
+
+/** Newsletter status, and adding or removing someone by hand. */
+function NewsletterSection({ contact: c, onChange, notify }: {
+  contact: CrmContact;
+  onChange: () => Promise<void>;
+  notify: (message: string, tone?: 'ok' | 'error') => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function set(status: 'subscribed' | 'unsubscribed') {
+    setBusy(true);
+    try {
+      await apiSend(`/api/crm/contacts/${c.id}/newsletter`, 'POST', status === 'subscribed' ? { status, consent_note: note } : { status });
+      notify(status === 'subscribed' ? 'Added to the newsletter.' : 'Removed from the newsletter.');
+      setAdding(false); setNote('');
+      await onChange();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not update', 'error');
+    }
+    setBusy(false);
+  }
+
+  const status = c.newsletter_status;
+  const line =
+    status === 'subscribed'
+      ? `Subscribed ${c.newsletter_subscribed_at ? `since ${formatDate(c.newsletter_subscribed_at)}` : ''}${c.newsletter_source === 'footer' ? ' · signed up on the website' : c.newsletter_consent_note ? ` · ${c.newsletter_consent_note}` : ''}`
+      : status === 'pending'
+        ? 'Signed up on the website but hasn’t clicked the confirm link yet — not emailed until they do.'
+        : status === 'unsubscribed'
+          ? `Unsubscribed${c.newsletter_unsubscribed_at ? ` ${formatDate(c.newsletter_unsubscribed_at)}` : ''}. Only add them back if they ask.`
+          : 'Not on the newsletter.';
+
+  return (
+    <section className={s.section}>
+      <div className={s.sectionHead}>
+        <h3 className={s.sectionTitle}>Newsletter</h3>
+        {status === 'subscribed' || status === 'pending' ? (
+          <button type="button" className={s.moreButton} onClick={() => set('unsubscribed')} disabled={busy}>Remove</button>
+        ) : !adding ? (
+          <button type="button" className={s.moreButton} onClick={() => setAdding(true)} disabled={!c.email}>
+            {c.email ? 'Add to newsletter' : 'Needs an email'}
+          </button>
+        ) : null}
+      </div>
+      <p className={s.eventMeta} style={{ margin: 0 }}>{line}</p>
+      {adding && (
+        <form className={s.addRow} onSubmit={(e) => { e.preventDefault(); void set('subscribed'); }}>
+          <input
+            className={p.input}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="How did they agree? e.g. “Said yes on our call”"
+            aria-label="How they agreed to receive the newsletter"
+            autoFocus
+          />
+          <button type="submit" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} disabled={busy || note.trim().length < 3}>Add</button>
+          <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setAdding(false); setNote(''); }}>Cancel</button>
+        </form>
+      )}
+    </section>
   );
 }
 

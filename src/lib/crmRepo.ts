@@ -188,7 +188,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -206,6 +206,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     portalId ? db.from('portal_clients').select('id, full_name').eq('id', portalId).maybeSingle() : Promise.resolve({ data: null }),
     portalId ? db.from('portal_proposals').select('id, name, status, created_at').eq('client_id', portalId) : none,
     portalId ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, created_at').eq('client_id', portalId) : none,
+    db.from('newsletter_sends').select('id, status, error, sent_at, newsletters ( id, subject )').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -305,6 +306,18 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       meta: r.status === 'approved' ? 'On the website' : r.status === 'hidden' ? 'Hidden' : 'Waiting for approval in Reviews',
       href: '/admin/reviews',
       dealId: r.crm_deal_id,
+    });
+  }
+
+  for (const n of newsletters.data ?? []) {
+    const letter = n.newsletters as unknown as { id: string; subject: string } | null;
+    timeline.push({
+      key: `newsletter:${n.id}`,
+      kind: 'newsletter',
+      at: n.sent_at,
+      title: `Newsletter · ${letter?.subject || 'Untitled'}`,
+      meta: n.status === 'sent' ? 'Sent' : `Failed — ${n.error ?? 'unknown error'}`,
+      href: letter ? `/admin/crm/newsletters/${letter.id}` : null,
     });
   }
 
