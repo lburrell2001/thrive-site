@@ -82,6 +82,16 @@ function money(cents: number, currency = 'USD') {
   }).format(cents / 100);
 }
 
+/** "TheSocialReserve-Proposal-Sept2026.pdf" → "The Social Reserve Proposal Sept2026". */
+function displayName(fileName: string) {
+  return fileName
+    .replace(/\.[a-z0-9]{2,5}$/i, '')
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function day(value: string) {
   return new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US', {
     month: 'short',
@@ -144,11 +154,11 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
         message: {
           subject: `Reminder: your proposal is waiting — ${p.name}`,
           eyebrow: 'Friendly reminder',
-          headline: `"${p.name}" is still waiting for your review and signature.`,
-          detail: 'Download it from your portal, sign, and upload it back when you are ready.',
+          headline: 'Your proposal is still waiting for your review and signature. Download it from your portal, sign it, and upload it back whenever you are ready.',
+          detail: displayName(p.name),
           ctaUrl: `${site}/portal/files`,
           ctaLabel: 'Review proposal',
-          sms: `Friendly reminder, your proposal "${p.name}" is waiting for your signature:`,
+          sms: `Friendly reminder, your proposal "${displayName(p.name)}" is waiting for your signature:`,
         },
       };
     }
@@ -222,7 +232,7 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
         summary: 'Custom message',
         message: {
           subject: target.subject || 'A note from Thrive Creative Studios',
-          eyebrow: 'A note from Thrive Creative Studios',
+          eyebrow: 'A note from Lauren',
           headline: '',
           ctaUrl: `${site}/portal/dashboard`,
           ctaLabel: 'Open your portal',
@@ -243,7 +253,7 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
         summary: 'Message',
         message: {
           subject: target.subject || 'A note from Thrive Creative Studios',
-          eyebrow: 'A note from Thrive Creative Studios',
+          eyebrow: 'A note from Lauren',
           headline: '',
           // Only portal clients have somewhere to go.
           ctaUrl: portal ? `${site}/portal/dashboard` : '',

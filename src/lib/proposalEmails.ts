@@ -7,14 +7,7 @@
 
 import 'server-only';
 import { Resend } from 'resend';
-
-function esc(value: string): string {
-  return (value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { BRAND, brandEmail, button, esc, links, note, paragraph, rows, signoff } from '@/lib/emailLayout';
 
 export interface SigningEmailData {
   proposalTitle: string;
@@ -36,88 +29,52 @@ export interface SigningEmailData {
   pdf?: { filename: string; content: Buffer } | null;
 }
 
-const SHELL = (inner: string) => `
-  <div style="margin:0;padding:0;background:#000;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
-    <div style="max-width:560px;margin:0 auto;padding:28px 22px;">
-      <div style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#ff5a1f;font-weight:700;">
-        Thrive Creative Studios
-      </div>
-      ${inner}
-      <div style="margin-top:26px;padding-top:16px;border-top:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.5);font-size:11px;">
-        Thrive Creative Studios
-      </div>
-    </div>
-  </div>
-`;
-
-const BUTTON = (href: string, label: string) => `
-  <a href="${esc(href)}" style="display:inline-block;background:#35e06b;color:#000;padding:12px 22px;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;">
-    ${esc(label)}
-  </a>
-`;
-
 /** Sent to the client. Restates what they approved and what happens next. */
 function clientReceipt(d: SigningEmailData) {
-  return SHELL(`
-    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">Thank you — approved.</h1>
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
-      You approved <strong style="color:#fff;">${esc(d.proposalTitle)}</strong> on
-      ${esc(d.signedAt)}. This email is your receipt — keep it for your records.
-    </p>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <tr>
-        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.62);font-size:13px;">Signed by</td>
-        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.14);color:#fff;font-size:13px;text-align:right;">${esc(d.typedName)}</td>
-      </tr>
-      <tr>
-        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.62);font-size:13px;">Total</td>
-        <td style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,.14);color:#fff;font-size:13px;text-align:right;">${esc(d.totalLabel)}</td>
-      </tr>
-      <tr>
-        <td style="padding:9px 0;border-bottom:2px solid #35e06b;color:rgba(255,255,255,.62);font-size:13px;">Deposit due (${d.depositPercent}%)</td>
-        <td style="padding:9px 0;border-bottom:2px solid #35e06b;color:#35e06b;font-size:15px;font-weight:700;text-align:right;">${esc(d.depositLabel)}</td>
-      </tr>
-    </table>
-
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 16px;">
-      Next step: pay the deposit in your client portal. Work begins as soon as it lands.
-    </p>
-
-    ${BUTTON(d.portalUrl, 'Pay the deposit')}
-
-    <p style="margin:18px 0 0;font-size:13px;">
-      <a href="${esc(d.proposalUrl)}" style="color:#35e06b;">Read the proposal again</a>
-      &nbsp;·&nbsp;
-      <a href="${esc(d.printUrl)}" style="color:#35e06b;">Save a PDF copy</a>
-    </p>
-    ${
-      d.pdf
-        ? ''
-        : `<p style="margin:12px 0 0;font-size:11px;color:rgba(255,255,255,.5);">A PDF copy is available at the link above.</p>`
-    }
-  `);
+  return brandEmail({
+    title: `Approved — ${d.proposalTitle}`,
+    preheader: `Your receipt for ${d.proposalTitle}. Next step: the ${d.depositPercent}% deposit.`,
+    eyebrow: 'Proposal approved',
+    heading: 'Thank you!',
+    body: [
+      paragraph(
+        `You approved <strong style="color:#000;">${esc(d.proposalTitle)}</strong> on ${esc(d.signedAt)}. This email is your receipt, so keep it for your records.`,
+        { html: true },
+      ),
+      rows([
+        { label: 'Signed by', value: d.typedName },
+        { label: 'Total', value: d.totalLabel },
+        { label: `Deposit due (${d.depositPercent}%)`, value: d.depositLabel, strong: true },
+      ]),
+      paragraph('Next step: pay the deposit in your client portal. Work begins as soon as it lands.'),
+      button(d.portalUrl, 'Pay the deposit'),
+      links([
+        { href: d.proposalUrl, label: 'Read the proposal again' },
+        { href: d.printUrl, label: 'Save a PDF copy' },
+      ]),
+      signoff(),
+    ].join('\n'),
+  });
 }
 
 /** Sent to Lauren. Carries the audit detail, which the client's copy does not. */
 function agencyNotification(d: SigningEmailData) {
-  return SHELL(`
-    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">${esc(d.proposalTitle)} was signed.</h1>
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
-      ${esc(d.signerName)}${d.signerTitle ? ` · ${esc(d.signerTitle)}` : ''} &lt;${esc(d.signerEmail)}&gt;
-      approved it on ${esc(d.signedAt)}.
-    </p>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Typed signature</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.typedName)}</td></tr>
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Total</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.totalLabel)}</td></tr>
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Deposit due</td><td style="padding:7px 0;color:#35e06b;font-size:13px;font-weight:700;text-align:right;">${esc(d.depositLabel)}</td></tr>
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">IP address</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.ipAddress ?? 'not recorded')}</td></tr>
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Content hash</td><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:10px;text-align:right;word-break:break-all;">${esc(d.contentHash)}</td></tr>
-    </table>
-
-    ${BUTTON(d.adminUrl, 'Open in admin')}
-  `);
+  return brandEmail({
+    title: `Signed: ${d.proposalTitle}`,
+    eyebrow: 'Proposal signed',
+    heading: d.proposalTitle,
+    body: [
+      paragraph(`${d.signerName}${d.signerTitle ? ` · ${d.signerTitle}` : ''} <${d.signerEmail}> approved it on ${d.signedAt}.`),
+      rows([
+        { label: 'Typed signature', value: d.typedName },
+        { label: 'Total', value: d.totalLabel },
+        { label: 'IP address', value: d.ipAddress ?? 'not recorded' },
+        { label: 'Content hash', value: d.contentHash, small: true },
+        { label: 'Deposit due', value: d.depositLabel, strong: true },
+      ]),
+      button(d.adminUrl, 'Open in admin'),
+    ].join('\n'),
+  });
 }
 
 export interface DeclineEmailData {
@@ -137,47 +94,39 @@ export interface DeclineEmailData {
  * and the reason is the whole point of it — so the reason leads.
  */
 function declineNotification(d: DeclineEmailData) {
-  return SHELL(`
-    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">${esc(d.proposalTitle)} was declined.</h1>
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
-      ${d.declinedBy ? `${esc(d.declinedBy)} ` : 'The client '}declined on ${esc(d.declinedAt)}.
-    </p>
-
-    <div style="border-left:3px solid #fd6100;background:rgba(253,97,0,.1);padding:14px 16px;margin-bottom:20px;">
-      <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#fd6100;font-weight:700;margin-bottom:6px;">Reason given</div>
-      <div style="color:#fff;font-size:14px;line-height:1.6;white-space:pre-wrap;">${esc(d.reason)}</div>
-    </div>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Value</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.totalLabel)}</td></tr>
-      ${d.declinerEmail ? `<tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">Email</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.declinerEmail)}</td></tr>` : ''}
-      <tr><td style="padding:7px 0;color:rgba(255,255,255,.62);font-size:13px;">IP address</td><td style="padding:7px 0;color:#fff;font-size:13px;text-align:right;">${esc(d.ipAddress ?? 'not recorded')}</td></tr>
-    </table>
-
-    <p style="color:rgba(255,255,255,.72);font-size:13px;line-height:1.6;margin:0 0 16px;">
-      Revising and publishing again reopens the proposal on the same link.
-    </p>
-
-    ${BUTTON(d.adminUrl, 'Open in admin')}
-  `);
+  return brandEmail({
+    title: `Declined: ${d.proposalTitle}`,
+    eyebrow: 'Proposal declined',
+    heading: d.proposalTitle,
+    body: [
+      paragraph(`${d.declinedBy ?? 'The client'} declined on ${d.declinedAt}.`),
+      note(d.reason, 'Reason given'),
+      rows([
+        { label: 'Value', value: d.totalLabel },
+        ...(d.declinerEmail ? [{ label: 'Email', value: d.declinerEmail }] : []),
+        { label: 'IP address', value: d.ipAddress ?? 'not recorded' },
+      ]),
+      paragraph('Revising and publishing again reopens the proposal on the same link.', { size: 13, color: BRAND.muted }),
+      button(d.adminUrl, 'Open in admin'),
+    ].join('\n'),
+  });
 }
 
 /** A short acknowledgement, only if they left an address. */
 function declineAcknowledgement(d: DeclineEmailData) {
-  return SHELL(`
-    <h1 style="margin:10px 0 6px;color:#fff;font-size:24px;line-height:1.15;">Thanks for letting us know.</h1>
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
-      We have recorded that you are not moving ahead with
-      <strong style="color:#fff;">${esc(d.proposalTitle)}</strong>, and why. No further action
-      is needed from you.
-    </p>
-    <p style="color:rgba(255,255,255,.72);font-size:14px;line-height:1.6;margin:0 0 18px;">
-      If anything changes, or you would like a revised version, just reply to this email.
-    </p>
-    <p style="margin:0;font-size:13px;">
-      <a href="${esc(d.proposalUrl)}" style="color:#0cf574;">Read the proposal again</a>
-    </p>
-  `);
+  return brandEmail({
+    title: `Thanks for letting us know — ${d.proposalTitle}`,
+    heading: 'Thanks for letting us know',
+    body: [
+      paragraph(
+        `We have noted that you are not moving ahead with <strong style="color:#000;">${esc(d.proposalTitle)}</strong>, and why. There is nothing else you need to do.`,
+        { html: true },
+      ),
+      paragraph('If anything changes, or you would like a revised version, just reply to this email.'),
+      links([{ href: d.proposalUrl, label: 'Read the proposal again' }]),
+      signoff(),
+    ].join('\n'),
+  });
 }
 
 /**

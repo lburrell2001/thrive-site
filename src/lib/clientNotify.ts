@@ -11,6 +11,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendSms, smsConfigured } from '@/lib/sms';
+import { brandEmail, button, greeting, note as noteBlock, panel, paragraph, signoff } from '@/lib/emailLayout';
 
 export interface Contact {
   portalClientId: string | null;
@@ -163,36 +164,20 @@ export function smsBlockedReason(contact: Contact): string | null {
   return null;
 }
 
-function esc(s: string) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function emailHtml(contact: Contact, m: ClientMessage): string {
-  return `
-    <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
-      <div style="max-width:600px;margin:0 auto;padding:28px;">
-        <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
-          <div style="background:#0b0b0f;border-radius:16px;padding:20px 22px 16px;">
-            <div style="display:flex;align-items:center;gap:10px;">
-              <div style="width:12px;height:12px;border-radius:999px;background:#ff2ea6;box-shadow:0 0 0 4px rgba(255,46,166,.18);"></div>
-              <div style="color:#fff;font-weight:900;font-size:15px;">Thrive Creative Studios</div>
-            </div>
-            <div style="margin-top:6px;color:#d7d7e0;font-size:13px;">${esc(m.eyebrow ?? 'Your client portal has been updated.')}</div>
-          </div>
-        </div>
-        <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
-          <div style="color:#fff;font-size:17px;font-weight:900;margin-bottom:6px;">Hi ${esc(contact.firstName)},</div>
-          <div style="color:#d7d7e0;font-size:14px;line-height:1.6;margin-bottom:8px;white-space:pre-line;">${esc(m.headline)}</div>
-          ${m.detail ? `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;color:#fff;font-size:13px;line-height:1.6;margin-bottom:16px;white-space:pre-line;">${esc(m.detail)}</div>` : ''}
-          ${m.note ? `<div style="border-left:3px solid #ff2ea6;padding:4px 0 4px 14px;color:#fff;font-size:14px;line-height:1.6;margin-bottom:16px;white-space:pre-line;">${esc(m.note)}</div>` : ''}
-          ${m.ctaUrl ? `<a href="${esc(m.ctaUrl)}" style="display:inline-block;background:#ff2ea6;color:#0b0b0f;padding:12px 22px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">${esc(m.ctaLabel)} →</a>` : ''}
-        </div>
-        <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
-          Thrive Creative Studios · ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </div>
-      </div>
-    </div>
-  `;
+  return brandEmail({
+    title: m.subject,
+    preheader: m.headline || m.note || m.subject,
+    heading: m.eyebrow ?? 'Portal update',
+    body: [
+      greeting(contact.firstName),
+      m.headline ? paragraph(m.headline) : '',
+      m.detail ? panel(m.detail) : '',
+      m.note ? noteBlock(m.note) : '',
+      m.ctaUrl ? button(m.ctaUrl, m.ctaLabel) : '',
+      signoff(),
+    ].join('\n'),
+  });
 }
 
 function emailText(contact: Contact, m: ClientMessage): string {
@@ -202,6 +187,7 @@ function emailText(contact: Contact, m: ClientMessage): string {
     m.detail,
     m.note,
     m.ctaUrl && `${m.ctaLabel}:\n${m.ctaUrl}`,
+    'Talk soon,\nLauren\nThrive Creative Studios',
   ]
     .filter(Boolean)
     .join('\n\n');

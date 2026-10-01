@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { BRAND, brandEmail, paragraph, rows } from '@/lib/emailLayout';
 import { encryptSecret, decryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
 
 const NOTIFY_TO = 'hello@thrivecreativestudios.org';
@@ -45,10 +46,6 @@ function toSummary(row: CredentialRow) {
   };
 }
 
-function escHtml(s: string) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 /** Tells Thrive a credential landed. Deliberately carries no secret material. */
 async function notifyThrive(clientName: string, clientEmail: string, label: string, verb: string) {
   const resendKey = process.env.RESEND_API_KEY;
@@ -67,29 +64,19 @@ async function notifyThrive(clientName: string, clientEmail: string, label: stri
         ``,
         `The login itself is not included in this email — open the client's Profile tab in the admin portal to reveal it.`,
       ].join('\n'),
-      html: `
-        <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;">
-          <div style="max-width:600px;margin:0 auto;padding:28px;">
-            <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
-              <div style="background:#0b0b0f;border-radius:16px;padding:20px 22px 16px;">
-                <div style="color:#fff;font-weight:900;font-size:15px;">Thrive Creative Studios</div>
-                <div style="margin-top:6px;color:#d7d7e0;font-size:13px;">A client ${escHtml(verb)} a secure credential.</div>
-              </div>
-            </div>
-            <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
-              <div style="color:#fff;font-size:17px;font-weight:900;margin-bottom:2px;">${escHtml(clientName)}</div>
-              <div style="color:#aab0c0;font-size:13px;margin-bottom:18px;">${escHtml(clientEmail)}</div>
-              <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 16px;">
-                <div style="color:#aab0c0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;">Entry</div>
-                <div style="color:#fff;font-size:14px;font-weight:700;">${escHtml(label)}</div>
-              </div>
-              <div style="color:#6c7386;font-size:12px;line-height:1.6;margin-top:16px;">
-                The login is not included in this email. Open the client's Profile tab in the admin portal to reveal it.
-              </div>
-            </div>
-          </div>
-        </div>
-      `,
+      html: brandEmail({
+        title: `Secure vault ${verb} — ${clientName}`,
+        eyebrow: 'Secure vault',
+        heading: clientName,
+        body: [
+          paragraph(`${clientName} ${verb} a credential in their secure vault.`),
+          rows([
+            { label: 'Email', value: clientEmail, href: `mailto:${clientEmail}` },
+            { label: 'Entry', value: label },
+          ]),
+          paragraph("The login is not included in this email. Open the client's Profile tab in admin to reveal it.", { size: 13, color: BRAND.muted }),
+        ].join('\n'),
+      }),
     });
   } catch (e) {
     console.error('Vault notification email failed:', e);

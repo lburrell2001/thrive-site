@@ -89,6 +89,7 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 ### Reminders and text messages
 
 - Admin sends reminders from the Remind buttons on unpaid invoices, unsigned proposals (uploaded and builder), unfinished onboarding, and "Message Client" on the profile. The logic is in `src/lib/reminders.ts`; routes are the `reminder_preview` / `send_reminder` actions on `/api/admin` and `GET`/`POST /api/proposals/[id]/remind`.
+- Every email except newsletters (client notifications, proposal receipts/declines, bookings, and the internal alerts and weekly digest) shares the Thrive layout in `src/lib/emailLayout.ts` — logo, five-colour stripe, Bungee/Bai Jamjuree. The portal sign-in code email is a Supabase template: `supabase/templates/portal-code.html` is generated from the same layout and pasted into Supabase → Authentication → Emails.
 - Every client email and text goes through `src/lib/clientNotify.ts`, which resolves a portal client or proposal recipient to one `Contact`. A text is sent only when the client has a phone **and** `sms_opt_in` is true. A Twilio STOP (error 21610) turns `sms_opt_in` off.
 - Every reminder attempt is logged in `client_reminders` (migration `018`, RLS on with no policies).
 - `portal_clients` writes from the browser are limited by column grants to `full_name, company_name, initials, phone, sms_opt_in`. Clients cannot change `role`.

@@ -8,6 +8,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { BRAND, brandEmail, button as emailButton, paragraph, section } from '@/lib/emailLayout';
 import { buildAdminSummary } from '@/lib/adminSummary';
 import { sendSms, smsConfigured } from '@/lib/sms';
 import type { AdminSummary } from '@/types/adminSummary';
@@ -17,10 +18,6 @@ export type ChannelOutcome = 'sent' | 'failed' | 'skipped';
 
 function money(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(cents / 100);
-}
-
-function esc(s: string) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function shortDate(iso: string) {
@@ -159,23 +156,18 @@ export function renderDigest(d: AdminSummary, site: string) {
   const dateLabel = new Date(`${d.today}T12:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const subject = `Thrive weekly: ${headline}`;
 
-  const html = `
-  <div style="margin:0;padding:0;background:#f6f5f4;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:#111;">
-    <div style="max-width:620px;margin:0 auto;padding:28px 20px;">
-      <div style="font-size:12px;font-weight:700;color:#e40586;letter-spacing:.04em;">THRIVE CREATIVE STUDIOS · WEEKLY</div>
-      <div style="font-size:22px;font-weight:800;margin:6px 0 2px;">${esc(dateLabel)}</div>
-      <div style="font-size:14px;color:#555;margin-bottom:18px;">${esc(headline)}</div>
-      ${sections.map((sec) => `
-        <div style="background:#fff;border:1px solid #e4e1de;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
-          <div style="font-size:14px;font-weight:700;margin-bottom:6px;">${esc(sec.title)}</div>
-          ${sec.lines.map((l) => `
-            <div style="font-size:13px;line-height:1.5;padding:5px 0;border-top:1px solid #f5f4f3;${l.tone === 'late' ? 'color:#b91c1c;' : ''}">
-              ${l.href ? `<a href="${esc(l.href)}" style="color:inherit;text-decoration:none;">${esc(l.text)}</a>` : esc(l.text)}
-            </div>`).join('')}
-        </div>`).join('')}
-      <a href="${esc(site)}/admin" style="display:inline-block;margin-top:6px;background:#e40586;color:#fff;padding:11px 20px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;">Open admin →</a>
-    </div>
-  </div>`;
+  const html = brandEmail({
+    title: subject,
+    preheader: headline,
+    eyebrow: 'Weekly digest',
+    heading: dateLabel,
+    body: [
+      paragraph(headline, { size: 16, color: BRAND.ink }),
+      ...sections.map((sec) => section(sec.title, sec.lines)),
+      '<div style="height:18px;line-height:18px;font-size:1px;">&nbsp;</div>',
+      emailButton(`${site}/admin`, 'Open admin'),
+    ].join('\n'),
+  });
 
   const text = [
     `Thrive weekly — ${dateLabel}`,

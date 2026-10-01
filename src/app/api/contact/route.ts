@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseService } from "@/lib/supabaseService";
 import { textAgency } from "@/lib/sms";
+import { BRAND, brandEmail, button as emailButton, links, panel, paragraph, rows } from "@/lib/emailLayout";
 import { attributionFor, type AttributionInput } from "@/lib/inquiryAttribution";
 
 // The generated Database type only knows the original contact_inquiries
@@ -78,29 +79,6 @@ async function readPayload(req: Request): Promise<Payload> {
     // If someone posted plain text, don’t explode
     return { message: raw } as Payload;
   }
-}
-
-function escapeHtml(input: string) {
-  return (input ?? "")
-    .toString()
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function escapeAttr(input: string) {
-  return escapeHtml(input).replaceAll("\n", " ");
-}
-
-function infoRow(label: string, valueHtml: string) {
-  return `
-    <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);">
-      <div style="color:#aab0c0;font-size:12px;font-weight:700;">${escapeHtml(label)}</div>
-      <div style="color:#ffffff;font-size:13px;font-weight:800;text-align:right;">${valueHtml}</div>
-    </div>
-  `;
 }
 
 export async function POST(req: Request) {
@@ -221,80 +199,26 @@ export async function POST(req: Request) {
       `Referrer: ${referrer || "—"}`,
     ].join("\n");
 
-    const html = `
-      <div style="margin:0;padding:0;background:#0b0b0f;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;">
-        <div style="max-width:640px;margin:0 auto;padding:28px;">
-          <div style="background:linear-gradient(135deg,#ff2ea6,#7c3aed,#22d3ee);padding:2px;border-radius:18px;">
-            <div style="background:#0b0b0f;border-radius:16px;padding:22px 22px 18px;">
-              <div style="display:flex;align-items:center;gap:12px;">
-                <div style="width:14px;height:14px;border-radius:999px;background:#ff2ea6;box-shadow:0 0 0 4px rgba(255,46,166,.18);"></div>
-                <div style="color:#fff;font-weight:900;letter-spacing:.2px;font-size:16px;">
-                  Thrive Creative Studios
-                </div>
-              </div>
-              <div style="margin-top:10px;color:#d7d7e0;font-size:13px;line-height:1.5;">
-                New contact form inquiry received.
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-top:16px;background:#11111a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;">
-            <div style="color:#ffffff;font-size:18px;font-weight:900;margin-bottom:6px;">
-              New inquiry: ${escapeHtml(name)}
-            </div>
-
-            <div style="color:#aab0c0;font-size:13px;margin-bottom:14px;">
-              ${escapeHtml(projectType)} • ${escapeHtml(budget)} • ${escapeHtml(timeline)}
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr;gap:10px;">
-              ${infoRow(
-                "Email",
-                `<a href="mailto:${escapeAttr(email)}" style="color:#22d3ee;text-decoration:none;font-weight:900;">${escapeHtml(
-                  email
-                )}</a>`
-              )}
-              ${company ? infoRow("Company", escapeHtml(company)) : ""}
-              ${infoRow("Project type", escapeHtml(projectType))}
-              ${infoRow("Budget", escapeHtml(budget))}
-              ${infoRow("Timeline", escapeHtml(timeline))}
-              ${foundVia ? infoRow("Found us via", escapeHtml(foundVia)) : ""}
-            </div>
-
-            <div style="margin-top:16px;padding:14px;border-radius:14px;background:#0b0b0f;border:1px solid rgba(255,255,255,.06);">
-              <div style="color:#fff;font-weight:900;font-size:13px;margin-bottom:8px;">Details</div>
-              <div style="color:#d7d7e0;font-size:13px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(
-                message
-              )}</div>
-            </div>
-
-            <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
-              <a href="mailto:${escapeAttr(email)}"
-                 style="background:#ff2ea6;color:#0b0b0f;padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:900;font-size:13px;">
-                Reply to client
-              </a>
-              ${
-                pageUrl
-                  ? `<a href="${escapeAttr(pageUrl)}"
-                       style="background:rgba(255,255,255,.08);color:#fff;padding:10px 14px;border-radius:999px;text-decoration:none;font-weight:800;font-size:13px;">
-                      View page
-                    </a>`
-                  : ""
-              }
-            </div>
-
-            <div style="margin-top:14px;color:#7f879b;font-size:12px;line-height:1.5;">
-              Page URL: <span style="color:#aab0c0;">${escapeHtml(pageUrl || "—")}</span><br/>
-              Referrer: <span style="color:#aab0c0;">${escapeHtml(referrer || "—")}</span>
-            </div>
-          </div>
-
-          <div style="margin-top:14px;color:#6c7386;font-size:12px;text-align:center;">
-            Sent from Thrive Contact Form • ${new Date().toLocaleString("en-US")}
-          </div>
-        </div>
-      </div>
-    `;
+    const html = brandEmail({
+      title: subject,
+      preheader: `${projectType} · ${budget} · ${timeline}`,
+      eyebrow: "New inquiry",
+      heading: name,
+      body: [
+        rows([
+          { label: "Email", value: email, href: `mailto:${email}` },
+          ...(company ? [{ label: "Company", value: company }] : []),
+          { label: "Project type", value: projectType },
+          { label: "Budget", value: budget },
+          { label: "Timeline", value: timeline },
+          ...(foundVia ? [{ label: "Found us via", value: foundVia }] : []),
+        ]),
+        panel(message),
+        emailButton(`mailto:${email}`, `Reply to ${name.split(" ")[0] || name}`),
+        pageUrl ? links([{ href: pageUrl, label: "View the page they sent it from" }]) : "",
+        paragraph(`Page: ${pageUrl || "—"}\nReferrer: ${referrer || "—"}`, { size: 12, color: BRAND.muted }),
+      ].join("\n"),
+    });
 
     try {
       const { data, error: emailError } = await resend.emails.send({

@@ -9,6 +9,7 @@ import 'server-only';
 import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { brandEmail, button as emailButton, paragraph, rows, signoff } from '@/lib/emailLayout';
 import { z } from 'zod';
 import { attributionFor, type AttributionInput } from '@/lib/inquiryAttribution';
 import { SERVICE_SEO, type ServiceSlug } from '@/lib/serviceSeo';
@@ -120,22 +121,24 @@ function ics(b: { id: string; starts_at: string; ends_at: string }, summary: str
   ].join('\r\n');
 }
 
-function esc(s: string) {
-  return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function emailHtml(heading: string, lines: string[], button?: { href: string; label: string }) {
-  return `
-  <div style="margin:0;padding:0;background:#f6f5f4;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:#111;">
-    <div style="max-width:560px;margin:0 auto;padding:28px 20px;">
-      <div style="font-size:12px;font-weight:700;color:#e40586;letter-spacing:.04em;">THRIVE CREATIVE STUDIOS</div>
-      <div style="background:#fff;border:1px solid #e4e1de;border-radius:14px;padding:22px;margin-top:10px;">
-        <div style="font-size:20px;font-weight:800;margin-bottom:10px;">${esc(heading)}</div>
-        ${lines.map((l) => `<div style="font-size:14px;line-height:1.6;color:#333;margin:6px 0;white-space:pre-line;">${esc(l)}</div>`).join('')}
-        ${button ? `<a href="${esc(button.href)}" style="display:inline-block;margin-top:14px;background:#e40586;color:#fff;padding:11px 20px;border-radius:999px;text-decoration:none;font-weight:700;font-size:13px;">${esc(button.label)}</a>` : ''}
-      </div>
-    </div>
-  </div>`;
+function emailHtml(
+  heading: string,
+  lines: string[],
+  button?: { href: string; label: string },
+  opts: { details?: { label: string; value: string }[]; toClient?: boolean } = {},
+) {
+  return brandEmail({
+    title: heading,
+    preheader: lines[0],
+    heading,
+    body: [
+      ...lines.slice(0, 1).map((l) => paragraph(l)),
+      opts.details?.length ? rows(opts.details) : '',
+      ...lines.slice(1).map((l) => paragraph(l)),
+      button ? emailButton(button.href, button.label) : '',
+      opts.toClient ? signoff() : '',
+    ].join('\n'),
+  });
 }
 
 async function sendEmail(to: string, subject: string, html: string, text: string, invite?: string) {
@@ -248,12 +251,15 @@ export async function createBooking(
     sendEmail(
       input.email,
       `Booked: ${settings.title} on ${visitorTime}`,
-      emailHtml(`You're booked, ${input.name.split(' ')[0]}!`, [
-        `${settings.title} with Lauren at Thrive Creative Studios.`,
-        `When: ${visitorTime}`,
-        `Where: ${where}`,
-        'The calendar invite is attached. If something comes up, you can cancel below.',
-      ], { href: manage, label: 'Cancel or rebook' }),
+      emailHtml(
+        `You're booked, ${input.name.split(' ')[0]}!`,
+        [
+          `${settings.title} with Lauren at Thrive Creative Studios.`,
+          'The calendar invite is attached. If something comes up, you can cancel or pick a new time below.',
+        ],
+        { href: manage, label: 'Cancel or rebook' },
+        { details: [{ label: 'When', value: visitorTime }, { label: 'Where', value: where }], toClient: true },
+      ),
       `You're booked: ${settings.title}\nWhen: ${visitorTime}\nWhere: ${where}\n\nCancel or rebook: ${manage}`,
       ics(booking, summary, `${settings.title} with Lauren at Thrive Creative Studios.\n${where}\n\nCancel or rebook: ${manage}`, settings.meeting_link),
     ),
@@ -309,7 +315,7 @@ export async function cancelBooking(
       `Cancelled: ${settings.title} on ${visitorTime}`,
       emailHtml('Your call is cancelled', [
         `${settings.title} on ${visitorTime} is cancelled${cancelledBy === 'admin' ? ' — sorry for the change. Please pick another time that works for you.' : '.'}`,
-      ], { href: `${site}/book`, label: 'Book another time' }),
+      ], { href: `${site}/book`, label: 'Book another time' }, { toClient: true }),
       `Your ${settings.title} on ${visitorTime} is cancelled. Book another time: ${site}/book`,
       cancelInvite,
     ),
