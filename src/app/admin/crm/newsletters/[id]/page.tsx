@@ -15,6 +15,7 @@ import { SERVICE_SEO } from '@/lib/serviceSeo';
 import type { Audience, Newsletter } from '@/lib/newsletter';
 import { newBlock, resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
 import { BlockEditor } from './BlockEditor';
+import { ImportPanel } from './ImportPanel';
 
 type Draft = Pick<Newsletter, 'subject' | 'preheader' | 'body' | 'audience' | 'audience_tag'> & {
   blocks: NewsletterBlock[];
@@ -96,13 +97,13 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
 
   const preview = useMemo(() => {
     if (!draft || typeof window === 'undefined') return '';
-    return renderNewsletter(draft, {
+    return renderNewsletter({ ...draft, html: n?.html ?? null }, {
       site: window.location.origin,
       unsubscribeUrl: '#',
       postalAddress: address ?? '[Your mailing address — add it on the Newsletters page]',
       firstName: 'Maya',
     }).html;
-  }, [draft, address]);
+  }, [draft, address, n?.html]);
 
   if (error) return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>{error}</p></div></div>;
   if (!n || !draft) return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>Loading…</p></div></div>;
@@ -167,7 +168,8 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
   }
 
   const designed = draft.blocks.length > 0;
-  const canSend = !locked && draft.subject.trim() && (draft.body.trim() || designed) && address && (count ?? 0) > 0;
+  const imported = Boolean(n.html);
+  const canSend = !locked && draft.subject.trim() && (draft.body.trim() || designed || imported) && address && (count ?? 0) > 0;
 
   /** Turn a plain draft into a designed one, keeping what was written. */
   function toDesigned() {
@@ -252,7 +254,11 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
           </p>
         </div>
 
-        {designed ? (
+        <ImportPanel newsletter={n} onChange={(updated) => { setN(updated); }} notify={show} locked={locked} />
+
+        {imported ? (
+          <iframe title="Email preview" srcDoc={preview} sandbox="" style={{ width: '100%', height: '80vh', border: '1px solid #e4e1de', borderRadius: 10, background: '#fff' }} />
+        ) : designed ? (
           <>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
               <p className={p.rowMeta} style={{ margin: 0, flex: 1 }}>

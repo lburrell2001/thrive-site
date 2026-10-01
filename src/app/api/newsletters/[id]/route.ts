@@ -60,7 +60,7 @@ export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { data: src } = await auth.db.from('newsletters').select('subject, preheader, body, blocks, design, audience, audience_tag').eq('id', id).maybeSingle();
+  const { data: src } = await auth.db.from('newsletters').select('subject, preheader, body, blocks, design, html, html_meta, audience, audience_tag').eq('id', id).maybeSingle();
   if (!src) return badRequest('Newsletter not found', 404);
   const { data, error } = await auth.db.from('newsletters').insert({ ...src, subject: src.subject ? `${src.subject} (copy)` : '' }).select('id').single();
   if (error) return badRequest(error.message);

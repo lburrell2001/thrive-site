@@ -52,6 +52,8 @@ export interface NewsletterContent {
   body: string;
   /** When present and non-empty, the email is built from these instead of `body`. */
   blocks?: NewsletterBlock[] | null;
+  /** An imported design (e.g. Canva Email), already sanitized. Wins over blocks and body. */
+  html?: string | null;
   design?: Partial<NewsletterDesign> | null;
 }
 
@@ -63,7 +65,59 @@ export interface RenderOptions {
 }
 
 export function renderNewsletter(n: NewsletterContent, opts: RenderOptions) {
+  if (n.html && n.html.trim()) return renderImported(n, n.html, opts);
   return n.blocks && n.blocks.length ? renderBlocks(n, n.blocks, opts) : renderMarkdown(n, opts);
+}
+
+// ----------------------------------------------------------- imported
+
+/** Text a design can contain to greet each person by name. */
+const FIRST_NAME = /\{\{\s*first_name\s*\}\}/gi;
+
+function htmlToText(html: string) {
+  return html
+    .replace(/<(style|head|title)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, (_, h: string, label: string) => {
+      const t = label.replace(/<[^>]+>/g, '').trim();
+      return t ? `${t} (${h})` : h;
+    })
+    .replace(/<(br|\/p|\/h\d|\/tr|\/li|\/div)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*\n+/g, '\n\n')
+    .trim();
+}
+
+function renderImported(n: NewsletterContent, design: string, opts: RenderOptions) {
+  const greetingName = esc(opts.firstName || 'there');
+  let html = design.replace(FIRST_NAME, greetingName);
+
+  const preheader = n.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(n.preheader)}</div>`
+    : '';
+  // Required in every marketing email, whatever the design says.
+  const footer = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:18px 16px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#777;">
+You're receiving this because you subscribed to updates from Thrive Creative Studios.<br>
+<a href="${esc(opts.unsubscribeUrl)}" style="color:#777;text-decoration:underline;">Unsubscribe</a><br>
+${esc(opts.postalAddress)}
+</td></tr></table>`;
+
+  html = /<body[^>]*>/i.test(html) ? html.replace(/<body[^>]*>/i, (tag) => `${tag}${preheader}`) : `${preheader}${html}`;
+  html = /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${footer}</body>`) : `${html}${footer}`;
+  if (!/<html[\s>]/i.test(html)) {
+    html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(n.subject)}</title></head><body style="margin:0;padding:0;">${html}</body></html>`;
+  }
+
+  const text = [
+    htmlToText(design.replace(FIRST_NAME, opts.firstName || 'there')),
+    '—',
+    `Unsubscribe: ${opts.unsubscribeUrl}`,
+    `Thrive Creative Studios · ${opts.postalAddress}`,
+  ].join('\n\n');
+
+  return { html, text };
 }
 
 // ---------------------------------------------------------- designed

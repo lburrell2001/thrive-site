@@ -29,6 +29,9 @@ export interface Newsletter {
   /** Designed newsletters: when non-empty, rendered instead of `body`. */
   blocks: NewsletterBlock[];
   design: Partial<NewsletterDesign>;
+  /** An imported design (Canva Email), sanitized; wins over blocks and body. */
+  html: string | null;
+  html_meta: { file: string; images: number; bytes: number; warnings: string[]; imported_at: string } | null;
   audience: Audience;
   audience_tag: string | null;
   status: 'draft' | 'sending' | 'sent' | 'failed';
@@ -211,6 +214,7 @@ function messageFor(n: Newsletter, r: Recipient, site: string, address: string, 
 function ready(n: Newsletter, address: string | null) {
   if (!address) throw new NewsletterError('Add your mailing address first — the law requires it in every marketing email.');
   if (!n.subject.trim()) throw new NewsletterError('Add a subject line');
+  if (n.html?.trim()) return address;
   if (!n.body.trim() && !(n.blocks ?? []).length) throw new NewsletterError('Write the newsletter first');
   const emptyImage = (n.blocks ?? []).find((b) => (b.type === 'image' && !b.src) || (b.type === 'columns' && !b.image.src));
   if (emptyImage) throw new NewsletterError('An image block has no image yet — upload one or remove the block');
