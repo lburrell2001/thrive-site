@@ -35,6 +35,7 @@ function clientReceipt(d: SigningEmailData) {
     title: `Approved — ${d.proposalTitle}`,
     preheader: `Your receipt for ${d.proposalTitle}. Next step: the ${d.depositPercent}% deposit.`,
     eyebrow: 'Proposal approved',
+    accent: 'green',
     heading: 'Thank you!',
     body: [
       paragraph(
@@ -62,6 +63,7 @@ function agencyNotification(d: SigningEmailData) {
   return brandEmail({
     title: `Signed: ${d.proposalTitle}`,
     eyebrow: 'Proposal signed',
+    accent: 'green',
     heading: d.proposalTitle,
     body: [
       paragraph(`${d.signerName}${d.signerTitle ? ` · ${d.signerTitle}` : ''} <${d.signerEmail}> approved it on ${d.signedAt}.`),
@@ -97,6 +99,7 @@ function declineNotification(d: DeclineEmailData) {
   return brandEmail({
     title: `Declined: ${d.proposalTitle}`,
     eyebrow: 'Proposal declined',
+    accent: 'orange',
     heading: d.proposalTitle,
     body: [
       paragraph(`${d.declinedBy ?? 'The client'} declined on ${d.declinedAt}.`),

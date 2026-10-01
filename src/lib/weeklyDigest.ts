@@ -160,6 +160,7 @@ export function renderDigest(d: AdminSummary, site: string) {
     title: subject,
     preheader: headline,
     eyebrow: 'Weekly digest',
+    accent: 'purple',
     heading: dateLabel,
     body: [
       paragraph(headline, { size: 16, color: BRAND.ink }),

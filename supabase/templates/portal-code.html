@@ -7,32 +7,35 @@
 <style>
   :root { color-scheme: light only; }
   @media (max-width: 620px) {
-    .card-pad { padding: 26px 22px 28px !important; }
-    .heading { font-size: 22px !important; }
+    .pad { padding-left: 24px !important; padding-right: 24px !important; }
+    .heading { font-size: 24px !important; }
   }
 </style></head>
-<body style="margin:0;padding:0;background:#fffaf0;-webkit-text-size-adjust:100%;">
+<body style="margin:0;padding:0;background:#ffffff;-webkit-text-size-adjust:100%;">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">Your sign-in code for the Thrive client portal.</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fffaf0;" bgcolor="#fffaf0"><tr><td align="center" style="padding:32px 12px;">
-<table role="presentation" width="580" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:580px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;" bgcolor="#ffffff"><tr><td align="center" style="padding:24px 10px;">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;">
 
-<tr><td style="padding:0 4px 20px;">
-<a href="https://thrivecreativestudios.org" style="text-decoration:none;"><img src="https://thrivecreativestudios.org/new-thrive/logo.png" alt="Thrive" width="132" height="45" style="display:block;width:132px;height:auto;border:0;"></a>
+<tr><td class="pad" bgcolor="#0a0a0a" style="background:#0a0a0a;border-radius:16px 16px 0 0;padding:30px 40px 28px;">
+<a href="https://thrivecreativestudios.org" style="text-decoration:none;"><img src="https://thrivecreativestudios.org/email/logo-white.png" alt="Thrive" width="150" height="51" style="display:block;width:150px;height:auto;border:0;"></a>
 </td></tr>
+<tr><td height="4" bgcolor="#e50586" style="height:4px;line-height:4px;font-size:1px;background:#e50586;">&nbsp;</td></tr>
 
-<tr><td style="background:#ffffff;border:2px solid #000000;border-radius:18px;overflow:hidden;" bgcolor="#ffffff">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td width="20%" height="8" style="height:8px;line-height:8px;font-size:1px;background:#71f082;" bgcolor="#71f082">&nbsp;</td><td width="20%" height="8" style="height:8px;line-height:8px;font-size:1px;background:#861dc5;" bgcolor="#861dc5">&nbsp;</td><td width="20%" height="8" style="height:8px;line-height:8px;font-size:1px;background:#3b43af;" bgcolor="#3b43af">&nbsp;</td><td width="20%" height="8" style="height:8px;line-height:8px;font-size:1px;background:#d12e83;" bgcolor="#d12e83">&nbsp;</td><td width="20%" height="8" style="height:8px;line-height:8px;font-size:1px;background:#ea6b2c;" bgcolor="#ea6b2c">&nbsp;</td></tr></table>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="card-pad" style="padding:32px 36px 34px;">
-<p style="margin:0 0 8px;font-family:'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#d12e83;">Client portal</p>
-<h1 class="heading" style="margin:0 0 20px;font-family:'Bungee', 'Arial Black', Impact, sans-serif;font-size:26px;line-height:1.15;font-weight:400;color:#000000;">Your sign-in code</h1>
+<tr><td class="pad" bgcolor="#ffffff" style="background:#ffffff;border-left:1px solid #e7e5e1;border-right:1px solid #e7e5e1;padding:34px 40px 38px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 14px;"><tr><td bgcolor="#9409ce" style="background:#9409ce;border-radius:7px;padding:7px 12px;font-family:'Bungee', 'Arial Black', Impact, sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;line-height:1;color:#ffffff;">Client portal</td></tr></table>
+<h1 class="heading" style="margin:0 0 22px;font-family:'Bungee', 'Arial Black', Impact, sans-serif;text-transform:uppercase;font-size:28px;line-height:1.12;font-weight:400;color:#0a0a0a;">Your sign-in code</h1>
 <p style="margin:0 0 16px;font-family:'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:15px;line-height:1.6;color:#2b2b2b;white-space:pre-line;">Enter this code on the sign-in page to open your Thrive client portal:</p>
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 22px;"><tr><td style="background:#fffaf0;border:2px solid #000000;border-radius:14px;padding:16px 26px;font-family:'Bungee','Arial Black',Impact,sans-serif;font-size:34px;letter-spacing:.18em;color:#000000;">{{ .Token }}</td></tr></table>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 22px;"><tr><td style="background:#f5f4f1;border-radius:12px;padding:18px 28px;font-family:'Bungee','Arial Black',Impact,sans-serif;font-size:34px;letter-spacing:.18em;color:#0a0a0a;">{{ .Token }}</td></tr></table>
 <p style="margin:0 0 16px;font-family:'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:13px;line-height:1.6;color:#6b6b6b;white-space:pre-line;">If you did not ask to sign in, you can ignore this email.</p>
-</td></tr></table>
 </td></tr>
 
-<tr><td style="padding:20px 4px 0;font-family:'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;color:#6b6b6b;">
-Thrive Creative Studios · Dallas, Texas<br><a href="https://thrivecreativestudios.org" style="color:#6b6b6b;text-decoration:underline;">thrivecreativestudios.org</a>
+<tr><td height="4" bgcolor="#e50586" style="height:4px;line-height:4px;font-size:1px;background:#e50586;">&nbsp;</td></tr>
+<tr><td class="pad" bgcolor="#0a0a0a" style="background:#0a0a0a;border-radius:0 0 16px 16px;padding:24px 40px;">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+<td style="padding-right:16px;vertical-align:middle;"><img src="https://thrivecreativestudios.org/email/mark-white.png" alt="" width="22" height="38" style="display:block;width:22px;height:auto;border:0;"></td>
+<td style="vertical-align:middle;font-family:'Bungee', 'Arial Black', Impact, sans-serif;text-transform:uppercase;font-size:11px;letter-spacing:.04em;line-height:1.7;color:#ffffff;">Thrive Creative Studios <span style="color:#e50586;">&#10022;</span> Dallas, TX<br>
+<a href="https://thrivecreativestudios.org" style="font-family:'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:12px;letter-spacing:0;text-transform:none;color:#a3a3a3;text-decoration:none;">thrivecreativestudios.org</a></td>
+</tr></table>
 </td></tr>
 
 </table>

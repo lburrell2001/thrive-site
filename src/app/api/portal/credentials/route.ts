@@ -67,6 +67,7 @@ async function notifyThrive(clientName: string, clientEmail: string, label: stri
       html: brandEmail({
         title: `Secure vault ${verb} — ${clientName}`,
         eyebrow: 'Secure vault',
+        accent: 'blue',
         heading: clientName,
         body: [
           paragraph(`${clientName} ${verb} a credential in their secure vault.`),

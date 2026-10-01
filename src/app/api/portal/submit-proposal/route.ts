@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       const html = brandEmail({
         title: subject,
         eyebrow: 'Signed proposal received',
+        accent: 'green',
         heading: clientName,
         body: [
           rows([
