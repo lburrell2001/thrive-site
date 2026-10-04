@@ -26,6 +26,7 @@ import {
 } from '@/types/crm';
 import { STAGE_COLOR, parseDollars, todayIso } from './shared';
 import { ReviewRequestDialog } from './ReviewRequestDialog';
+import { ProspectDialog } from './ProspectDialog';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
@@ -47,6 +48,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   invoice: '#1a8a4a',
   review: '#e40586',
   newsletter: '#0f766e',
+  prospect: '#fd6100',
 };
 
 function when(iso: string) {
@@ -71,6 +73,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   const [detail, setDetail] = useState<CrmContactDetail | null>(null);
   const [loadError, setLoadError] = useState('');
   const [messaging, setMessaging] = useState(false);
+  const [prospecting, setProspecting] = useState(false);
   const [busy, setBusy] = useState('');
 
   const reload = useCallback(async () => {
@@ -99,10 +102,10 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   }, [id, reload, onChanged]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !messaging) onClose(); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !messaging && !prospecting) onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, messaging]);
+  }, [onClose, messaging, prospecting]);
 
   const save = useCallback(async (patch: Partial<CrmContact>, okMessage?: string) => {
     try {
@@ -209,6 +212,11 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                 <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => setMessaging(true)} disabled={!c.email && !c.phone && !c.portal_client_id}>
                   Message
                 </button>
+                {!detail.portal && (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setProspecting(true)} disabled={!c.email}>
+                    Prospect email
+                  </button>
+                )}
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={startProposal} disabled={busy === 'proposal'}>
                   New proposal
                 </button>
@@ -266,6 +274,14 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
           </>
         )}
       </aside>
+
+      {prospecting && c && (
+        <ProspectDialog
+          contactId={id}
+          onClose={() => setProspecting(false)}
+          onSent={(to) => { setProspecting(false); notify(`Sent to ${to}.`); void reload(); onChanged(); }}
+        />
+      )}
 
       {messaging && c && (
         <ReminderDialog

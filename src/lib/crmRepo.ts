@@ -188,7 +188,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -207,6 +207,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     portalId ? db.from('portal_proposals').select('id, name, status, created_at').eq('client_id', portalId) : none,
     portalId ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, created_at').eq('client_id', portalId) : none,
     db.from('newsletter_sends').select('id, status, error, sent_at, newsletters ( id, subject )').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
+    db.from('prospect_emails').select('id, subject, body, style, status, error, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -318,6 +319,17 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       title: `Newsletter · ${letter?.subject || 'Untitled'}`,
       meta: n.status === 'sent' ? 'Sent' : `Failed — ${n.error ?? 'unknown error'}`,
       href: letter ? `/admin/crm/newsletters/${letter.id}` : null,
+    });
+  }
+
+  for (const e of prospects.data ?? []) {
+    timeline.push({
+      key: `prospect:${e.id}`,
+      kind: 'prospect',
+      at: e.sent_at,
+      title: `Prospect email · ${e.subject}`,
+      body: e.body ? e.body.split('\n—\n')[0].trim().slice(0, 600) : null,
+      meta: e.status === 'sent' ? `Sent · ${e.style === 'designed' ? 'Designed' : 'Personal'}` : `Failed — ${e.error ?? 'unknown error'}`,
     });
   }
 

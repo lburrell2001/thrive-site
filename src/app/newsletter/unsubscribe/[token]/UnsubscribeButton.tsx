@@ -19,11 +19,11 @@ export default function UnsubscribeButton({ token }: { token: string }) {
   }
 
   if (state === 'done') {
-    return <p className={s.text} role="status">You&apos;re unsubscribed and won&apos;t get newsletters from Thrive again. Sorry to see you go!</p>;
+    return <p className={s.text} role="status">You&apos;re unsubscribed and won&apos;t get newsletters or marketing emails from Thrive again. Sorry to see you go!</p>;
   }
   return (
     <>
-      <p className={s.text}>Stop receiving newsletters from Thrive Creative Studios? Emails about a project you&apos;re working on with us aren&apos;t affected.</p>
+      <p className={s.text}>Stop receiving newsletters and marketing emails from Thrive Creative Studios? Emails about a project you&apos;re working on with us aren&apos;t affected.</p>
       {error && <p className={s.error} role="alert">{error}</p>}
       <button type="button" className={s.button} onClick={go} disabled={state === 'working'}>
         {state === 'working' ? 'ONE MOMENT…' : 'UNSUBSCRIBE'}

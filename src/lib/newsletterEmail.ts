@@ -10,18 +10,18 @@ import { EMAIL_FONTS, resolveDesign, type NewsletterBlock, type NewsletterDesign
 
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
 
-function esc(s: string) {
+export function esc(s: string) {
   return (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /** Relative links become absolute; anything but http(s)/mailto is dropped. */
-function href(url: string, site: string): string | null {
+export function href(url: string, site: string): string | null {
   const u = url.trim();
   if (u.startsWith('/')) return `${site}${u}`;
   return /^(https?:|mailto:)/i.test(u) ? u : null;
 }
 
-function inlineHtml(text: string, site: string) {
+export function inlineHtml(text: string, site: string) {
   return text.split(INLINE).filter(Boolean).map((t) => {
     if (t.startsWith('**') && t.endsWith('**')) return `<strong>${esc(t.slice(2, -2))}</strong>`;
     if (t.startsWith('*') && t.endsWith('*')) return `<em>${esc(t.slice(1, -1))}</em>`;
@@ -34,7 +34,7 @@ function inlineHtml(text: string, site: string) {
   }).join('');
 }
 
-function inlineText(text: string, site: string) {
+export function inlineText(text: string, site: string) {
   return text
     .replace(/\*\*([^*]+)\*\*/g, '$1')
     .replace(/\*([^*]+)\*/g, '$1')
@@ -62,7 +62,11 @@ export interface RenderOptions {
   unsubscribeUrl: string;
   postalAddress: string;
   firstName?: string | null;
+  /** Why they're getting it, above the unsubscribe link. Defaults to the newsletter's. */
+  reason?: string;
 }
+
+const SUBSCRIBED = "You're receiving this because you subscribed to updates from Thrive Creative Studios.";
 
 export function renderNewsletter(n: NewsletterContent, opts: RenderOptions) {
   if (n.html && n.html.trim()) return renderImported(n, n.html, opts);
@@ -99,7 +103,7 @@ function renderImported(n: NewsletterContent, design: string, opts: RenderOption
     : '';
   // Required in every marketing email, whatever the design says.
   const footer = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center" style="padding:18px 16px 28px;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:#777;">
-You're receiving this because you subscribed to updates from Thrive Creative Studios.<br>
+${esc(opts.reason ?? SUBSCRIBED)}<br>
 <a href="${esc(opts.unsubscribeUrl)}" style="color:#777;text-decoration:underline;">Unsubscribe</a><br>
 ${esc(opts.postalAddress)}
 </td></tr></table>`;
@@ -227,13 +231,13 @@ ${googleFamilies.length ? `<link href="https://fonts.googleapis.com/css2?${googl
 ${logo}
 <tr><td class="content" style="background:${d.contentBg};border-radius:14px;overflow:hidden;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-${opts.firstName ? `<tr><td style="${pad}padding-top:26px;"><p style="${bodyStyle}margin:0;">Hi ${esc(opts.firstName)},</p></td></tr>` : ''}
+${opts.firstName ? `<tr><td style="${pad}padding-top:26px;padding-bottom:${blocks[0]?.type === 'image' && blocks[0].width === 'full' ? 18 : 0}px;"><p style="${bodyStyle}margin:0;">Hi ${esc(opts.firstName)},</p></td></tr>` : ''}
 ${rows}
 <tr><td style="height:18px;line-height:1px;font-size:1px;">&nbsp;</td></tr>
 </table>
 </td></tr>
 <tr><td style="padding:18px 16px;font-family:${fonts.body};font-size:12px;line-height:1.6;color:#777;text-align:center;">
-You're receiving this because you subscribed to updates from Thrive Creative Studios.<br>
+${esc(opts.reason ?? SUBSCRIBED)}<br>
 <a href="${esc(opts.unsubscribeUrl)}" style="color:#777;text-decoration:underline;">Unsubscribe</a><br>
 ${esc(opts.postalAddress)}
 </td></tr>
@@ -300,7 +304,7 @@ ${greeting}
 ${body}
 </td></tr>
 <tr><td style="padding:18px 8px;font-size:12px;line-height:1.6;color:#777;">
-You're receiving this because you subscribed to updates from Thrive Creative Studios.<br>
+${esc(opts.reason ?? SUBSCRIBED)}<br>
 <a href="${esc(opts.unsubscribeUrl)}" style="color:#777;text-decoration:underline;">Unsubscribe</a> · <a href="${esc(opts.site)}" style="color:#777;text-decoration:underline;">thrivecreativestudios.org</a><br>
 ${esc(opts.postalAddress)}
 </td></tr>

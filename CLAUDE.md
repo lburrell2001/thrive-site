@@ -150,6 +150,14 @@ Subscription lives on the CRM contact (`crm_contacts.newsletter_status`, migrati
 - Designed newsletters (migration `027`) are a stack of blocks (`src/lib/newsletterBlocks.ts`: image, heading, text, button, two-column, divider, spacer, social) plus a design (colors, fonts with email-safe fallbacks, logo, social links). When `blocks` is non-empty it renders instead of `body`, as table-based email HTML that stacks on phones. Images are uploaded to the public `course-media` bucket under `newsletters/` (emails load them from the web). Sending refuses image blocks without an image or alt text. `newsletter_templates` stores a layout + design to start from.
 - Canva designs (migration `028`): Canva Email's "HTML and images" .zip (or an .html file) is uploaded to `POST /api/newsletters/[id]/import`. `src/lib/newsletterImport.ts` re-hosts every image (zip files, and remote https images on public hosts only — no redirects, no private/metadata addresses) under `newsletters/imports/`, then sanitizes with `sanitize-html` (tables, inline styles and `<style>` kept; scripts, forms, iframes, SVG and event handlers removed; links http(s)/mailto/tel; only Google Fonts stylesheets). The stored `html` wins over blocks and body; preheader, `{{first_name}}` and the unsubscribe/address footer are applied at send time.
 
+### Prospect emails
+
+One-to-one outreach to potential clients (migration `029`), sent from a contact's **Prospect email** button in the CRM drawer; templates live at `/admin/crm/prospecting`. Unlike newsletters, the recipient need not be subscribed — but each email still carries the unsubscribe link and mailing address (CAN-SPAM covers cold email), and sending is refused once a contact's `newsletter_status` is `unsubscribed`.
+
+- `prospect_templates` has two styles: `personal` (markdown body, rendered as plain-looking text plus a small logo signature) and `designed` (newsletter blocks + design, with an optional per-person note above). Rendering is pure in `src/lib/prospectEmail.ts`, so the editor and send dialog preview exactly what goes out.
+- `{{first_name}}` / `{{company}}` fill from the contact; `[[…]]` marks a line to personalise, and a real send is refused while any remain (tests allow them).
+- `src/lib/prospects.ts` sends via Resend with `replyTo` = `CONTACT_NOTIFY_TO` and one-click List-Unsubscribe headers (same signed token and `/newsletter/unsubscribe` page as newsletters), records each send in `prospect_emails` (read into the contact timeline), and moves a `lead` deal to `contacted`.
+
 ### Styling
 
 Global design tokens (CSS custom properties) are defined in `src/app/globals.css` under the `:root` block — brand palette, spacing, typography. Page-level scoped styles use CSS Modules (e.g. `WorkPage.module.css`, `ProjectPage.module.css`). Tailwind utility classes are used inline for layout/spacing throughout.

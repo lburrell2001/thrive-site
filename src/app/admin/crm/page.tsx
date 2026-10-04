@@ -160,6 +160,7 @@ export default function CrmPage() {
               </button>
             ))}
           </div>
+          <Link href="/admin/crm/prospecting" className={p.filterChip} style={{ textDecoration: 'none' }}>Prospect emails →</Link>
           <Link href="/admin/crm/newsletters" className={p.filterChip} style={{ textDecoration: 'none' }}>Newsletters →</Link>
           <input
             className={`${p.input} ${s.search}`}

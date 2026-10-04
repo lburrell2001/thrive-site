@@ -81,7 +81,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */

@@ -159,7 +159,7 @@ export async function unsubscribe(db: SupabaseClient, token: string): Promise<bo
   if (!data) return false;
   if (data.newsletter_status !== 'unsubscribed') {
     await db.from('crm_contacts').update({ newsletter_status: 'unsubscribed' }).eq('id', id);
-    await db.from('crm_activities').insert({ contact_id: id, kind: 'note', body: 'Unsubscribed from the newsletter.' });
+    await db.from('crm_activities').insert({ contact_id: id, kind: 'note', body: 'Unsubscribed from Thrive emails (newsletter and outreach).' });
   }
   return true;
 }
