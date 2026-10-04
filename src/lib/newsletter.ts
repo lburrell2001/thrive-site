@@ -24,10 +24,9 @@ import { replyAddress, signToken, verifyToken } from '@/lib/newsletterTokens';
 
 export class NewsletterError extends Error {}
 
-export type Audience = 'subscribers' | 'clients' | 'leads' | 'tag' | 'prospects' | 'prospect_tag' | 'contacts';
-
-/** Audiences of people who never subscribed: they get the outreach footer line. */
-export const OUTREACH: Audience[] = ['prospects', 'prospect_tag', 'contacts'];
+// Audience lives with the renderer so browser code can use it too.
+import { OUTREACH, type Audience } from '@/lib/emailContent';
+export { OUTREACH, type Audience };
 
 export interface Newsletter {
   id: string;

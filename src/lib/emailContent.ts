@@ -17,6 +17,12 @@ import { SITE_URL } from '@/lib/seo';
 
 export type EmailStyle = 'personal' | 'designed';
 
+/** Who an email to many people goes to. */
+export type Audience = 'subscribers' | 'clients' | 'leads' | 'tag' | 'prospects' | 'prospect_tag' | 'contacts';
+
+/** Audiences of people who never subscribed: they get the outreach footer line. */
+export const OUTREACH: Audience[] = ['prospects', 'prospect_tag', 'contacts'];
+
 export interface EmailTemplate {
   id: string;
   name: string;
