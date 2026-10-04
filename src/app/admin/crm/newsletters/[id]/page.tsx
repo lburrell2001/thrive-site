@@ -9,12 +9,11 @@ import { useRouter } from 'next/navigation';
 import p from '../../../proposals/proposals.module.css';
 import { apiGet, apiSend, formatDate } from '../../../proposals/adminApi';
 import { Toast, useToast } from '../../../proposals/Toast';
-import s2 from './editor.module.css';
 import { renderNewsletter } from '@/lib/newsletterEmail';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 import type { Audience, Newsletter } from '@/lib/newsletter';
-import { newBlock, resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
-import { BlockEditor } from './BlockEditor';
+import { newBlock, normalizeBlocks, resolveDesign, starterBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
+import { EmailDesigner } from '../../../email-designer/EmailDesigner';
 import { ImportPanel } from './ImportPanel';
 
 type Draft = Pick<Newsletter, 'subject' | 'preheader' | 'body' | 'audience' | 'audience_tag'> & {
@@ -24,7 +23,7 @@ type Draft = Pick<Newsletter, 'subject' | 'preheader' | 'body' | 'audience' | 'a
 
 const draftOf = (n: Newsletter): Draft => ({
   subject: n.subject, preheader: n.preheader, body: n.body, audience: n.audience, audience_tag: n.audience_tag,
-  blocks: n.blocks ?? [], design: resolveDesign(n.design),
+  blocks: normalizeBlocks(n.blocks), design: resolveDesign(n.design),
 });
 
 const AUDIENCES: { value: Audience; label: string }[] = [
@@ -173,12 +172,11 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
 
   /** Turn a plain draft into a designed one, keeping what was written. */
   function toDesigned() {
-    const blocks: NewsletterBlock[] = [
-      { ...newBlock('image'), alt: 'Banner' } as NewsletterBlock,
-      ...(draft!.body.trim() ? [{ ...newBlock('text'), text: draft!.body } as NewsletterBlock] : [newBlock('heading'), newBlock('text')]),
-      newBlock('button'),
-      newBlock('social'),
-    ];
+    const starter = starterBlocks();
+    // Keep what was written: it becomes a text section under the hero.
+    const blocks: NewsletterBlock[] = draft!.body.trim()
+      ? [starter[0], starter[1], { ...newBlock('text'), text: draft!.body, pad: 'medium' } as NewsletterBlock, ...starter.slice(-2)]
+      : starter;
     set('blocks', blocks);
   }
 
@@ -195,7 +193,7 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
 
   return (
     <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: draft.blocks.length ? 1320 : 1000 }}>
+      <div className={p.wrap} style={{ maxWidth: draft.blocks.length ? 1560 : 1000 }}>
         <div className={p.pageHead}>
           <div>
             <p className={p.rowMeta} style={{ margin: 0 }}><Link href="/admin/crm/newsletters">← Newsletters</Link></p>
@@ -258,36 +256,20 @@ export default function NewsletterEditor({ params }: { params: Promise<{ id: str
 
         {imported ? (
           <iframe title="Email preview" srcDoc={preview} sandbox="" style={{ width: '100%', height: '80vh', border: '1px solid #e4e1de', borderRadius: 10, background: '#fff' }} />
+        ) : designed && locked ? (
+          <iframe title="Email preview" srcDoc={preview} sandbox="" style={{ width: '100%', height: '80vh', border: '1px solid #e4e1de', borderRadius: 10, background: '#fff' }} />
         ) : designed ? (
-          <>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-              <p className={p.rowMeta} style={{ margin: 0, flex: 1 }}>
-                Design images in Canva or Adobe Express, export as JPG or PNG (about 1200px wide), and upload them into image blocks. Keep words that matter in text blocks, so they show even when images don’t.
-              </p>
-              <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={saveTemplate} disabled={!draft.blocks.length}>Save as template</button>
-              <span className={s2.previewToggle}>
-                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setTab(tab === 'preview' ? 'write' : 'preview')}>
-                  {tab === 'preview' ? 'Edit blocks' : 'Preview'}
-                </button>
-              </span>
-            </div>
-            <div className={s2.builder}>
-              <div className={`${s2.builderEdit} ${tab === 'preview' ? s2.hideSmall : ''}`}>
-                <BlockEditor
-                  blocks={draft.blocks}
-                  design={draft.design}
-                  onBlocks={(b) => set('blocks', b)}
-                  onDesign={(d) => set('design', d)}
-                  notify={show}
-                  disabled={locked}
-                />
-              </div>
-              <div className={`${s2.builderPreview} ${tab === 'write' ? s2.hideSmall : ''}`}>
-                <iframe title="Email preview" srcDoc={preview} sandbox="" className={s2.previewFrame} />
-                <p className={p.rowMeta} style={{ marginTop: 6 }}>Live preview. The greeting uses the name “Maya”; each person sees their own.</p>
-              </div>
-            </div>
-          </>
+          <EmailDesigner
+            blocks={draft.blocks}
+            design={draft.design}
+            onBlocks={(b) => set('blocks', b)}
+            onDesign={(dz) => set('design', dz)}
+            notify={show}
+            subject={draft.subject}
+            preheader={draft.preheader}
+            postalAddress={address ?? '[Your mailing address — add it on the Newsletters page]'}
+            actions={<button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={saveTemplate} disabled={!draft.blocks.length}>Save as template</button>}
+          />
         ) : (
           <>
         <div className={p.filters} role="tablist" aria-label="Editor view" style={{ alignItems: 'center' }}>

@@ -10,7 +10,7 @@
 
 import { parseArticle } from '@/lib/articleMarkdown';
 import { esc, href, inlineHtml, inlineText, renderNewsletter } from '@/lib/newsletterEmail';
-import { newBlock, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
+import { blockTexts, mapBlockText, newBlock, normalizeBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
 import { SITE_URL } from '@/lib/seo';
 
 export type ProspectStyle = 'personal' | 'designed';
@@ -56,7 +56,7 @@ export const SENDER_NAME = 'Lauren Burrell';
 
 /** Who template previews and tests are addressed to. */
 export const SAMPLE_CONTACT = { firstName: 'Maya', company: 'Bloom Bakery' };
-const REASON = "You're getting this because I thought Thrive Creative Studios could help your business. Not interested? Unsubscribe below and I won't email again.";
+export const PROSPECT_REASON = "You're getting this because I thought Thrive Creative Studios could help your business. Not interested? Unsubscribe below and I won't email again.";
 
 // ---------------------------------------------------------- merge fields
 
@@ -81,31 +81,12 @@ const PLACEHOLDER = /\[\[[^\]]*\]\]/g;
 export function placeholdersIn(c: Pick<ProspectContent, 'style' | 'subject' | 'preheader' | 'body' | 'blocks' | 'note'>): string[] {
   const parts = [c.subject, c.preheader, c.note ?? ''];
   if (c.style === 'personal') parts.push(c.body);
-  else for (const b of c.blocks) parts.push(...blockTexts(b));
+  else for (const b of normalizeBlocks(c.blocks)) parts.push(...blockTexts(b));
   return parts.flatMap((t) => t.match(PLACEHOLDER) ?? []);
 }
 
-function blockTexts(b: NewsletterBlock): string[] {
-  switch (b.type) {
-    case 'heading': return [b.text];
-    case 'text': return [b.text];
-    case 'button': return [b.label];
-    case 'image': return [b.alt];
-    case 'columns': return [b.heading, b.text, b.buttonLabel, b.image.alt];
-    default: return [];
-  }
-}
-
 function fillBlock(b: NewsletterBlock, r: ProspectRecipient): NewsletterBlock {
-  const f = (t: string) => fillFields(t, r);
-  switch (b.type) {
-    case 'heading': return { ...b, text: f(b.text) };
-    case 'text': return { ...b, text: f(b.text) };
-    case 'button': return { ...b, label: f(b.label) };
-    case 'image': return { ...b, alt: f(b.alt) };
-    case 'columns': return { ...b, heading: f(b.heading), text: f(b.text), buttonLabel: f(b.buttonLabel), image: { ...b.image, alt: f(b.image.alt) } };
-    default: return b;
-  }
+  return mapBlockText(b, (t) => fillFields(t, r));
 }
 
 // --------------------------------------------------------------- render
@@ -117,13 +98,14 @@ export function renderProspect(c: ProspectContent, opts: ProspectRenderOptions) 
 
   if (c.style === 'designed') {
     const note = c.note?.trim();
-    const blocks = [
-      ...(note ? [{ ...newBlock('text'), text: note } as NewsletterBlock] : []),
-      ...c.blocks,
-    ].map((b) => fillBlock(b, r));
+    const layout = normalizeBlocks(c.blocks);
+    // The note reads as the start of the letter: under the greeting, after any logo bar.
+    const at = layout[0]?.type === 'header' ? 1 : 0;
+    if (note) layout.splice(at, 0, { ...newBlock('text'), text: note, pad: 'small' } as NewsletterBlock);
+    const blocks = layout.map((b) => fillBlock(b, r));
     const { html, text } = renderNewsletter(
       { subject, preheader, body: '', blocks, design: c.design },
-      { site: opts.site, unsubscribeUrl: opts.unsubscribeUrl, postalAddress: opts.postalAddress, firstName: opts.firstName, reason: REASON },
+      { site: opts.site, unsubscribeUrl: opts.unsubscribeUrl, postalAddress: opts.postalAddress, firstName: opts.firstName, reason: PROSPECT_REASON },
     );
     return { subject, html, text };
   }
@@ -240,12 +222,20 @@ export function starterTemplates(): Pick<ProspectTemplate, 'name' | 'style' | 's
       preheader: 'Recent work from Thrive Creative Studios, and a 15-minute call if it helps.',
       body: '',
       blocks: [
-        { ...newBlock('image'), alt: 'Recent work from Thrive Creative Studios', href: '/portfolio' } as NewsletterBlock,
-        { ...newBlock('heading'), text: 'Brands and websites that bring in business' } as NewsletterBlock,
-        { ...newBlock('text'), text: "I'm Lauren, the designer behind Thrive Creative Studios. I design brand identities, websites and social content for small businesses — work that looks considered and makes it easy for customers to say yes." } as NewsletterBlock,
-        { ...newBlock('button'), label: 'See recent work', href: '/portfolio' } as NewsletterBlock,
-        { ...newBlock('text'), text: "If {{company}} has a refresh on its list, I'd love to hear about it. [Book a 15-minute call](/book) or just reply to this email." } as NewsletterBlock,
-        newBlock('social'),
+        newBlock('header'),
+        {
+          ...newBlock('hero'),
+          eyebrow: 'Thrive Creative Studios',
+          headline: 'Brands and websites that bring in business',
+          text: 'I design identities, websites and social content for small businesses — work that looks considered and makes it easy for customers to say yes.',
+          buttonLabel: 'See recent work',
+          buttonHref: '/portfolio',
+          imagePosition: 'none',
+        } as NewsletterBlock,
+        { ...newBlock('gallery'), eyebrow: 'Recent work', heading: 'Fresh off the desk' } as NewsletterBlock,
+        newBlock('features'),
+        { ...newBlock('cta'), headline: 'Is {{company}} due a refresh?', text: "Fifteen minutes, no pressure — or just reply to this email." } as NewsletterBlock,
+        newBlock('footer'),
       ],
     },
   ];

@@ -11,9 +11,9 @@ import p from '../../../proposals/proposals.module.css';
 import { apiGet, apiSend } from '../../../proposals/adminApi';
 import { Toast, useToast } from '../../../proposals/Toast';
 import s2 from '../../newsletters/[id]/editor.module.css';
-import { BlockEditor } from '../../newsletters/[id]/BlockEditor';
-import { resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
-import { MERGE_FIELDS, SAMPLE_CONTACT, renderProspect, type ProspectTemplate } from '@/lib/prospectEmail';
+import { EmailDesigner } from '../../../email-designer/EmailDesigner';
+import { normalizeBlocks, resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
+import { MERGE_FIELDS, PROSPECT_REASON, SAMPLE_CONTACT, renderProspect, type ProspectTemplate } from '@/lib/prospectEmail';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 
 type Draft = Pick<ProspectTemplate, 'name' | 'subject' | 'preheader' | 'body'> & {
@@ -23,7 +23,7 @@ type Draft = Pick<ProspectTemplate, 'name' | 'subject' | 'preheader' | 'body'> &
 
 const draftOf = (t: ProspectTemplate): Draft => ({
   name: t.name, subject: t.subject, preheader: t.preheader, body: t.body,
-  blocks: t.blocks ?? [], design: resolveDesign(t.design),
+  blocks: normalizeBlocks(t.blocks), design: resolveDesign(t.design),
 });
 
 const LINKS = [
@@ -128,11 +128,11 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
     }
   }
 
-  const frame = <iframe title="Email preview" srcDoc={preview} sandbox="" className={s2.previewFrame} style={designed ? undefined : { background: '#fff' }} />;
+  const frame = <iframe title="Email preview" srcDoc={preview} sandbox="" className={s2.previewFrame} style={{ background: '#fff' }} />;
 
   return (
     <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: 1320 }}>
+      <div className={p.wrap} style={{ maxWidth: designed ? 1560 : 1320 }}>
         <div className={p.pageHead}>
           <div>
             <p className={p.rowMeta} style={{ margin: 0 }}><Link href="/admin/crm/prospecting">← Prospect emails</Link></p>
@@ -164,11 +164,12 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
           <p className={p.rowMeta} style={{ marginTop: 10 }}>
             {MERGE_FIELDS.map((f) => <code key={f.token} style={{ marginRight: 8 }}>{f.token}</code>)}
             fill in from the contact (blank ones become “{MERGE_FIELDS[0].fallback}” and “{MERGE_FIELDS[1].fallback}”). <code>{'[[…]]'}</code> marks a line to write for each person — you can’t send until it’s replaced.
+            {designed && ' Type them straight into the design; the send dialog shows each person’s version.'}
           </p>
         </div>
 
+        {!designed && (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-          {!designed && (
             <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', flex: 1 }}>
               {MERGE_FIELDS.map((f) => (
                 <button key={f.token} type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => insert(f.token)}>+ {f.label}</button>
@@ -181,46 +182,48 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
                 {LINKS.map((l) => <option key={l.path} value={l.path}>{l.label}</option>)}
               </select>
             </span>
-          )}
-          {designed && <p className={p.rowMeta} style={{ margin: 0, flex: 1 }}>Each person is greeted by first name above the first block. Text blocks can use the merge fields too.</p>}
           <span className={s2.previewToggle}>
             <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setTab(tab === 'preview' ? 'write' : 'preview')}>
               {tab === 'preview' ? 'Edit' : 'Preview'}
             </button>
           </span>
         </div>
+        )}
 
+        {designed ? (
+          <EmailDesigner
+            blocks={draft.blocks}
+            design={draft.design}
+            onBlocks={(b) => set('blocks', b)}
+            onDesign={(dz) => set('design', dz)}
+            notify={show}
+            subject={draft.subject}
+            preheader={draft.preheader}
+            postalAddress={address ?? '[Your mailing address — add it on the Newsletters page]'}
+            firstName={SAMPLE_CONTACT.firstName}
+            reason={PROSPECT_REASON}
+          />
+        ) : (
         <div className={s2.builder}>
           <div className={`${s2.builderEdit} ${tab === 'preview' ? s2.hideSmall : ''}`}>
-            {designed ? (
-              <BlockEditor
-                blocks={draft.blocks}
-                design={draft.design}
-                onBlocks={(b) => set('blocks', b)}
-                onDesign={(d) => set('design', d)}
-                notify={show}
-              />
-            ) : (
-              <>
-                <textarea
-                  ref={body}
-                  className={p.textarea}
-                  style={{ minHeight: '55vh', fontSize: 15, lineHeight: 1.6 }}
-                  value={draft.body}
-                  onChange={(e) => set('body', e.target.value)}
-                  aria-label="Message"
-                />
-                <p className={p.rowMeta} style={{ marginTop: 8 }}>
-                  Keep it short — four or five sentences, one ask. Your signature (name, Thrive, website and a small logo) is added below “Thanks,” automatically.
-                </p>
-              </>
-            )}
+            <textarea
+              ref={body}
+              className={p.textarea}
+              style={{ minHeight: '55vh', fontSize: 15, lineHeight: 1.6 }}
+              value={draft.body}
+              onChange={(e) => set('body', e.target.value)}
+              aria-label="Message"
+            />
+            <p className={p.rowMeta} style={{ marginTop: 8 }}>
+              Keep it short — four or five sentences, one ask. Your signature (name, Thrive, website and a small logo) is added below “Thanks,” automatically.
+            </p>
           </div>
           <div className={`${s2.builderPreview} ${tab === 'write' ? s2.hideSmall : ''}`}>
             {frame}
             <p className={p.rowMeta} style={{ marginTop: 6 }}>Preview addressed to {SAMPLE_CONTACT.firstName} at {SAMPLE_CONTACT.company}.</p>
           </div>
         </div>
+        )}
 
         <button type="button" className={`${p.btn} ${p.btnDanger}`} style={{ marginTop: 18 }} onClick={remove}>Delete template</button>
       </div>

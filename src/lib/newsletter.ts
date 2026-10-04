@@ -14,7 +14,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { renderNewsletter } from '@/lib/newsletterEmail';
-import type { NewsletterBlock, NewsletterDesign } from '@/lib/newsletterBlocks';
+import { blockImages, normalizeBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
 import { signToken, verifyToken } from '@/lib/newsletterTokens';
 
 export class NewsletterError extends Error {}
@@ -216,10 +216,9 @@ function ready(n: Newsletter, address: string | null) {
   if (!n.subject.trim()) throw new NewsletterError('Add a subject line');
   if (n.html?.trim()) return address;
   if (!n.body.trim() && !(n.blocks ?? []).length) throw new NewsletterError('Write the newsletter first');
-  const emptyImage = (n.blocks ?? []).find((b) => (b.type === 'image' && !b.src) || (b.type === 'columns' && !b.image.src));
-  if (emptyImage) throw new NewsletterError('An image block has no image yet — upload one or remove the block');
-  const noAlt = (n.blocks ?? []).find((b) => (b.type === 'image' && b.src && !b.alt.trim()) || (b.type === 'columns' && b.image.src && !b.image.alt.trim()));
-  if (noAlt) throw new NewsletterError('Describe every image (alt text) — it is what people see when images are blocked');
+  const images = normalizeBlocks(n.blocks).flatMap(blockImages);
+  if (images.some((i) => !i.src)) throw new NewsletterError('A section is still waiting for an image — upload one or remove it');
+  if (images.some((i) => !i.alt.trim())) throw new NewsletterError('Describe every image (alt text) — it is what people see when images are blocked');
   return address;
 }
 

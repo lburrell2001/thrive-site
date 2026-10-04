@@ -14,7 +14,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { z } from 'zod';
 import { postalAddress } from '@/lib/newsletter';
-import { blocksSchema, designSchema } from '@/lib/newsletterBlocks';
+import { blockImages, blocksSchema, designSchema, normalizeBlocks } from '@/lib/newsletterBlocks';
 import { signToken } from '@/lib/newsletterTokens';
 import { SAMPLE_CONTACT, placeholdersIn, renderProspect, type ProspectContent, type ProspectTemplate } from '@/lib/prospectEmail';
 
@@ -113,10 +113,9 @@ function check(c: ProspectContent, test: boolean) {
   if (left.length) throw new ProspectError(`Fill in ${left[0]} before sending`);
   if (c.style === 'designed') {
     if (!c.blocks.length) throw new ProspectError('This template has no blocks yet');
-    const emptyImage = c.blocks.find((b) => (b.type === 'image' && !b.src) || (b.type === 'columns' && !b.image.src));
-    if (emptyImage) throw new ProspectError('The template has an image block with no image — upload one in the template');
-    const noAlt = c.blocks.find((b) => (b.type === 'image' && !b.alt.trim()) || (b.type === 'columns' && b.image.src && !b.image.alt.trim()));
-    if (noAlt) throw new ProspectError('Describe every image in the template (alt text)');
+    const images = normalizeBlocks(c.blocks).flatMap(blockImages);
+    if (images.some((i) => !i.src)) throw new ProspectError('A section in the template is still waiting for an image — upload one in the template');
+    if (images.some((i) => !i.alt.trim())) throw new ProspectError('Describe every image in the template (alt text)');
   }
 }
 
