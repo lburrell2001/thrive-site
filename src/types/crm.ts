@@ -30,6 +30,13 @@ export interface CrmContact {
   newsletter_consent_note: string | null;
   newsletter_subscribed_at: string | null;
   newsletter_unsubscribed_at: string | null;
+  website: string | null;
+  /** On the Prospects list ('prospect'), or a prospect who became a lead ('converted'). */
+  prospect_status: 'prospect' | 'converted' | null;
+  prospected_at: string | null;
+  converted_at: string | null;
+  /** The last time they wrote back to any email. */
+  replied_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +74,7 @@ export interface CrmContactRow extends CrmContact {
   deals: number;
   open_deals: number;
   won_value_cents: number;
+  won_deals: number;
   last_touch_at: string;
 }
 
@@ -81,7 +89,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */
@@ -136,4 +144,33 @@ export interface CrmContactDetail {
   /** The proposal recipient record to preselect when starting a proposal. */
   proposal_client_id: string | null;
   portal: { id: string; name: string; paid_cents: number; outstanding_cents: number } | null;
+}
+
+/** A row on the Prospects list. */
+export interface ProspectRow {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  website: string | null;
+  tags: string[];
+  prospected_at: string | null;
+  created_at: string;
+  newsletter_status: CrmContact['newsletter_status'];
+  /** Emails sent to them: one-to-one and to audiences. */
+  emails_sent: number;
+  last_emailed_at: string | null;
+  last_subject: string | null;
+}
+
+/** The CRM's Today page: what needs Lauren now. */
+export interface CrmToday {
+  replies: { id: string; contact_id: string | null; name: string; company: string | null; subject: string; text: string; received_at: string; forwarded: boolean }[];
+  tasks: { id: string; contact_id: string; name: string; title: string; due_date: string | null }[];
+  inquiries: { id: string; contact_id: string; name: string; project_type: string | null; created_at: string }[];
+  /** Open deals with nothing logged for two weeks. */
+  quiet: { id: string; contact_id: string; title: string; name: string; stage: CrmStage; last_touch_at: string }[];
+  prospects: { total: number; never_emailed: number };
+  pipeline_cents: number;
+  won_this_month_cents: number;
 }

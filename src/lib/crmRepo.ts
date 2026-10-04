@@ -19,6 +19,7 @@ import {
   type CrmLinkedProposal,
   type CrmStage,
   type CrmTask,
+  type CrmToday,
   type TimelineItem,
 } from '@/types/crm';
 import { formatPhone } from '@/lib/phone';
@@ -119,12 +120,12 @@ export async function loadContactList(db: SupabaseClient): Promise<CrmContactRow
   ]);
   if (contacts.error) throw new Error(contacts.error.message);
 
-  const counts = new Map<string, { deals: number; open: number; won: number }>();
+  const counts = new Map<string, { deals: number; open: number; won: number; wonDeals: number }>();
   for (const d of deals.data ?? []) {
-    const cur = counts.get(d.contact_id) ?? { deals: 0, open: 0, won: 0 };
+    const cur = counts.get(d.contact_id) ?? { deals: 0, open: 0, won: 0, wonDeals: 0 };
     cur.deals += 1;
     if (isOpen(d.stage)) cur.open += 1;
-    if (d.stage === 'won') cur.won += d.value_cents ?? 0;
+    if (d.stage === 'won') { cur.won += d.value_cents ?? 0; cur.wonDeals += 1; }
     counts.set(d.contact_id, cur);
   }
 
@@ -133,6 +134,7 @@ export async function loadContactList(db: SupabaseClient): Promise<CrmContactRow
     deals: counts.get(c.id)?.deals ?? 0,
     open_deals: counts.get(c.id)?.open ?? 0,
     won_value_cents: counts.get(c.id)?.won ?? 0,
+    won_deals: counts.get(c.id)?.wonDeals ?? 0,
     last_touch_at: latest(touches.touched.get(c.id), c.updated_at) ?? c.created_at,
   }));
 }
@@ -188,7 +190,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -208,6 +210,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     portalId ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, created_at').eq('client_id', portalId) : none,
     db.from('newsletter_sends').select('id, status, error, sent_at, newsletters ( id, subject )').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('prospect_emails').select('id, subject, body, style, status, error, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
+    db.from('email_replies').select('id, subject, text, from_email, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(100),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -316,9 +319,20 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       key: `newsletter:${n.id}`,
       kind: 'newsletter',
       at: n.sent_at,
-      title: `Newsletter · ${letter?.subject || 'Untitled'}`,
+      title: `Email · ${letter?.subject || 'Untitled'}`,
       meta: n.status === 'sent' ? 'Sent' : `Failed — ${n.error ?? 'unknown error'}`,
-      href: letter ? `/admin/crm/newsletters/${letter.id}` : null,
+      href: letter ? `/admin/crm/emails/${letter.id}` : null,
+    });
+  }
+
+  for (const r of replies.data ?? []) {
+    timeline.push({
+      key: `reply:${r.id}`,
+      kind: 'reply',
+      at: r.received_at,
+      title: `They replied · ${r.subject || '(no subject)'}`,
+      body: r.text ? r.text.slice(0, 1200) : null,
+      meta: `From ${r.from_email}`,
     });
   }
 
@@ -327,7 +341,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       key: `prospect:${e.id}`,
       kind: 'prospect',
       at: e.sent_at,
-      title: `Prospect email · ${e.subject}`,
+      title: `Email · ${e.subject}`,
       body: e.body ? e.body.split('\n—\n')[0].trim().slice(0, 600) : null,
       meta: e.status === 'sent' ? `Sent · ${e.style === 'designed' ? 'Designed' : 'Personal'}` : `Failed — ${e.error ?? 'unknown error'}`,
     });
@@ -364,4 +378,76 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       ? { id: portalProfile.data.id, name: portalProfile.data.full_name, paid_cents: paid, outstanding_cents: outstanding }
       : null,
   };
+}
+
+/** Two weeks without a note, email or proposal: worth a nudge. */
+const QUIET_DAYS = 14;
+
+export async function loadToday(db: SupabaseClient): Promise<CrmToday> {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+  const [replies, tasks, inquiries, board, prospects] = await Promise.all([
+    db.from('email_replies')
+      .select('id, contact_id, from_email, from_name, subject, text, received_at, forwarded, crm_contacts ( name, company )')
+      .is('handled_at', null)
+      .gte('received_at', new Date(Date.now() - 30 * 86_400_000).toISOString())
+      .order('received_at', { ascending: false })
+      .limit(30),
+    db.from('crm_tasks')
+      .select('id, contact_id, title, due_date, crm_contacts ( name, email )')
+      .is('completed_at', null)
+      .lte('due_date', today)
+      .order('due_date'),
+    db.from('contact_inquiries')
+      .select('id, crm_contact_id, project_type, created_at, name')
+      .eq('status', 'new')
+      .not('crm_contact_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    loadDealBoard(db),
+    loadProspectCounts(db),
+  ]);
+
+  const nameOf = (c: unknown, fallback: string) => (c as { name?: string } | null)?.name || fallback;
+  const cutoff = Date.now() - QUIET_DAYS * 86_400_000;
+  const month = today.slice(0, 7);
+
+  return {
+    replies: (replies.data ?? []).map((r) => ({
+      id: r.id,
+      contact_id: r.contact_id,
+      name: nameOf(r.crm_contacts, r.from_name || r.from_email),
+      company: (r.crm_contacts as unknown as { company: string | null } | null)?.company ?? null,
+      subject: r.subject,
+      text: r.text.slice(0, 400),
+      received_at: r.received_at,
+      forwarded: r.forwarded,
+    })),
+    tasks: (tasks.data ?? []).map((t) => ({
+      id: t.id, contact_id: t.contact_id, title: t.title, due_date: t.due_date,
+      name: nameOf(t.crm_contacts, (t.crm_contacts as unknown as { email?: string } | null)?.email ?? 'Someone'),
+    })),
+    inquiries: (inquiries.data ?? []).map((i) => ({
+      id: i.id, contact_id: i.crm_contact_id as string, name: i.name || 'Someone', project_type: i.project_type, created_at: i.created_at,
+    })),
+    quiet: board
+      .filter((d) => isOpen(d.stage) && Date.parse(d.last_touch_at) < cutoff)
+      .sort((a, b) => a.last_touch_at.localeCompare(b.last_touch_at))
+      .slice(0, 12)
+      .map((d) => ({ id: d.id, contact_id: d.contact_id, title: d.title, name: d.contact.name || d.contact.email || 'Unnamed', stage: d.stage, last_touch_at: d.last_touch_at })),
+    prospects,
+    pipeline_cents: board.filter((d) => isOpen(d.stage)).reduce((s, d) => s + (d.value_cents ?? 0), 0),
+    won_this_month_cents: board.filter((d) => d.stage === 'won' && d.stage_changed_at.slice(0, 7) === month).reduce((s, d) => s + (d.value_cents ?? 0), 0),
+  };
+}
+
+async function loadProspectCounts(db: SupabaseClient) {
+  const { data } = await db.from('crm_contacts').select('id').eq('prospect_status', 'prospect');
+  const ids = (data ?? []).map((r) => r.id);
+  if (!ids.length) return { total: 0, never_emailed: 0 };
+  const [a, b] = await Promise.all([
+    db.from('prospect_emails').select('contact_id').in('contact_id', ids).eq('status', 'sent'),
+    db.from('newsletter_sends').select('contact_id').in('contact_id', ids).eq('status', 'sent'),
+  ]);
+  const emailed = new Set([...(a.data ?? []), ...(b.data ?? [])].map((r) => r.contact_id));
+  return { total: ids.length, never_emailed: ids.filter((id) => !emailed.has(id)).length };
 }

@@ -41,7 +41,7 @@ export async function POST(req: Request) {
 
   const { data: contact, error } = await auth.db
     .from('crm_contacts')
-    .insert({ ...fields, phone })
+    .insert({ ...fields, phone, ...(fields.prospect_status === 'prospect' && !deal ? { prospected_at: new Date().toISOString() } : { prospect_status: null }) })
     .select('*')
     .single();
   if (error) return badRequest(error.message);

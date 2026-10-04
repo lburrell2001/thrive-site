@@ -1,28 +1,38 @@
-// Newsletter: signing up, confirming, unsubscribing, and sending.
+// Emails to many people at once — newsletters to subscribers, outreach to
+// prospects — plus signing up, confirming and unsubscribing. (The table is
+// still called newsletters; every email sent to an audience lives there.)
 //
 // Subscription lives on the CRM contact (crm_contacts.newsletter_status).
-// Only 'subscribed' contacts are ever emailed. Footer signups are double
-// opt-in: they stay 'pending' until the confirm link is clicked, so nobody
-// can put someone else's address on the list.
+// Subscriber audiences reach only 'subscribed' contacts. Prospect and
+// hand-picked audiences reach anyone with an email who hasn't
+// unsubscribed. Footer signups are double opt-in: they stay 'pending' until
+// the confirm link is clicked, so nobody can put someone else's address on
+// the list.
 //
 // Sending goes through Resend's batch API, 100 at a time, each recipient
 // with their own unsubscribe link and one-click List-Unsubscribe headers.
 // Every recipient is recorded in newsletter_sends; a failed send can be
-// retried and only reaches the people it missed.
+// retried and only reaches the people it missed. Each one's Reply-To is
+// their signed reply address, so replies land on their CRM record.
 
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
-import { renderNewsletter } from '@/lib/newsletterEmail';
+import { REASON, placeholdersIn, renderEmail, type EmailStyle } from '@/lib/emailContent';
 import { blockImages, normalizeBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
-import { signToken, verifyToken } from '@/lib/newsletterTokens';
+import { replyAddress, signToken, verifyToken } from '@/lib/newsletterTokens';
 
 export class NewsletterError extends Error {}
 
-export type Audience = 'subscribers' | 'clients' | 'leads' | 'tag';
+export type Audience = 'subscribers' | 'clients' | 'leads' | 'tag' | 'prospects' | 'prospect_tag' | 'contacts';
+
+/** Audiences of people who never subscribed: they get the outreach footer line. */
+export const OUTREACH: Audience[] = ['prospects', 'prospect_tag', 'contacts'];
 
 export interface Newsletter {
   id: string;
+  /** Null for older newsletters: markdown body, or an imported design. */
+  style: EmailStyle | null;
   subject: string;
   preheader: string;
   body: string;
@@ -34,6 +44,8 @@ export interface Newsletter {
   html_meta: { file: string; images: number; bytes: number; warnings: string[]; imported_at: string } | null;
   audience: Audience;
   audience_tag: string | null;
+  /** The hand-picked audience. */
+  audience_contact_ids: string[];
   status: 'draft' | 'sending' | 'sent' | 'failed';
   last_error: string | null;
   recipient_count: number;
@@ -166,18 +178,38 @@ export async function unsubscribe(db: SupabaseClient, token: string): Promise<bo
 
 // ------------------------------------------------------------ audience
 
-interface Recipient { id: string; name: string; email: string }
+interface Recipient { id: string; name: string; email: string; company: string | null }
 
-export async function audienceFor(db: SupabaseClient, n: Pick<Newsletter, 'audience' | 'audience_tag'>): Promise<Recipient[]> {
+export async function audienceFor(
+  db: SupabaseClient,
+  n: Pick<Newsletter, 'audience' | 'audience_tag' | 'audience_contact_ids'>,
+): Promise<Recipient[]> {
   let query = db
     .from('crm_contacts')
-    .select('id, name, email, portal_client_id, tags')
-    .eq('newsletter_status', 'subscribed')
+    .select('id, name, email, company, portal_client_id, tags')
     .not('email', 'is', null);
-  if (n.audience === 'tag') {
-    if (!n.audience_tag) return [];
-    query = query.contains('tags', [n.audience_tag]);
+
+  if (OUTREACH.includes(n.audience)) {
+    // Not subscribers, but never anyone who said no.
+    query = query.or('newsletter_status.is.null,newsletter_status.neq.unsubscribed');
+    if (n.audience === 'contacts') {
+      if (!n.audience_contact_ids?.length) return [];
+      query = query.in('id', n.audience_contact_ids);
+    } else {
+      query = query.eq('prospect_status', 'prospect');
+      if (n.audience === 'prospect_tag') {
+        if (!n.audience_tag) return [];
+        query = query.contains('tags', [n.audience_tag]);
+      }
+    }
+  } else {
+    query = query.eq('newsletter_status', 'subscribed');
+    if (n.audience === 'tag') {
+      if (!n.audience_tag) return [];
+      query = query.contains('tags', [n.audience_tag]);
+    }
   }
+
   const { data, error } = await query;
   if (error) throw new NewsletterError(error.message);
   let rows = data ?? [];
@@ -188,7 +220,7 @@ export async function audienceFor(db: SupabaseClient, n: Pick<Newsletter, 'audie
     const isClient = (r: { id: string; portal_client_id: string | null }) => Boolean(r.portal_client_id) || clients.has(r.id);
     rows = rows.filter((r) => (n.audience === 'clients' ? isClient(r) : !isClient(r)));
   }
-  return rows.map((r) => ({ id: r.id, name: r.name, email: r.email as string }));
+  return rows.map((r) => ({ id: r.id, name: r.name, email: r.email as string, company: r.company }));
 }
 
 // ------------------------------------------------------------- sending
@@ -197,11 +229,19 @@ function messageFor(n: Newsletter, r: Recipient, site: string, address: string, 
   const token = signToken(r.id, 'unsubscribe');
   const unsubscribeUrl = `${site}/newsletter/unsubscribe/${token}`;
   const oneClick = `${site}/api/newsletter/unsubscribe?t=${encodeURIComponent(token)}`;
-  const { html, text } = renderNewsletter(n, { site, unsubscribeUrl, postalAddress: address, firstName: firstName(r.name) });
+  const { subject, html, text } = renderEmail(
+    { style: n.style, subject: n.subject, preheader: n.preheader, body: n.body, blocks: n.blocks ?? [], design: n.design ?? {}, html: n.html },
+    {
+      site, unsubscribeUrl, postalAddress: address, firstName: firstName(r.name), company: r.company,
+      reason: OUTREACH.includes(n.audience) ? REASON.prospect : REASON.subscriber,
+    },
+  );
+  const replyTo = replyAddress(r.id, process.env.CONTACT_NOTIFY_TO);
   return {
     from,
     to: r.email,
-    subject: n.subject,
+    ...(replyTo ? { replyTo } : {}),
+    subject,
     html,
     text,
     headers: {
@@ -215,7 +255,9 @@ function ready(n: Newsletter, address: string | null) {
   if (!address) throw new NewsletterError('Add your mailing address first — the law requires it in every marketing email.');
   if (!n.subject.trim()) throw new NewsletterError('Add a subject line');
   if (n.html?.trim()) return address;
-  if (!n.body.trim() && !(n.blocks ?? []).length) throw new NewsletterError('Write the newsletter first');
+  if (!n.body.trim() && !(n.blocks ?? []).length) throw new NewsletterError('Write the email first');
+  const left = placeholdersIn({ style: n.style, subject: n.subject, preheader: n.preheader, body: n.body, blocks: n.blocks ?? [] });
+  if (left.length) throw new NewsletterError(`Replace ${left[0]} before sending — it's a note to yourself`);
   const images = normalizeBlocks(n.blocks).flatMap(blockImages);
   if (images.some((i) => !i.src)) throw new NewsletterError('A section is still waiting for an image — upload one or remove it');
   if (images.some((i) => !i.alt.trim())) throw new NewsletterError('Describe every image (alt text) — it is what people see when images are blocked');
@@ -225,7 +267,7 @@ function ready(n: Newsletter, address: string | null) {
 export async function sendTest(db: SupabaseClient, n: Newsletter, to: string, site: string) {
   const address = ready(n, await postalAddress(db));
   const { client, from } = resend();
-  const msg = messageFor(n, { id: '00000000-0000-0000-0000-000000000000', name: 'Lauren', email: to }, site, address, from);
+  const msg = messageFor(n, { id: '00000000-0000-0000-0000-000000000000', name: 'Lauren', email: to, company: 'Thrive Creative Studios' }, site, address, from);
   const { error } = await client.emails.send({ ...msg, subject: `[Test] ${n.subject}` });
   if (error) throw new NewsletterError(error.message);
 }
@@ -262,7 +304,7 @@ export async function sendNewsletter(db: SupabaseClient, id: string, site: strin
   ]);
   const done = new Set((already.data ?? []).map((r) => r.contact_id));
   const recipients = audience.filter((r) => !done.has(r.id));
-  if (!recipients.length && !done.size) return fail('Nobody in this audience is subscribed yet');
+  if (!recipients.length && !done.size) return fail(OUTREACH.includes(n.audience) ? 'Nobody in this audience can be emailed' : 'Nobody in this audience is subscribed yet');
 
   for (let i = 0; i < recipients.length; i += BATCH) {
     const chunk = recipients.slice(i, i + BATCH);

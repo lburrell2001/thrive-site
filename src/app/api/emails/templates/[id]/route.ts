@@ -10,7 +10,7 @@ export async function GET(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { data } = await auth.db.from('prospect_templates').select('*').eq('id', id).maybeSingle();
+  const { data } = await auth.db.from('email_templates').select('*').eq('id', id).maybeSingle();
   if (!data) return badRequest('Template not found', 404);
   return NextResponse.json({ ok: true, data });
 }
@@ -23,7 +23,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const parsed = templateUpdateSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
   const { data, error } = await auth.db
-    .from('prospect_templates')
+    .from('email_templates')
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select('*')
@@ -37,7 +37,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { error } = await auth.db.from('prospect_templates').delete().eq('id', id);
+  const { error } = await auth.db.from('email_templates').delete().eq('id', id);
   if (error) return badRequest(error.message);
   return NextResponse.json({ ok: true, data: null });
 }
@@ -47,9 +47,9 @@ export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { data: src } = await auth.db.from('prospect_templates').select('name, style, subject, preheader, body, blocks, design').eq('id', id).maybeSingle();
+  const { data: src } = await auth.db.from('email_templates').select('name, style, subject, preheader, body, blocks, design').eq('id', id).maybeSingle();
   if (!src) return badRequest('Template not found', 404);
-  const { data, error } = await auth.db.from('prospect_templates').insert({ ...src, name: `${src.name} (copy)` }).select('id').single();
+  const { data, error } = await auth.db.from('email_templates').insert({ ...src, name: `${src.name} (copy)` }).select('id').single();
   if (error) return badRequest(error.message);
   return NextResponse.json({ ok: true, data });
 }

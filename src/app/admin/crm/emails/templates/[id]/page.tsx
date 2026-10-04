@@ -1,27 +1,28 @@
 'use client';
 
-// Edit a prospect template. Personal templates are a message in the
+// Edit an email template. Personal templates are a message in the
 // journal's markdown; designed ones use the newsletter block builder. The
 // preview is addressed to a sample person.
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import p from '../../../proposals/proposals.module.css';
-import { apiGet, apiSend } from '../../../proposals/adminApi';
-import { Toast, useToast } from '../../../proposals/Toast';
-import s2 from '../../newsletters/[id]/editor.module.css';
-import { EmailDesigner } from '../../../email-designer/EmailDesigner';
+import p from '../../../../proposals/proposals.module.css';
+import w from '../../../workspace.module.css';
+import { apiGet, apiSend } from '../../../../proposals/adminApi';
+import { useCrm } from '../../../CrmContext';
+import s2 from '../../[id]/editor.module.css';
+import { EmailDesigner } from '../../../../email-designer/EmailDesigner';
 import { normalizeBlocks, resolveDesign, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
-import { MERGE_FIELDS, PROSPECT_REASON, SAMPLE_CONTACT, renderProspect, type ProspectTemplate } from '@/lib/prospectEmail';
+import { MERGE_FIELDS, REASON, SAMPLE_CONTACT, renderEmail, type EmailTemplate } from '@/lib/emailContent';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 
-type Draft = Pick<ProspectTemplate, 'name' | 'subject' | 'preheader' | 'body'> & {
+type Draft = Pick<EmailTemplate, 'name' | 'subject' | 'preheader' | 'body'> & {
   blocks: NewsletterBlock[];
   design: NewsletterDesign;
 };
 
-const draftOf = (t: ProspectTemplate): Draft => ({
+const draftOf = (t: EmailTemplate): Draft => ({
   name: t.name, subject: t.subject, preheader: t.preheader, body: t.body,
   blocks: normalizeBlocks(t.blocks), design: resolveDesign(t.design),
 });
@@ -33,21 +34,21 @@ const LINKS = [
   { label: 'Contact', path: '/contact' },
 ];
 
-export default function ProspectTemplateEditor({ params }: { params: Promise<{ id: string }> }) {
+export default function EmailTemplateEditor({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [t, setT] = useState<ProspectTemplate | null>(null);
+  const [t, setT] = useState<EmailTemplate | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const body = useRef<HTMLTextAreaElement>(null);
-  const { toast, show } = useToast();
+  const { notify: show } = useCrm();
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiGet<ProspectTemplate>(`/api/prospects/templates/${id}`), apiGet<{ address: string | null }>('/api/newsletters/settings')])
+    Promise.all([apiGet<EmailTemplate>(`/api/emails/templates/${id}`), apiGet<{ address: string | null }>('/api/newsletters/settings')])
       .then(([data, st]) => { if (!cancelled) { setT(data); setDraft(draftOf(data)); setAddress(st.address); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the template'); });
     return () => { cancelled = true; };
@@ -58,7 +59,7 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
   const save = useCallback(async (quiet = false) => {
     if (!draft) return false;
     try {
-      const updated = await apiSend<ProspectTemplate>(`/api/prospects/templates/${id}`, 'PATCH', draft);
+      const updated = await apiSend<EmailTemplate>(`/api/emails/templates/${id}`, 'PATCH', draft);
       setT(updated);
       setDraft(draftOf(updated));
       if (!quiet) show('Saved.');
@@ -71,7 +72,8 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
 
   const preview = useMemo(() => {
     if (!t || !draft || typeof window === 'undefined') return '';
-    return renderProspect({ style: t.style, ...draft }, {
+    return renderEmail({ style: t.style, ...draft }, {
+      reason: REASON.prospect,
       site: window.location.origin,
       unsubscribeUrl: '#',
       postalAddress: address ?? '[Your mailing address — add it on the Newsletters page]',
@@ -79,8 +81,8 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
     }).html;
   }, [t, draft, address]);
 
-  if (error) return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>{error}</p></div></div>;
-  if (!t || !draft) return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>Loading…</p></div></div>;
+  if (error) return <div className={w.page}><p className={w.empty}>{error}</p></div>;
+  if (!t || !draft) return <div className={w.page}><p className={w.empty}>Loading…</p></div>;
 
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => (d ? { ...d, [key]: value } : d));
   const designed = t.style === 'designed';
@@ -98,7 +100,7 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
     setBusy('test');
     if (dirty && !(await save(true))) { setBusy(''); return; }
     try {
-      const r = await apiSend<{ to: string }>('/api/prospects/send', 'POST', {
+      const r = await apiSend<{ to: string }>('/api/emails/send', 'POST', {
         template_id: id, subject: draft!.subject || '(no subject)', preheader: draft!.preheader, body: draft!.body, test: true,
       });
       show(`Test sent to ${r.to}.`);
@@ -111,8 +113,8 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
   async function duplicate() {
     try {
       if (dirty && !(await save(true))) return;
-      const created = await apiSend<{ id: string }>(`/api/prospects/templates/${id}`, 'POST');
-      router.push(`/admin/crm/prospecting/${created.id}`);
+      const created = await apiSend<{ id: string }>(`/api/emails/templates/${id}`, 'POST');
+      router.push(`/admin/crm/emails/templates/${created.id}`);
     } catch (e) {
       show(e instanceof Error ? e.message : 'Could not duplicate', 'error');
     }
@@ -121,8 +123,8 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
   async function remove() {
     if (!window.confirm('Delete this template? Emails already sent from it stay on each contact’s timeline.')) return;
     try {
-      await apiSend(`/api/prospects/templates/${id}`, 'DELETE');
-      router.push('/admin/crm/prospecting');
+      await apiSend(`/api/emails/templates/${id}`, 'DELETE');
+      router.push('/admin/crm/emails?tab=templates');
     } catch (e) {
       show(e instanceof Error ? e.message : 'Could not delete', 'error');
     }
@@ -131,11 +133,11 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
   const frame = <iframe title="Email preview" srcDoc={preview} sandbox="" className={s2.previewFrame} style={{ background: '#fff' }} />;
 
   return (
-    <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: designed ? 1560 : 1320 }}>
+    <div className={`${w.page} ${w.pageWide}`} style={{ maxWidth: designed ? 1560 : 1320 }}>
+      <div>
         <div className={p.pageHead}>
           <div>
-            <p className={p.rowMeta} style={{ margin: 0 }}><Link href="/admin/crm/prospecting">← Prospect emails</Link></p>
+            <p className={p.rowMeta} style={{ margin: 0 }}><Link href="/admin/crm/emails?tab=templates">← Templates</Link></p>
             <h1 className={p.pageTitle}>{draft.name || 'Untitled template'}</h1>
             <p className={p.pageSub}>{designed ? 'Designed' : 'Personal'} template · {dirty ? 'Unsaved changes' : 'Saved'}</p>
           </div>
@@ -201,7 +203,7 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
             preheader={draft.preheader}
             postalAddress={address ?? '[Your mailing address — add it on the Newsletters page]'}
             firstName={SAMPLE_CONTACT.firstName}
-            reason={PROSPECT_REASON}
+            reason={REASON.prospect}
           />
         ) : (
         <div className={s2.builder}>
@@ -227,7 +229,6 @@ export default function ProspectTemplateEditor({ params }: { params: Promise<{ i
 
         <button type="button" className={`${p.btn} ${p.btnDanger}`} style={{ marginTop: 18 }} onClick={remove}>Delete template</button>
       </div>
-      <Toast toast={toast} />
     </div>
   );
 }

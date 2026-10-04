@@ -1,6 +1,6 @@
 'use client';
 
-// "Prospect email" on a contact: pick a template, make it about this
+// "Email" on a contact: pick a template, make it about this
 // person, see exactly what they'll get, and send. Edits here change only
 // this email, never the template.
 
@@ -9,7 +9,7 @@ import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
-import { placeholdersIn, renderProspect, type ProspectTemplate } from '@/lib/prospectEmail';
+import { REASON, placeholdersIn, renderEmail, type EmailTemplate } from '@/lib/emailContent';
 import type { ProspectContact, ProspectSendRow } from '@/lib/prospects';
 
 interface Loaded {
@@ -18,13 +18,13 @@ interface Loaded {
   address: string | null;
 }
 
-export function ProspectDialog({ contactId, onClose, onSent }: {
+export function EmailDialog({ contactId, onClose, onSent }: {
   contactId: string;
   onClose: () => void;
   onSent: (to: string) => void;
 }) {
   const [info, setInfo] = useState<Loaded | null>(null);
-  const [templates, setTemplates] = useState<ProspectTemplate[] | null>(null);
+  const [templates, setTemplates] = useState<EmailTemplate[] | null>(null);
   const [loadError, setLoadError] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [subject, setSubject] = useState('');
@@ -37,7 +37,7 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
 
   const template = templates?.find((t) => t.id === templateId) ?? null;
 
-  function choose(t: ProspectTemplate | undefined) {
+  function choose(t: EmailTemplate | undefined) {
     if (!t) return;
     setTemplateId(t.id);
     setSubject(t.subject);
@@ -49,7 +49,7 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([apiGet<Loaded>(`/api/prospects/contacts/${contactId}`), apiGet<ProspectTemplate[]>('/api/prospects/templates')])
+    Promise.all([apiGet<Loaded>(`/api/emails/contacts/${contactId}`), apiGet<EmailTemplate[]>('/api/emails/templates')])
       .then(([loaded, list]) => {
         if (cancelled) return;
         setInfo(loaded);
@@ -81,8 +81,9 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
 
   const preview = useMemo(() => {
     if (!content || !info || typeof window === 'undefined') return null;
-    return renderProspect(content, {
+    return renderEmail(content, {
       site: window.location.origin,
+      reason: info.contact.subscribed ? REASON.subscriber : REASON.prospect,
       unsubscribeUrl: '#',
       postalAddress: info.address ?? '[Your mailing address]',
       firstName: info.contact.firstName,
@@ -100,7 +101,7 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
     if (!template) return;
     setBusy(test ? 'test' : 'send'); setError('');
     try {
-      const r = await apiSend<{ to: string }>('/api/prospects/send', 'POST', {
+      const r = await apiSend<{ to: string }>('/api/emails/send', 'POST', {
         contact_id: contactId, template_id: template.id, subject, preheader, body, note, test,
       });
       if (test) { setTestedTo(r.to); setBusy(''); }
@@ -118,13 +119,13 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
       <div className={s.backdrop} style={{ zIndex: 60 }} onClick={() => !busy && onClose()} />
       <div className={s.modal} style={{ zIndex: 61, width: 'min(1120px, calc(100vw - 32px))' }} role="dialog" aria-modal="true" aria-labelledby="prospect-title">
         <h2 id="prospect-title" className={s.modalTitle}>
-          Prospect email{info ? ` to ${info.contact.name || info.contact.email}` : ''}
+          Email {info ? info.contact.name || info.contact.email : ''}
         </h2>
         {!info || !templates ? (
           <p className={s.eventMeta}>{loadError || 'Loading…'}</p>
         ) : templates.length === 0 ? (
           <p className={s.eventMeta}>
-            No templates yet. <Link href="/admin/crm/prospecting">Set some up</Link> — there are starters to begin from.
+            No templates yet. <Link href="/admin/crm/emails?tab=templates">Set some up</Link> — there are starters to begin from.
           </p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18, alignItems: 'start' }}>
@@ -132,7 +133,7 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
               {blocked && <p className={s.error} style={{ margin: 0 }}>{blocked}</p>}
               {!info.address && (
                 <p className={s.error} style={{ margin: 0 }}>
-                  Add your mailing address on the <Link href="/admin/crm/newsletters">Newsletters page</Link> first — it’s required in marketing email.
+                  Add your mailing address on the <Link href="/admin/crm/emails">Emails page</Link> first — it’s required in marketing email.
                 </p>
               )}
               {info.history.length > 0 && (
@@ -173,8 +174,8 @@ export function ProspectDialog({ contactId, onClose, onSent }: {
                 </p>
               )}
               <p className={s.eventMeta} style={{ margin: 0 }}>
-                Goes to {info.contact.email ?? '—'}; replies come to your inbox. Includes an unsubscribe link and your mailing address.
-                {template && <> <Link href={`/admin/crm/prospecting/${template.id}`}>Edit the template</Link> to change it for everyone.</>}
+                Goes to {info.contact.email ?? '—'}. Their reply is logged here and forwarded to your inbox. Includes an unsubscribe link and your mailing address.
+                {template && <> <Link href={`/admin/crm/emails/templates/${template.id}`}>Edit the template</Link> to change it for everyone.</>}
               </p>
               {testedTo && <p className={s.eventMeta} style={{ margin: 0, color: '#1a8a4a' }}>Test sent to {testedTo}.</p>}
               {error && <p className={s.error} style={{ margin: 0 }}>{error}</p>}

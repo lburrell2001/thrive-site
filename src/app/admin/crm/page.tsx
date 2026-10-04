@@ -1,362 +1,155 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// Today: what needs Lauren now. Replies to answer first (a reply is the
+// best signal there is), then follow-ups due, new inquiries, and deals
+// that have gone quiet.
+
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
-import s from './crm.module.css';
+import w from './workspace.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from '../proposals/adminApi';
-import { Toast, useToast } from '../proposals/Toast';
-import { CRM_STAGES, STAGE_LABEL, type CrmContactRow, type CrmDealCard, type CrmStage } from '@/types/crm';
-import { ContactDrawer } from './ContactDrawer';
-import { NewDealDialog } from './NewDealDialog';
-import { STAGE_COLOR, todayIso } from './shared';
+import { useCrm } from './CrmContext';
+import { STAGE_LABEL, type CrmToday } from '@/types/crm';
+import { avatarColor, initials, timeAgo, todayIso } from './shared';
 
-/** Won and lost pile up forever; show the recent ones until asked. */
-const CLOSED_LIMIT = 15;
-
-type View = 'pipeline' | 'contacts';
-
-function daysAgo(iso: string) {
-  const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-  if (days <= 0) return 'today';
-  if (days === 1) return 'yesterday';
-  if (days < 30) return `${days}d ago`;
-  return formatDate(iso);
+function greeting() {
+  const h = Number(new Date().toLocaleString('en-US', { hour: 'numeric', hour12: false, timeZone: 'America/Chicago' }));
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 }
 
-function setUrl(contact: string | null, deal: string | null) {
-  const url = new URL(window.location.href);
-  url.searchParams.delete('portal');
-  for (const [key, value] of [['contact', contact], ['deal', deal]] as const) {
-    if (value) url.searchParams.set(key, value);
-    else url.searchParams.delete(key);
-  }
-  window.history.replaceState(null, '', url);
-}
+export default function TodayPage() {
+  const { openContact, version, refresh, notify } = useCrm();
+  const [data, setData] = useState<CrmToday | null>(null);
 
-export default function CrmPage() {
-  const [view, setView] = useState<View>('pipeline');
-  const [deals, setDeals] = useState<CrmDealCard[] | null>(null);
-  const [contacts, setContacts] = useState<CrmContactRow[] | null>(null);
-  const [search, setSearch] = useState('');
-  const [dueOnly, setDueOnly] = useState(false);
-  const [open, setOpen] = useState<{ contact: string; deal: string | null } | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overStage, setOverStage] = useState<CrmStage | null>(null);
-  const [expanded, setExpanded] = useState<Partial<Record<CrmStage, boolean>>>({});
-  const { toast, show } = useToast();
-
-  const load = useCallback(async () => {
-    try {
-      const [d, c] = await Promise.all([
-        apiGet<CrmDealCard[]>('/api/crm/deals'),
-        apiGet<CrmContactRow[]>('/api/crm/contacts'),
-      ]);
-      setDeals(d);
-      setContacts(c);
-      return c;
-    } catch (error) {
-      show(error instanceof Error ? error.message : 'Could not load the CRM', 'error');
-      setDeals((prev) => prev ?? []);
-      setContacts((prev) => prev ?? []);
-      return null;
-    }
-  }, [show]);
-
-  // First load, and open what the URL names: ?contact=<id>&deal=<id> from a
-  // shared link or the dashboard, or ?portal=<id> from a client's page.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const list = await load();
-      if (cancelled || !list) return;
-      const params = new URLSearchParams(window.location.search);
-      const portal = params.get('portal');
-      const wanted = params.get('contact') ?? (portal && list.find((c) => c.portal_client_id === portal)?.id);
-      if (wanted && list.some((c) => c.id === wanted)) setOpen({ contact: wanted, deal: params.get('deal') });
-      else if (portal) show('That client has no CRM contact yet', 'error');
-    })();
+    apiGet<CrmToday>('/api/crm/today')
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((e) => { if (!cancelled) notify(e instanceof Error ? e.message : 'Could not load today', 'error'); });
     return () => { cancelled = true; };
-  }, [load, show]);
+  }, [version, notify]);
 
-  const openDrawer = useCallback((contact: string | null, deal: string | null = null) => {
-    setOpen(contact ? { contact, deal } : null);
-    setUrl(contact, deal);
-  }, []);
-
-  async function moveTo(id: string, stage: CrmStage) {
-    const current = deals?.find((d) => d.id === id);
-    if (!current || current.stage === stage) return;
-    // Optimistic: the card moves now, and moves back if the save fails.
-    setDeals((prev) => prev?.map((d) => (d.id === id ? { ...d, stage, stage_changed_at: new Date().toISOString() } : d)) ?? prev);
-    try {
-      await apiSend(`/api/crm/deals/${id}`, 'PATCH', { stage });
-      show(`${current.title} → ${STAGE_LABEL[stage]}`);
-    } catch (error) {
-      setDeals((prev) => prev?.map((d) => (d.id === id ? current : d)) ?? prev);
-      show(error instanceof Error ? error.message : 'Could not move deal', 'error');
+  async function act(fn: () => Promise<unknown>, ok?: string) {
+    try { await fn(); if (ok) notify(ok); refresh(); } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not update', 'error');
     }
   }
 
   const today = todayIso();
-  const q = search.trim().toLowerCase();
-
-  const visibleDeals = useMemo(() => (deals ?? []).filter((d) => {
-    if (dueOnly && !(d.next_task_due && d.next_task_due <= today)) return false;
-    if (!q) return true;
-    return [d.title, d.contact.name, d.contact.company, d.contact.email, d.source, ...d.contact.tags]
-      .some((v) => v?.toLowerCase().includes(q));
-  }), [deals, q, dueOnly, today]);
-
-  const visibleContacts = useMemo(() => (contacts ?? []).filter((c) =>
-    !q || [c.name, c.company, c.email, c.phone, c.source, ...c.tags].some((v) => v?.toLowerCase().includes(q)),
-  ), [contacts, q]);
-
-  const stats = useMemo(() => {
-    const all = deals ?? [];
-    const openStages: CrmStage[] = ['lead', 'contacted', 'proposal'];
-    const pipeline = all.filter((d) => openStages.includes(d.stage)).reduce((sum, d) => sum + (d.value_cents ?? 0), 0);
-    const month = today.slice(0, 7);
-    const wonThisMonth = all
-      .filter((d) => d.stage === 'won' && d.stage_changed_at.slice(0, 7) === month)
-      .reduce((sum, d) => sum + (d.value_cents ?? 0), 0);
-    // Tasks are per contact; count contacts, not every deal they have.
-    const due = new Set(all.filter((d) => d.next_task_due && d.next_task_due <= today).map((d) => d.contact_id)).size;
-    const unread = all.filter((d) => d.new_inquiries > 0).length;
-    return { pipeline, wonThisMonth, due, unread };
-  }, [deals, today]);
-
-  const loaded = deals !== null && contacts !== null;
+  const nothing = data && !data.replies.length && !data.tasks.length && !data.inquiries.length && !data.quiet.length;
 
   return (
-    <div className={s.screen}>
-      <div className={s.top}>
-        <div className={p.pageHead} style={{ marginBottom: 0 }}>
-          <div>
-            <h1 className={p.pageTitle}>CRM</h1>
-            <p className={p.pageSub}>
-              Each card is a piece of work with someone. A returning client&apos;s new project gets its own card.
-              Drag a card to change its stage.
-            </p>
-          </div>
-          <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => setCreating(true)}>
-            New deal
-          </button>
+    <div className={w.page}>
+      <div className={w.head}>
+        <div>
+          <p className={w.eyebrow}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+          <h1 className={w.title}>{greeting()}, Lauren</h1>
+          <p className={w.sub}>
+            {!data ? 'Loading…' : nothing ? 'Nothing waiting on you. A good day to reach out to a few prospects.'
+              : [
+                data.replies.length && `${data.replies.length} ${data.replies.length === 1 ? 'reply' : 'replies'} to answer`,
+                data.tasks.length && `${data.tasks.length} follow-up${data.tasks.length === 1 ? '' : 's'} due`,
+                data.inquiries.length && `${data.inquiries.length} new inquir${data.inquiries.length === 1 ? 'y' : 'ies'}`,
+              ].filter(Boolean).join(' · ')}
+          </p>
         </div>
+        <div className={w.headActions}>
+          <Link href="/admin/crm/prospects?add=1" className={p.btn}>Add prospects</Link>
+          <Link href="/admin/crm/emails" className={`${p.btn} ${p.btnPrimary}`}>Write an email</Link>
+        </div>
+      </div>
 
-        <div className={s.toolbar}>
-          <div className={p.filters} style={{ marginBottom: 0 }} role="tablist" aria-label="View">
-            {(['pipeline', 'contacts'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                role="tab"
-                aria-selected={view === v}
-                className={`${p.filterChip} ${view === v ? p.filterChipOn : ''}`}
-                onClick={() => setView(v)}
-              >
-                {v === 'pipeline' ? 'Pipeline' : `Contacts${contacts ? ` (${contacts.length})` : ''}`}
-              </button>
-            ))}
-          </div>
-          <Link href="/admin/crm/prospecting" className={p.filterChip} style={{ textDecoration: 'none' }}>Prospect emails →</Link>
-          <Link href="/admin/crm/newsletters" className={p.filterChip} style={{ textDecoration: 'none' }}>Newsletters →</Link>
-          <input
-            className={`${p.input} ${s.search}`}
-            type="search"
-            placeholder={view === 'pipeline' ? 'Search deals, names, companies, tags…' : 'Search name, company, email, tag…'}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search"
-          />
-          {view === 'pipeline' && (
-            <div className={s.stats}>
-              <span className={s.stat}>Open pipeline <strong>{formatMoneyCents(stats.pipeline)}</strong></span>
-              <span className={s.stat}>Won this month <strong>{formatMoneyCents(stats.wonThisMonth)}</strong></span>
-              {stats.unread > 0 && (
-                <span className={`${s.stat} ${s.statAlert}`}><strong>{stats.unread}</strong> with unread inquiries</span>
-              )}
-              <button
-                type="button"
-                className={`${s.stat} ${s.statButton} ${dueOnly ? s.statButtonOn : stats.due > 0 ? s.statAlert : ''}`}
-                aria-pressed={dueOnly}
-                onClick={() => setDueOnly((v) => !v)}
-              >
-                <strong>{stats.due}</strong> follow-up{stats.due === 1 ? '' : 's'} due
-              </button>
+      {data && (
+        <div className={w.statRow}>
+          <div className={w.stat}><p className={w.statLabel}>Open pipeline</p><p className={w.statValue}>{formatMoneyCents(data.pipeline_cents)}</p><p className={w.statNote}><Link href="/admin/crm/pipeline">See the board</Link></p></div>
+          <div className={w.stat}><p className={w.statLabel}>Won this month</p><p className={w.statValue}>{formatMoneyCents(data.won_this_month_cents)}</p></div>
+          <div className={w.stat}><p className={w.statLabel}>Prospects</p><p className={w.statValue}>{data.prospects.total}</p><p className={w.statNote}>{data.prospects.never_emailed ? <Link href="/admin/crm/prospects">{data.prospects.never_emailed} not emailed yet</Link> : 'all emailed'}</p></div>
+        </div>
+      )}
+
+      {data && (
+        <div className={w.grid2}>
+          <section className={w.card} style={{ gridColumn: data.replies.length ? '1 / -1' : undefined }}>
+            <div className={w.cardHead}>
+              <h2 className={w.cardTitle}>Replies</h2>
+              {data.replies.length > 0 && <span className={`${w.cardCount} ${w.cardHot}`}>{data.replies.length}</span>}
             </div>
-          )}
-        </div>
-      </div>
+            {data.replies.length === 0 && <p className={w.empty}>No new replies. They’re forwarded to your inbox too — mark them done here once answered.</p>}
+            {data.replies.map((r) => (
+              <div key={r.id} className={w.item} style={{ cursor: 'default' }}>
+                <span className={w.avatar} style={{ background: r.contact_id ? avatarColor(r.contact_id) : '#a19d97' }}>{initials(r.name)}</span>
+                <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: r.contact_id ? 'pointer' : 'default' }} onClick={() => r.contact_id && openContact(r.contact_id)}>
+                  <span className={w.itemTitle}>{r.name}{r.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {r.company}</span> : null}</span>
+                  <span className={w.itemSub}>{r.subject || '(no subject)'}{!r.contact_id ? ' · not in the CRM' : ''}{!r.forwarded ? ' · not forwarded' : ''}</span>
+                  <span className={w.itemQuote}>{r.text || '(no text)'}</span>
+                </button>
+                <span style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                  <span className={w.itemWhen}>{timeAgo(r.received_at)}</span>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => act(() => apiSend(`/api/crm/replies/${r.id}`, 'PATCH', { handled: true }), 'Marked done.')}>Done</button>
+                </span>
+              </div>
+            ))}
+          </section>
 
-      {!loaded ? (
-        <p className={p.empty}>Loading…</p>
-      ) : view === 'contacts' ? (
-        <div className={s.contactsWrap}>
-          <div className={p.list}>
-            {visibleContacts.length === 0 && <p className={p.empty}>{q ? 'No matches.' : 'No contacts yet.'}</p>}
-            {visibleContacts.map((c) => (
-              <button key={c.id} type="button" className={s.contactRow} onClick={() => openDrawer(c.id)}>
-                <span style={{ minWidth: 0 }}>
-                  <span className={s.cardName}>{c.name || c.email || 'Unnamed'}</span>
-                  <span className={s.cardSub}>{[c.company, c.email].filter(Boolean).join(' · ') || 'No details'}</span>
+          <section className={w.card}>
+            <div className={w.cardHead}>
+              <h2 className={w.cardTitle}>Follow-ups due</h2>
+              {data.tasks.length > 0 && <span className={w.cardCount}>{data.tasks.length}</span>}
+            </div>
+            {data.tasks.length === 0 && <p className={w.empty}>Nothing due today.</p>}
+            {data.tasks.map((t) => {
+              const late = t.due_date && t.due_date < today;
+              return (
+                <div key={t.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <input type="checkbox" className={w.check} aria-label={`Mark "${t.title}" done`} onChange={() => act(() => apiSend(`/api/crm/tasks/${t.id}`, 'PATCH', { completed: true }), 'Done.')} />
+                  <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => openContact(t.contact_id)}>
+                    <span className={w.itemTitle}>{t.title}</span>
+                    <span className={w.itemSub}>{t.name}</span>
+                  </button>
+                  <span className={w.itemWhen} style={late ? { color: '#b91c1c', fontWeight: 700 } : undefined}>{t.due_date === today ? 'Today' : late ? `Overdue · ${formatDate(t.due_date)}` : formatDate(t.due_date)}</span>
+                </div>
+              );
+            })}
+          </section>
+
+          <section className={w.card}>
+            <div className={w.cardHead}>
+              <h2 className={w.cardTitle}>New inquiries</h2>
+              {data.inquiries.length > 0 && <span className={`${w.cardCount} ${w.cardHot}`}>{data.inquiries.length}</span>}
+            </div>
+            {data.inquiries.length === 0 && <p className={w.empty}>No unread inquiries.</p>}
+            {data.inquiries.map((i) => (
+              <button key={i.id} type="button" className={w.item} onClick={() => openContact(i.contact_id)}>
+                <span className={w.avatar} style={{ background: avatarColor(i.contact_id) }}>{initials(i.name)}</span>
+                <span className={w.itemMain}>
+                  <span className={w.itemTitle}>{i.name}</span>
+                  <span className={w.itemSub}>{i.project_type || 'Website inquiry'}</span>
                 </span>
-                <span className={s.cardSub}>
-                  {c.open_deals > 0 ? `${c.open_deals} open` : c.deals > 0 ? `${c.deals} deal${c.deals === 1 ? '' : 's'}` : 'No deals'}
-                </span>
-                <span className={`${s.cardValue} ${s.hideSmall}`}>{c.won_value_cents ? formatMoneyCents(c.won_value_cents) : ''}</span>
-                <span className={`${s.cardSub} ${s.hideSmall}`}>
-                  {c.portal_client_id ? 'Portal client' : c.source}
-                  {c.newsletter_status === 'subscribed' ? ' · ✉ subscribed' : c.newsletter_status === 'pending' ? ' · ✉ unconfirmed' : ''}
-                </span>
-                <span className={`${s.cardSub} ${s.hideSmall}`}>{daysAgo(c.last_touch_at)}</span>
+                <span className={w.itemWhen}>{timeAgo(i.created_at)}</span>
               </button>
             ))}
-          </div>
-        </div>
-      ) : (
-        <div className={s.board}>
-          {CRM_STAGES.map((stage) => {
-            const cards = visibleDeals.filter((d) => d.stage === stage);
-            const closed = stage === 'won' || stage === 'lost';
-            const shown = closed && !expanded[stage] ? cards.slice(0, CLOSED_LIMIT) : cards;
-            const total = cards.reduce((sum, d) => sum + (d.value_cents ?? 0), 0);
-            return (
-              <section
-                key={stage}
-                className={`${s.column} ${overStage === stage ? s.columnOver : ''}`}
-                aria-label={STAGE_LABEL[stage]}
-                onDragOver={(e) => {
-                  if (!dragId) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  if (overStage !== stage) setOverStage(stage);
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverStage(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const id = e.dataTransfer.getData('text/plain') || dragId;
-                  setOverStage(null);
-                  setDragId(null);
-                  if (id) void moveTo(id, stage);
-                }}
-              >
-                <div className={s.columnHead}>
-                  <h2 className={s.columnTitle}>
-                    <span className={s.dot} style={{ background: STAGE_COLOR[stage] }} />
-                    {STAGE_LABEL[stage]}
-                    <span className={s.columnMeta}>{cards.length}</span>
-                  </h2>
-                  {total > 0 && <span className={s.columnMeta}>{formatMoneyCents(total)}</span>}
-                </div>
+          </section>
 
-                <div className={s.cards}>
-                  {shown.map((d) => (
-                    <DealCard
-                      key={d.id}
-                      deal={d}
-                      today={today}
-                      dragging={dragId === d.id}
-                      onOpen={() => openDrawer(d.contact_id, d.id)}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', d.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                        setDragId(d.id);
-                      }}
-                      onDragEnd={() => { setDragId(null); setOverStage(null); }}
-                    />
-                  ))}
-                  {cards.length === 0 && (
-                    <p className={s.columnMeta} style={{ padding: '8px 4px', margin: 0 }}>
-                      {search || dueOnly ? 'No matches' : 'Nothing here'}
-                    </p>
-                  )}
-                  {shown.length < cards.length && (
-                    <button type="button" className={s.moreButton} onClick={() => setExpanded((x) => ({ ...x, [stage]: true }))}>
-                      Show all {cards.length}
-                    </button>
-                  )}
-                </div>
-              </section>
-            );
-          })}
+          <section className={w.card}>
+            <div className={w.cardHead}>
+              <h2 className={w.cardTitle}>Gone quiet</h2>
+              <span className={w.muted} style={{ fontSize: 12.5 }}>Open deals, nothing in 2+ weeks</span>
+            </div>
+            {data.quiet.length === 0 && <p className={w.empty}>Every open deal has been touched recently.</p>}
+            {data.quiet.map((d) => (
+              <button key={d.id} type="button" className={w.item} onClick={() => openContact(d.contact_id, d.id)}>
+                <span className={w.avatar} style={{ background: avatarColor(d.contact_id) }}>{initials(d.name)}</span>
+                <span className={w.itemMain}>
+                  <span className={w.itemTitle}>{d.title}</span>
+                  <span className={w.itemSub}>{d.name} · {STAGE_LABEL[d.stage]}</span>
+                </span>
+                <span className={w.itemWhen}>{timeAgo(d.last_touch_at)}</span>
+              </button>
+            ))}
+          </section>
         </div>
       )}
-
-      {open && (
-        <ContactDrawer
-          key={open.contact}
-          id={open.contact}
-          focusDealId={open.deal}
-          onClose={() => openDrawer(null)}
-          onChanged={load}
-          onDeleted={() => { openDrawer(null); void load(); }}
-          notify={show}
-        />
-      )}
-
-      {creating && (
-        <NewDealDialog
-          contacts={contacts ?? []}
-          onClose={() => setCreating(false)}
-          onCreated={(contactId, dealId) => { setCreating(false); void load(); openDrawer(contactId, dealId); }}
-        />
-      )}
-
-      <Toast toast={toast} />
     </div>
-  );
-}
-
-function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: {
-  deal: CrmDealCard;
-  today: string;
-  dragging: boolean;
-  onOpen: () => void;
-  onDragStart: (e: React.DragEvent) => void;
-  onDragEnd: () => void;
-}) {
-  const late = d.next_task_due && d.next_task_due < today;
-  const dueToday = d.next_task_due === today;
-  const who = [d.contact.name || d.contact.email, d.contact.company].filter(Boolean).join(' · ');
-  return (
-    <button
-      type="button"
-      className={`${s.card} ${dragging ? s.cardDragging : ''}`}
-      draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onOpen}
-    >
-      <p className={s.cardName}>
-        {d.new_inquiries > 0 && <span className={s.newDot} title="Unread inquiry" aria-label="Unread inquiry" />}
-        {d.title}
-      </p>
-      <p className={s.cardSub}>{who || 'Unnamed'}</p>
-      <div className={s.cardRow}>
-        {d.value_cents != null && d.value_cents > 0 && (
-          <span className={s.cardValue}>{formatMoneyCents(d.value_cents)}</span>
-        )}
-        {d.latest_proposal && d.stage === 'proposal' && (
-          <span className={s.chip}>{d.latest_proposal.status}</span>
-        )}
-        {d.next_task_due ? (
-          <span className={`${s.chip} ${late ? s.chipLate : dueToday ? s.chipDue : ''}`} title={d.next_task_title ?? undefined}>
-            {late ? 'Overdue' : dueToday ? 'Due today' : `Due ${formatDate(d.next_task_due)}`}
-          </span>
-        ) : d.open_tasks > 0 ? (
-          <span className={s.chip}>{d.open_tasks} task{d.open_tasks === 1 ? '' : 's'}</span>
-        ) : null}
-        {d.contact.portal_client_id && d.stage !== 'won' && <span className={s.chip}>Client</span>}
-        {d.contact.tags.slice(0, 2).map((t) => <span key={t} className={s.chip}>{t}</span>)}
-      </div>
-      <p className={s.cardSub} style={{ marginTop: 6 }}>
-        {d.source !== 'manual' && <span style={{ textTransform: 'capitalize' }}>{d.source} · </span>}
-        {daysAgo(d.last_touch_at)}
-      </p>
-    </button>
   );
 }

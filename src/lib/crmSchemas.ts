@@ -27,6 +27,9 @@ const contactFields = {
   phone: optionalText(40),
   source: z.string().trim().min(1).max(60),
   tags: z.array(z.string().trim().min(1).max(40)).max(20),
+  website: optionalText(300),
+  /** 'prospect' puts them on the Prospects list; null takes them off it. */
+  prospect_status: z.enum(['prospect', 'converted']).nullable(),
 };
 
 const dealFields = {
@@ -47,6 +50,7 @@ export const createContactSchema = z.object({
   ...contactFields,
   source: contactFields.source.default('manual'),
   tags: contactFields.tags.default([]),
+  prospect_status: contactFields.prospect_status.optional(),
   deal: createDealSchema.optional(),
 });
 

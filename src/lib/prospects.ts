@@ -1,9 +1,12 @@
-// Sending a prospect email to one CRM contact.
+// Sending one email to one CRM contact — a prospect before they're a
+// client, or anyone else — from an email template, edited for them.
 //
-// Each email carries the same unsubscribe link as newsletters (it sets the
-// contact's newsletter_status to 'unsubscribed'), one-click List-Unsubscribe
-// headers, and the mailing address, as CAN-SPAM requires of any commercial
-// email, cold or not. Replies go to Lauren's inbox.
+// Each email carries the same unsubscribe link as every Thrive email (it
+// sets the contact's newsletter_status to 'unsubscribed'), one-click
+// List-Unsubscribe headers, and the mailing address, as CAN-SPAM requires
+// of any commercial email, cold or not. The Reply-To is the contact's
+// signed reply address, so a reply is logged against them (inboundEmail.ts)
+// and forwarded to Lauren.
 //
 // What was sent is recorded in prospect_emails, which the contact's
 // timeline reads. Sending also moves a deal still at "New lead" to
@@ -15,8 +18,8 @@ import { Resend } from 'resend';
 import { z } from 'zod';
 import { postalAddress } from '@/lib/newsletter';
 import { blockImages, blocksSchema, designSchema, normalizeBlocks } from '@/lib/newsletterBlocks';
-import { signToken } from '@/lib/newsletterTokens';
-import { SAMPLE_CONTACT, placeholdersIn, renderProspect, type ProspectContent, type ProspectTemplate } from '@/lib/prospectEmail';
+import { replyAddress, signToken } from '@/lib/newsletterTokens';
+import { REASON, SAMPLE_CONTACT, placeholdersIn, renderEmail, type EmailContent, type EmailTemplate } from '@/lib/emailContent';
 
 export class ProspectError extends Error {}
 
@@ -54,6 +57,9 @@ export interface ProspectContact {
   email: string | null;
   /** Why this person can't be emailed, if they can't. */
   blocked: string | null;
+  /** Subscribers get the newsletter's footer line; everyone else the outreach one. */
+  subscribed: boolean;
+  prospect: boolean;
 }
 
 export interface ProspectSendRow {
@@ -68,7 +74,7 @@ export interface ProspectSendRow {
 const firstName = (name: string | null | undefined) => (name ?? '').trim().split(/\s+/)[0] || null;
 
 export async function prospectContact(db: SupabaseClient, id: string): Promise<ProspectContact | null> {
-  const { data: c } = await db.from('crm_contacts').select('id, name, company, email, newsletter_status').eq('id', id).maybeSingle();
+  const { data: c } = await db.from('crm_contacts').select('id, name, company, email, newsletter_status, prospect_status').eq('id', id).maybeSingle();
   if (!c) return null;
   return {
     id: c.id,
@@ -81,6 +87,8 @@ export async function prospectContact(db: SupabaseClient, id: string): Promise<P
       : c.newsletter_status === 'unsubscribed'
         ? 'They unsubscribed from Thrive emails, so they can’t be sent marketing email.'
         : null,
+    subscribed: c.newsletter_status === 'subscribed',
+    prospect: c.prospect_status === 'prospect',
   };
 }
 
@@ -94,7 +102,7 @@ export async function prospectHistory(db: SupabaseClient, contactId: string): Pr
   return (data ?? []) as ProspectSendRow[];
 }
 
-function contentFor(t: ProspectTemplate, input: SendInput): ProspectContent {
+function contentFor(t: EmailTemplate, input: SendInput): EmailContent {
   return {
     style: t.style,
     subject: input.subject,
@@ -106,7 +114,7 @@ function contentFor(t: ProspectTemplate, input: SendInput): ProspectContent {
   };
 }
 
-function check(c: ProspectContent, test: boolean) {
+function check(c: EmailContent, test: boolean) {
   if (c.style === 'personal' && !c.body.trim()) throw new ProspectError('Write the message first');
   // A test may still have [[notes]] in it; a real send may not.
   const left = test ? [] : placeholdersIn(c);
@@ -123,27 +131,28 @@ export async function sendProspect(db: SupabaseClient, input: SendInput, site: s
   const key = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_NOTIFY_FROM;
   if (!key || !from) throw new ProspectError('Email is not set up (RESEND_API_KEY and CONTACT_NOTIFY_FROM)');
-  const replyTo = process.env.CONTACT_NOTIFY_TO;
+  const lauren = process.env.CONTACT_NOTIFY_TO;
 
   const [found, address, { data: template }] = await Promise.all([
     input.contact_id ? prospectContact(db, input.contact_id) : null,
     postalAddress(db),
-    db.from('prospect_templates').select('*').eq('id', input.template_id).maybeSingle(),
+    db.from('email_templates').select('*').eq('id', input.template_id).maybeSingle(),
   ]);
   if (input.contact_id && !found) throw new ProspectError('Contact not found');
   const contact: ProspectContact = found ?? {
-    id: '00000000-0000-0000-0000-000000000000', name: SAMPLE_CONTACT.firstName, email: null, blocked: null, ...SAMPLE_CONTACT,
+    id: '00000000-0000-0000-0000-000000000000', name: SAMPLE_CONTACT.firstName, email: null, blocked: null, subscribed: false, prospect: true, ...SAMPLE_CONTACT,
   };
   if (!template) throw new ProspectError('Template not found');
-  if (!address) throw new ProspectError('Add your mailing address on the Newsletters page first — the law requires it in every marketing email.');
+  if (!address) throw new ProspectError('Add your mailing address on the Emails page first — the law requires it in every marketing email.');
   if (contact.blocked && !input.test) throw new ProspectError(contact.blocked);
 
-  const content = contentFor(template as ProspectTemplate, input);
+  const content = contentFor(template as EmailTemplate, input);
   check(content, input.test);
 
   const token = signToken(contact.id, 'unsubscribe');
-  const { subject, html, text } = renderProspect(content, {
+  const { subject, html, text } = renderEmail(content, {
     site,
+    reason: contact.subscribed ? REASON.subscriber : REASON.prospect,
     unsubscribeUrl: `${site}/newsletter/unsubscribe/${token}`,
     postalAddress: address,
     firstName: contact.firstName,
@@ -152,10 +161,10 @@ export async function sendProspect(db: SupabaseClient, input: SendInput, site: s
 
   const client = new Resend(key);
   if (input.test) {
-    if (!replyTo) throw new ProspectError('No test address — set CONTACT_NOTIFY_TO');
-    const { error } = await client.emails.send({ from, to: replyTo, subject: `[Test] ${subject}`, html, text });
+    if (!lauren) throw new ProspectError('No test address — set CONTACT_NOTIFY_TO');
+    const { error } = await client.emails.send({ from, to: lauren, subject: `[Test] ${subject}`, html, text });
     if (error) throw new ProspectError(error.message);
-    return { to: replyTo, test: true };
+    return { to: lauren, test: true };
   }
 
   const { data: recent } = await db
@@ -168,6 +177,7 @@ export async function sendProspect(db: SupabaseClient, input: SendInput, site: s
   if (recent?.length) throw new ProspectError('You just emailed them — wait a couple of minutes before sending another.');
 
   const oneClick = `${site}/api/newsletter/unsubscribe?t=${encodeURIComponent(token)}`;
+  const replyTo = replyAddress(contact.id, lauren);
   const { data, error } = await client.emails.send({
     from,
     to: contact.email as string,

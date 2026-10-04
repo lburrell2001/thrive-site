@@ -113,7 +113,7 @@ export default function AdminHome() {
               <Tile label="New inquiries" value={String(d.newInquiries.length)} alert={d.newInquiries.length > 0} href="#inquiries" />
               <Tile label="Awaiting signature" value={String(d.proposalsAwaiting.length)} href="#proposals" />
               <Tile label="Overdue invoices" value={formatMoneyCents(d.unpaidTotals.overdue_cents)} alert={d.unpaidTotals.overdue_cents > 0} note={d.unpaidTotals.due_cents ? `${formatMoneyCents(d.unpaidTotals.due_cents)} not yet due` : undefined} href="#invoices" />
-              <Tile label="Open pipeline" value={formatMoneyCents(d.pipeline.open_value_cents)} note={`${formatMoneyCents(d.pipeline.won_this_month_cents)} won this month`} href="/admin/crm" />
+              <Tile label="Open pipeline" value={formatMoneyCents(d.pipeline.open_value_cents)} note={`${formatMoneyCents(d.pipeline.won_this_month_cents)} won this month`} href="/admin/crm/pipeline" />
               {d.traffic && (
                 <Tile label="Visits this week" value={d.traffic.visits.toLocaleString()} note={change(d.traffic.visits, d.traffic.previous_visits) ?? undefined} href="/admin/analytics" />
               )}
@@ -241,7 +241,7 @@ export default function AdminHome() {
                 ))}
               </Panel>
 
-              <Panel id="pipeline" title="Pipeline" link={{ href: '/admin/crm', label: 'Board' }} empty={null}>
+              <Panel id="pipeline" title="Pipeline" link={{ href: '/admin/crm/pipeline', label: 'Board' }} empty={null}>
                 {CRM_STAGES.map((stage) => {
                   const row = d.pipeline.stages[stage];
                   return (

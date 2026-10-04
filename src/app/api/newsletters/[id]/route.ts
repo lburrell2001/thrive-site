@@ -11,7 +11,9 @@ const updateSchema = z.object({
   subject: z.string().max(160),
   preheader: z.string().max(200),
   body: z.string().max(60_000),
-  audience: z.enum(['subscribers', 'clients', 'leads', 'tag']),
+  style: z.enum(['designed', 'personal']).nullable(),
+  audience: z.enum(['subscribers', 'clients', 'leads', 'tag', 'prospects', 'prospect_tag', 'contacts']),
+  audience_contact_ids: z.array(z.string().uuid()).max(2000),
   audience_tag: z.string().trim().max(40).nullable().transform((v) => v || null),
   blocks: blocksSchema,
   design: designSchema.partial(),
@@ -22,7 +24,7 @@ export async function GET(req: Request, { params }: Ctx) {
   if (!auth.ok) return auth.response;
   const { id } = await params;
   const { data } = await auth.db.from('newsletters').select('*').eq('id', id).maybeSingle();
-  if (!data) return badRequest('Newsletter not found', 404);
+  if (!data) return badRequest('Email not found', 404);
   return NextResponse.json({ ok: true, data });
 }
 
@@ -42,7 +44,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .select('*')
     .maybeSingle();
   if (error) return badRequest(error.message);
-  if (!data) return badRequest('A sent newsletter can’t be edited — duplicate it instead', 409);
+  if (!data) return badRequest('A sent email can’t be edited — duplicate it instead', 409);
   return NextResponse.json({ ok: true, data });
 }
 
@@ -60,8 +62,8 @@ export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const { id } = await params;
-  const { data: src } = await auth.db.from('newsletters').select('subject, preheader, body, blocks, design, html, html_meta, audience, audience_tag').eq('id', id).maybeSingle();
-  if (!src) return badRequest('Newsletter not found', 404);
+  const { data: src } = await auth.db.from('newsletters').select('style, subject, preheader, body, blocks, design, html, html_meta, audience, audience_tag, audience_contact_ids').eq('id', id).maybeSingle();
+  if (!src) return badRequest('Email not found', 404);
   const { data, error } = await auth.db.from('newsletters').insert({ ...src, subject: src.subject ? `${src.subject} (copy)` : '' }).select('id').single();
   if (error) return badRequest(error.message);
   return NextResponse.json({ ok: true, data });

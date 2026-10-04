@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { NewsletterError, postalAddress, setPostalAddress } from '@/lib/newsletter';
 
-/** The mailing address, and how many people are on the list. */
+/** The mailing address, list sizes, and whether replies are being received. */
 export async function GET(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
@@ -14,7 +14,13 @@ export async function GET(req: Request) {
   const [address, subscribed, pending, unsubscribed] = await Promise.all([
     postalAddress(auth.db), count('subscribed'), count('pending'), count('unsubscribed'),
   ]);
-  return NextResponse.json({ ok: true, data: { address, subscribed, pending, unsubscribed } });
+  const prospects = (await auth.db.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('prospect_status', 'prospect')).count ?? 0;
+  // Whether replies are being caught (see inboundEmail.ts); never the secrets themselves.
+  const inbound = {
+    domain: process.env.RESEND_INBOUND_DOMAIN?.trim() || null,
+    webhook: Boolean(process.env.RESEND_WEBHOOK_SECRET),
+  };
+  return NextResponse.json({ ok: true, data: { address, subscribed, pending, unsubscribed, prospects, inbound } });
 }
 
 export async function PATCH(req: Request) {

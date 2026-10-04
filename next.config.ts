@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
       // The homepage is served from app/newhomepage; keep its old address
       // from being indexed as a second copy of the homepage.
       { source: "/newhomepage", destination: "/", permanent: true },
+      // Newsletters and prospect emails became one Emails area in the CRM.
+      { source: "/admin/crm/newsletters", destination: "/admin/crm/emails", permanent: false },
+      { source: "/admin/crm/newsletters/:id", destination: "/admin/crm/emails/:id", permanent: false },
+      { source: "/admin/crm/prospecting", destination: "/admin/crm/emails?tab=templates", permanent: false },
+      { source: "/admin/crm/prospecting/:id", destination: "/admin/crm/emails/templates/:id", permanent: false },
     ];
   },
   async headers() {

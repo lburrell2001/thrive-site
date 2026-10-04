@@ -1,11 +1,13 @@
-// A prospect email: outreach to one potential client, from a template.
+// One email, whoever it goes to: a newsletter to subscribers, outreach to
+// prospects, or a note to one contact. Same templates, same renderer.
 //
 // Two styles. "personal" reads like a note Lauren typed — plain text on
 // white, no banner, a small signature with the logo — which is what gets
-// replies and stays out of the Promotions tab. "designed" uses the
-// newsletter block builder for a polished, image-led email.
+// replies and stays out of the Promotions tab. "designed" is built from
+// sections in the email designer. Emails written before styles existed
+// (markdown body, or an imported Canva design) still render as they did.
 //
-// Pure: the editor and the send dialog preview with it, and the server
+// Pure: the editors and the send dialog preview with it, and the server
 // sends with it, so the preview is the email.
 
 import { parseArticle } from '@/lib/articleMarkdown';
@@ -13,12 +15,12 @@ import { esc, href, inlineHtml, inlineText, renderNewsletter } from '@/lib/newsl
 import { blockTexts, mapBlockText, newBlock, normalizeBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
 import { SITE_URL } from '@/lib/seo';
 
-export type ProspectStyle = 'personal' | 'designed';
+export type EmailStyle = 'personal' | 'designed';
 
-export interface ProspectTemplate {
+export interface EmailTemplate {
   id: string;
   name: string;
-  style: ProspectStyle;
+  style: EmailStyle;
   subject: string;
   preheader: string;
   body: string;
@@ -29,8 +31,9 @@ export interface ProspectTemplate {
 }
 
 /** What one email is made of: a template, after any edits for this person. */
-export interface ProspectContent {
-  style: ProspectStyle;
+export interface EmailContent {
+  /** Null for emails written before styles existed: markdown body or imported html. */
+  style: EmailStyle | null;
   subject: string;
   preheader: string;
   /** Personal: the whole message. */
@@ -39,24 +42,32 @@ export interface ProspectContent {
   blocks: NewsletterBlock[];
   design: Partial<NewsletterDesign>;
   note?: string;
+  /** An imported Canva design, sanitized. Wins over everything else. */
+  html?: string | null;
 }
 
-export interface ProspectRecipient {
+export interface Recipient {
   firstName: string | null;
   company: string | null;
 }
 
-export interface ProspectRenderOptions extends ProspectRecipient {
+export interface EmailRenderOptions extends Recipient {
   site: string;
   unsubscribeUrl: string;
   postalAddress: string;
+  /** Why they're getting it; shown with the unsubscribe link. See REASON. */
+  reason: string;
 }
 
 export const SENDER_NAME = 'Lauren Burrell';
 
 /** Who template previews and tests are addressed to. */
 export const SAMPLE_CONTACT = { firstName: 'Maya', company: 'Bloom Bakery' };
-export const PROSPECT_REASON = "You're getting this because I thought Thrive Creative Studios could help your business. Not interested? Unsubscribe below and I won't email again.";
+/** The footer line: why this person is getting the email. */
+export const REASON = {
+  subscriber: "You're receiving this because you subscribed to updates from Thrive Creative Studios.",
+  prospect: "You're getting this because I thought Thrive Creative Studios could help your business. Not interested? Unsubscribe and I won't email again.",
+} as const;
 
 // ---------------------------------------------------------- merge fields
 
@@ -66,7 +77,7 @@ export const MERGE_FIELDS = [
 ] as const;
 
 /** Fill {{first_name}} and {{company}}, with a friendly fallback for blanks. */
-export function fillFields(text: string, r: ProspectRecipient) {
+export function fillFields(text: string, r: Recipient) {
   return (text ?? '')
     .replace(/\{\{\s*first_name\s*\}\}/gi, r.firstName?.trim() || 'there')
     .replace(/\{\{\s*company\s*\}\}/gi, r.company?.trim() || 'your business');
@@ -78,25 +89,32 @@ export function fillFields(text: string, r: ProspectRecipient) {
  */
 const PLACEHOLDER = /\[\[[^\]]*\]\]/g;
 
-export function placeholdersIn(c: Pick<ProspectContent, 'style' | 'subject' | 'preheader' | 'body' | 'blocks' | 'note'>): string[] {
+export function placeholdersIn(c: Pick<EmailContent, 'style' | 'subject' | 'preheader' | 'body' | 'blocks' | 'note'>): string[] {
   const parts = [c.subject, c.preheader, c.note ?? ''];
-  if (c.style === 'personal') parts.push(c.body);
+  if (c.style !== 'designed') parts.push(c.body);
   else for (const b of normalizeBlocks(c.blocks)) parts.push(...blockTexts(b));
   return parts.flatMap((t) => t.match(PLACEHOLDER) ?? []);
 }
 
-function fillBlock(b: NewsletterBlock, r: ProspectRecipient): NewsletterBlock {
+function fillBlock(b: NewsletterBlock, r: Recipient): NewsletterBlock {
   return mapBlockText(b, (t) => fillFields(t, r));
 }
 
 // --------------------------------------------------------------- render
 
-export function renderProspect(c: ProspectContent, opts: ProspectRenderOptions) {
+export function renderEmail(c: EmailContent, opts: EmailRenderOptions) {
   const r = { firstName: opts.firstName, company: opts.company };
   const subject = fillFields(c.subject, r);
   const preheader = fillFields(c.preheader, r);
+  const base = { site: opts.site, unsubscribeUrl: opts.unsubscribeUrl, postalAddress: opts.postalAddress, firstName: opts.firstName, reason: opts.reason };
 
-  if (c.style === 'designed') {
+  // Imported designs and pre-style markdown newsletters render as they always have.
+  if (c.html?.trim() || (!c.style && !c.blocks?.length)) {
+    const { html, text } = renderNewsletter({ subject, preheader, body: fillFields(c.body, r), html: c.html, design: c.design }, base);
+    return { subject, html, text };
+  }
+
+  if (c.style === 'designed' || !c.style) {
     const note = c.note?.trim();
     const layout = normalizeBlocks(c.blocks);
     // The note reads as the start of the letter: under the greeting, after any logo bar.
@@ -105,7 +123,7 @@ export function renderProspect(c: ProspectContent, opts: ProspectRenderOptions) 
     const blocks = layout.map((b) => fillBlock(b, r));
     const { html, text } = renderNewsletter(
       { subject, preheader, body: '', blocks, design: c.design },
-      { site: opts.site, unsubscribeUrl: opts.unsubscribeUrl, postalAddress: opts.postalAddress, firstName: opts.firstName, reason: PROSPECT_REASON },
+      base,
     );
     return { subject, html, text };
   }
@@ -117,7 +135,7 @@ const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-s
 const P = `margin:0 0 14px;font-family:${FONT};font-size:15px;line-height:1.6;color:#1a1a1a;`;
 
 /** Looks typed, not designed: text on white, then a short signature. */
-function renderPersonal(body: string, preheader: string, subject: string, opts: ProspectRenderOptions) {
+function renderPersonal(body: string, preheader: string, subject: string, opts: EmailRenderOptions) {
   const blocks = parseArticle(body);
   const html = blocks.map((b) => {
     switch (b.kind) {
@@ -155,7 +173,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;"
 ${html}
 ${signature}
 <p style="margin:36px 0 0;font-family:${FONT};font-size:11px;line-height:1.6;color:#8a8a8a;">
-Not interested? <a href="${esc(opts.unsubscribeUrl)}" style="color:#8a8a8a;text-decoration:underline;">Unsubscribe</a> and I won't email again.<br>
+${esc(opts.reason)} <a href="${esc(opts.unsubscribeUrl)}" style="color:#8a8a8a;text-decoration:underline;">Unsubscribe</a><br>
 Thrive Creative Studios · ${esc(opts.postalAddress)}
 </p>
 </td></tr></table>
@@ -169,7 +187,8 @@ Thrive Creative Studios · ${esc(opts.postalAddress)}
     }),
     `${SENDER_NAME}\nThrive Creative Studios\n${website}`,
     '—',
-    `Not interested? Unsubscribe: ${opts.unsubscribeUrl}`,
+    opts.reason,
+    `Unsubscribe: ${opts.unsubscribeUrl}`,
     `Thrive Creative Studios · ${opts.postalAddress}`,
   ].filter(Boolean).join('\n\n');
 
@@ -179,7 +198,7 @@ Thrive Creative Studios · ${esc(opts.postalAddress)}
 // -------------------------------------------------------------- starters
 
 /** The first templates, so there's something good to start from. */
-export function starterTemplates(): Pick<ProspectTemplate, 'name' | 'style' | 'subject' | 'preheader' | 'body' | 'blocks'>[] {
+export function starterTemplates(): Pick<EmailTemplate, 'name' | 'style' | 'subject' | 'preheader' | 'body' | 'blocks'>[] {
   return [
     {
       name: 'Personal intro',

@@ -27,6 +27,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
 
   const update: Record<string, unknown> = { ...parsed.data };
+  if (parsed.data.prospect_status === 'prospect') update.prospected_at = new Date().toISOString();
   if (parsed.data.phone !== undefined) {
     const phone = normalizePhone(parsed.data.phone);
     if (parsed.data.phone && !phone) return badRequest('Enter a valid phone number, e.g. (555) 123-4567');
