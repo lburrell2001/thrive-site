@@ -29,6 +29,7 @@ import w from './workspace.module.css';
 import { ReviewRequestDialog } from './ReviewRequestDialog';
 import { EmailDialog } from './EmailDialog';
 import { runContactAction } from './contactActions';
+import { isRetainer, retainerProgress } from '@/lib/retainer';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
@@ -466,8 +467,16 @@ function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify
                   {CRM_STAGES.map((st) => <option key={st} value={st}>{STAGE_LABEL[st]}</option>)}
                 </select>
               </label>
-              <ValueField key={deal.value_cents ?? 'none'} cents={deal.value_cents} onSave={(value_cents) => onSave(deal.id, { value_cents }, 'Value saved.')} />
+              {isRetainer(deal) ? (
+                <div>
+                  <span className={s.miniLabel}>Contract value</span>
+                  <p style={{ margin: '9px 0 0', fontWeight: 600 }}>{deal.term_months ? formatMoneyCents(deal.value_cents ?? 0) : 'Add the months'}</p>
+                </div>
+              ) : (
+                <ValueField key={deal.value_cents ?? 'none'} cents={deal.value_cents} onSave={(value_cents) => onSave(deal.id, { value_cents }, 'Value saved.')} />
+              )}
             </div>
+            <DealBilling key={deal.id} deal={deal} onSave={(patch, ok) => onSave(deal.id, patch, ok)} />
             {deal.stage === 'lost' && (
               <LostReason key={deal.lost_reason ?? ''} reason={deal.lost_reason} onSave={(lost_reason) => onSave(deal.id, { lost_reason }, 'Saved.')} />
             )}
@@ -650,6 +659,102 @@ function ValueField({ cents, onSave }: { cents: number | null; onSave: (cents: n
       />
     </label>
   );
+}
+
+/**
+ * One-off or monthly retainer. A retainer is a monthly price for a number
+ * of months from a start date (blank: the day it's won); the database keeps
+ * the deal's value at monthly × months.
+ */
+function DealBilling({ deal, onSave }: { deal: CrmDeal; onSave: (patch: Partial<CrmDeal>, ok?: string) => Promise<boolean> }) {
+  const [retainer, setRetainer] = useState(isRetainer(deal));
+  const [monthly, setMonthly] = useState(dollars(deal.monthly_cents));
+  const [months, setMonths] = useState(deal.term_months ? String(deal.term_months) : '');
+  const [starts, setStarts] = useState(deal.starts_on ?? '');
+  const [error, setError] = useState('');
+
+  async function choose(next: boolean) {
+    setRetainer(next);
+    setError('');
+    // Back to one-off: the value stays at the contract total, editable again.
+    if (!next && isRetainer(deal)) await onSave({ monthly_cents: null }, 'Now a one-off deal.');
+  }
+
+  async function commitMonthly() {
+    const cents = parseDollars(monthly);
+    if (cents === undefined) { setError('Monthly price: numbers only'); return; }
+    setError('');
+    if (cents === null) { if (isRetainer(deal)) await onSave({ monthly_cents: null }, 'Now a one-off deal.'); return; }
+    if (cents !== deal.monthly_cents) await onSave({ monthly_cents: cents }, 'Monthly price saved.');
+  }
+
+  // Months or a start date typed before the price saved: send the price too.
+  function withPrice(patch: Partial<CrmDeal>): Partial<CrmDeal> | null {
+    if (isRetainer(deal)) return patch;
+    const cents = parseDollars(monthly);
+    if (cents == null) { setError('Enter the monthly price first'); return null; }
+    return { monthly_cents: cents, ...patch };
+  }
+
+  async function commitMonths() {
+    const n = months.trim() ? Number(months) : null;
+    if (n !== null && (!Number.isInteger(n) || n < 1 || n > 120)) { setError('Months: a whole number from 1 to 120'); return; }
+    setError('');
+    if (n === deal.term_months) return;
+    const patch = withPrice({ term_months: n });
+    if (patch) await onSave(patch, 'Contract length saved.');
+  }
+
+  async function commitStart(value: string) {
+    setStarts(value);
+    if ((value || null) === deal.starts_on) return;
+    const patch = withPrice({ starts_on: value || null });
+    if (patch) await onSave(patch, 'Start date saved.');
+  }
+
+  const progress = retainerProgress(deal, todayIso());
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className={w.chips} role="group" aria-label="Billing">
+        <button type="button" className={`${w.chip} ${!retainer ? w.chipOn : ''}`} aria-pressed={!retainer} onClick={() => choose(false)}>One-off</button>
+        <button type="button" className={`${w.chip} ${retainer ? w.chipOn : ''}`} aria-pressed={retainer} onClick={() => choose(true)}>Monthly retainer</button>
+      </div>
+      {retainer && (
+        <>
+          <div className={s.dealGrid} style={{ gridTemplateColumns: '1fr 0.7fr 1.1fr' }}>
+            <label>
+              <span className={s.miniLabel}>Per month ($)</span>
+              <input className={p.input} inputMode="decimal" value={monthly} placeholder="2000" onChange={(e) => setMonthly(e.target.value)} onBlur={commitMonthly} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+            </label>
+            <label>
+              <span className={s.miniLabel}>Months</span>
+              <input className={p.input} inputMode="numeric" value={months} placeholder="6" onChange={(e) => setMonths(e.target.value)} onBlur={commitMonths} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />
+            </label>
+            <label>
+              <span className={s.miniLabel}>Starts</span>
+              <input className={p.input} type="date" value={starts} onChange={(e) => void commitStart(e.target.value)} />
+            </label>
+          </div>
+          {error && <p className={s.error}>{error}</p>}
+          <p className={s.eventMeta} style={{ marginTop: 6 }}>
+            {!isRetainer(deal) ? 'Enter the monthly price first.'
+              : !deal.term_months ? 'Add how many months the contract runs to total it up.'
+              : progress?.status === 'active' ? `Month ${progress.month} of ${progress.term} · runs to ${formatDate(addDays(progress.endsOn, -1))} · ${formatMoneyCents(progress.remainingCents)} still to come`
+              : progress?.status === 'upcoming' ? `Starts ${formatDate(progress.startsOn)} · runs to ${formatDate(addDays(progress.endsOn, -1))}`
+              : progress?.status === 'ended' ? `Ended ${formatDate(addDays(progress.endsOn, -1))} — time to talk about renewing?`
+              : `${formatMoneyCents(deal.monthly_cents ?? 0)} a month for ${deal.term_months} months. ${deal.starts_on ? '' : 'It starts the day it’s won unless you set a date.'}`}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function addDays(iso: string, days: number) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
 }
 
 function LostReason({ reason, onSave }: { reason: string | null; onSave: (reason: string | null) => Promise<boolean> }) {

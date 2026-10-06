@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
-import { apiSend } from '../proposals/adminApi';
+import { apiSend, formatMoneyCents } from '../proposals/adminApi';
 import { CRM_STAGES, STAGE_LABEL, type CrmContact, type CrmContactRow, type CrmDeal, type CrmStage } from '@/types/crm';
 import { parseDollars } from './shared';
 
@@ -30,6 +30,9 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
   const [title, setTitle] = useState('');
   const [stage, setStage] = useState<CrmStage>('lead');
   const [value, setValue] = useState('');
+  // A monthly retainer: price × months (the database totals the value).
+  const [retainer, setRetainer] = useState(false);
+  const [months, setMonths] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,10 +54,15 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const value_cents = parseDollars(value);
-    if (value_cents === undefined) { setError('Enter the value as a number, e.g. 2500'); return; }
+    if (value_cents === undefined) { setError(retainer ? 'Enter the monthly price as a number, e.g. 2000' : 'Enter the value as a number, e.g. 2500'); return; }
+    const term = months.trim() ? Number(months) : null;
+    if (retainer && term !== null && (!Number.isInteger(term) || term < 1 || term > 120)) { setError('Months: a whole number from 1 to 120'); return; }
+    if (retainer && value_cents === null) { setError('Enter the monthly price'); return; }
     if (mode === 'existing' && !contactId) { setError('Choose who the deal is with'); return; }
     setSaving(true); setError('');
-    const deal = { title: title.trim(), stage, value_cents };
+    const deal = retainer
+      ? { title: title.trim(), stage, monthly_cents: value_cents, term_months: term }
+      : { title: title.trim(), stage, value_cents };
     try {
       if (mode === 'existing') {
         const created = await apiSend<CrmDeal>('/api/crm/deals', 'POST', { contact_id: contactId, ...deal });
@@ -145,10 +153,23 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
               {CRM_STAGES.map((st) => <option key={st} value={st}>{STAGE_LABEL[st]}</option>)}
             </select>
           </label>
+          <div>
+            <span className={s.miniLabel}>Billing</span>
+            <div className={p.filters} role="group" aria-label="Billing" style={{ margin: 0 }}>
+              <button type="button" aria-pressed={!retainer} className={`${p.filterChip} ${!retainer ? p.filterChipOn : ''}`} onClick={() => setRetainer(false)}>One-off</button>
+              <button type="button" aria-pressed={retainer} className={`${p.filterChip} ${retainer ? p.filterChipOn : ''}`} onClick={() => setRetainer(true)}>Monthly retainer</button>
+            </div>
+          </div>
           <label>
-            <span className={s.miniLabel}>Estimated value ($)</span>
-            <input className={p.input} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="0" />
+            <span className={s.miniLabel}>{retainer ? 'Per month ($)' : 'Estimated value ($)'}</span>
+            <input className={p.input} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder={retainer ? '2000' : '0'} />
           </label>
+          {retainer && (
+            <label>
+              <span className={s.miniLabel}>Months{months && value && parseDollars(value) && Number(months) > 0 ? ` · ${formatMoneyCents((parseDollars(value) ?? 0) * Number(months))} total` : ''}</span>
+              <input className={p.input} inputMode="numeric" value={months} onChange={(e) => setMonths(e.target.value)} placeholder="6" />
+            </label>
+          )}
         </div>
 
         {error && <p className={s.error}>{error}</p>}

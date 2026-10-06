@@ -48,7 +48,13 @@ export interface CrmDeal {
   title: string;
   stage: CrmStage;
   stage_changed_at: string;
+  /** The whole contract. For a retainer the database keeps it at monthly × months. */
   value_cents: number | null;
+  /** Set for a monthly retainer (migration 033). */
+  monthly_cents: number | null;
+  term_months: number | null;
+  /** YYYY-MM-DD; blank means it starts the day it's won. */
+  starts_on: string | null;
   lost_reason: string | null;
   source: string;
   created_at: string;

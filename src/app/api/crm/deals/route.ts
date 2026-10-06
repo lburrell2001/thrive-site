@@ -34,6 +34,9 @@ export async function POST(req: Request) {
       title: parsed.data.title,
       stage: parsed.data.stage,
       value_cents: parsed.data.value_cents ?? null,
+      monthly_cents: parsed.data.monthly_cents ?? null,
+      term_months: parsed.data.term_months ?? null,
+      starts_on: parsed.data.starts_on ?? null,
       source: 'manual',
     })
     .select('*')

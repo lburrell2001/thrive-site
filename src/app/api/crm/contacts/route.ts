@@ -50,7 +50,7 @@ export async function POST(req: Request) {
   if (deal) {
     const { data: created, error: dealError } = await auth.db
       .from('crm_deals')
-      .insert({ contact_id: contact.id, title: deal.title, stage: deal.stage, value_cents: deal.value_cents ?? null, source: 'manual' })
+      .insert({ contact_id: contact.id, title: deal.title, stage: deal.stage, value_cents: deal.value_cents ?? null, monthly_cents: deal.monthly_cents ?? null, term_months: deal.term_months ?? null, starts_on: deal.starts_on ?? null, source: 'manual' })
       .select('id')
       .single();
     if (dealError) return badRequest(dealError.message);

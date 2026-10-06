@@ -36,6 +36,10 @@ const dealFields = {
   title: z.string().trim().min(1, 'Name the deal').max(160),
   stage: z.enum(CRM_STAGES),
   value_cents: z.number().int().min(0).nullable(),
+  /** A retainer: the monthly price. Null makes it a one-off deal again. */
+  monthly_cents: z.number().int().min(0).nullable(),
+  term_months: z.number().int().min(1, 'At least one month').max(120, 'Up to 120 months').nullable(),
+  starts_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a start date').nullable(),
   lost_reason: optionalText(600),
 };
 
@@ -43,6 +47,9 @@ export const createDealSchema = z.object({
   title: dealFields.title,
   stage: dealFields.stage.default('lead'),
   value_cents: dealFields.value_cents.optional(),
+  monthly_cents: dealFields.monthly_cents.optional(),
+  term_months: dealFields.term_months.optional(),
+  starts_on: dealFields.starts_on.optional(),
 });
 
 /** A new contact, optionally with their first deal. */

@@ -12,6 +12,7 @@ import { CRM_STAGES, STAGE_LABEL, type CrmDealCard, type CrmStage } from '@/type
 import { useCrm } from '../CrmContext';
 import { NewDealDialog } from '../NewDealDialog';
 import { STAGE_COLOR, avatarColor, initials, todayIso } from '../shared';
+import { activeRetainers, isRetainer, retainerLabel, retainerProgress } from '@/lib/retainer';
 
 /** Won and lost pile up forever; show the recent ones until asked. */
 const CLOSED_LIMIT = 15;
@@ -90,7 +91,8 @@ export default function PipelinePage() {
     // Tasks are per contact; count contacts, not every deal they have.
     const due = new Set(all.filter((d) => d.next_task_due && d.next_task_due <= today).map((d) => d.contact_id)).size;
     const unread = all.filter((d) => d.new_inquiries > 0).length;
-    return { pipeline, wonThisMonth, due, unread };
+    const retainers = activeRetainers(all, today);
+    return { pipeline, wonThisMonth, due, unread, retainers };
   }, [deals, today]);
 
   const loaded = deals !== null;
@@ -111,6 +113,11 @@ export default function PipelinePage() {
       <div className={w.statRow}>
         <div className={w.stat}><p className={w.statLabel}>Open pipeline</p><p className={w.statValue}>{formatMoneyCents(stats.pipeline)}</p></div>
         <div className={w.stat}><p className={w.statLabel}>Won this month</p><p className={w.statValue}>{formatMoneyCents(stats.wonThisMonth)}</p></div>
+        <div className={w.stat}>
+          <p className={w.statLabel}>Monthly retainers</p>
+          <p className={w.statValue}>{formatMoneyCents(stats.retainers.monthlyCents)}<span style={{ fontSize: 14, fontWeight: 600 }}>/mo</span></p>
+          <p className={w.statNote}>{stats.retainers.count ? `${stats.retainers.count} running now` : 'None running'}</p>
+        </div>
         <button type="button" className={w.stat} style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit', borderColor: dueOnly ? '#141414' : undefined }} aria-pressed={dueOnly} onClick={() => setDueOnly((v) => !v)}>
           <p className={w.statLabel}>Follow-ups due</p>
           <p className={w.statValue} style={{ color: stats.due ? '#b0045f' : undefined }}>{stats.due}</p>
@@ -218,6 +225,7 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
   const late = d.next_task_due && d.next_task_due < today;
   const dueToday = d.next_task_due === today;
   const who = [d.contact.name || d.contact.email, d.contact.company].filter(Boolean).join(' · ');
+  const progress = retainerProgress(d, today);
   return (
     <button
       type="button"
@@ -236,8 +244,15 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
         <span className={s.cardSub} style={{ margin: 0 }}>{who || 'Unnamed'}</span>
       </div>
       <div className={s.cardRow}>
-        {d.value_cents != null && d.value_cents > 0 && (
+        {isRetainer(d) ? (
+          <span className={s.cardValue} title={d.value_cents ? `${formatMoneyCents(d.value_cents)} contract` : undefined}>{retainerLabel(d, formatMoneyCents)}</span>
+        ) : d.value_cents != null && d.value_cents > 0 && (
           <span className={s.cardValue}>{formatMoneyCents(d.value_cents)}</span>
+        )}
+        {progress && (
+          <span className={s.chip} style={progress.status === 'ended' ? { color: '#b45309' } : undefined}>
+            {progress.status === 'active' ? `Month ${progress.month} of ${progress.term}` : progress.status === 'upcoming' ? `Starts ${formatDate(progress.startsOn)}` : 'Ended — renew?'}
+          </span>
         )}
         {d.latest_proposal && d.stage === 'proposal' && (
           <span className={s.chip}>{d.latest_proposal.status}</span>
