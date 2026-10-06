@@ -58,7 +58,7 @@ export async function DELETE(req: Request, { params }: Ctx) {
     .from('newsletters')
     .update({ html: null, html_meta: null, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .in('status', ['draft', 'failed'])
+    .in('status', ['draft', 'failed', 'scheduled'])
     .select('*')
     .maybeSingle();
   if (error) return badRequest(error.message);

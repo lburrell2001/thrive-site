@@ -3,7 +3,7 @@
 // Used by /api/track for every landing and by /api/contact for an
 // inquiry's first-ever visit, so both are classified the same way.
 
-export type Channel = 'search' | 'social' | 'ai' | 'referral' | 'email' | 'paid' | 'direct';
+export type Channel = 'search' | 'social' | 'ai' | 'referral' | 'email' | 'paid' | 'print' | 'direct';
 
 export const CHANNEL_LABEL: Record<Channel, string> = {
   search: 'Search',
@@ -12,6 +12,7 @@ export const CHANNEL_LABEL: Record<Channel, string> = {
   referral: 'Other sites',
   email: 'Email',
   paid: 'Paid ads',
+  print: 'Print (QR codes)',
   direct: 'Direct / untagged',
 };
 
@@ -65,7 +66,7 @@ const UTM_NAMES: Record<string, string> = {
   twitter: 'X', x: 'X',
   threads: 'Threads', tiktok: 'TikTok', pinterest: 'Pinterest', youtube: 'YouTube',
   google: 'Google', gbp: 'Google Business Profile', bing: 'Bing',
-  newsletter: 'Newsletter', email: 'Email', chatgpt: 'ChatGPT', perplexity: 'Perplexity',
+  newsletter: 'Newsletter', email: 'Email', print: 'Print', qr: 'Print', chatgpt: 'ChatGPT', perplexity: 'Perplexity',
 };
 
 // Tagged sources with no referrer host of their own.
@@ -106,6 +107,8 @@ export function classifyVisit(origin: VisitOrigin, ownHost?: string | null): Cla
   let channel: Channel;
   if (origin.click_id || (utmMedium && /^(cpc|ppc|paid|paidsocial|paid_social|display|ads?)$/.test(utmMedium))) {
     channel = 'paid';
+  } else if (utmMedium && /^(print|qr|postcard|flyer|mailer|letter|door_hanger|brochure|leave_behind)$/.test(utmMedium)) {
+    channel = 'print';
   } else if (utmMedium && /e-?mail|newsletter/.test(utmMedium)) {
     channel = 'email';
   } else if (utmMedium && /social|bio|story|stories|post|reel/.test(utmMedium)) {

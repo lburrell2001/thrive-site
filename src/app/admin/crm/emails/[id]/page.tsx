@@ -1,7 +1,8 @@
 'use client';
 
 // Write an email, choose who gets it, see exactly what they'll receive,
-// send a test to yourself, then send. Subscribers, prospects or a
+// send a test to yourself, then send — now or at a set time. Drafts save
+// themselves a moment after each change. Subscribers, prospects or a
 // hand-picked group: the same email either way, with the footer line and
 // reply handling suited to who it's going to.
 
@@ -13,6 +14,7 @@ import w from '../../workspace.module.css';
 import s2 from './editor.module.css';
 import { apiGet, apiSend, formatDate } from '../../../proposals/adminApi';
 import { useCrm } from '../../CrmContext';
+import { CRON_MINUTES, defaultSendTime, formatWhen, scheduleProblem } from '@/lib/scheduleTime';
 import { MERGE_FIELDS, OUTREACH, REASON, renderEmail, type Audience, type EmailStyle } from '@/lib/emailContent';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 import type { Newsletter } from '@/lib/newsletter';
@@ -68,13 +70,23 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
   const [address, setAddress] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [when, setWhen] = useState(defaultSendTime);
+  // The draft as last saved, to tell whether there's anything to save.
+  const [savedJson, setSavedJson] = useState('');
   const [error, setError] = useState('');
   const body = useRef<HTMLTextAreaElement>(null);
+
+  /** Take the server's copy as the draft (on load, and after sending). */
+  function adopt(fresh: Newsletter) {
+    const d = draftOf(fresh);
+    setN(fresh); setDraft(d); setSavedJson(JSON.stringify(d));
+  }
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([apiGet<Newsletter>(`/api/newsletters/${id}`), apiGet<{ address: string | null }>('/api/newsletters/settings')])
-      .then(([data, st]) => { if (!cancelled) { setN(data); setDraft(draftOf(data)); setAddress(st.address); } })
+      .then(([data, st]) => { if (!cancelled) { adopt(data); setAddress(st.address); } })
       .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Could not load the email'); });
     return () => { cancelled = true; };
   }, [id]);
@@ -92,17 +104,21 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
     return () => { cancelled = true; };
   }, [audienceKey, id]);
 
-  const dirty = useMemo(() => Boolean(n && draft && JSON.stringify(draftOf(n)) !== JSON.stringify(draft)), [n, draft]);
+  const draftJson = useMemo(() => (draft ? JSON.stringify(draft) : ''), [draft]);
+  const dirty = Boolean(draft && draftJson !== savedJson);
   const locked = n?.status === 'sent' || n?.status === 'sending';
   const outreach = draft ? OUTREACH.includes(draft.audience) : false;
   const reason = outreach ? REASON.prospect : REASON.subscriber;
 
+  // Saves what's on screen without replacing it, so typing during the
+  // request isn't lost; whatever changed meanwhile saves next time.
   const save = useCallback(async (quiet = false) => {
     if (!draft) return false;
+    const sending = JSON.stringify(draft);
     try {
       const updated = await apiSend<Newsletter>(`/api/newsletters/${id}`, 'PATCH', draft);
       setN(updated);
-      setDraft(draftOf(updated));
+      setSavedJson(sending);
       if (!quiet) show('Saved.');
       return true;
     } catch (e) {
@@ -110,6 +126,22 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
       return false;
     }
   }, [draft, id, show]);
+
+  // Autosave a moment after the last change. A failed save waits for the
+  // next change rather than retrying in a loop.
+  useEffect(() => {
+    if (!dirty || locked || busy) return;
+    const t = setTimeout(() => { void save(true); }, 1500);
+    return () => clearTimeout(t);
+  }, [draftJson, dirty, locked, busy, save]);
+
+  // Leaving with changes the autosave hasn't caught yet.
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
 
   const preview = useMemo(() => {
     if (!draft || typeof window === 'undefined') return '';
@@ -157,12 +189,43 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
       show(`Sent to ${r.sent} ${r.sent === 1 ? 'person' : 'people'}.`);
       setConfirming(false);
       const fresh = await apiGet<Newsletter>(`/api/newsletters/${id}`);
-      setN(fresh); setDraft(draftOf(fresh));
+      adopt(fresh);
       refresh();
     } catch (e) {
       show(e instanceof Error ? e.message : 'Could not send', 'error');
       const fresh = await apiGet<Newsletter>(`/api/newsletters/${id}`).catch(() => null);
-      if (fresh) { setN(fresh); setDraft(draftOf(fresh)); }
+      if (fresh) adopt(fresh);
+    }
+    setBusy('');
+  }
+
+  async function schedule() {
+    const at = new Date(when);
+    const problem = scheduleProblem(at);
+    if (problem) { show(problem, 'error'); return; }
+    setBusy('schedule');
+    if (dirty && !(await save(true))) { setBusy(''); return; }
+    try {
+      const updated = await apiSend<Newsletter>(`/api/newsletters/${id}/schedule`, 'POST', { at: at.toISOString() });
+      setN(updated);
+      setScheduling(false);
+      show(`Scheduled for ${formatWhen(updated.scheduled_at)}.`);
+      refresh();
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not schedule', 'error');
+    }
+    setBusy('');
+  }
+
+  async function unschedule() {
+    setBusy('schedule');
+    try {
+      const updated = await apiSend<Newsletter>(`/api/newsletters/${id}/schedule`, 'DELETE');
+      setN(updated);
+      show('Unscheduled — it’s a draft again.');
+      refresh();
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not unschedule', 'error');
     }
     setBusy('');
   }
@@ -219,7 +282,9 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
           <h1 className={w.title} style={{ fontSize: 24 }}>{draft.subject || 'Untitled email'}</h1>
           <p className={w.sub}>
             {n.status === 'sent' ? `Sent ${formatDate(n.sent_at)} to ${n.recipient_count} ${n.recipient_count === 1 ? 'person' : 'people'}. Sent emails can’t be edited — duplicate it to send a new version.`
-              : n.status === 'failed' ? `Sending stopped: ${n.last_error}` : dirty ? 'Unsaved changes' : 'Draft · saved'}
+              : n.status === 'failed' ? `Sending stopped: ${n.last_error}`
+              : n.status === 'scheduled' ? `Scheduled for ${formatWhen(n.scheduled_at)} · ${dirty ? 'saving…' : 'changes save automatically'}`
+              : dirty ? 'Saving…' : 'Draft · saved'}
           </p>
         </div>
         <div className={w.headActions}>
@@ -228,10 +293,15 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
           ) : (
             <>
               <button type="button" className={p.btn} onClick={saveTemplate}>Save as template</button>
-              <button type="button" className={p.btn} onClick={() => save()} disabled={!dirty || locked}>Save</button>
+              <button type="button" className={p.btn} onClick={() => save()} disabled={!dirty || locked}>{dirty ? 'Save' : 'Saved'}</button>
               <button type="button" className={p.btn} onClick={sendTest} disabled={busy !== '' || locked}>{busy === 'test' ? 'Sending…' : 'Send me a test'}</button>
+              {n.status === 'scheduled' ? (
+                <button type="button" className={p.btn} onClick={unschedule} disabled={busy !== ''}>{busy === 'schedule' ? 'Unscheduling…' : 'Unschedule'}</button>
+              ) : (
+                <button type="button" className={p.btn} onClick={() => setScheduling(true)} disabled={!canSend || busy !== ''}>Send later…</button>
+              )}
               <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => setConfirming(true)} disabled={!canSend || busy !== ''}>
-                {n.status === 'failed' ? 'Resume sending' : `Send to ${count ?? '…'}`}
+                {n.status === 'failed' ? 'Resume sending' : n.status === 'scheduled' ? 'Send now' : `Send to ${count ?? '…'}`}
               </button>
             </>
           )}
@@ -374,6 +444,29 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
 
       {n.status !== 'sent' && (
         <button type="button" className={`${p.btn} ${p.btnDanger}`} style={{ marginTop: 18 }} onClick={remove}>Delete email</button>
+      )}
+
+      {scheduling && (
+        <>
+          <div className={w.paletteBack} style={{ zIndex: 60 }} onClick={() => busy !== 'schedule' && setScheduling(false)} />
+          <div className={w.dialog} role="dialog" aria-modal="true" aria-labelledby="schedule-title">
+            <h2 id="schedule-title" className={w.dialogTitle}>Send “{draft.subject}” later</h2>
+            <label style={{ display: 'block', marginTop: 12 }}>
+              <span className={p.label}>Send at (your time)</span>
+              <input type="datetime-local" className={p.input} value={when} step={CRON_MINUTES * 60} onChange={(e) => setWhen(e.target.value)} disabled={busy === 'schedule'} />
+            </label>
+            <p style={{ fontSize: 13.5, lineHeight: 1.6 }}>
+              It goes out within {CRON_MINUTES} minutes of this time, to whoever is in the audience then — right now that’s <strong>{count} {count === 1 ? 'person' : 'people'}</strong>.
+              You can keep editing until it sends, or unschedule it. If it can’t send, you’ll get an email saying why.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button type="button" className={p.btn} onClick={() => setScheduling(false)} disabled={busy === 'schedule'}>Cancel</button>
+              <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={schedule} disabled={busy === 'schedule'}>
+                {busy === 'schedule' ? 'Scheduling…' : 'Schedule'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {confirming && (

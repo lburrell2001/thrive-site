@@ -28,6 +28,7 @@ import { LIFECYCLE_LABEL, STAGE_COLOR, avatarColor, initials, lifecycleOf, parse
 import w from './workspace.module.css';
 import { ReviewRequestDialog } from './ReviewRequestDialog';
 import { EmailDialog } from './EmailDialog';
+import { runContactAction } from './contactActions';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
@@ -51,6 +52,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   newsletter: '#0f766e',
   prospect: '#fd6100',
   reply: '#0a8f4f',
+  print: '#9409ce',
 };
 
 /** How a deal came to be, for "Opened … from …". Manual deals say nothing. */
@@ -60,6 +62,7 @@ const DEAL_SOURCE: Record<string, string> = {
   portal: 'the portal',
   'email reply': 'a reply to your email',
   booking: 'a booked call',
+  print: 'a print campaign',
 };
 
 function when(iso: string) {
@@ -182,16 +185,20 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   async function remove() {
     const c = detail?.contact;
     if (!c) return;
-    if (!window.confirm(`Delete ${c.name || 'this contact'} from the CRM? Their notes and tasks go too. Proposals, invoices and any portal account are not affected.`)) return;
     setBusy('delete');
-    try {
-      await apiSend(`/api/crm/contacts/${id}`, 'DELETE');
-      notify('Contact deleted.');
-      onDeleted();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : 'Could not delete', 'error');
-      setBusy('');
+    if (await runContactAction({ action: 'delete' }, [id], c.name || c.email || 'this contact', notify)) onDeleted();
+    else setBusy('');
+  }
+
+  async function moveTo(to: 'lead' | 'prospect') {
+    const c = detail?.contact;
+    if (!c) return;
+    setBusy('move');
+    if (await runContactAction({ action: 'move', to }, [id], c.name || c.email || 'this contact', notify)) {
+      await reload();
+      onChanged();
     }
+    setBusy('');
   }
 
   async function setProspect(on: boolean) {
@@ -253,14 +260,26 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                 {detail.portal ? (
                   <Link href={`/admin/clients?client=${detail.portal.id}`} className={`${p.btn} ${p.btnSmall}`}>Client page</Link>
                 ) : stage === 'prospect' ? (
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setProspect(false)}>Not a prospect</button>
+                  <>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => moveTo('lead')} disabled={busy === 'move'}>Move to Leads</button>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setProspect(false)}>Not a prospect</button>
+                  </>
                 ) : stage === 'contact' ? (
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setProspect(true)}>Make prospect</button>
+                  <>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setProspect(true)}>Make prospect</button>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => moveTo('lead')} disabled={busy === 'move'}>Make lead</button>
+                  </>
                 ) : (
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={createPortal} disabled={busy === 'portal'}>
-                    {busy === 'portal' ? 'Creating…' : 'Create portal login'}
-                  </button>
+                  <>
+                    {stage === 'lead' && (
+                      <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => moveTo('prospect')} disabled={busy === 'move'}>Move to Prospects</button>
+                    )}
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={createPortal} disabled={busy === 'portal'}>
+                      {busy === 'portal' ? 'Creating…' : 'Create portal login'}
+                    </button>
+                  </>
                 )}
+                <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={remove} disabled={busy === 'delete'}>Delete</button>
               </div>
 
               <div className={s.panelStats}>
@@ -344,7 +363,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
         <EmailDialog
           contactId={id}
           onClose={() => setProspecting(false)}
-          onSent={(to) => { setProspecting(false); notify(`Sent to ${to}.`); void reload(); onChanged(); }}
+          onDone={(message) => { setProspecting(false); notify(message); void reload(); onChanged(); }}
         />
       )}
 

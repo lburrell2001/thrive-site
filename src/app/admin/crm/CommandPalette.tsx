@@ -17,6 +17,8 @@ const ACTIONS = [
   { label: 'Contacts', hint: 'Everyone', href: '/admin/crm/contacts' },
   { label: 'Emails', hint: 'Newsletters, outreach, templates', href: '/admin/crm/emails' },
   { label: 'New deal', hint: 'Open a deal with someone', href: '/admin/crm/pipeline?new=1' },
+  { label: 'Campaigns', hint: 'Print and email, and what came of them', href: '/admin/crm/campaigns' },
+  { label: 'Log a print campaign', hint: 'Postcard, flyer, mailer…', href: '/admin/crm/campaigns?new=1' },
 ];
 
 export function CommandPalette({ contacts, onClose, onOpenContact }: {

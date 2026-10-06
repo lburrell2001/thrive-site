@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.response;
   const { data, error } = await auth.db
     .from('newsletters')
-    .select('id, style, subject, audience, audience_tag, audience_contact_ids, status, recipient_count, sent_at, updated_at, last_error')
+    .select('id, style, subject, audience, audience_tag, audience_contact_ids, status, scheduled_at, recipient_count, sent_at, updated_at, last_error')
     .order('updated_at', { ascending: false });
   if (error) return badRequest(error.message);
   return NextResponse.json({ ok: true, data });

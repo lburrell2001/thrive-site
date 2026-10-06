@@ -3,7 +3,8 @@
 // Emails: every email to an audience (newsletters to subscribers, outreach
 // to prospects, a hand-picked group), the templates they start from, and
 // the settings every email needs (mailing address, reply catching).
-// One-to-one emails are sent from a contact's panel with the same templates.
+// One-to-one emails are sent from a contact's panel with the same templates;
+// the ones saved or scheduled but not sent yet are listed here too.
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -13,6 +14,8 @@ import w from '../workspace.module.css';
 import { apiGet, apiSend, formatDate } from '../../proposals/adminApi';
 import { useCrm } from '../CrmContext';
 import type { EmailStyle, EmailTemplate } from '@/lib/emailContent';
+import { formatWhen } from '@/lib/scheduleTime';
+import { EmailDialog } from '../EmailDialog';
 
 interface Row {
   id: string;
@@ -21,11 +24,24 @@ interface Row {
   audience: string;
   audience_tag: string | null;
   audience_contact_ids: string[];
-  status: 'draft' | 'sending' | 'sent' | 'failed';
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+  scheduled_at: string | null;
   recipient_count: number;
   sent_at: string | null;
   updated_at: string;
   last_error: string | null;
+}
+
+/** A one-to-one email saved or scheduled from a contact's Email button. */
+interface OneToOne {
+  id: string;
+  contact_id: string;
+  subject: string;
+  status: 'draft' | 'scheduled' | 'sending' | 'failed';
+  scheduled_at: string | null;
+  error: string | null;
+  updated_at: string;
+  crm_contacts: { name: string; email: string | null; company: string | null } | null;
 }
 
 interface Settings {
@@ -48,13 +64,16 @@ const AUDIENCE: Record<string, string> = {
   subscribers: 'Subscribers', clients: 'Subscribed clients', leads: 'Subscribed leads', tag: 'Subscribers with a tag',
   prospects: 'All prospects', prospect_tag: 'Prospects with a tag', contacts: 'Hand-picked',
 };
-const STATUS_PILL: Record<Row['status'], string> = { draft: w.pillMuted, sending: w.pillBlue, sent: w.pillClient, failed: w.pillLead };
+const STATUS_PILL: Record<Row['status'], string> = { draft: w.pillMuted, scheduled: w.pillProspect, sending: w.pillBlue, sent: w.pillClient, failed: w.pillLead };
+const ROW_COLUMNS = 'minmax(0,1fr) 170px 90px 150px';
 
 export default function EmailsPage() {
   const router = useRouter();
   const { notify: show, version } = useCrm();
   const [tab, setTab] = useState<Tab>(() => { const t = urlParam('tab'); return t === 'templates' || t === 'settings' ? t : 'emails'; });
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [singles, setSingles] = useState<OneToOne[]>([]);
+  const [emailing, setEmailing] = useState<string | null>(null);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [address, setAddress] = useState('');
@@ -63,26 +82,27 @@ export default function EmailsPage() {
     urlParam('new') === '1' ? { ids: (urlParam('contacts') ?? '').split(',').filter(Boolean) } : null);
 
   const load = useCallback(async () => {
-    const [r, t, st] = await Promise.all([
+    const [r, t, st, o] = await Promise.all([
       apiGet<Row[]>('/api/newsletters'),
       apiGet<EmailTemplate[]>('/api/emails/templates').catch(() => []),
       apiGet<Settings>('/api/newsletters/settings'),
+      apiGet<OneToOne[]>('/api/emails/drafts').catch(() => []),
     ]);
-    return { r, t, st };
+    return { r, t, st, o };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     load()
-      .then(({ r, t, st }) => { if (!cancelled) { setRows(r); setTemplates(t); setSettings(st); setAddress(st.address ?? ''); } })
+      .then(({ r, t, st, o }) => { if (!cancelled) { setRows(r); setTemplates(t); setSettings(st); setSingles(o); setAddress(st.address ?? ''); } })
       .catch((e) => { if (!cancelled) { show(e instanceof Error ? e.message : 'Could not load emails', 'error'); setRows([]); } });
     return () => { cancelled = true; };
   }, [load, show, version]);
 
   async function reload() {
     try {
-      const { r, t, st } = await load();
-      setRows(r); setTemplates(t); setSettings(st);
+      const { r, t, st, o } = await load();
+      setRows(r); setTemplates(t); setSettings(st); setSingles(o);
     } catch { /* the toast from the first load is enough */ }
   }
 
@@ -107,8 +127,12 @@ export default function EmailsPage() {
     }
   }
 
-  const drafts = rows?.filter((r) => r.status !== 'sent') ?? [];
+  const scheduled = (rows ?? []).filter((r) => r.status === 'scheduled')
+    .sort((a, b) => (a.scheduled_at ?? '').localeCompare(b.scheduled_at ?? ''));
+  const drafts = rows?.filter((r) => r.status !== 'sent' && r.status !== 'scheduled') ?? [];
   const sent = rows?.filter((r) => r.status === 'sent') ?? [];
+  const singleScheduled = singles.filter((o) => o.status === 'scheduled' || o.status === 'sending');
+  const singleDrafts = singles.filter((o) => o.status === 'draft' || o.status === 'failed');
   const inboundOn = Boolean(settings?.inbound.domain && settings.inbound.webhook);
 
   return (
@@ -154,15 +178,15 @@ export default function EmailsPage() {
 
       {tab === 'emails' && (
         <div style={{ display: 'grid', gap: 18 }}>
-          {rows === null ? <p className={w.empty}>Loading…</p> : rows.length === 0 ? (
+          {rows === null ? <p className={w.empty}>Loading…</p> : rows.length === 0 && singles.length === 0 ? (
             <div className={w.card}><p className={w.empty}>No emails yet. Start one with New email — for prospects, a short personal note gets the most replies.</p></div>
           ) : (
-            [['Drafts', drafts], ['Sent', sent]].map(([label, list]) => (list as Row[]).length > 0 && (
-              <section key={label as string}>
-                <p className={w.navLabel} style={{ margin: '0 4px 8px' }}>{label as string}</p>
+            ([['Scheduled', scheduled, singleScheduled], ['Drafts', drafts, singleDrafts], ['Sent', sent, []]] as const).map(([label, list, ones]) => (list.length > 0 || ones.length > 0) && (
+              <section key={label}>
+                <p className={w.navLabel} style={{ margin: '0 4px 8px' }}>{label}</p>
                 <div className={w.table}>
-                  {(list as Row[]).map((r) => (
-                    <Link key={r.id} href={`/admin/crm/emails/${r.id}`} className={`${w.row} ${w.rowClick}`} style={{ gridTemplateColumns: 'minmax(0,1fr) 170px 90px 120px', color: 'inherit', textDecoration: 'none' }}>
+                  {list.map((r) => (
+                    <Link key={r.id} href={`/admin/crm/emails/${r.id}`} className={`${w.row} ${w.rowClick}`} style={{ gridTemplateColumns: ROW_COLUMNS, color: 'inherit', textDecoration: 'none' }}>
                       <span className={w.whoText}>
                         <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{r.subject || 'Untitled email'}</span>
                         <span className={`${w.truncate} ${w.muted}`} style={{ display: 'block', fontSize: 12.5 }}>
@@ -173,8 +197,23 @@ export default function EmailsPage() {
                         {r.audience === 'contacts' ? `${r.audience_contact_ids.length} hand-picked` : r.audience.endsWith('tag') ? `${AUDIENCE[r.audience]}: ${r.audience_tag ?? '—'}` : AUDIENCE[r.audience]}
                       </span>
                       <span><span className={`${w.pill} ${STATUS_PILL[r.status]}`}>{r.status}</span></span>
-                      <span className={`${w.muted} ${w.nowrap} ${w.hideSmall}`}>{r.sent_at ? `${r.recipient_count} · ${formatDate(r.sent_at)}` : formatDate(r.updated_at)}</span>
+                      <span className={`${w.muted} ${w.nowrap} ${w.hideSmall}`}>
+                        {r.status === 'scheduled' ? formatWhen(r.scheduled_at) : r.sent_at ? `${r.recipient_count} · ${formatDate(r.sent_at)}` : formatDate(r.updated_at)}
+                      </span>
                     </Link>
+                  ))}
+                  {ones.map((o) => (
+                    <button key={o.id} type="button" onClick={() => setEmailing(o.contact_id)} className={`${w.row} ${w.rowClick}`} style={{ gridTemplateColumns: ROW_COLUMNS, color: 'inherit', textAlign: 'left', font: 'inherit', width: '100%', border: 0, background: 'none' }}>
+                      <span className={w.whoText}>
+                        <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{o.subject || 'Untitled email'}</span>
+                        <span className={`${w.truncate} ${w.muted}`} style={{ display: 'block', fontSize: 12.5 }}>
+                          One-to-one{o.status === 'failed' && o.error ? ` · ${o.error}` : ''}
+                        </span>
+                      </span>
+                      <span className={`${w.muted} ${w.truncate} ${w.hideSmall}`}>{o.crm_contacts?.name || o.crm_contacts?.email || '—'}</span>
+                      <span><span className={`${w.pill} ${STATUS_PILL[o.status]}`}>{o.status}</span></span>
+                      <span className={`${w.muted} ${w.nowrap} ${w.hideSmall}`}>{o.status === 'scheduled' ? formatWhen(o.scheduled_at) : formatDate(o.updated_at)}</span>
+                    </button>
                   ))}
                 </div>
               </section>
@@ -247,6 +286,10 @@ export default function EmailsPage() {
             </div>
           </section>
         </div>
+      )}
+
+      {emailing && (
+        <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onDone={(message) => { setEmailing(null); show(message); void reload(); }} />
       )}
 
       {starting && (

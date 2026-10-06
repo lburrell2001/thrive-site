@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: Ctx) {
   return NextResponse.json({ ok: true, data });
 }
 
-/** Edit a draft. A sent newsletter is a record and can't be changed. */
+/** Edit a draft (or a scheduled one). A sent newsletter is a record and can't be changed. */
 export async function PATCH(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
@@ -40,7 +40,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .from('newsletters')
     .update({ ...parsed.data, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .in('status', ['draft', 'failed'])
+    .in('status', ['draft', 'failed', 'scheduled'])
     .select('*')
     .maybeSingle();
   if (error) return badRequest(error.message);

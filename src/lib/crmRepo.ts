@@ -190,7 +190,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies, print] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -211,6 +211,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     db.from('newsletter_sends').select('id, status, error, sent_at, newsletters ( id, subject )').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('prospect_emails').select('id, subject, body, style, status, error, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('email_replies').select('id, subject, text, from_email, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(100),
+    db.from('marketing_recipients').select('id, outcome, note, created_at, marketing_campaigns ( id, name, piece, sent_on )').eq('contact_id', id),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -322,6 +323,21 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       title: `Email · ${letter?.subject || 'Untitled'}`,
       meta: n.status === 'sent' ? 'Sent' : `Failed — ${n.error ?? 'unknown error'}`,
       href: letter ? `/admin/crm/emails/${letter.id}` : null,
+    });
+  }
+
+  for (const r of print.data ?? []) {
+    const c = r.marketing_campaigns as unknown as { id: string; name: string; piece: string; sent_on: string | null } | null;
+    if (!c) continue;
+    const piece = c.piece.replace(/_/g, ' ');
+    timeline.push({
+      key: `print:${r.id}`,
+      kind: 'print',
+      at: c.sent_on ? `${c.sent_on}T12:00:00` : r.created_at,
+      title: `${piece[0].toUpperCase()}${piece.slice(1)} · ${c.name}`,
+      meta: { sent: c.sent_on ? 'Sent' : 'On the list — not sent yet', responded: 'Got in touch', lead: 'Became a lead', won: 'Became a client', no_response: 'No response' }[r.outcome as string] ?? r.outcome,
+      body: r.note || null,
+      href: `/admin/crm/campaigns/${c.id}`,
     });
   }
 

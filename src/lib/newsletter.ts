@@ -45,7 +45,9 @@ export interface Newsletter {
   audience_tag: string | null;
   /** The hand-picked audience. */
   audience_contact_ids: string[];
-  status: 'draft' | 'sending' | 'sent' | 'failed';
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+  /** When a scheduled email goes out (the cron runs every five minutes). */
+  scheduled_at: string | null;
   last_error: string | null;
   recipient_count: number;
   sent_at: string | null;
@@ -271,14 +273,60 @@ export async function sendTest(db: SupabaseClient, n: Newsletter, to: string, si
   if (error) throw new NewsletterError(error.message);
 }
 
-export async function sendNewsletter(db: SupabaseClient, id: string, site: string) {
-  // Claim it: only a draft or a failed send can start, so two clicks can't
-  // send twice.
+const UNSENT: Newsletter['status'][] = ['draft', 'failed', 'scheduled'];
+
+/**
+ * Send it later. Checked now as if sending, so a problem shows up while
+ * Lauren is looking, not in the middle of the night; checked again at send
+ * time, when the audience is worked out afresh.
+ */
+export async function scheduleNewsletter(db: SupabaseClient, id: string, at: Date) {
+  const { data } = await db.from('newsletters').select('*').eq('id', id).maybeSingle();
+  if (!data) throw new NewsletterError('Email not found');
+  const n = data as Newsletter;
+  if (!UNSENT.includes(n.status)) throw new NewsletterError('This email is already sending or has been sent');
+  ready(n, await postalAddress(db));
+  if (!(await audienceFor(db, n)).length) {
+    throw new NewsletterError(OUTREACH.includes(n.audience) ? 'Nobody in this audience can be emailed' : 'Nobody in this audience is subscribed yet');
+  }
+  const { data: updated, error } = await db
+    .from('newsletters')
+    .update({ status: 'scheduled', scheduled_at: at.toISOString(), last_error: null, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .in('status', UNSENT)
+    .select('*')
+    .maybeSingle();
+  if (error) throw new NewsletterError(error.message);
+  if (!updated) throw new NewsletterError('This email is already sending or has been sent');
+  return updated as Newsletter;
+}
+
+/** Back to a draft. Refused once the cron has started sending it. */
+export async function unscheduleNewsletter(db: SupabaseClient, id: string) {
+  const { data, error } = await db
+    .from('newsletters')
+    .update({ status: 'draft', scheduled_at: null, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('status', 'scheduled')
+    .select('*')
+    .maybeSingle();
+  if (error) throw new NewsletterError(error.message);
+  if (!data) throw new NewsletterError('It’s already sending or has been sent');
+  return data as Newsletter;
+}
+
+/**
+ * `from` is which statuses may start a send: the cron passes only
+ * 'scheduled', so an email unscheduled a moment ago stays put.
+ */
+export async function sendNewsletter(db: SupabaseClient, id: string, site: string, from: Newsletter['status'][] = UNSENT) {
+  // Claim it: only an unsent email can start, so two clicks (or a click
+  // and the cron) can't send twice.
   const { data: claimed } = await db
     .from('newsletters')
     .update({ status: 'sending', last_error: null })
     .eq('id', id)
-    .in('status', ['draft', 'failed'])
+    .in('status', from)
     .select('*')
     .maybeSingle();
   if (!claimed) throw new NewsletterError('This newsletter is already sending or has been sent');
@@ -295,7 +343,7 @@ export async function sendNewsletter(db: SupabaseClient, id: string, site: strin
   } catch (e) {
     return fail(e instanceof Error ? e.message : 'Not ready to send');
   }
-  const { client, from } = resend();
+  const { client, from: sender } = resend();
 
   const [audience, already] = await Promise.all([
     audienceFor(db, n),
@@ -308,7 +356,7 @@ export async function sendNewsletter(db: SupabaseClient, id: string, site: strin
   for (let i = 0; i < recipients.length; i += BATCH) {
     const chunk = recipients.slice(i, i + BATCH);
     const { data, error } = await client.batch.send(
-      chunk.map((r) => messageFor(n, r, site, address, from)),
+      chunk.map((r) => messageFor(n, r, site, address, sender)),
       // Same key for the same recipients: a retry can't double-send a batch.
       { idempotencyKey: `newsletter-${id}-${chunk[0].id}-${chunk.length}` },
     );

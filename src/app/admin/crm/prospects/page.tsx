@@ -11,6 +11,10 @@ import w from '../workspace.module.css';
 import { apiGet, apiSend } from '../../proposals/adminApi';
 import { useCrm } from '../CrmContext';
 import { EmailDialog } from '../EmailDialog';
+import { runContactAction, type ContactAction } from '../contactActions';
+import { NewPrintCampaign } from '../campaigns/NewPrintCampaign';
+import { PIECE_LABEL } from '../campaigns/shared';
+import type { CampaignRow } from '@/lib/marketing';
 import { avatarColor, initials, timeAgo } from '../shared';
 import type { ProspectRow } from '@/types/crm';
 
@@ -30,6 +34,7 @@ export default function ProspectsPage() {
   // ⌘K / Today "Add prospects" arrive with ?add=1.
   const [adding, setAdding] = useState(() => urlParam('add') === '1');
   const [emailing, setEmailing] = useState<string | null>(null);
+  const [toPrint, setToPrint] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +65,14 @@ export default function ProspectsPage() {
       refresh();
     } catch (e) {
       notify(e instanceof Error ? e.message : 'Could not update', 'error');
+    }
+  }
+
+  async function bulk(act: ContactAction) {
+    const ids = [...picked];
+    if (await runContactAction(act, ids, ids.length === 1 ? 'this person' : `${ids.length} people`, notify)) {
+      setPicked(new Set());
+      refresh();
     }
   }
 
@@ -146,14 +159,24 @@ export default function ProspectsPage() {
         <div className={w.selectBar} role="region" aria-label="Selected prospects">
           <span>{picked.size} selected</span>
           <button type="button" className={w.selectPrimary} onClick={() => router.push(`/admin/crm/emails?new=1&contacts=${[...picked].join(',')}`)}>Email them</button>
+          <button type="button" onClick={() => setToPrint(true)}>Add to print campaign</button>
+          <button type="button" onClick={() => bulk({ action: 'move', to: 'lead' })}>Move to Leads</button>
           <button type="button" onClick={() => removeFromList([...picked])}>Take off list</button>
+          <button type="button" onClick={() => bulk({ action: 'delete' })}>Delete</button>
           <button type="button" onClick={() => setPicked(new Set())} aria-label="Clear selection">✕</button>
         </div>
       )}
 
       {adding && <AddProspects onClose={() => setAdding(false)} onAdded={() => { setAdding(false); refresh(); }} existingTags={tags} />}
+      {toPrint && (
+        <AddToPrint
+          contactIds={[...picked]}
+          onClose={() => setToPrint(false)}
+          onDone={(campaignId) => { setToPrint(false); setPicked(new Set()); refresh(); router.push(`/admin/crm/campaigns/${campaignId}`); }}
+        />
+      )}
       {emailing && (
-        <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onSent={(to) => { setEmailing(null); notify(`Sent to ${to}.`); refresh(); }} />
+        <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onDone={(message) => { setEmailing(null); notify(message); refresh(); }} />
       )}
     </div>
   );
@@ -264,6 +287,60 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
           </>
         )}
       </form>
+    </>
+  );
+}
+
+/** Put the selected prospects on a print campaign: an existing one, or a new one. */
+function AddToPrint({ contactIds, onClose, onDone }: { contactIds: string[]; onClose: () => void; onDone: (campaignId: string) => void }) {
+  const { notify } = useCrm();
+  const [campaigns, setCampaigns] = useState<CampaignRow[] | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<CampaignRow[]>('/api/campaigns')
+      .then((r) => { if (!cancelled) { const print = r.filter((c) => c.kind === 'print'); setCampaigns(print); if (!print.length) setCreating(true); } })
+      .catch(() => { if (!cancelled) setCampaigns([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  async function add(id: string) {
+    setBusy(true);
+    try {
+      const r = await apiSend<{ added: number }>(`/api/campaigns/${id}/recipients`, 'POST', { contact_ids: contactIds });
+      notify(`${r.added} added.`);
+      onDone(id);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not add', 'error');
+      setBusy(false);
+    }
+  }
+
+  if (creating) return <NewPrintCampaign contactIds={contactIds} notify={notify} onClose={onClose} onCreated={onDone} />;
+
+  return (
+    <>
+      <div className={w.paletteBack} style={{ zIndex: 60 }} onClick={() => !busy && onClose()} />
+      <div className={w.dialog} role="dialog" aria-modal="true" aria-labelledby="to-print-title">
+        <h2 id="to-print-title" className={w.dialogTitle}>Add {contactIds.length} to a print campaign</h2>
+        <div className={w.table} style={{ margin: '14px 0', maxHeight: 320, overflowY: 'auto' }}>
+          {campaigns === null && <p className={w.empty}>Loading…</p>}
+          {campaigns?.map((c) => (
+            <button key={c.id} type="button" className={w.item} disabled={busy} onClick={() => add(c.id)}>
+              <span className={w.itemMain}>
+                <span className={w.itemTitle}>{c.name}</span>
+                <span className={w.itemSub}>{PIECE_LABEL[c.piece]} · {c.stats.reached} on it{c.sent_on ? ` · ${c.sent_on}` : ''}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+          <button type="button" className={p.btn} onClick={() => setCreating(true)}>New print campaign</button>
+          <button type="button" className={p.btn} onClick={onClose} disabled={busy}>Cancel</button>
+        </div>
+      </div>
     </>
   );
 }

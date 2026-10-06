@@ -26,7 +26,7 @@ CONTACT_NOTIFY_TO=               # Email address to receive inquiries
 CONTACT_NOTIFY_FROM=             # Verified Resend sender address
 STRIPE_SECRET_KEY=               # Stripe Checkout for invoice payments
 STRIPE_WEBHOOK_SECRET=           # Stripe webhook signature verification
-CRON_SECRET=                     # Bearer token Vercel Cron sends to /api/portal/admin/generate-invoices and /api/cron/weekly-digest
+CRON_SECRET=                     # Bearer token Vercel Cron sends to /api/portal/admin/generate-invoices, /api/cron/weekly-digest and /api/cron/scheduled-emails
 PORTAL_CREDENTIALS_KEY=          # 32 random bytes, base64 (`openssl rand -base64 32`) — AES-256-GCM key for the client credentials vault
 TWILIO_ACCOUNT_SID=              # Text messages (optional — texts are simply off without these)
 TWILIO_AUTH_TOKEN=
@@ -111,6 +111,7 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - One contact per person, whichever way they arrived. `contact_inquiries.crm_contact_id` and `proposal_clients.crm_contact_id` point at a contact; `crm_contacts.portal_client_id` links a portal login. Database triggers create or link the contact (matched on lowercased email) whenever one of those rows is inserted.
 - Triggers also attach work to deals: an inquiry (`contact_inquiries.crm_deal_id`) or a new proposal (`proposals.crm_deal_id`) joins the contact's most recent open deal, or opens a new lead if they have none. Sent/viewed moves that deal to `proposal`, signed to `won`; a portal login wins the open deal. Stages never move backward on their own. Every stage change is logged to `crm_activities` with the deal id and title.
 - Lifecycle shown everywhere (`lifecycleOf()` in `shared.ts`): Client (portal login or a won deal) → Lead (an open deal) → Prospect (`prospect_status = 'prospect'`) → Contact.
+- Deleting and moving contacts (`POST /api/crm/contacts/bulk`, `src/lib/crmBulk.ts`; the panel's buttons and the Contacts/Prospects select bars via `contactActions.ts`): → Lead opens a New lead deal for anyone without an open one; → Prospect closes open deals as Lost ("Moved to Prospects") and sets `prospect_status`, and never moves clients; delete cascades to deals, notes and tasks.
 - The contact timeline is assembled at read time in `src/lib/crmRepo.ts` from `crm_activities`, inquiries, `client_reminders`, builder proposals, uploaded proposals, invoices, emails sent (`prospect_emails`, `newsletter_sends`) and `email_replies`. It is not copied into one table.
 - Routes: `/api/crm/deals` (+ `[id]`), `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, `/api/crm/today`, `/api/crm/replies/[id]`, all gated by `requireAdmin`. "Quick message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
 
@@ -121,6 +122,13 @@ Migration `030`. Prospects are people Lauren reaches out to before they've shown
 - Every email sent from the site to a contact has Reply-To `reply-<contact hex>-<hmac>@RESEND_INBOUND_DOMAIN` (`replyAddress()` in `newsletterTokens.ts`; falls back to `CONTACT_NOTIFY_TO` when unset).
 - Resend receives the reply and calls `POST /api/email/inbound` (`email.received`, verified with `RESEND_WEBHOOK_SECRET`). `src/lib/inboundEmail.ts` fetches the full message, finds the contact (signed address first, then sender email), stores it once in `email_replies` (unique Resend id), strips the quoted original, stamps `replied_at`, opens a New lead deal for a prospect with no open deal (source `email reply`), adds a "Reply to …" task, and forwards the reply (attachments included) to `CONTACT_NOTIFY_TO` with Reply-To = the sender. Mail from `CONTACT_NOTIFY_FROM` itself is ignored.
 - Setup status shows in Emails → Settings.
+
+### Marketing campaigns
+
+`/admin/crm/campaigns` compares every piece of marketing, print and email (migration `031`, `src/lib/marketing.ts`). Print campaigns (`marketing_campaigns`: piece, sent date, cost, short-link `code`, destination) have recipients (`marketing_recipients`, with a hand-marked `outcome`: sent / responded / lead / won / no_response — marking "lead" opens a deal, source `print`). Email campaigns are read from sent `newsletters` + `newsletter_sends`, and one-to-one `prospect_emails` show as one line; nothing is copied. Results count replies, deals opened and deals won within `RESULT_DAYS` (60) of the send.
+
+- Each print campaign's QR code (generated in the browser with `qrcode`, downloadable as SVG/PNG) points at `SITE_URL/m/<code>`. `src/app/m/[code]/route.ts` logs a scan in `marketing_scans` (daily-rotating visitor hash, bots skipped) and redirects to the destination with `utm_source=print&utm_medium=<piece>&utm_campaign=<code>`; analytics classifies that as the `print` channel, and an inquiry from that visit carries `utm_campaign`, which the campaign counts. Unknown codes go to the homepage.
+- Print pieces appear on each recipient's timeline (kind `print`).
 
 ### Site analytics
 
@@ -165,6 +173,10 @@ Subscription lives on the CRM contact (`crm_contacts.newsletter_status`, migrati
 - Designed newsletters (migration `027`) are a stack of sections (`src/lib/newsletterBlocks.ts`): agency sections — logo bar, hero, project grid, numbers, services list, testimonial, call to action, footer — plus basics (image, heading, text, button, image + text, divider, spacer, social). Every block has an optional `bg` and `pad`; `src/lib/emailSections.ts` renders them as table-based HTML that stacks on phones and picks text/link/button colours against each band's background (`toneFor`). Blocks saved before `bg`/`pad` existed keep their old spacing; always read stored blocks through `normalizeBlocks()`. The design adds `corners`, `uppercase` and `theme`; `THEMES` (Studio, Midnight, Pop, Editorial) set the design and the bands' colours. When `blocks` is non-empty it renders instead of `body`. Images are uploaded to the public `course-media` bucket under `newsletters/`. Sending refuses any section image without a file or alt text (`blockImages()`). `newsletter_templates` stores a layout + design to start from.
 - The designer (`src/app/admin/email-designer/`) is used by both the newsletter and prospect template editors: sections and layers on the left, the email in an iframe in the middle, settings on the right. The canvas is `renderSections` with `editing: true` (data-block / data-field / data-img / data-opt attributes, never in sent mail) written into an unsandboxed iframe; typing into it updates blocks without rewriting the iframe, everything else rewrites it. Undo/redo, drag-to-reorder, drop-an-image-to-upload and a phone preview live there.
 - Canva designs (migration `028`): Canva Email's "HTML and images" .zip (or an .html file) is uploaded to `POST /api/newsletters/[id]/import`. `src/lib/newsletterImport.ts` re-hosts every image (zip files, and remote https images on public hosts only — no redirects, no private/metadata addresses) under `newsletters/imports/`, then sanitizes with `sanitize-html` (tables, inline styles and `<style>` kept; scripts, forms, iframes, SVG and event handlers removed; links http(s)/mailto/tel; only Google Fonts stylesheets). The stored `html` wins over blocks and body; preheader, `{{first_name}}` and the unsubscribe/address footer are applied at send time.
+
+#### Scheduling and drafts
+
+Migration `032`. An audience email can be scheduled (`status = 'scheduled'`, `scheduled_at`; `POST`/`DELETE /api/newsletters/[id]/schedule`) and stays editable until it sends; the editor autosaves drafts. One-to-one emails keep one draft per contact in `prospect_drafts` (saved on closing the Email dialog, optionally scheduled; `/api/emails/drafts`), deleted once sent. Vercel Cron calls `GET /api/cron/scheduled-emails` every 5 minutes (`src/lib/scheduledEmails.ts`), which claims each due row before sending, works out the audience at send time, and emails `CONTACT_NOTIFY_TO` if anything fails. Scheduling runs every send check up front. Time helpers are in `src/lib/scheduleTime.ts`.
 
 ### One-to-one emails
 

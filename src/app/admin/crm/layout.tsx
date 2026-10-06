@@ -23,6 +23,7 @@ const NAV = [
   { href: '/admin/crm/prospects', label: 'Prospects', icon: '◎' },
   { href: '/admin/crm/contacts', label: 'Contacts', icon: '☺' },
   { href: '/admin/crm/emails', label: 'Emails', icon: '✉' },
+  { href: '/admin/crm/campaigns', label: 'Campaigns', icon: '◈' },
 ] as const;
 
 const urlParam = (key: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(key));
