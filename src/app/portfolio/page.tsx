@@ -7,7 +7,7 @@ import PortfolioClient from "./PortfolioClient";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Portfolio",
+  title: "Web Design & Branding Portfolio — Dallas, TX",
   description:
     "Browse work by Thrive Creative Studios — bold brand identities, websites, UX designs, and social media content built for businesses that refuse to blend in.",
   path: "/portfolio",

@@ -350,6 +350,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               <a href="mailto:hello@thrivecreativestudios.org">hello@thrivecreativestudios.org</a>
               <br />
               Dallas, TX
+              <br />
+              <Link href="/amarillo-web-design">Web design in Amarillo</Link>
             </div>
           </div>
           <div>

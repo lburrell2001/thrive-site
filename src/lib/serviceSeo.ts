@@ -2,10 +2,12 @@
 // shows, what each service is called in structured data, and the FAQs at
 // the bottom of each page.
 //
-// The FAQ answers only restate what the service pages already say
-// (timelines, deliverables, process). No prices, guarantees or claims were
-// added — edit freely, but keep answers true, since Google and AI
-// assistants quote them as fact.
+// The FAQ answers and the longer "about" copy only restate what the service
+// pages already say (timelines, deliverables, process). No prices,
+// guarantees or claims were added — edit freely, but keep them true, since
+// Google and AI assistants quote them as fact. Titles lead with the service
+// and the place ("Affordable Web Design in Dallas, TX"); the layout adds
+// " | Thrive Creative Studios".
 
 export type ServiceSlug = 'brand-design' | 'digital-design' | 'ux-design' | 'social-media' | 'photography';
 
@@ -22,6 +24,8 @@ export interface ServiceSeo {
   description: string;
   /** In-person work is DFW only; everything else is also remote. */
   remote: boolean;
+  /** The longer read under the hero: what it is, what's included, who it's for. */
+  about?: { heading: string; paragraphs: string[]; forWho: string[] };
   faqs: { q: string; a: string }[];
 }
 
@@ -34,12 +38,26 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
   'brand-design': {
     slug: 'brand-design',
     path: '/services/brand-design',
-    name: 'Brand Design',
+    name: 'Branding',
     serviceType: 'Brand identity design',
-    title: 'Brand Identity & Logo Design in Dallas, TX',
+    title: 'Branding & Logo Design in Dallas, TX',
     description:
-      'Logos, color systems, typography and brand guidelines for Dallas businesses — a complete brand identity in 4–6 weeks. Remote projects across the US.',
+      'Affordable branding for Dallas small businesses: logo, colors, typography and brand guidelines, delivered as a complete identity in 4–6 weeks. Remote across the US.',
     remote: true,
+    about: {
+      heading: 'BRANDING THAT MAKES YOU RECOGNIZABLE',
+      paragraphs: [
+        'Your brand is how people remember you after they scroll past, drive by or close the tab. A brand identity from Thrive gives you a logo, a color system and a typeface pairing that work together, plus the guidelines that keep them consistent wherever your business shows up — your website, your social accounts, your signage, your invoices.',
+        'Every branding project starts with a discovery call about your goals, your customers and the feeling you want people to have when they see your name. From there you see 2–3 distinct visual directions, pick the one that feels most like you, and we refine it together: spacing, type, color, every variation of the logo you will need.',
+        'At the end you get a brand kit with every final file in PNG, SVG and PDF, brand guidelines that explain how to use it all, and ready-to-use social templates so your first posts already look like you. Most projects take 4–6 weeks from the first call to final files, and the scope and price are agreed in a written proposal before any work starts.',
+      ],
+      forWho: [
+        'New businesses that need a logo and a look before they launch',
+        'Established businesses whose brand feels dated or no longer fits what they offer',
+        'Founders tired of every post, flyer and page looking slightly different',
+        'Businesses getting ready for a new website and want the brand right first',
+      ],
+    },
     faqs: [
       {
         q: 'How long does a brand identity take?',
@@ -58,6 +76,10 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
         a: WHERE,
       },
       {
+        q: 'Is branding with Thrive affordable for a small business?',
+        a: 'Thrive works with small businesses, and each project is scoped to what you actually need — a logo refresh costs less than a full identity with guidelines and templates. You get a clear written proposal after the discovery call, before any work starts.',
+      },
+      {
         q: 'How much does branding cost?',
         a: 'It depends on what you need — a logo refresh is a smaller project than a full identity with guidelines and templates. Every project gets a clear written proposal after the discovery call, before any work starts.',
       },
@@ -66,12 +88,26 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
   'digital-design': {
     slug: 'digital-design',
     path: '/services/digital-design',
-    name: 'Digital Design',
+    name: 'Web Design',
     serviceType: 'Website and landing page design',
-    title: 'Website & Landing Page Design in Dallas, TX',
+    title: 'Affordable Web Design in Dallas, TX',
     description:
-      'Website design, landing pages and digital assets for Dallas businesses — strategy-led, mobile-first, and scoped to your project. Remote projects across the US.',
+      'Affordable website and landing page design for Dallas small businesses — mobile-first, built around your brand and goals, with a clear proposal up front. Remote across the US.',
     remote: true,
+    about: {
+      heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
+      paragraphs: [
+        'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs websites and landing pages that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
+        'Every web design project runs through four steps. Discovery, where we agree on your goals, your audience and the pages you need. Wireframes, where the structure and content of each page are mapped out before anything is styled. Full visual design, with your colors, type and imagery applied to every page. Then handoff, with final Figma files, exported assets and specs ready for development or launch.',
+        'Every layout is designed mobile-first, so your site works on a phone before it is stretched to a desktop. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. If you also need the site built, say so when you reach out and it will be included in your proposal, with the timeline and price agreed in writing before work starts.',
+      ],
+      forWho: [
+        'Small businesses without a website, or with one they’re embarrassed to send people to',
+        'Service businesses that need more calls, bookings or inquiries from their site',
+        'Launches and campaigns that need a focused landing page',
+        'Teams with a brand already that need it carried across every page',
+      ],
+    },
     faqs: [
       {
         q: 'How long does a website design take?',
@@ -90,6 +126,10 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
         a: 'Final Figma files, exported assets and specs, ready for development or launch. If you also need the site built, say so when you reach out and it will be included in your proposal.',
       },
       {
+        q: 'Is web design with Thrive affordable for a small business?',
+        a: 'Thrive works with small businesses, and each website is scoped to what you need — a single landing page is a smaller project than a multi-page site. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
+      },
+      {
         q: 'Do you work with businesses outside Dallas?',
         a: WHERE,
       },
@@ -100,7 +140,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     path: '/services/ux-design',
     name: 'UX Design',
     serviceType: 'User experience design',
-    title: 'UX & Product Design in Dallas, TX',
+    title: 'UX Design for Apps & Websites in Dallas, TX',
     description:
       'User research, wireframes, prototypes and usability testing for apps and websites — human-centered UX design from a Dallas studio, available remotely.',
     remote: true,
@@ -128,10 +168,24 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     path: '/services/social-media',
     name: 'Social Media Management',
     serviceType: 'Social media management',
-    title: 'Social Media Management & Content in Dallas, TX',
+    title: 'Social Media Management in Dallas, TX',
     description:
-      'Content strategy, graphics, captions and community management for Dallas businesses — social media that grows your audience, with monthly analytics.',
+      'Social media management for Dallas small businesses: strategy, a monthly content calendar, graphics, captions and community management, with a monthly analytics report.',
     remote: true,
+    about: {
+      heading: 'SOCIAL MEDIA, HANDLED',
+      paragraphs: [
+        'Posting consistently, looking good doing it and answering every comment is a job in itself. Thrive’s social media management takes it off your plate: a plan for what to post and why, a month of content designed and written ahead of time, and someone keeping an eye on your comments and messages.',
+        'It starts with an audit of your current accounts, your audience and what your competitors are doing. That shapes your content pillars, your voice and a plan for how your accounts will grow. Each month you get a content calendar with designed graphics and captions, and you review and approve everything before it posts.',
+        'Once posts are live, the work continues: replying to comments and DMs, engaging with your community, and a monthly analytics report that shows what is working, what is not and what changes next month. You also get reusable story templates, so you and your team can post on-brand in between.',
+      ],
+      forWho: [
+        'Business owners who know they should post more but never have the time',
+        'Brands whose feed doesn’t match the quality of what they actually do',
+        'Businesses that want a plan and monthly numbers, not just pretty posts',
+        'Teams that want to approve everything before it goes live',
+      ],
+    },
     faqs: [
       {
         q: 'What is included in social media management?',

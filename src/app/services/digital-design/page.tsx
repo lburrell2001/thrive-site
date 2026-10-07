@@ -4,6 +4,7 @@ import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServiceAbout from "../../components/ServiceAbout";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
@@ -13,6 +14,8 @@ export const metadata: Metadata = buildPageMetadata({
   path: "/services/digital-design",
   keywords: [
     "web design Dallas TX",
+    "affordable web design Dallas",
+    "small business website design",
     "landing page design Texas",
     "digital design studio",
     "website design small business",
@@ -304,8 +307,8 @@ export default async function DigitalDesignPage() {
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>
-                <p className="sp-hero-eyebrow">01 — Digital</p>
-                <h1 className="sp-hero-h1">DIGITAL<br />DESIGN</h1>
+                <p className="sp-hero-eyebrow">01 — Web Design</p>
+                <h1 className="sp-hero-h1">WEB<br />DESIGN</h1>
               </div>
               <div>
                 <p className="sp-hero-sub" style={{ color: ACCENT }}>TIMELINE SCOPED TO YOUR PROJECT</p>
@@ -322,6 +325,8 @@ export default async function DigitalDesignPage() {
               </div>
             </div>
           </section>
+
+          <ServiceAbout slug="digital-design" accent={ACCENT} />
 
           <section className="sp-deliverables">
             <p className="sp-section-eyebrow">What you get</p>

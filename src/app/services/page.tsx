@@ -22,8 +22,8 @@ const baiJamjuree = Bai_Jamjuree({
 
 const SERVICES = [
   {
-    tag: "01 — Digital",
-    name: "DIGITAL DESIGN",
+    tag: "01 — Web",
+    name: "WEB DESIGN",
     sub: "TIMELINE SCOPED TO YOUR PROJECT",
     desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
     color: "#1e3add",
@@ -78,7 +78,7 @@ const SERVICES = [
   },
 ];
 
-const TAB_LABELS = ["DIGITAL DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"];
+const TAB_LABELS = ["WEB DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"];
 
 export default function ServicesPage() {
   const [activeTab, setActiveTab] = useState(0);

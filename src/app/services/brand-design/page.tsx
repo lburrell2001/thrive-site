@@ -4,6 +4,7 @@ import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServiceAbout from "../../components/ServiceAbout";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
@@ -359,6 +360,8 @@ export default async function BrandDesignPage() {
           </section>
 
           {/* DELIVERABLES */}
+          <ServiceAbout slug="brand-design" accent={ACCENT} />
+
           <section className="sp-deliverables">
             <p className="sp-section-eyebrow">What you get</p>
             <h2 className="sp-section-heading">EVERYTHING YOUR<br />BRAND NEEDS</h2>

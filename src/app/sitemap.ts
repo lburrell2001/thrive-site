@@ -15,6 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/services/ux-design`,          lastModified: now, changeFrequency: "monthly", priority: 0.85 },
     { url: `${SITE_URL}/services/social-media`,       lastModified: now, changeFrequency: "monthly", priority: 0.85 },
     { url: `${SITE_URL}/services/photography`,        lastModified: now, changeFrequency: "monthly", priority: 0.85 },
+    { url: `${SITE_URL}/amarillo-web-design`,         lastModified: now, changeFrequency: "monthly", priority: 0.85 },
     { url: `${SITE_URL}/about`,                       lastModified: now, changeFrequency: "monthly", priority: 0.8  },
     { url: `${SITE_URL}/contact`,                     lastModified: now, changeFrequency: "monthly", priority: 0.8  },
     { url: `${SITE_URL}/journal`,                     lastModified: now, changeFrequency: "weekly",  priority: 0.8  },

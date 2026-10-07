@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "Contact",
+  title: "Contact a Dallas Web Design & Branding Studio",
   description:
-    "Ready to start your project? Get in touch with Thrive Creative Studios. We work with small businesses, creators, and organizations across Dallas, TX and remotely throughout the US.",
+    "Start your website, branding or social media project with Thrive Creative Studios. Small businesses, creators and organizations across Dallas–Fort Worth and remotely across the US.",
   path: "/contact",
   keywords: [
     "contact Thrive Creative Studios",

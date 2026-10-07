@@ -45,11 +45,11 @@ const BRAND = {
 
 export const metadata: Metadata = {
   title: {
-    default: `${SITE_NAME} | Bold Branding, Web & Creative Design in Dallas, TX`,
+    default: `Affordable Web Design & Branding in Dallas, TX | ${SITE_NAME}`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Thrive Creative Studios is a Dallas-based creative agency specializing in brand design, web design, UX, and social media — available remotely across the US. Also offering photography services in Dallas, TX.",
+    "Affordable web design, branding and social media for small businesses in Dallas–Fort Worth and across the US, from Thrive Creative Studios, a Black-owned Dallas design studio.",
   applicationName: SITE_NAME,
   metadataBase: new URL(SITE_URL),
   keywords: [
@@ -159,6 +159,7 @@ export default function RootLayout({
     },
     areaServed: [
       ...DFW_AREAS.map((name) => ({ "@type": "City", name, containedInPlace: { "@type": "State", name: "Texas" } })),
+      { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } },
       { "@type": "Country", name: "United States" },
     ],
     knowsAbout: ["Brand identity design", "Logo design", "Website design", "UX design", "Social media management", "Brand photography"],
