@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
-import { storageUrl } from "@/lib/storage";
+import { projectCoverThumb, storageUrl } from "@/lib/storage";
+import { loadReelProjects } from "@/lib/workReel";
+import WorkReel from "../../components/WorkReel";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
@@ -64,7 +66,7 @@ async function getFeaturedProjects(serviceSlug: string): Promise<FeaturedProject
 }
 
 export default async function BrandDesignPage() {
-  const featured = await getFeaturedProjects('branding');
+  const [featured, reel] = await Promise.all([getFeaturedProjects('branding'), loadReelProjects()]);
 
 
   return (
@@ -400,7 +402,7 @@ export default async function BrandDesignPage() {
                 {featured.map((p) => (
                   <a key={p.id} href={`/work/${p.slug}`} className="sp-work-card">
                     <div className="sp-work-img">
-                      <img src={storageUrl(`work/${p.slug}-cover.jpg`)} alt={p.title} />
+                      <img src={projectCoverThumb(p.slug, 800)} alt={p.title} loading="lazy" />
                     </div>
                     <div className="sp-work-info">
                       <p className="sp-work-cat">{p.category}</p>
@@ -423,6 +425,8 @@ export default async function BrandDesignPage() {
           )}
 
           {/* REVIEWS */}
+          <WorkReel projects={reel} eyebrow="More from the studio" title="Recent work" tone="dark" />
+
           <ServiceTestimonials slug="brand-design" accent={ACCENT} />
 
           {/* FAQ */}

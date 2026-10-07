@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
+import WorkReel from "../components/WorkReel";
 import { storageUrl } from "@/lib/storage";
 
 const bungee = Bungee({
@@ -493,6 +494,7 @@ export default function ServicesPage() {
 
         </div>
       </div>
+      <WorkReel eyebrow="Across every service" title="See it in action" tone="dark" />
     </PublicLayout>
   );
 }

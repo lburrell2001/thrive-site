@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PublicLayout from "../components/PublicLayout";
+import WorkReel from "../components/WorkReel";
+import { loadReelProjects } from "@/lib/workReel";
 import { BUSINESS_ID, SITE_URL, absoluteUrl, buildPageMetadata, jsonLd } from "@/lib/seo";
 import s from "./amarillo.module.css";
 
@@ -78,7 +80,8 @@ const FAQS = [
   },
 ];
 
-export default function AmarilloPage() {
+export default async function AmarilloPage() {
+  const reel = await loadReelProjects();
   const url = absoluteUrl(PATH);
   const amarillo = { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } };
   const data = {
@@ -129,9 +132,22 @@ export default function AmarilloPage() {
         <section className={s.story} aria-labelledby="home-heading">
           <p className={s.sectionEyebrow}>Hometown</p>
           <h2 id="home-heading" className={s.h2}>Amarillo is home</h2>
-          <div className={s.prose}>
-            {HOMETOWN_STORY.map((text) => <p key={text.slice(0, 40)}>{text}</p>)}
-            <p className={s.signoff}>— Lauren Burrell, founder of Thrive Creative Studios</p>
+          <div className={s.storyGrid}>
+            <div className={s.prose}>
+              {HOMETOWN_STORY.map((text) => <p key={text.slice(0, 40)}>{text}</p>)}
+              <p className={s.signoff}>— Lauren Burrell, founder of Thrive Creative Studios</p>
+            </div>
+            <figure className={s.photo}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/amarillo/tascosa-graduation.jpg"
+                width={768}
+                height={1024}
+                loading="lazy"
+                alt="Lauren in her cap and gown, holding her Tascosa High School diploma, with her family on graduation day"
+              />
+              <figcaption>Graduation day at Tascosa High School, with my family.</figcaption>
+            </figure>
           </div>
         </section>
 
@@ -149,6 +165,8 @@ export default function AmarilloPage() {
             ))}
           </div>
         </section>
+
+        <WorkReel projects={reel} eyebrow="The work" title="What Thrive has made" />
 
         <section className={s.steps} aria-labelledby="steps-heading">
           <p className={s.sectionEyebrow}>How it works</p>

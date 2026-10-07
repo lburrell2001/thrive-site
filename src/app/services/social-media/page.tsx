@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
-import { storageUrl } from "@/lib/storage";
+import { projectCoverThumb, storageUrl } from "@/lib/storage";
+import { loadReelProjects } from "@/lib/workReel";
+import WorkReel from "../../components/WorkReel";
+import SocialFeed from "../../components/SocialFeed";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
@@ -65,7 +68,7 @@ async function getFeaturedProjects(serviceSlug: string): Promise<FeaturedProject
 }
 
 export default async function SocialMediaPage() {
-  const featured = await getFeaturedProjects('social-media');
+  const [featured, reel] = await Promise.all([getFeaturedProjects('social-media'), loadReelProjects()]);
 
   return (
     <PublicLayout>
@@ -318,6 +321,8 @@ export default async function SocialMediaPage() {
 
           <ServiceAbout slug="social-media" accent={ACCENT} />
 
+          <SocialFeed accent={ACCENT} />
+
           <section className="sp-deliverables">
             <p className="sp-section-eyebrow">What you get</p>
             <h2 className="sp-section-heading">YOUR FULL SOCIAL<br />PRESENCE, HANDLED</h2>
@@ -354,7 +359,7 @@ export default async function SocialMediaPage() {
                 {featured.map((p) => (
                   <a key={p.id} href={`/work/${p.slug}`} className="sp-work-card">
                     <div className="sp-work-img">
-                      <img src={storageUrl(`work/${p.slug}-cover.jpg`)} alt={p.title} />
+                      <img src={projectCoverThumb(p.slug, 800)} alt={p.title} loading="lazy" />
                     </div>
                     <div className="sp-work-info">
                       <p className="sp-work-cat">{p.category}</p>
@@ -377,6 +382,8 @@ export default async function SocialMediaPage() {
           )}
 
           {/* REVIEWS */}
+          <WorkReel projects={reel} eyebrow="More from the studio" title="Recent work" tone="dark" />
+
           <ServiceTestimonials slug="social-media" accent={ACCENT} />
 
           {/* FAQ */}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import styles from "./newhomepage.module.css";
 import PublicLayout from "../components/PublicLayout";
+import WorkReel from "../components/WorkReel";
 import { storageUrl } from "@/lib/storage";
 
 const bungee = Bungee({
@@ -238,6 +239,9 @@ export default function NewHomePage() {
         </div>
         <div className={`${styles.processGhost} reveal`} data-px="-0.4">THE PROCESS</div>
       </section>
+
+      {/* ── WORK REEL ── */}
+      <WorkReel eyebrow="Fresh from the studio" title="Work we're proud of" tone="dark" />
 
       {/* ── TESTIMONIALS ── */}
       <section className={styles.testimonials} id="testimonials">

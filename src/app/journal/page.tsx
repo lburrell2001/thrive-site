@@ -3,6 +3,8 @@ import PublicLayout from '../components/PublicLayout';
 import { buildPageMetadata } from '@/lib/seo';
 import { formatPostDate, publishedPosts } from '@/lib/journalRepo';
 import { storageUrl } from '@/lib/storage';
+import { loadReelProjects } from '@/lib/workReel';
+import WorkReel from '../components/WorkReel';
 import s from './journal.module.css';
 
 // Cached, and refreshed on demand whenever an article is published or edited.
@@ -16,7 +18,7 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default async function JournalIndex() {
-  const posts = await publishedPosts();
+  const [posts, reel] = await Promise.all([publishedPosts(), loadReelProjects()]);
 
   return (
     <PublicLayout>
@@ -49,6 +51,7 @@ export default async function JournalIndex() {
           </div>
         )}
       </div>
+      <WorkReel projects={reel} eyebrow="From the portfolio" title="Work worth reading about" tone="dark" />
     </PublicLayout>
   );
 }

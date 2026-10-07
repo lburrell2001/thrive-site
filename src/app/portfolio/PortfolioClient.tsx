@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
-import { storageUrl } from "@/lib/storage";
+import { projectCoverThumb } from "@/lib/storage";
 
 const bungee = Bungee({ weight: "400", subsets: ["latin"], variable: "--font-bungee", display: "swap" });
 const baiJamjuree = Bai_Jamjuree({ weight: ["400", "600", "700"], style: ["normal", "italic"], subsets: ["latin"], variable: "--font-bai", display: "swap" });
@@ -229,7 +229,7 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
               <div key={project.id} className="pf-card">
                 <div className="pf-card-img" style={{ background: "#0a0a0a", padding: 0, overflow: "hidden" }}>
                   <img
-                    src={storageUrl(`work/${project.slug}-cover.jpg`)}
+                    src={projectCoverThumb(project.slug, 900)}
                     alt={project.title}
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />

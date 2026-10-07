@@ -6,6 +6,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import PublicLayout from '../components/PublicLayout';
+import WorkReel from '../components/WorkReel';
+import FounderNote from '../components/FounderNote';
 import { readAttribution } from '../components/SiteTracker';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 import s from './book.module.css';
@@ -117,6 +119,9 @@ export default function BookPage() {
           <p className={s.lede}>
             {avail ? `A ${avail.duration_minutes}-minute call` : 'A short call'} to talk about what you need, answer questions, and see if we&apos;re a fit. No cost, no pressure.
           </p>
+          <div style={{ marginTop: 22 }}>
+            <FounderNote>Founder &amp; creative director, and the person you&apos;ll talk with on the call.</FounderNote>
+          </div>
         </div>
 
         {booked ? (
@@ -215,6 +220,7 @@ export default function BookPage() {
           </div>
         )}
       </div>
+      <WorkReel eyebrow="Before we talk" title="A look at the work" />
     </PublicLayout>
   );
 }

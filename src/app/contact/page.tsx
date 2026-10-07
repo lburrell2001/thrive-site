@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
+import WorkReel from "../components/WorkReel";
+import FounderNote from "../components/FounderNote";
 import { readAttribution } from "../components/SiteTracker";
 
 const bungee = Bungee({
@@ -501,6 +503,9 @@ export default function ContactPage() {
                     <p className="ct-info-row-value">{row.value}</p>
                   </div>
                 ))}
+                <div style={{ marginTop: 24 }}>
+                  <FounderNote>Founder &amp; creative director. Your message comes straight to her.</FounderNote>
+                </div>
               </div>
             </div>
 
@@ -522,6 +527,7 @@ export default function ContactPage() {
 
         </div>
       </div>
+      <WorkReel eyebrow="While you're here" title="Some recent work" />
     </PublicLayout>
   );
 }

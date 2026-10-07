@@ -2,6 +2,7 @@
 
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
+import WorkReel from "../components/WorkReel";
 
 const bungee = Bungee({
   weight: "400",
@@ -418,6 +419,7 @@ export default function AboutPage() {
 
         </div>
       </div>
+      <WorkReel eyebrow="The proof" title="What we've made together" tone="dark" />
     </PublicLayout>
   );
 }

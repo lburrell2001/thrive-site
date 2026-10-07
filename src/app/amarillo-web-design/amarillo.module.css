@@ -237,3 +237,41 @@
   font-weight: 700;
   color: #0a0a0a;
 }
+
+.storyGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 720px) minmax(260px, 400px);
+  gap: 64px;
+  align-items: start;
+}
+
+.photo {
+  position: sticky;
+  top: 100px;
+  margin: 0;
+  transform: rotate(1.5deg);
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 10px solid #fff;
+  border-bottom-width: 14px;
+  border-radius: 4px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18), 0 0 0 1px #eee;
+}
+
+.photo figcaption {
+  margin-top: 14px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 14px;
+  font-style: italic;
+  text-align: center;
+  color: #666;
+}
+
+@media (max-width: 960px) {
+  .storyGrid { grid-template-columns: 1fr; gap: 40px; }
+  .photo { position: static; max-width: 380px; margin: 0 auto; }
+}
