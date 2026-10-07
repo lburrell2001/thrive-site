@@ -25,7 +25,7 @@ const baiJamjuree = Bai_Jamjuree({
 const SERVICES = [
   {
     tag: "01 — Web", name: "WEB DEVELOPMENT", sub: "TIMELINE SCOPED TO YOUR PROJECT",
-    desc: "Custom-coded websites built from scratch, plus sites designed and built on Wix, Shopify, Webflow and more — whichever fits how you want to run it.",
+    desc: "Custom-coded websites built from scratch for your business — designed in your colors and fonts, not a template.",
     href: "/services/digital-design",
     media: { type: "image" as const, src: "/new-thrive/services/web-development.webp", local: true },
   },

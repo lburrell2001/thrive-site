@@ -44,10 +44,10 @@ const HOMETOWN_STORY: string[] = [
 ];
 
 const SERVICES = [
-  { name: "Web Development", href: "/services/digital-design", desc: "Custom-coded websites, or sites designed and built on Wix, Shopify or Webflow — designed mobile-first, around your brand." },
+  { name: "Web Development", href: "/services/digital-design", desc: "Custom-coded websites designed in your colors and fonts — mobile-first, around your brand." },
   { name: "Branding", href: "/services/brand-design", desc: "A logo, colors, type and brand guidelines that make your business recognizable everywhere it shows up." },
   { name: "Social Media", href: "/services/social-media", desc: "A monthly content calendar, designed posts, edited videos and captions, scheduled and posted for you." },
-  { name: "UX Design", href: "/services/ux-design", desc: "Research, wireframes and tested prototypes for apps and websites that need to be easy to use." },
+  { name: "UX Design", href: "/services/ux-design", desc: "Screen-by-screen layouts and clickable prototypes for apps and websites, ready to hand to your developer." },
 ];
 
 const STEPS = [

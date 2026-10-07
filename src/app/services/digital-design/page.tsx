@@ -33,7 +33,7 @@ const ACCENT_TEXT = "#fff";
 
 const DELIVERABLES = [
   { title: "Custom-Coded Websites", desc: "Sites written from scratch for your business, built to do exactly what you need." },
-  { title: "Wix, Shopify & Webflow", desc: "Your site designed and built on the platform that fits, so you can run it yourself." },
+  { title: "Care Plans", desc: "Hosting, security updates, backups and monthly edits after launch." },
   { title: "Landing Pages", desc: "Focused single pages that drive sign-ups, sales or inquiries." },
   { title: "Edit It Yourself", desc: "With Large and Custom sites, an admin area so your team can edit text and photos." },
   { title: "Forms, Analytics & SEO", desc: "Forms that reach the right inbox, visitor insights and search groundwork, built in." },
@@ -41,9 +41,9 @@ const DELIVERABLES = [
 ];
 
 const PROCESS = [
-  { step: "01", title: "Discovery", desc: "We align on goals, audience, the pages you need, and whether custom code or a platform fits best." },
+  { step: "01", title: "Discovery", desc: "We align on goals, audience, the pages you need, and which package fits." },
   { step: "02", title: "Design", desc: "A page-by-page plan, then full visual design: color, type, imagery and layout." },
-  { step: "03", title: "Build", desc: "Your site coded from scratch, or built on Wix, Shopify, Webflow or another platform." },
+  { step: "03", title: "Build", desc: "Your site coded from scratch, in your colors and fonts." },
   { step: "04", title: "Launch", desc: "Tested on phones and desktops, then launched." },
 ];
 
@@ -315,8 +315,8 @@ export default async function DigitalDesignPage() {
               <div>
                 <p className="sp-hero-sub" style={{ color: ACCENT }}>TIMELINE SCOPED TO YOUR PROJECT</p>
                 <p className="sp-hero-desc">
-                  Custom-coded websites built from scratch, plus sites designed and built on
-                  Wix, Shopify, Webflow and more — whichever fits how you want to run it.
+                  Custom-coded websites built from scratch for your business — designed in
+                  your colors and fonts, not a template.
                 </p>
               </div>
               <div className="sp-hero-actions">
@@ -332,7 +332,7 @@ export default async function DigitalDesignPage() {
 
           <section className="sp-deliverables">
             <p className="sp-section-eyebrow">What you get</p>
-            <h2 className="sp-section-heading">CUSTOM-CODED OR<br />PLATFORM-BUILT</h2>
+            <h2 className="sp-section-heading">CUSTOM-CODED,<br />NOT TEMPLATED</h2>
             <div className="sp-del-grid">
               {DELIVERABLES.map((d, i) => (
                 <div key={i} className="sp-del-card">
@@ -401,7 +401,7 @@ export default async function DigitalDesignPage() {
           <section className="sp-cta" style={{ background: ACCENT }}>
             <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY FOR A WEBSITE<br />THAT WORKS?</h2>
             <p className="sp-cta-sub" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Tell us what you&apos;re building and we&apos;ll recommend custom code or a platform, with a proposal that fits your timeline and budget.
+              Tell us what you&apos;re building and we&apos;ll recommend the package that fits your timeline and budget.
             </p>
             <a href="/contact" className="sp-btn-primary" style={{ background: "#fff", color: "#000" }}>
               GET STARTED →

@@ -29,19 +29,17 @@ const ACCENT = "#5b2d8e";
 const ACCENT_TEXT = "#fff";
 
 const DELIVERABLES = [
-  { title: "User Research", desc: "Interviews, surveys, and competitive analysis to understand who we're designing for." },
   { title: "Information Architecture", desc: "Sitemaps and user flows that make navigation feel obvious, not learned." },
   { title: "Wireframes", desc: "Low-fidelity layouts that map content and structure before visual design begins." },
-  { title: "Interactive Prototypes", desc: "Clickable Figma prototypes that feel like the real thing — ready for user testing." },
-  { title: "Usability Testing", desc: "Real users, real feedback — we identify friction before development starts." },
-  { title: "Design Systems", desc: "A component library that keeps your product consistent as it scales." },
+  { title: "Interactive Prototypes", desc: "Clickable prototypes you can tap through on a phone or computer." },
+  { title: "Developer Handoff", desc: "Design files handed off, ready for your developer." },
 ];
 
 const PROCESS = [
-  { step: "01", title: "Research", desc: "We learn your users — their needs, frustrations, and mental models." },
-  { step: "02", title: "Define", desc: "Problem statements, user personas, and design principles that guide every decision." },
-  { step: "03", title: "Design", desc: "Wireframes → prototype → visual polish. Iterated, not thrown over a wall." },
-  { step: "04", title: "Test", desc: "User testing sessions, feedback synthesis, and iteration until it's right." },
+  { step: "01", title: "Plan", desc: "We map the screens your app or site needs and how people move between them." },
+  { step: "02", title: "Layouts", desc: "Screen-by-screen layouts, from structure to full visual design." },
+  { step: "03", title: "Prototype", desc: "A clickable prototype, with two rounds of revisions." },
+  { step: "04", title: "Handoff", desc: "Design files handed off, ready for your developer." },
 ];
 
 type FeaturedProject = { id: string; title: string; slug: string; category: string; tagline: string | null };
@@ -340,7 +338,7 @@ export default async function UXDesignPage() {
 
           <section className="sp-process">
             <p className="sp-section-eyebrow">How it works</p>
-            <h2 className="sp-section-heading">DESIGN THAT&apos;S<br />BACKED BY RESEARCH</h2>
+            <h2 className="sp-section-heading">FROM IDEA TO<br />CLICKABLE PROTOTYPE</h2>
             <div className="sp-process-steps">
               {PROCESS.map((s, i) => (
                 <div key={i} className="sp-step">

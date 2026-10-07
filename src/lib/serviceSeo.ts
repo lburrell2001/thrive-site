@@ -92,31 +92,23 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Custom website development',
     title: 'Custom Website Development in Dallas, TX',
     description:
-      'Custom websites for Dallas small businesses from $750, with Starter, Medium and Large packages, monthly care plans, and builds on Wix, Shopify and Webflow.',
+      'Custom websites for Dallas small businesses from $750, with Starter, Medium and Large packages and monthly care plans to keep your site secure and up to date.',
     remote: true,
     about: {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
       paragraphs: [
         'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs and builds websites that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
-        'There are two ways to build. A custom-coded website is written from scratch for your business, so it can do exactly what you need: pages your team edits right on the site, forms that reach the right inbox, built-in analytics and search groundwork. Or Thrive designs and builds your site on the platform that fits you — Wix, Shopify, Webflow and others — so you can run it yourself day to day. Your proposal recommends one and explains why.',
-        'Either way, the project starts with discovery and a page-by-page plan, then design with your colors, type and imagery, then the build, testing on phones and desktops, and launch. Every layout is designed mobile-first. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. The timeline and price are agreed in writing before work starts.',
+        'Every site is custom-coded from scratch for your business, in your colors and fonts — not a template. Larger sites add an admin area so your team can edit text and photos, and custom builds can include forms with a database, client portals, logins, online payments and visitor dashboards.',
+        'Every project starts with discovery and a page-by-page plan, then design with your colors, type and imagery, then the build, testing on phones and desktops, and launch. Every layout is designed mobile-first. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. The timeline and price are agreed in writing before work starts.',
       ],
       forWho: [
         'Small businesses without a website, or with one they’re embarrassed to send people to',
         'Businesses that need features a template can’t handle',
-        'Shops and service businesses that want to run their site themselves on Wix, Shopify or Webflow',
+        'Growing businesses that want their team to update the site themselves',
         'Teams with a brand already that need it carried across every page',
       ],
     },
     faqs: [
-      {
-        q: 'Do you build custom websites or use platforms like Wix and Shopify?',
-        a: 'Both. Thrive builds custom-coded websites written from scratch, and also designs and builds sites on Wix, Shopify, Webflow and other platforms. Your proposal recommends the right fit for what you need and how you want to run the site.',
-      },
-      {
-        q: 'When is a custom website worth it?',
-        a: 'When your site needs to do more than a template allows — for example, pages your staff edit right on the site, forms that route to different people, or built-in analytics. If you mainly need a clean site you can update yourself, a platform like Wix, Shopify or Webflow is often the better fit.',
-      },
       {
         q: 'How long does a website take?',
         a: 'Starter sites are live in 2 to 3 weeks, Medium in 3 to 4 weeks and Large in 4 to 6 weeks. Custom builds get a timeline in their quote. Every project runs through discovery, design, the build, then launch.',
@@ -154,12 +146,8 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
         a: 'Every prototype includes screen-by-screen layouts for your app or site, a clickable prototype you can tap through on a phone or computer, two rounds of revisions, and design files handed off, ready for your developer. Up to 5 screens is $375 and up to 10 screens is $600.',
       },
       {
-        q: 'How do you know the design works?',
-        a: 'Designs are tested with real users. Feedback from those sessions is pulled together and the design is revised until it works for the people using it.',
-      },
-      {
         q: 'Do I need UX design or just a new look?',
-        a: 'If people get lost, drop off, or keep asking how to do something, the problem is the experience, not the visuals. UX design starts by finding out where and why that happens.',
+        a: 'If people get lost, drop off, or keep asking how to do something, the problem is the experience, not the visuals. A clickable prototype lets you see and tap through a clearer path before anything is built.',
       },
       {
         q: 'Can you work with a remote team?',

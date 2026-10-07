@@ -162,7 +162,7 @@ export default function RootLayout({
       { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } },
       { "@type": "Country", name: "United States" },
     ],
-    knowsAbout: ["Brand identity design", "Logo design", "Website design", "Custom website development", "Wix, Shopify and Webflow websites", "UX design", "Social media management", "Brand photography"],
+    knowsAbout: ["Brand identity design", "Logo design", "Website design", "Custom website development", "UX design", "Social media management", "Brand photography"],
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Creative services",
