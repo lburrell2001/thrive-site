@@ -12,7 +12,7 @@ export function projectCover(slug: string) {
 
 // Resized copy of a cover for cards and strips — originals run up to ~20 MB.
 export function projectCoverThumb(slug: string, width = 640) {
-  return `${SUPABASE_URL}/storage/v1/render/image/public/${BUCKET}/work/${slug}-cover.jpg?width=${width}&quality=75`;
+  return `${SUPABASE_URL}/storage/v1/render/image/public/${BUCKET}/work/${slug}-cover.jpg?width=${width}&resize=contain&quality=75`;
 }
 
 // 1200×630 copy of the cover for link previews. Some original covers are

@@ -3,9 +3,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PublicLayout from "../../components/PublicLayout";
 import { supabase } from "../../../lib/supabaseServer";
-import { projectCover, projectCoverOg } from "@/lib/storage";
-import { SITE_NAME, absoluteUrl } from "@/lib/seo";
+import { projectCoverOg, projectCoverThumb } from "@/lib/storage";
+import { SITE_NAME, absoluteUrl, jsonLd } from "@/lib/seo";
+import { loadReelProjects } from "@/lib/workReel";
+import WorkReel from "../../components/WorkReel";
 import ProjectGallery from "./ProjectGallery";
+import CaseStudy from "./CaseStudy";
+import { CASE_STUDIES } from "../caseStudies";
 
 // Always read fresh project data from Supabase so admin-added projects appear immediately.
 export const dynamic = "force-dynamic";
@@ -201,6 +205,59 @@ const PROJECTS: ProjectData[] = [
 
 const PROJECTS_BY_SLUG = Object.fromEntries(PROJECTS.map((p) => [p.slug, p]));
 
+const NEXT_CSS = `
+  /* ── S9 NEXT PROJECT ── */
+  .wp-next {
+    background: #fff;
+    padding: 64px 80px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    flex-wrap: wrap;
+    border-top: 1px solid rgba(0,0,0,0.08);
+  }
+  .wp-next-left {}
+  .wp-next-eyebrow {
+    font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #808080;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .wp-next-title {
+    font-family: var(--font-bungee, 'Bungee', sans-serif);
+    font-size: clamp(28px, 4vw, 48px);
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin: 0 0 8px;
+  }
+  .wp-next-cat {
+    font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+    font-size: 16px;
+    color: #808080;
+    margin: 0;
+  }
+  .wp-next-btn {
+    font-family: var(--font-bungee, 'Bungee', sans-serif);
+    font-size: 16px;
+    background: #e50586;
+    color: #fff;
+    padding: 14px 32px;
+    border-radius: 8px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: opacity .15s, transform .12s;
+    flex-shrink: 0;
+  }
+  .wp-next-btn:hover { opacity: 0.88; transform: scale(1.03); }
+
+  @media (max-width: 767px) { .wp-next { padding: 48px 24px; } }
+`;
+
 const ACCENT_COLORS = ["#e50586", "#fd6100", "#0cf574", "#1e3ade"];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -249,6 +306,7 @@ export async function generateMetadata({
 
   const title = project?.title ?? staticData?.name ?? slug;
   const metaDescription =
+    CASE_STUDIES[slug]?.lede ??
     project?.overview ?? project?.tagline ?? staticData?.description ?? `${title} — a project by Thrive Creative Studios.`;
   const coverSrc = projectCoverOg(slug);
 
@@ -304,8 +362,8 @@ export default async function ProjectSlugPage({
     pdata?.description ??
     `${title} — a project by ${SITE_NAME}.`;
 
-  // Cover image
-  const coverUrl = projectCover(slug);
+  // Cover image (resized — some originals are ~20 MB)
+  const coverUrl = projectCoverThumb(slug, 2000);
 
   // Gallery images (for Section 4 right column)
   const BUCKET = "course-media";
@@ -347,11 +405,37 @@ export default async function ProjectSlugPage({
     about: category,
   };
 
+  const reel = await loadReelProjects();
+  const caseStudy = CASE_STUDIES[slug];
+
+  const nextBlock = (
+    <div className="wp-next">
+      <div className="wp-next-left">
+        <span className="wp-next-eyebrow">Next Project</span>
+        <h2 className="wp-next-title">{nextTitle.toUpperCase()}</h2>
+        <p className="wp-next-cat">{nextCategory}</p>
+      </div>
+      <a href={`/work/${nextSlug}`} className="wp-next-btn">VIEW PROJECT →</a>
+    </div>
+  );
+
+  if (caseStudy) {
+    return (
+      <PublicLayout>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd({ ...projectJsonLd, description: caseStudy.lede }) }} />
+        <style>{NEXT_CSS}</style>
+        <CaseStudy cs={caseStudy} title={title} category={categoryLabel} />
+        {nextBlock}
+        <WorkReel projects={reel} exclude={slug} eyebrow="Keep exploring" title="More work" tone="dark" />
+      </PublicLayout>
+    );
+  }
+
   return (
     <PublicLayout>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(projectJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(projectJsonLd) }}
       />
 
       <style>{`
@@ -769,54 +853,7 @@ export default async function ProjectSlugPage({
         }
         .wp-more-pill:hover { opacity: 0.85; transform: scale(1.04); }
 
-        /* ── S9 NEXT PROJECT ── */
-        .wp-next {
-          background: #fff;
-          padding: 64px 80px;
-          box-sizing: border-box;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 32px;
-          flex-wrap: wrap;
-          border-top: 1px solid rgba(0,0,0,0.08);
-        }
-        .wp-next-left {}
-        .wp-next-eyebrow {
-          font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 3px;
-          color: #808080;
-          margin-bottom: 8px;
-          display: block;
-        }
-        .wp-next-title {
-          font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: clamp(28px, 4vw, 48px);
-          letter-spacing: -0.03em;
-          line-height: 1;
-          margin: 0 0 8px;
-        }
-        .wp-next-cat {
-          font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-          font-size: 16px;
-          color: #808080;
-          margin: 0;
-        }
-        .wp-next-btn {
-          font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: 16px;
-          background: #e50586;
-          color: #fff;
-          padding: 14px 32px;
-          border-radius: 8px;
-          text-decoration: none;
-          white-space: nowrap;
-          transition: opacity .15s, transform .12s;
-          flex-shrink: 0;
-        }
-        .wp-next-btn:hover { opacity: 0.88; transform: scale(1.03); }
+        ${NEXT_CSS}
 
         /* ── TABLET ── */
         @media (max-width: 960px) {
@@ -997,16 +1034,10 @@ export default async function ProjectSlugPage({
         </div>
 
         {/* ── S9 NEXT PROJECT ── */}
-        <div className="wp-next">
-          <div className="wp-next-left">
-            <span className="wp-next-eyebrow">Next Project</span>
-            <h2 className="wp-next-title">{nextTitle.toUpperCase()}</h2>
-            <p className="wp-next-cat">{nextCategory}</p>
-          </div>
-          <a href={`/work/${nextSlug}`} className="wp-next-btn">VIEW PROJECT →</a>
-        </div>
+        {nextBlock}
 
       </div>
+      <WorkReel projects={reel} exclude={slug} eyebrow="Keep exploring" title="More work" tone="dark" />
     </PublicLayout>
   );
 }
