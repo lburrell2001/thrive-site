@@ -24,3 +24,12 @@ export function projectCoverOg(slug: string) {
 export function projectGallery(slug: string, file: string) {
   return storageUrl(`projects/${slug}/gallery/${file}`);
 }
+
+// Case-study image src → URL. "storage:<path>" is a course-media file served
+// resized; anything else is a public path used as is.
+export function caseImageUrl(src: string, width = 1600) {
+  if (!src.startsWith("storage:")) return src;
+  const path = src.slice("storage:".length);
+  if (/\.(mp4|webm|mov)$/i.test(path)) return storageUrl(path);
+  return `${SUPABASE_URL}/storage/v1/render/image/public/${BUCKET}/${path}?width=${width}&resize=contain&quality=78`;
+}

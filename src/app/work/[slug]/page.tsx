@@ -378,16 +378,13 @@ export default async function ProjectSlugPage({
         alt: `${title} gallery image`,
       })) ?? [];
 
-  // Next project (from "next" field in data)
-  const nextSlug = pdata?.next ?? PROJECTS[0].slug;
-  const nextData = PROJECTS_BY_SLUG[nextSlug];
-  const { data: nextProject } = await supabase
-    .from("projects")
-    .select("title,slug,category")
-    .eq("slug", nextSlug)
-    .maybeSingle<{ title: string; slug: string; category: string | null }>();
-  const nextTitle = nextProject?.title ?? nextData?.name ?? nextSlug;
-  const nextCategory = nextProject?.category ?? nextData?.category ?? "Brand Design";
+  // Next project: the one after this in portfolio order (wraps around).
+  const reel = await loadReelProjects();
+  const here = reel.findIndex((p) => p.slug === slug);
+  const nextProject = reel.length > 1 ? reel[(here + 1) % reel.length] : null;
+  const nextSlug = nextProject?.slug ?? pdata?.next ?? PROJECTS[0].slug;
+  const nextTitle = nextProject?.title ?? PROJECTS_BY_SLUG[nextSlug]?.name ?? nextSlug;
+  const nextCategory = nextProject?.category ?? PROJECTS_BY_SLUG[nextSlug]?.category ?? "";
 
   // More work: 3 projects excluding current
   const moreWork = PROJECTS.filter((p) => p.slug !== slug).slice(0, 3);
@@ -405,7 +402,6 @@ export default async function ProjectSlugPage({
     about: category,
   };
 
-  const reel = await loadReelProjects();
   const caseStudy = CASE_STUDIES[slug];
 
   const nextBlock = (
