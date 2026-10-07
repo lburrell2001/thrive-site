@@ -9,7 +9,8 @@ const study: CaseStudy = {
   lede:
     "SafeSpace is a two-part therapy tool for hypnotherapy sessions: a virtual reality space each patient builds for themselves, and an iPad app where the therapist keeps session notes. Lauren led the five-person team that planned and built it, and designed and developed the therapist app.",
   meta: [
-    { label: "Project", value: "Senior design project (not client work)" },
+    { label: "Project", value: "Senior design project, Prairie View A&M University" },
+    { label: "Team", value: "Lauren Burrell (lead), Samantha Roberts, Abrianna Astane, Tahj Hightower, Victor Akpan" },
     { label: "Type", value: "VR + iPad product concept for hypnotherapy" },
     { label: "Lauren's role", value: "Team leader, UX research, iPad app design and development" },
     { label: "Timeline", value: "Oct 2022 – Apr 2023; brand refreshed Feb 2025" },
@@ -45,7 +46,7 @@ const study: CaseStudy = {
       { title: "Requirements and use cases", text: "The team defined who does what — therapist, patient, administrator — and mapped each task in use-case and sequence diagrams, including where a sign-in is required." },
       { title: "System design", text: "A model-view-controller layout with the database at the center: the Unity VR space and the therapist app both read and write through it." },
       { title: "Therapist app wireframes", text: "First screens for sign-in, session notes, the administrator's patient roster, the therapist's roster and a patient's history of notes." },
-      { title: "Build", text: "Teammates built the Unity environments, player movement, inventory and object grid. Lauren designed and developed the iPad app in Swift and connected it to a MongoDB database hosted on AWS, with create and read working for patients and therapists." },
+      { title: "Build", text: "Abrianna Astane and Tahj Hightower built the Unity environments, and the team added player movement, the inventory and the object grid. Lauren designed and developed the iPad app in Swift and connected it to a MongoDB database hosted on AWS, with create and read working for patients and therapists." },
       { title: "Brand refresh", text: "In February 2025 Lauren gave SafeSpace a full identity — a soft, inflated 3D wordmark, an app icon, a green palette and brand guidelines — and redesigned the iPad screens to match." },
     ],
   },

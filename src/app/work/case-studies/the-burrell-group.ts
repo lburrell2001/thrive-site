@@ -20,6 +20,7 @@ const study: CaseStudy = {
       alt: "Five pages of The Burrell Group website floating above a laptop",
     },
     numbers: [
+      { value: "+800%", label: "Site engagement" },
       { value: "12", label: "Public pages" },
       { value: "3", label: "Service lines, each with its own page" },
       { value: "4", label: "Staff tools: editor, forms, analytics, news" },
@@ -142,7 +143,7 @@ const study: CaseStudy = {
       ],
     },
     outcome: [
-      "TBG now has a site that matches the scale of the programs it supports and that its own staff can keep current.",
+      "TBG now has a site that matches the scale of the programs it supports and that its own staff can keep current. Engagement on the site is up 800%.",
       "Headlines, photos, team members, projects and news change in minutes from the page itself. Registrations and inquiries reach the right inbox the moment they're sent. And the analytics dashboard shows who is looking: which pages, from where, and from which organizations.",
     ],
     stack: ["Next.js", "React", "TypeScript", "Tailwind CSS", "Supabase", "Vercel", "Resend"],

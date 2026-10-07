@@ -20,6 +20,7 @@ const study: CaseStudy = {
     alt: "Two phones showing the dallasderbyday Instagram profile and its grid of event posts, over blurred campaign graphics",
   },
   numbers: [
+    { value: "+25%", label: "Event sign-ups" },
     { value: "11", label: "Days from proposal to event day" },
     { value: "6", label: "Vertical videos: countdowns and promos" },
     { value: "3", label: "Partner and vendor spotlights" },
@@ -100,7 +101,7 @@ const study: CaseStudy = {
     { when: "May 2, 2026", title: "Event day", text: "Dallas Derby Day at Lone Star Park." },
   ],
   outcome: [
-    "Dallas Derby Day went into event day with a campaign that looked like one thing: the same type, colors and photo treatment on every post, from the venue to the vendors to the final countdown.",
+    "Dallas Derby Day went into event day with a campaign that looked like one thing: the same type, colors and photo treatment on every post, from the venue to the vendors to the final countdown. Event sign-ups rose 25%.",
     "The client said they intend to keep working with Thrive on future events.",
   ],
   stack: ["Adobe Express", "Illustrator", "Photoshop", "Google Drive"],

@@ -7,9 +7,9 @@ const study: CaseStudy = {
   client: "Curl & Co.",
   headline: "A hair-care brand drawn from a single curl",
   lede:
-    "Curl & Co. is a beauty brand concept celebrating natural hair, confidence and individuality. Thrive built its visual system: a crown drawn from one looping line, a script wordmark, a warm five-color palette, a repeat pattern and the products and signage that carry it.",
+    "Curl & Co. is a beauty brand celebrating natural hair, confidence and individuality. Thrive built its visual system: a crown drawn from one looping line, a script wordmark, a warm five-color palette, a repeat pattern and the products and signage that carry it.",
   meta: [
-    { label: "Brand", value: "Curl & Co. (concept)" },
+    { label: "Brand", value: "Curl & Co." },
     { label: "Type", value: "Beauty and hair-care brand identity" },
     { label: "Thrive's role", value: "Brand design, visual system, mockups" },
     { label: "Year", value: "2025" },

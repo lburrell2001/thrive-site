@@ -649,3 +649,6 @@
   .scrollFrame img { transition: none; }
   .scrollFrame:hover img, .scrollFrame:focus img { transform: none; }
 }
+
+/* With an odd number of stats, the first (usually the headline result) spans the row. */
+.number:first-child:nth-last-child(odd) { grid-column: 1 / -1; }

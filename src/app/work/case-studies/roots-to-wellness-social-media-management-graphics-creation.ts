@@ -19,7 +19,10 @@ const study: CaseStudy = {
     src: "/services/social/web/rootstowellnessnow-feed-01.jpg",
     alt: "Nine Roots to Wellness Instagram posts in a grid: green space for youth, a crate of radishes, “3 types of community,” planting, an Earth Day event post, “Earth justice is health justice” and “3 ways we are solving food injustice”",
   },
-  numbers: [{ value: "9", label: "Feed posts in this set" }],
+  numbers: [
+    { value: "2x", label: "Instagram engagement" },
+    { value: "9", label: "Feed posts in this set" },
+  ],
   about: [
     "Roots to Wellness is a Dallas 501(c)(3) working on youth and community healing, with the line “Healing communities from the roots up.”",
     "Its topics are serious ones: access to nature, food justice and how the systems that grow our food shape our health. The feed has to make them approachable without making them smaller.",
@@ -77,7 +80,7 @@ const study: CaseStudy = {
     ],
   },
   outcome: [
-    "Roots to Wellness now has a cohesive educational feed and a predictable posting rhythm. Each post explains one idea clearly, and they all look like they come from the same organization.",
+    "Roots to Wellness now has a cohesive educational feed and a predictable posting rhythm, and its Instagram engagement has doubled. Each post explains one idea clearly, and they all look like they come from the same organization.",
     "Event posts and reels give the community what it needs to show up: what's happening, when, where and how to sign up.",
   ],
   stack: ["Instagram", "Canva", "Adobe Photoshop"],
