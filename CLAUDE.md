@@ -144,7 +144,7 @@ Migration `030`. Prospects are people Lauren reaches out to before they've shown
 ### Service page SEO
 
 - `src/lib/serviceSeo.ts` holds each service page's `<title>`, meta description and FAQs. FAQ answers only restate what the pages already say — keep them true; Google and AI assistants quote them.
-- Titles lead with the service and the place ("Affordable Web Design in Dallas, TX"; the layout template adds " | Thrive Creative Studios"). Web, branding and social pages also render `ServiceAbout` (the `about` copy in `serviceSeo.ts`: what's included, who it's for). `/services/digital-design` is shown as "Web Design" but keeps its URL.
+- Titles lead with the service and the place ("Custom Website Development in Dallas, TX"; the layout template adds " | Thrive Creative Studios"). Web, branding and social pages also render `ServiceAbout` (the `about` copy in `serviceSeo.ts`: what's included, who it's for). `/services/digital-design` is shown as "Web Development" (custom-coded sites plus Wix, Shopify and Webflow builds) but keeps its URL.
 - `/amarillo-web-design` targets Amarillo (Lauren's hometown; remote, in person when she's in town). Her story goes in `HOMETOWN_STORY` in that page. Amarillo is also in the root `areaServed`.
 - `ServiceFaq` renders the FAQ plus `Service`, `FAQPage` and `BreadcrumbList` JSON-LD; the root layout's `ProfessionalService` (`@id` = `BUSINESS_ID`) lists the services and DFW cities. Always serialize JSON-LD with `jsonLd()` from `src/lib/seo.ts`.
 - The canonical host is `thrivecreativestudios.org` (Vercel 308-redirects www to it). `robots.txt` disallows `/admin`, `/portal`, `/api/`; `/p/` and `/review/` stay crawlable because they carry `noindex`.
