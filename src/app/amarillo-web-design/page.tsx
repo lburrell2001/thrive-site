@@ -5,8 +5,9 @@ import { BUSINESS_ID, SITE_URL, absoluteUrl, buildPageMetadata, jsonLd } from "@
 import s from "./amarillo.module.css";
 
 // Web design for Amarillo businesses. Thrive is a Dallas studio, but
-// Amarillo is Lauren's hometown: she works with Amarillo clients remotely
-// and meets in person when she's back home. Keep every line here true —
+// Amarillo is Lauren's hometown (her story, in her words, is HOMETOWN_STORY):
+// she works with Amarillo clients remotely and meets in person when she's
+// back home. Keep every line here true —
 // Google and AI assistants quote it.
 
 const PATH = "/amarillo-web-design";
@@ -29,10 +30,16 @@ export const metadata: Metadata = buildPageMetadata({
 const ACCENT = "#e50586";
 
 /**
- * Lauren's hometown story, in her words: a paragraph per string. Shown under
- * "Amarillo is home", after the opening line.
+ * Lauren's hometown story, in her words (first person): a paragraph per
+ * string, shown under "Amarillo is home" and signed by her.
  */
-const HOMETOWN_STORY: string[] = [];
+const HOMETOWN_STORY: string[] = [
+  "I grew up on the north side of Amarillo, near Ross Rogers Golf Course, and graduated from Tascosa High School. When I'm home, my first stop is still Sharky's for the kids' steak nachos with spicy ranch on the side, then Water Still for a half mint, half blueberry sweet green tea.",
+  "My family is spread across Dallas and Houston, so I always had one foot in the big city. After Tascosa I went to Prairie View A&M University, earned a degree in computer science, and started my career at IBM. Living in Dallas showed me what businesses here have within reach: large agencies, graphic designers and art directors who help them look like a force.",
+  "Amarillo has plenty of businesses with that same potential. What they often don't have is that team behind them, at a price that makes sense. That's why I work with Amarillo businesses through Thrive Creative Studios. My family and friends are still there, and today we support CL Percy Group and the Amarillo Alumnae Chapter of Delta Sigma Theta with social media graphics and other creative work.",
+  "Projects run remotely, with calls, video and shared files, and I meet in person whenever I'm back home.",
+  "If you run a business in Amarillo, you don't need a Dallas budget to look like you belong on a bigger stage. You need the right team, and one that knows where you're from.",
+];
 
 const SERVICES = [
   { name: "Web Design", href: "/services/digital-design", desc: "Websites and landing pages that make it obvious what you do and what to do next — designed mobile-first, around your brand." },
@@ -51,7 +58,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "Do you work with businesses in Amarillo?",
-    a: "Yes. Thrive is based in Dallas, but Amarillo is Lauren Burrell's hometown. Amarillo projects run remotely — calls, video and shared files — with in-person meetings when she is back in town.",
+    a: "Yes. Thrive is based in Dallas, but Amarillo is founder Lauren Burrell's hometown — she grew up on the north side and graduated from Tascosa High School. Thrive already creates social media graphics and other creative work for CL Percy Group and the Amarillo Alumnae Chapter of Delta Sigma Theta. Projects run remotely, with in-person meetings when she is back in town.",
   },
   {
     q: "Can we meet in person?",
@@ -123,17 +130,8 @@ export default function AmarilloPage() {
           <p className={s.sectionEyebrow}>Hometown</p>
           <h2 id="home-heading" className={s.h2}>Amarillo is home</h2>
           <div className={s.prose}>
-            <p>
-              Thrive Creative Studios is based in Dallas, but Amarillo is where founder Lauren Burrell is from. She works
-              with Amarillo businesses remotely — calls, video and shared files — and meets in person when she&apos;s
-              back home.
-            </p>
             {HOMETOWN_STORY.map((text) => <p key={text.slice(0, 40)}>{text}</p>)}
-            <p>
-              Every Amarillo project gets the same process and the same attention as a project down the street from the
-              studio in Dallas: a clear plan, a written proposal before any work starts, and a design built around your
-              business and the people you want to reach.
-            </p>
+            <p className={s.signoff}>— Lauren Burrell, founder of Thrive Creative Studios</p>
           </div>
         </section>
 

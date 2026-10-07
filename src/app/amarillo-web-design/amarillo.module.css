@@ -231,3 +231,9 @@
 @media (max-width: 480px) {
   .stepList { grid-template-columns: 1fr; }
 }
+
+.prose .signoff {
+  margin-top: 8px;
+  font-weight: 700;
+  color: #0a0a0a;
+}
