@@ -300,7 +300,7 @@ export default async function UXDesignPage() {
         `}</style>
 
         <div className="sp-page">
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/ux-design-cover.jpg")}'), url('/new-thrive/services/ux.png')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/ux-design-cover.jpg")}'), url('/new-thrive/services/ux.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>

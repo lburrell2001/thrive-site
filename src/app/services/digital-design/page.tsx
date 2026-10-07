@@ -305,7 +305,7 @@ export default async function DigitalDesignPage() {
         `}</style>
 
         <div className="sp-page">
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/digital-design-cover.jpg")}'), url('/new-thrive/services/digital-design.jpg')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/digital-design-cover.jpg")}'), url('/new-thrive/services/digital-design.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>

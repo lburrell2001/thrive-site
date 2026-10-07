@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
 import WorkReel from "../components/WorkReel";
@@ -31,7 +31,7 @@ const SERVICES = [
     textColor: "#fff",
     href: "/services/digital-design",
     img: storageUrl("services/digital-design-cover.jpg"),
-    fallback: "/new-thrive/services/digital-design.jpg",
+    fallback: "/new-thrive/services/digital-design.webp",
   },
   {
     tag: "02 — Social",
@@ -42,7 +42,7 @@ const SERVICES = [
     textColor: "#fff",
     href: "/services/social-media",
     img: storageUrl("services/social-media-cover.jpg"),
-    fallback: "/new-thrive/services/social-media.png",
+    fallback: "/new-thrive/services/social-media.webp",
   },
   {
     tag: "03 — UX",
@@ -53,7 +53,7 @@ const SERVICES = [
     textColor: "#fff",
     href: "/services/ux-design",
     img: storageUrl("services/ux-design-cover.jpg"),
-    fallback: "/new-thrive/services/ux.png",
+    fallback: "/new-thrive/services/ux.webp",
   },
   {
     tag: "04 — Brand",
@@ -64,7 +64,7 @@ const SERVICES = [
     textColor: "#000",
     href: "/services/brand-design",
     img: storageUrl("services/brand-design-cover.jpg"),
-    fallback: "/new-thrive/services/brand-design.jpg",
+    fallback: "/new-thrive/services/brand-design.webp",
   },
   {
     tag: "05 — Photo",
@@ -75,7 +75,7 @@ const SERVICES = [
     textColor: "#000",
     href: "/services/photography",
     img: storageUrl("services/photography-cover.jpg"),
-    fallback: "/new-thrive/services/photo.png",
+    fallback: "/new-thrive/services/photo.webp",
   },
 ];
 
@@ -83,6 +83,14 @@ const TAB_LABELS = ["WEB DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "
 
 export default function ServicesPage() {
   const [activeTab, setActiveTab] = useState(0);
+
+  // An image that failed before hydration never fires onError, so check once
+  // after mount and swap in the bundled fallback for any that didn't load.
+  useEffect(() => {
+    document.querySelectorAll<HTMLImageElement>("img[data-fallback]").forEach((img) => {
+      if (img.complete && img.naturalWidth === 0) img.src = img.dataset.fallback!;
+    });
+  }, [activeTab]);
 
   return (
     <PublicLayout>
@@ -440,6 +448,7 @@ export default function ServicesPage() {
                   <img
                     src={svc.img}
                     alt={svc.name}
+                    data-fallback={svc.fallback}
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;

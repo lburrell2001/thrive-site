@@ -296,7 +296,7 @@ export default async function SocialMediaPage() {
         `}</style>
 
         <div className="sp-page">
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/social-media-cover.jpg")}'), url('/new-thrive/services/social-media.png')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/social-media-cover.jpg")}'), url('/new-thrive/services/social-media.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>

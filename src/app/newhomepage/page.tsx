@@ -51,7 +51,7 @@ const SERVICES = [
     tag: "05 — Photo", name: "PHOTOGRAPHY", sub: "VISUALS THAT TELL YOUR STORY",
     desc: "Brand photography and visual storytelling that captures real culture, real beauty, and real depth — bold, intentional, unforgettable.",
     href: "/services/photography",
-    media: { type: "image" as const, src: "/new-thrive/services/photo.png", local: true },
+    media: { type: "image" as const, src: "/new-thrive/services/photo.webp", local: true },
   },
 ];
 

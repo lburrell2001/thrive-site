@@ -228,11 +228,11 @@
   display: flex; align-items: flex-end; justify-content: center;
   min-height: 380px; background: #f0f0f0;
 }
-.svcPanel[data-panel="0"] .svcPanelRight { background-image: url('/new-thrive/services/digital-design.jpg'); background-size: cover; background-position: center; }
-.svcPanel[data-panel="1"] .svcPanelRight { background-image: url('/new-thrive/services/social-media.png'); background-size: cover; background-position: center; }
-.svcPanel[data-panel="2"] .svcPanelRight { background-image: url('/new-thrive/services/ux.png'); background-size: cover; background-position: center; }
-.svcPanel[data-panel="3"] .svcPanelRight { background-image: url('/new-thrive/services/brand-design.jpg'); background-size: cover; background-position: center; }
-.svcPanel[data-panel="4"] .svcPanelRight { background-image: url('/new-thrive/services/photo.png'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="0"] .svcPanelRight { background-image: url('/new-thrive/services/digital-design.webp'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="1"] .svcPanelRight { background-image: url('/new-thrive/services/social-media.webp'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="2"] .svcPanelRight { background-image: url('/new-thrive/services/ux.webp'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="3"] .svcPanelRight { background-image: url('/new-thrive/services/brand-design.webp'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="4"] .svcPanelRight { background-image: url('/new-thrive/services/photo.webp'); background-size: cover; background-position: center; }
 .svcPanelPhotoLabel {
   font-family: var(--font-bungee), sans-serif;
   font-size: 13px; color: rgba(255,255,255,0.45); padding: 24px;

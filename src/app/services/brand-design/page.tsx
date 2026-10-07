@@ -338,7 +338,7 @@ export default async function BrandDesignPage() {
 
         <div className="sp-page">
           {/* HERO */}
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/brand-design-cover.jpg")}'), url('/new-thrive/services/brand-design.jpg')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/brand-design-cover.jpg")}'), url('/new-thrive/services/brand-design.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>

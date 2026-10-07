@@ -294,7 +294,7 @@ export default async function PhotographyPage() {
         `}</style>
 
         <div className="sp-page">
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/photography-cover.jpg")}'), url('/new-thrive/services/photo.png')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/photography-cover.jpg")}'), url('/new-thrive/services/photo.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>

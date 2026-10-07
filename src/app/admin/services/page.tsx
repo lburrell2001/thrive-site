@@ -8,11 +8,11 @@ const F = {
 };
 
 const SERVICES = [
-  { slug: 'branding',       label: 'Branding',       accent: '#fd6100', coverKey: 'brand-design',   staticFallback: '/new-thrive/services/brand-design.jpg' },
-  { slug: 'digital-design', label: 'Digital Design', accent: '#1e3add', coverKey: 'digital-design', staticFallback: '/new-thrive/services/digital-design.jpg' },
-  { slug: 'ux-design',      label: 'UX Design',      accent: '#5b2d8e', coverKey: 'ux-design',      staticFallback: '/new-thrive/services/ux.png' },
-  { slug: 'social-media',   label: 'Social Media',   accent: '#e50586', coverKey: 'social-media',   staticFallback: '/new-thrive/services/social-media.png' },
-  { slug: 'photography',    label: 'Photography',    accent: '#0cf574', coverKey: 'photography',    staticFallback: '/new-thrive/services/photo.png' },
+  { slug: 'branding',       label: 'Branding',       accent: '#fd6100', coverKey: 'brand-design',   staticFallback: '/new-thrive/services/brand-design.webp' },
+  { slug: 'digital-design', label: 'Digital Design', accent: '#1e3add', coverKey: 'digital-design', staticFallback: '/new-thrive/services/digital-design.webp' },
+  { slug: 'ux-design',      label: 'UX Design',      accent: '#5b2d8e', coverKey: 'ux-design',      staticFallback: '/new-thrive/services/ux.webp' },
+  { slug: 'social-media',   label: 'Social Media',   accent: '#e50586', coverKey: 'social-media',   staticFallback: '/new-thrive/services/social-media.webp' },
+  { slug: 'photography',    label: 'Photography',    accent: '#0cf574', coverKey: 'photography',    staticFallback: '/new-thrive/services/photo.webp' },
 ];
 
 type Project = { id: string; title: string; slug: string; category: string | null };
