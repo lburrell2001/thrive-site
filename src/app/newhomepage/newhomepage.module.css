@@ -228,7 +228,7 @@
   display: flex; align-items: flex-end; justify-content: center;
   min-height: 380px; background: #f0f0f0;
 }
-.svcPanel[data-panel="0"] .svcPanelRight { background-image: url('/new-thrive/services/digital-design.webp'); background-size: cover; background-position: center; }
+.svcPanel[data-panel="0"] .svcPanelRight { background-image: url('/new-thrive/services/web-development.webp'); background-size: cover; background-position: center; }
 .svcPanel[data-panel="1"] .svcPanelRight { background-image: url('/new-thrive/services/social-media.webp'); background-size: cover; background-position: center; }
 .svcPanel[data-panel="2"] .svcPanelRight { background-image: url('/new-thrive/services/ux.webp'); background-size: cover; background-position: center; }
 .svcPanel[data-panel="3"] .svcPanelRight { background-image: url('/new-thrive/services/brand-design.webp'); background-size: cover; background-position: center; }

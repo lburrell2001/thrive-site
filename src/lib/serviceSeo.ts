@@ -6,7 +6,7 @@
 // pages already say (timelines, deliverables, process). No prices,
 // guarantees or claims were added — edit freely, but keep them true, since
 // Google and AI assistants quote them as fact. Titles lead with the service
-// and the place ("Affordable Web Design in Dallas, TX"); the layout adds
+// and the place ("Custom Website Development in Dallas, TX"); the layout adds
 // " | Thrive Creative Studios".
 
 export type ServiceSlug = 'brand-design' | 'digital-design' | 'ux-design' | 'social-media' | 'photography';
@@ -88,46 +88,50 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
   'digital-design': {
     slug: 'digital-design',
     path: '/services/digital-design',
-    name: 'Web Design',
-    serviceType: 'Website and landing page design',
-    title: 'Affordable Web Design in Dallas, TX',
+    name: 'Web Development',
+    serviceType: 'Custom website development',
+    title: 'Custom Website Development in Dallas, TX',
     description:
-      'Affordable website and landing page design for Dallas small businesses — mobile-first, built around your brand and goals, with a clear proposal up front. Remote across the US.',
+      'Custom-coded websites for Dallas small businesses, plus web design and builds on Wix, Shopify, Webflow and other platforms — designed around your brand, with a clear proposal up front.',
     remote: true,
     about: {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
       paragraphs: [
-        'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs websites and landing pages that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
-        'Every web design project runs through four steps. Discovery, where we agree on your goals, your audience and the pages you need. Wireframes, where the structure and content of each page are mapped out before anything is styled. Full visual design, with your colors, type and imagery applied to every page. Then handoff, with final Figma files, exported assets and specs ready for development or launch.',
-        'Every layout is designed mobile-first, so your site works on a phone before it is stretched to a desktop. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. If you also need the site built, say so when you reach out and it will be included in your proposal, with the timeline and price agreed in writing before work starts.',
+        'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs and builds websites that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
+        'There are two ways to build. A custom-coded website is written from scratch for your business, so it can do exactly what you need: pages your team edits right on the site, forms that reach the right inbox, built-in analytics and search groundwork. Or Thrive designs and builds your site on the platform that fits you — Wix, Shopify, Webflow and others — so you can run it yourself day to day. Your proposal recommends one and explains why.',
+        'Either way, the project starts with discovery and a page-by-page plan, then design with your colors, type and imagery, then the build, testing on phones and desktops, and launch. Every layout is designed mobile-first. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. The timeline and price are agreed in writing before work starts.',
       ],
       forWho: [
         'Small businesses without a website, or with one they’re embarrassed to send people to',
-        'Service businesses that need more calls, bookings or inquiries from their site',
-        'Launches and campaigns that need a focused landing page',
+        'Businesses that need features a template can’t handle',
+        'Shops and service businesses that want to run their site themselves on Wix, Shopify or Webflow',
         'Teams with a brand already that need it carried across every page',
       ],
     },
     faqs: [
       {
-        q: 'How long does a website design take?',
-        a: 'It depends on the scope — a single landing page moves faster than a multi-page site. Your proposal includes a timeline before anything starts. Every project runs through discovery, wireframes, full visual design, then handoff.',
+        q: 'Do you build custom websites or use platforms like Wix and Shopify?',
+        a: 'Both. Thrive builds custom-coded websites written from scratch, and also designs and builds sites on Wix, Shopify, Webflow and other platforms. Your proposal recommends the right fit for what you need and how you want to run the site.',
+      },
+      {
+        q: 'When is a custom website worth it?',
+        a: 'When your site needs to do more than a template allows — for example, pages your staff edit right on the site, forms that route to different people, or built-in analytics. If you mainly need a clean site you can update yourself, a platform like Wix, Shopify or Webflow is often the better fit.',
+      },
+      {
+        q: 'How long does a website take?',
+        a: 'It depends on the scope — a single landing page moves faster than a multi-page site. Your proposal includes a timeline before anything starts. Every project runs through discovery, design, the build, then launch.',
       },
       {
         q: 'Will my site work on phones?',
-        a: 'Yes. Every layout is designed mobile-first, so it works on a phone before it is stretched to a desktop.',
+        a: 'Yes. Every layout is designed mobile-first and tested on phones and desktops before launch.',
       },
       {
-        q: 'Can you design around the branding I already have?',
-        a: 'Yes. Brand implementation is part of the work — your existing colors, type and logo carried through every page.',
+        q: 'Can you build around the branding I already have?',
+        a: 'Yes. Your existing colors, type and logo are carried through every page. If you don’t have a brand yet, branding can be part of the same project.',
       },
       {
-        q: 'What do I receive at handoff?',
-        a: 'Final Figma files, exported assets and specs, ready for development or launch. If you also need the site built, say so when you reach out and it will be included in your proposal.',
-      },
-      {
-        q: 'Is web design with Thrive affordable for a small business?',
-        a: 'Thrive works with small businesses, and each website is scoped to what you need — a single landing page is a smaller project than a multi-page site. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
+        q: 'Is a website with Thrive affordable for a small business?',
+        a: 'Thrive works with small businesses, and each website is scoped to what you need — a single landing page is a smaller project than a multi-page site, and a platform build is usually smaller than a custom one. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
       },
       {
         q: 'Do you work with businesses outside Dallas?',

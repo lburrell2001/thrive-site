@@ -24,10 +24,10 @@ const baiJamjuree = Bai_Jamjuree({
 
 const SERVICES = [
   {
-    tag: "01 — Digital", name: "DIGITAL DESIGN", sub: "TIMELINE SCOPED TO YOUR PROJECT",
-    desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
+    tag: "01 — Web", name: "WEB DEVELOPMENT", sub: "TIMELINE SCOPED TO YOUR PROJECT",
+    desc: "Custom-coded websites built from scratch, plus sites designed and built on Wix, Shopify, Webflow and more — whichever fits how you want to run it.",
     href: "/services/digital-design",
-    media: { type: "video" as const, src: "branding-hero-v2.mp4" },
+    media: { type: "image" as const, src: "/new-thrive/services/web-development.webp", local: true },
   },
   {
     tag: "02 — Social", name: "SOCIAL MEDIA", sub: "CONTENT THAT ACTUALLY CONVERTS",
@@ -126,7 +126,7 @@ export default function NewHomePage() {
           <div className={styles.aboutMarqueeTrack}>
             {[0,1].map(i => (
               <span key={i} aria-hidden={i > 0 ? true : undefined}>
-                THRIVE CREATIVE STUDIOS &nbsp;✦&nbsp; BOLD BRANDING &nbsp;✦&nbsp; WEB DESIGN &nbsp;✦&nbsp; UX DESIGN &nbsp;✦&nbsp; SOCIAL MEDIA &nbsp;✦&nbsp; PHOTOGRAPHY &nbsp;✦&nbsp; DALLAS, TX &nbsp;✦&nbsp; BUILT FOR THE BOLD &nbsp;✦&nbsp;
+                THRIVE CREATIVE STUDIOS &nbsp;✦&nbsp; BOLD BRANDING &nbsp;✦&nbsp; WEB DEVELOPMENT &nbsp;✦&nbsp; UX DESIGN &nbsp;✦&nbsp; SOCIAL MEDIA &nbsp;✦&nbsp; PHOTOGRAPHY &nbsp;✦&nbsp; DALLAS, TX &nbsp;✦&nbsp; BUILT FOR THE BOLD &nbsp;✦&nbsp;
               </span>
             ))}
           </div>
@@ -158,7 +158,7 @@ export default function NewHomePage() {
 
         <div className={styles.svcLayout}>
         <div className={styles.svcTabs} role="tablist">
-          {["DIGITAL DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"].map((label, i) => (
+          {["WEB DEVELOPMENT", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"].map((label, i) => (
             <div
               key={i}
               className={`${styles.svcTab} ${activeTab === i ? styles.svcTabActive : ""}`}

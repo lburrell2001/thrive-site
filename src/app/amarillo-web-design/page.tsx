@@ -44,7 +44,7 @@ const HOMETOWN_STORY: string[] = [
 ];
 
 const SERVICES = [
-  { name: "Web Design", href: "/services/digital-design", desc: "Websites and landing pages that make it obvious what you do and what to do next — designed mobile-first, around your brand." },
+  { name: "Web Development", href: "/services/digital-design", desc: "Custom-coded websites, or sites designed and built on Wix, Shopify or Webflow — designed mobile-first, around your brand." },
   { name: "Branding", href: "/services/brand-design", desc: "A logo, colors, type and brand guidelines that make your business recognizable everywhere it shows up." },
   { name: "Social Media", href: "/services/social-media", desc: "A monthly content calendar, designed posts and captions, community management and a monthly report." },
   { name: "UX Design", href: "/services/ux-design", desc: "Research, wireframes and tested prototypes for apps and websites that need to be easy to use." },
@@ -72,7 +72,7 @@ const FAQS = [
   },
   {
     q: "What services can Amarillo businesses get?",
-    a: "Web design, branding, social media management and UX design all work remotely, so they are available to Amarillo businesses. Photography sessions are in person in Dallas–Fort Worth only.",
+    a: "Web development, branding, social media management and UX design all work remotely, so they are available to Amarillo businesses. Photography sessions are in person in Dallas–Fort Worth only.",
   },
   {
     q: "How do I get started?",

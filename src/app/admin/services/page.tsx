@@ -9,7 +9,7 @@ const F = {
 
 const SERVICES = [
   { slug: 'branding',       label: 'Branding',       accent: '#fd6100', coverKey: 'brand-design',   staticFallback: '/new-thrive/services/brand-design.webp' },
-  { slug: 'digital-design', label: 'Digital Design', accent: '#1e3add', coverKey: 'digital-design', staticFallback: '/new-thrive/services/digital-design.webp' },
+  { slug: 'digital-design', label: 'Digital Design', accent: '#1e3add', coverKey: 'digital-design', staticFallback: '/new-thrive/services/web-development.webp' },
   { slug: 'ux-design',      label: 'UX Design',      accent: '#5b2d8e', coverKey: 'ux-design',      staticFallback: '/new-thrive/services/ux.webp' },
   { slug: 'social-media',   label: 'Social Media',   accent: '#e50586', coverKey: 'social-media',   staticFallback: '/new-thrive/services/social-media.webp' },
   { slug: 'photography',    label: 'Photography',    accent: '#0cf574', coverKey: 'photography',    staticFallback: '/new-thrive/services/photo.webp' },

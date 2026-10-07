@@ -24,14 +24,14 @@ const baiJamjuree = Bai_Jamjuree({
 const SERVICES = [
   {
     tag: "01 — Web",
-    name: "WEB DESIGN",
+    name: "WEB DEVELOPMENT",
     sub: "TIMELINE SCOPED TO YOUR PROJECT",
-    desc: "Web design, landing pages, and digital assets built from the ground up — infused with strategy and a visual identity that sets you apart.",
+    desc: "Custom-coded websites built from scratch, plus sites designed and built on Wix, Shopify, Webflow and more — whichever fits how you want to run it.",
     color: "#1e3add",
     textColor: "#fff",
     href: "/services/digital-design",
     img: storageUrl("services/digital-design-cover.jpg"),
-    fallback: "/new-thrive/services/digital-design.webp",
+    fallback: "/new-thrive/services/web-development.webp",
   },
   {
     tag: "02 — Social",
@@ -79,7 +79,7 @@ const SERVICES = [
   },
 ];
 
-const TAB_LABELS = ["WEB DESIGN", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"];
+const TAB_LABELS = ["WEB DEVELOPMENT", "SOCIAL MEDIA", "UX DESIGN", "BRAND DESIGN", "PHOTOGRAPHY"];
 
 export default function ServicesPage() {
   const [activeTab, setActiveTab] = useState(0);

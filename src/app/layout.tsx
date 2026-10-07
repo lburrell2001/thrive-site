@@ -148,7 +148,7 @@ export default function RootLayout({
     logo: `${SITE_URL}/new-thrive/logomark.svg`,
     image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
     description:
-      "Dallas creative studio for brand identity, website design, UX design, social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
+      "Dallas creative studio for brand identity, custom website development and design, UX design, social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
     email: "hello@thrivecreativestudios.org",
     founder: { "@type": "Person", name: "Lauren Burrell" },
     address: {
@@ -162,7 +162,7 @@ export default function RootLayout({
       { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } },
       { "@type": "Country", name: "United States" },
     ],
-    knowsAbout: ["Brand identity design", "Logo design", "Website design", "UX design", "Social media management", "Brand photography"],
+    knowsAbout: ["Brand identity design", "Logo design", "Website design", "Custom website development", "Wix, Shopify and Webflow websites", "UX design", "Social media management", "Brand photography"],
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Creative services",

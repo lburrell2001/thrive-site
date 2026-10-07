@@ -31,21 +31,20 @@ const ACCENT = "#1e3add";
 const ACCENT_TEXT = "#fff";
 
 const DELIVERABLES = [
-  { title: "Website Design", desc: "Multi-page site designs built for your audience — from homepage to contact." },
-  { title: "Landing Pages", desc: "Conversion-focused single pages that drive sign-ups, sales, or inquiries." },
-  { title: "Digital Assets", desc: "Email headers, ad creatives, digital banners — everything you need to show up online." },
-  { title: "Brand Implementation", desc: "Your existing brand applied consistently across every digital touchpoint." },
-  { title: "Mobile-First Layouts", desc: "Every design is built to look great on phones, tablets, and desktops." },
-  { title: "Handoff-Ready Files", desc: "Developer-ready Figma files, specs, and export-ready assets — no guesswork." },
+  { title: "Custom-Coded Websites", desc: "Sites written from scratch for your business, built to do exactly what you need." },
+  { title: "Wix, Shopify & Webflow", desc: "Your site designed and built on the platform that fits, so you can run it yourself." },
+  { title: "Landing Pages", desc: "Focused single pages that drive sign-ups, sales or inquiries." },
+  { title: "Edit It Yourself", desc: "Set up so your team can update text, photos and pages without calling a developer." },
+  { title: "Forms, Analytics & SEO", desc: "Forms that reach the right inbox, visitor insights and search groundwork, built in." },
+  { title: "Mobile-First Layouts", desc: "Every page designed for phones first and tested on phones and desktops." },
 ];
 
 const PROCESS = [
-  { step: "01", title: "Discovery", desc: "We align on goals, audience, and the pages you need to get there." },
-  { step: "02", title: "Wireframes", desc: "Structural layouts first — we map out content hierarchy before any visuals." },
-  { step: "03", title: "Design", desc: "Full visual design applied: color, type, imagery, interactions." },
-  { step: "04", title: "Handoff", desc: "Final Figma files, assets, and specs ready for development or launch." },
+  { step: "01", title: "Discovery", desc: "We align on goals, audience, the pages you need, and whether custom code or a platform fits best." },
+  { step: "02", title: "Design", desc: "A page-by-page plan, then full visual design: color, type, imagery and layout." },
+  { step: "03", title: "Build", desc: "Your site coded from scratch, or built on Wix, Shopify, Webflow or another platform." },
+  { step: "04", title: "Launch", desc: "Tested on phones and desktops, then launched." },
 ];
-
 
 type FeaturedProject = { id: string; title: string; slug: string; category: string; tagline: string | null };
 
@@ -305,18 +304,18 @@ export default async function DigitalDesignPage() {
         `}</style>
 
         <div className="sp-page">
-          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/digital-design-cover.jpg")}'), url('/new-thrive/services/digital-design.webp')` }}>
+          <section className="sp-hero" style={{ backgroundImage: `url('${storageUrl("services/digital-design-cover.jpg")}'), url('/new-thrive/services/web-development.webp')` }}>
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>
-                <p className="sp-hero-eyebrow">01 — Web Design</p>
-                <h1 className="sp-hero-h1">WEB<br />DESIGN</h1>
+                <p className="sp-hero-eyebrow">01 — Web Development</p>
+                <h1 className="sp-hero-h1" style={{ fontSize: "clamp(40px, 3.9vw, 56px)" }}>WEB<br />DEVELOPMENT</h1>
               </div>
               <div>
                 <p className="sp-hero-sub" style={{ color: ACCENT }}>TIMELINE SCOPED TO YOUR PROJECT</p>
                 <p className="sp-hero-desc">
-                  Web design, landing pages, and digital assets built from the ground up —
-                  infused with strategy and a visual identity that sets you apart.
+                  Custom-coded websites built from scratch, plus sites designed and built on
+                  Wix, Shopify, Webflow and more — whichever fits how you want to run it.
                 </p>
               </div>
               <div className="sp-hero-actions">
@@ -332,7 +331,7 @@ export default async function DigitalDesignPage() {
 
           <section className="sp-deliverables">
             <p className="sp-section-eyebrow">What you get</p>
-            <h2 className="sp-section-heading">DIGITAL PRESENCE,<br />FULLY DESIGNED</h2>
+            <h2 className="sp-section-heading">CUSTOM-CODED OR<br />PLATFORM-BUILT</h2>
             <div className="sp-del-grid">
               {DELIVERABLES.map((d, i) => (
                 <div key={i} className="sp-del-card">
@@ -346,7 +345,7 @@ export default async function DigitalDesignPage() {
 
           <section className="sp-process">
             <p className="sp-section-eyebrow">Timeline</p>
-            <h2 className="sp-section-heading">FROM BRIEF<br />TO LAUNCH-READY</h2>
+            <h2 className="sp-section-heading">FROM BRIEF<br />TO LIVE SITE</h2>
             <div className="sp-process-steps">
               {PROCESS.map((s, i) => (
                 <div key={i} className="sp-step">
@@ -397,9 +396,9 @@ export default async function DigitalDesignPage() {
           <ServiceFaq slug="digital-design" accent={ACCENT} />
 
           <section className="sp-cta" style={{ background: ACCENT }}>
-            <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY TO LEVEL UP<br />YOUR DIGITAL PRESENCE?</h2>
+            <h2 className="sp-cta-heading" style={{ color: ACCENT_TEXT }}>READY FOR A WEBSITE<br />THAT WORKS?</h2>
             <p className="sp-cta-sub" style={{ color: "rgba(255,255,255,0.7)" }}>
-              Tell us what you&apos;re building and we&apos;ll put together a design package that works for your timeline and budget.
+              Tell us what you&apos;re building and we&apos;ll recommend custom code or a platform, with a proposal that fits your timeline and budget.
             </p>
             <a href="/contact" className="sp-btn-primary" style={{ background: "#fff", color: "#000" }}>
               GET STARTED →

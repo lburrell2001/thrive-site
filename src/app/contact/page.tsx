@@ -33,7 +33,7 @@ const INFO_ROWS = [
 const FAQ_ITEMS = [
   {
     q: "How long does a project take?",
-    a: "Brand identities take 4–6 weeks. Web design depends on the scope — your proposal includes a timeline before anything starts. Social retainers are monthly.",
+    a: "Brand identities take 4–6 weeks. Websites depend on the scope — your proposal includes a timeline before anything starts. Social retainers are monthly.",
   },
   {
     q: "Do you work with startups?",
@@ -458,7 +458,7 @@ export default function ContactPage() {
                       >
                         <option value="">Select a service...</option>
                         <option value="Brand Design">Brand Design</option>
-                        <option value="Digital Design">Digital Design</option>
+                        <option value="Digital Design">Web Development</option>
                         <option value="Social Media">Social Media</option>
                         <option value="UX Design">UX Design</option>
                         <option value="Photography">Photography</option>
