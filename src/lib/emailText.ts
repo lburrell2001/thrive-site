@@ -14,14 +14,16 @@ export function href(url: string, site: string): string | null {
   return /^(https?:|mailto:)/i.test(u) ? u : null;
 }
 
-export function inlineHtml(text: string, site: string, linkColor = '#e40586') {
+/** Bold, italic and link text are rendered again, so a link inside bold still works. */
+export function inlineHtml(text: string, site: string, linkColor = '#e40586'): string {
   return text.split(INLINE).filter(Boolean).map((t) => {
-    if (t.startsWith('**') && t.endsWith('**')) return `<strong>${esc(t.slice(2, -2))}</strong>`;
-    if (t.startsWith('*') && t.endsWith('*')) return `<em>${esc(t.slice(1, -1))}</em>`;
+    if (t.startsWith('**') && t.endsWith('**')) return `<strong>${inlineHtml(t.slice(2, -2), site, linkColor)}</strong>`;
+    if (t.startsWith('*') && t.endsWith('*')) return `<em>${inlineHtml(t.slice(1, -1), site, linkColor)}</em>`;
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(t);
     if (link) {
       const h = href(link[2], site);
-      return h ? `<a href="${esc(h)}" style="color:${linkColor};text-decoration:underline;">${esc(link[1])}</a>` : esc(link[1]);
+      const label = inlineHtml(link[1], site, linkColor);
+      return h ? `<a href="${esc(h)}" style="color:${linkColor};text-decoration:underline;">${label}</a>` : label;
     }
     return esc(t);
   }).join('');

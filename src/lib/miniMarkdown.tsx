@@ -20,21 +20,23 @@ export function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return text.split(INLINE).filter(Boolean).map((token, i) => {
     const key = `${keyPrefix}-${i}`;
 
+    // Bold, italic and link text are rendered again, so a link inside bold
+    // (**Send it [our way](/contact)**) or bold inside a link still works.
     if (token.startsWith('**') && token.endsWith('**')) {
-      return <strong key={key}>{token.slice(2, -2)}</strong>;
+      return <strong key={key}>{renderInline(token.slice(2, -2), key)}</strong>;
     }
 
     if (token.startsWith('*') && token.endsWith('*')) {
-      return <em key={key}>{token.slice(1, -1)}</em>;
+      return <em key={key}>{renderInline(token.slice(1, -1), key)}</em>;
     }
 
     const link = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(token);
     if (link) {
       const href = safeHref(link[2]);
-      if (!href) return <Fragment key={key}>{link[1]}</Fragment>;
+      if (!href) return <Fragment key={key}>{renderInline(link[1], key)}</Fragment>;
       return (
         <a key={key} href={href} rel="noopener noreferrer">
-          {link[1]}
+          {renderInline(link[1], key)}
         </a>
       );
     }
