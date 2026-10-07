@@ -7,11 +7,11 @@ const study: CaseStudy = {
   client: "TCKT",
   headline: "Movie tickets in one app, from any theater",
   lede:
-    "TCKT is a concept app for buying movie tickets. It links your Fandango, Cinemark, AMC and Regal accounts once, then takes you from nearby theaters to showtimes, seats and checkout in a single straight path. Lauren researched, mapped, designed and prototyped it, and built the brand around it.",
+    "TCKT is an app for buying movie tickets. It links your Fandango, Cinemark, AMC and Regal accounts once, then takes you from nearby theaters to showtimes, seats and checkout in a single straight path. Thrive researched, mapped, designed and prototyped it, and built the brand around it.",
   meta: [
-    { label: "Project", value: "Self-initiated product concept" },
+    { label: "Brand", value: "TCKT" },
     { label: "Type", value: "iPhone app: movie ticketing" },
-    { label: "Lauren's role", value: "UX research, user flows, UI design, prototype, brand" },
+    { label: "Thrive's role", value: "UX research, user flows, UI design, prototype, brand" },
     { label: "Year", value: "2025" },
   ],
   heroImage: {
@@ -39,7 +39,7 @@ const study: CaseStudy = {
   },
   approach: {
     steps: [
-      { title: "Research", text: "Lauren surveyed moviegoers about ticketing pain points, interviewed frequent Fandango and Cinemark users, and compared the major ticketing apps, including Fandango and Atom Tickets." },
+      { title: "Research", text: "Thrive surveyed moviegoers about ticketing pain points, interviewed frequent Fandango and Cinemark users, and compared the major ticketing apps, including Fandango and Atom Tickets." },
       { title: "Affinity mapping", text: "Frustrations were sorted in Mural. Multiple logins, long checkouts and confusing loyalty points came out on top." },
       { title: "User flow", text: "One straight path — app load, login, theater map, films, seat selector, purchase, confirmation — with favorites and settings reachable from every step." },
       { title: "Wireframes", text: "Eight low-fidelity screens to test the flow before any color or type." },
@@ -117,7 +117,7 @@ const study: CaseStudy = {
   },
   outcome: [
     "TCKT ended as a clickable prototype covering the whole path from sign-in to a confirmed ticket, plus a full brand with guidelines.",
-    "The project sharpened Lauren's product thinking: cutting a crowded task down to one straight flow, keeping the hierarchy clear on small screens, and designing for people in a hurry.",
+    "The design turns a crowded task into one straight flow, keeps the hierarchy clear on small screens, and is built for people in a hurry.",
   ],
   stack: ["Figma", "ProtoPie", "Mural"],
 };
