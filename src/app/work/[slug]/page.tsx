@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import PublicLayout from "../../components/PublicLayout";
 import { supabase } from "../../../lib/supabaseServer";
-import { projectCover } from "@/lib/storage";
+import { projectCover, projectCoverOg } from "@/lib/storage";
 import { SITE_NAME, absoluteUrl } from "@/lib/seo";
 import ProjectGallery from "./ProjectGallery";
 
@@ -250,7 +250,7 @@ export async function generateMetadata({
   const title = project?.title ?? staticData?.name ?? slug;
   const metaDescription =
     project?.overview ?? project?.tagline ?? staticData?.description ?? `${title} — a project by Thrive Creative Studios.`;
-  const coverSrc = projectCover(slug);
+  const coverSrc = projectCoverOg(slug);
 
   return {
     title,
@@ -261,7 +261,7 @@ export async function generateMetadata({
       description: metaDescription,
       url: `/work/${slug}`,
       type: "article",
-      images: [{ url: coverSrc, alt: `${title} cover` }],
+      images: [{ url: coverSrc, width: 1200, height: 630, alt: `${title} cover` }],
     },
     twitter: {
       card: "summary_large_image",
