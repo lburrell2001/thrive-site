@@ -33,7 +33,7 @@ export type CaseStudy = {
   stack: string[];
 };
 
-const IMG = "/work/the-burrell-group";
+const IMG = "/case-studies/the-burrell-group";
 
 export const CASE_STUDIES: Record<string, CaseStudy> = {
   "the-burrell-group": {
