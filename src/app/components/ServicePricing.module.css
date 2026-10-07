@@ -1,0 +1,203 @@
+.section {
+  padding: 80px;
+  background: #fff;
+  box-sizing: border-box;
+  scroll-margin-top: 100px;
+}
+
+.alt { background: #f5f4f2; }
+
+.eyebrow {
+  margin: 0 0 12px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #888;
+}
+
+.heading {
+  margin: 0 0 16px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: clamp(28px, 4vw, 52px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.intro {
+  max-width: 640px;
+  margin: 0 0 8px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 17px;
+  line-height: 1.7;
+  color: #444;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: 20px;
+  /* One or two cards don't stretch across the page. */
+  max-width: calc(max(var(--cols, 3), 2) * 400px);
+  margin-top: 40px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px 24px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.alt .card { border-color: #e2e0dc; }
+
+.bar { display: block; height: 3px; border-radius: 2px; margin-bottom: 18px; }
+
+.name {
+  margin: 0 0 10px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.price {
+  margin: 0 0 8px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: clamp(26px, 2.6vw, 34px);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #0a0a0a;
+}
+
+.priceText { font-size: clamp(20px, 1.8vw, 24px); line-height: 1.2; }
+
+.scope {
+  margin: 0;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #666;
+}
+
+.items {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0 0;
+  padding: 18px 0 0;
+  border-top: 1px solid #eee;
+  list-style: none;
+}
+
+.items li {
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 14px;
+  line-height: 1.55;
+  color: #444;
+}
+
+.check { flex: 0 0 auto; font-weight: 700; }
+.excluded { color: #888 !important; }
+
+.actions {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.btn {
+  display: block;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 13px;
+  text-align: center;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: opacity 0.15s;
+}
+
+.btn:hover { opacity: 0.85; }
+
+.link {
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  color: #0a0a0a;
+}
+
+/* Add-ons and shared lists: a smaller row under the cards */
+.addOn,
+.includes {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr);
+  gap: 24px 40px;
+  align-items: start;
+  margin-top: 20px;
+  padding: 24px;
+  border: 2px dashed;
+  border-radius: 12px;
+  max-width: calc(max(var(--cols, 3), 2) * 400px);
+  background: #fafafa;
+  box-sizing: border-box;
+}
+
+.includes { border: 1px solid #e5e5e5; grid-template-columns: 1fr; background: #fff; }
+
+.addOnName {
+  margin: 0 0 6px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.addOnPrice {
+  margin: 0 0 6px;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.addOnItems { margin: 0; padding: 0; border-top: none; }
+.includes .addOnItems { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 32px; }
+
+.notes {
+  max-width: 760px;
+  margin-top: 24px;
+}
+
+.notes p {
+  margin: 0 0 6px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #777;
+}
+
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 800px; }
+  .addOn, .includes { max-width: 800px; }
+}
+
+@media (max-width: 960px) {
+  .section { padding: 60px 48px; }
+}
+
+@media (max-width: 767px) {
+  .section { padding: 60px 24px; scroll-margin-top: 64px; }
+  .grid { grid-template-columns: 1fr; max-width: none; }
+  .addOn, .includes { max-width: none; }
+  .addOn { grid-template-columns: 1fr; gap: 16px; }
+  .includes .addOnItems { grid-template-columns: 1fr; }
+}

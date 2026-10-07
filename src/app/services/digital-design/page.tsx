@@ -6,6 +6,7 @@ import WorkReel from "../../components/WorkReel";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServicePricing from "../../components/ServicePricing";
 import ServiceAbout from "../../components/ServiceAbout";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
@@ -34,7 +35,7 @@ const DELIVERABLES = [
   { title: "Custom-Coded Websites", desc: "Sites written from scratch for your business, built to do exactly what you need." },
   { title: "Wix, Shopify & Webflow", desc: "Your site designed and built on the platform that fits, so you can run it yourself." },
   { title: "Landing Pages", desc: "Focused single pages that drive sign-ups, sales or inquiries." },
-  { title: "Edit It Yourself", desc: "Set up so your team can update text, photos and pages without calling a developer." },
+  { title: "Edit It Yourself", desc: "With Large and Custom sites, an admin area so your team can edit text and photos." },
   { title: "Forms, Analytics & SEO", desc: "Forms that reach the right inbox, visitor insights and search groundwork, built in." },
   { title: "Mobile-First Layouts", desc: "Every page designed for phones first and tested on phones and desktops." },
 ];
@@ -356,6 +357,8 @@ export default async function DigitalDesignPage() {
               ))}
             </div>
           </section>
+
+          <ServicePricing slug="digital-design" accent={ACCENT} accentText={ACCENT_TEXT} />
 
           {featured && featured.length > 0 ? (
             <section className="sp-featured">

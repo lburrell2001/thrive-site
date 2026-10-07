@@ -6,6 +6,7 @@ import WorkReel from "../../components/WorkReel";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServicePricing from "../../components/ServicePricing";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
 
@@ -344,6 +345,8 @@ export default async function PhotographyPage() {
               ))}
             </div>
           </section>
+
+          <ServicePricing slug="photography" accent={ACCENT} accentText={ACCENT_TEXT} />
 
           {featured && featured.length > 0 ? (
             <section className="sp-featured">

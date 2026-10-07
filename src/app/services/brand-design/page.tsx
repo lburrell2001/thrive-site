@@ -6,6 +6,7 @@ import WorkReel from "../../components/WorkReel";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServicePricing from "../../components/ServicePricing";
 import ServiceAbout from "../../components/ServiceAbout";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
@@ -33,13 +34,13 @@ const DELIVERABLES = [
   { title: "Color System", desc: "A full palette with hex codes and usage rules that make your brand recognizable at a glance." },
   { title: "Typography", desc: "Font pairing and hierarchy that makes every headline and caption feel intentional." },
   { title: "Brand Guidelines", desc: "A living doc covering logo usage, colors, typography, do's and don'ts." },
-  { title: "Social Templates", desc: "Ready-to-use Canva or Figma templates for consistent, on-brand posting." },
-  { title: "Brand Kit", desc: "All final files packaged and delivered — PNG, SVG, PDF, and whatever else you need." },
+  { title: "Social & Print Pieces", desc: "Social media profile and cover images and a business card design, with a full identity." },
+  { title: "Final Files", desc: "Every final file packaged and delivered for print and web." },
 ];
 
 const PROCESS = [
   { step: "01", title: "Discovery", desc: "Quick call + vibe alignment. We lock goals, scope, and the look we're chasing." },
-  { step: "02", title: "Concepts", desc: "2–3 visual directions so you can choose the lane that feels most like you." },
+  { step: "02", title: "Concepts", desc: "Two logo concepts so you can choose the one that feels most like you." },
   { step: "03", title: "Refinement", desc: "We polish the system: spacing, type, color — everything gets tight." },
   { step: "04", title: "Delivery", desc: "Final exports + brand guidelines. Clean files, clear instructions." },
 ];
@@ -394,6 +395,8 @@ export default async function BrandDesignPage() {
           </section>
 
           {/* FEATURED WORK */}
+          <ServicePricing slug="brand-design" accent={ACCENT} accentText={ACCENT_TEXT} />
+
           {featured && featured.length > 0 ? (
             <section className="sp-featured">
               <p className="sp-section-eyebrow">Recent work</p>

@@ -42,14 +42,14 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Brand identity design',
     title: 'Branding & Logo Design in Dallas, TX',
     description:
-      'Affordable branding for Dallas small businesses: logo, colors, typography and brand guidelines, delivered as a complete identity in 4–6 weeks. Remote across the US.',
+      'Branding for Dallas small businesses from $450: a logo, colors and fonts, or a full identity with brand guidelines in 4 to 6 weeks. Remote across the US.',
     remote: true,
     about: {
       heading: 'BRANDING THAT MAKES YOU RECOGNIZABLE',
       paragraphs: [
         'Your brand is how people remember you after they scroll past, drive by or close the tab. A brand identity from Thrive gives you a logo, a color system and a typeface pairing that work together, plus the guidelines that keep them consistent wherever your business shows up — your website, your social accounts, your signage, your invoices.',
-        'Every branding project starts with a discovery call about your goals, your customers and the feeling you want people to have when they see your name. From there you see 2–3 distinct visual directions, pick the one that feels most like you, and we refine it together: spacing, type, color, every variation of the logo you will need.',
-        'At the end you get a brand kit with every final file in PNG, SVG and PDF, brand guidelines that explain how to use it all, and ready-to-use social templates so your first posts already look like you. Most projects take 4–6 weeks from the first call to final files, and the scope and price are agreed in a written proposal before any work starts.',
+        'Every branding project starts with a discovery call about your goals, your customers and the feeling you want people to have when they see your name. From there you see two logo concepts, pick the one that feels most like you, and we refine it together: spacing, type, color and the layouts you will need.',
+        'At the end you get your final files for print and web. A full identity adds an icon or secondary mark, a brand guidelines document, social media profile and cover images, and a business card design, and is yours in 4 to 6 weeks. The scope and price are agreed in a written proposal before any work starts.',
       ],
       forWho: [
         'New businesses that need a logo and a look before they launch',
@@ -65,11 +65,11 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'What do I get at the end?',
-        a: 'A primary logo with variations, a color system, typography, brand guidelines, social templates, and a brand kit with every final file in PNG, SVG and PDF.',
+        a: 'Logo and essentials includes a primary logo plus one alternate layout, a color palette and font pairing, and files for print and web. A full identity adds an icon or secondary mark, a brand guidelines document, social media profile and cover images, and a business card design.',
       },
       {
         q: 'How many logo concepts will I see?',
-        a: 'You will see 2–3 distinct visual directions, choose the one that feels most like you, and then we refine it together.',
+        a: 'Two logo concepts. You choose the one that feels most like you, and it is refined to final.',
       },
       {
         q: 'Do you only work with Dallas businesses?',
@@ -77,11 +77,11 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'Is branding with Thrive affordable for a small business?',
-        a: 'Thrive works with small businesses, and each project is scoped to what you actually need — a logo refresh costs less than a full identity with guidelines and templates. You get a clear written proposal after the discovery call, before any work starts.',
+        a: 'Thrive works with small businesses. Logo and essentials is $450, and a full identity is $800. You get a clear written proposal after the discovery call, before any work starts.',
       },
       {
         q: 'How much does branding cost?',
-        a: 'It depends on what you need — a logo refresh is a smaller project than a full identity with guidelines and templates. Every project gets a clear written proposal after the discovery call, before any work starts.',
+        a: 'Logo and essentials is $450. A full identity, with brand guidelines, social media profile and cover images and a business card design, is $800. Every project gets a clear written proposal before any work starts.',
       },
     ],
   },
@@ -92,7 +92,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Custom website development',
     title: 'Custom Website Development in Dallas, TX',
     description:
-      'Custom-coded websites for Dallas small businesses, plus web design and builds on Wix, Shopify, Webflow and other platforms — designed around your brand, with a clear proposal up front.',
+      'Custom websites for Dallas small businesses from $750, with Starter, Medium and Large packages, monthly care plans, and builds on Wix, Shopify and Webflow.',
     remote: true,
     about: {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
@@ -119,7 +119,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'How long does a website take?',
-        a: 'It depends on the scope — a single landing page moves faster than a multi-page site. Your proposal includes a timeline before anything starts. Every project runs through discovery, design, the build, then launch.',
+        a: 'Starter sites are live in 2 to 3 weeks, Medium in 3 to 4 weeks and Large in 4 to 6 weeks. Custom builds get a timeline in their quote. Every project runs through discovery, design, the build, then launch.',
       },
       {
         q: 'Will my site work on phones?',
@@ -131,7 +131,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'Is a website with Thrive affordable for a small business?',
-        a: 'Thrive works with small businesses, and each website is scoped to what you need — a single landing page is a smaller project than a multi-page site, and a platform build is usually smaller than a custom one. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
+        a: 'Website packages are $750 for Starter (3 to 5 pages), $950 for Medium (6 to 15 pages) and $1,150 for Large (16 to 25 pages). Sites that need more than pages are quoted. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
       },
       {
         q: 'Do you work with businesses outside Dallas?',
@@ -146,12 +146,12 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'User experience design',
     title: 'UX Design for Apps & Websites in Dallas, TX',
     description:
-      'User research, wireframes, prototypes and usability testing for apps and websites — human-centered UX design from a Dallas studio, available remotely.',
+      'Clickable app and website prototypes from $375, designed and ready to hand to your developer. UX design from a Dallas studio, available remotely.',
     remote: true,
     faqs: [
       {
         q: 'What does UX design include?',
-        a: 'User research, information architecture, wireframes, interactive prototypes, usability testing and a design system — whichever of those your product needs.',
+        a: 'Every prototype includes screen-by-screen layouts for your app or site, a clickable prototype you can tap through on a phone or computer, two rounds of revisions, and design files handed off, ready for your developer. Up to 5 screens is $375 and up to 10 screens is $600.',
       },
       {
         q: 'How do you know the design works?',
@@ -174,26 +174,26 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Social media management',
     title: 'Social Media Management in Dallas, TX',
     description:
-      'Social media management for Dallas small businesses: strategy, a monthly content calendar, graphics, captions and community management, with a monthly analytics report.',
+      'Social media management for Dallas small businesses from $450/month: a monthly content calendar, designed posts and edited video, captions, scheduling and posting.',
     remote: true,
     about: {
       heading: 'SOCIAL MEDIA, HANDLED',
       paragraphs: [
-        'Posting consistently, looking good doing it and answering every comment is a job in itself. Thrive’s social media management takes it off your plate: a plan for what to post and why, a month of content designed and written ahead of time, and someone keeping an eye on your comments and messages.',
-        'It starts with an audit of your current accounts, your audience and what your competitors are doing. That shapes your content pillars, your voice and a plan for how your accounts will grow. Each month you get a content calendar with designed graphics and captions, and you review and approve everything before it posts.',
-        'Once posts are live, the work continues: replying to comments and DMs, engaging with your community, and a monthly analytics report that shows what is working, what is not and what changes next month. You also get reusable story templates, so you and your team can post on-brand in between.',
+        'Posting consistently and looking good doing it is a job in itself. Thrive’s social media management takes it off your plate: a month of content planned, designed, edited and written ahead of time, then posted on a consistent schedule.',
+        'Each month you get a content calendar. Every post is designed, videos are edited, and captions and hashtags are written. You review and approve everything before it posts.',
+        'Then Thrive schedules and posts it, so your accounts stay active without you thinking about it. Price depends on posts per week and the number of accounts. Filming and ad spend are not included. A monthly analytics report on reach, engagement and follower growth is available as an add-on.',
       ],
       forWho: [
         'Business owners who know they should post more but never have the time',
         'Brands whose feed doesn’t match the quality of what they actually do',
-        'Businesses that want a plan and monthly numbers, not just pretty posts',
+        'Businesses that want to post consistently without doing it themselves',
         'Teams that want to approve everything before it goes live',
       ],
     },
     faqs: [
       {
         q: 'What is included in social media management?',
-        a: 'A content strategy, a content calendar, designed graphics and captions, story templates, community management, and a monthly analytics report.',
+        a: 'A monthly content calendar, graphic design and video editing for each post, captions and hashtags, and scheduling and posting. Filming and ad spend are not included. Monthly analytics reporting is available as an add-on.',
       },
       {
         q: 'Do I get to approve posts?',
@@ -216,7 +216,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Brand and commercial photography',
     title: 'Brand Photography & Headshots in Dallas, TX',
     description:
-      'Brand photography, headshots, product and event photography in Dallas–Fort Worth — edited, licensed galleries delivered within 7 days.',
+      'Brand photography in Dallas–Fort Worth from $150: on-location brand sessions and full-day shoots, with edited photos delivered in an online gallery.',
     remote: false,
     faqs: [
       {

@@ -7,6 +7,7 @@ import SocialFeed from "../../components/SocialFeed";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
+import ServicePricing from "../../components/ServicePricing";
 import ServiceAbout from "../../components/ServiceAbout";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
 import { supabase } from "@/lib/supabaseServer";
@@ -20,7 +21,6 @@ export const metadata: Metadata = buildPageMetadata({
     "content creation Texas",
     "Instagram management studio",
     "social media strategy small business",
-    "community management",
   ],
 });
 
@@ -30,19 +30,18 @@ const ACCENT = "#e50586";
 const ACCENT_TEXT = "#fff";
 
 const DELIVERABLES = [
-  { title: "Content Strategy", desc: "A clear plan: content pillars, posting cadence, and the story you want to tell." },
   { title: "Content Calendar", desc: "A full month of posts planned, reviewed, and approved before anything goes live." },
-  { title: "Graphics & Captions", desc: "On-brand visuals and copy — every post designed to stop the scroll." },
-  { title: "Story Templates", desc: "Reusable Instagram Story frames your team can use for anything, anytime." },
-  { title: "Community Management", desc: "DM responses, comment replies, and proactive engagement — we handle the inbox." },
-  { title: "Monthly Analytics", desc: "A clear snapshot of what's working, what's not, and what we're adjusting." },
+  { title: "Design & Video Editing", desc: "Every post designed and every video edited to look like your brand." },
+  { title: "Captions & Hashtags", desc: "Copy written for each post, with hashtags that fit." },
+  { title: "Scheduling & Posting", desc: "Posts go out on a consistent schedule, so your accounts never go quiet." },
+  { title: "Analytics Reporting", desc: "Optional add-on: a monthly report on reach, engagement, and follower growth." },
 ];
 
 const PROCESS = [
-  { step: "01", title: "Audit", desc: "We review your current presence, audience, and what your competitors are doing." },
-  { step: "02", title: "Strategy", desc: "Content pillars, voice, and a plan for how we grow — built around your goals." },
-  { step: "03", title: "Create", desc: "Designs, captions, and scheduling. You review before anything posts." },
-  { step: "04", title: "Manage", desc: "We post, engage, and report — you stay focused on running your business." },
+  { step: "01", title: "Plan", desc: "We map out the month's posts in a content calendar, built around your goals." },
+  { step: "02", title: "Create", desc: "Graphics designed, videos edited, captions and hashtags written." },
+  { step: "03", title: "Approve", desc: "You review everything before anything posts." },
+  { step: "04", title: "Post", desc: "We schedule and post on a consistent rhythm — you stay focused on your business." },
 ];
 
 
@@ -306,8 +305,8 @@ export default async function SocialMediaPage() {
               <div>
                 <p className="sp-hero-sub" style={{ color: ACCENT }}>CONTENT THAT ACTUALLY CONVERTS</p>
                 <p className="sp-hero-desc">
-                  Strategy, content creation, and community management that grows your
-                  audience and turns followers into loyal clients.
+                  Content editing and consistent posting: designed posts, edited videos and
+                  captions, scheduled and posted every month.
                 </p>
               </div>
               <div className="sp-hero-actions">
@@ -350,6 +349,8 @@ export default async function SocialMediaPage() {
               ))}
             </div>
           </section>
+
+          <ServicePricing slug="social-media" accent={ACCENT} accentText={ACCENT_TEXT} />
 
           {featured && featured.length > 0 ? (
             <section className="sp-featured">

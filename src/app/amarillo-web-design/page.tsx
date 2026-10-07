@@ -46,7 +46,7 @@ const HOMETOWN_STORY: string[] = [
 const SERVICES = [
   { name: "Web Development", href: "/services/digital-design", desc: "Custom-coded websites, or sites designed and built on Wix, Shopify or Webflow — designed mobile-first, around your brand." },
   { name: "Branding", href: "/services/brand-design", desc: "A logo, colors, type and brand guidelines that make your business recognizable everywhere it shows up." },
-  { name: "Social Media", href: "/services/social-media", desc: "A monthly content calendar, designed posts and captions, community management and a monthly report." },
+  { name: "Social Media", href: "/services/social-media", desc: "A monthly content calendar, designed posts, edited videos and captions, scheduled and posted for you." },
   { name: "UX Design", href: "/services/ux-design", desc: "Research, wireframes and tested prototypes for apps and websites that need to be easy to use." },
 ];
 
@@ -68,7 +68,7 @@ const FAQS = [
   },
   {
     q: "Is web design with Thrive affordable for a small business?",
-    a: "Thrive works with small businesses, and each website is scoped to what you need — a single landing page is a smaller project than a multi-page site. You get a written proposal with the timeline and price before anything starts.",
+    a: "Thrive works with small businesses, and website packages start at $750. You get a written proposal with the timeline and price before anything starts.",
   },
   {
     q: "What services can Amarillo businesses get?",
@@ -164,6 +164,9 @@ export default async function AmarilloPage() {
               </Link>
             ))}
           </div>
+          <p className={s.priceLine}>
+            <Link href="/services/digital-design#pricing">Website packages from $750 →</Link>
+          </p>
         </section>
 
         <WorkReel projects={reel} eyebrow="The work" title="What Thrive has made" />

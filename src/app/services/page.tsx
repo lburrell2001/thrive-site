@@ -5,6 +5,8 @@ import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
 import WorkReel from "../components/WorkReel";
 import { storageUrl } from "@/lib/storage";
+import { SERVICE_PRICING } from "@/lib/servicePricing";
+import type { ServiceSlug } from "@/lib/serviceSeo";
 
 const bungee = Bungee({
   weight: "400",
@@ -37,7 +39,7 @@ const SERVICES = [
     tag: "02 — Social",
     name: "SOCIAL MEDIA",
     sub: "CONTENT THAT ACTUALLY CONVERTS",
-    desc: "Strategy, content creation, and community management that grows your audience and turns followers into loyal clients.",
+    desc: "Content editing and consistent posting: designed posts, edited videos and captions, scheduled and posted every month.",
     color: "#e50586",
     textColor: "#fff",
     href: "/services/social-media",
@@ -240,6 +242,16 @@ export default function ServicesPage() {
             text-transform: uppercase;
             margin-bottom: 20px;
           }
+          .sv-panel-from {
+            display: inline-block;
+            font-family: var(--font-bungee, 'Bungee', sans-serif);
+            font-size: 15px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #0a0a0a;
+            color: #fff;
+            margin-bottom: 20px;
+          }
           .sv-panel-desc {
             font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
             font-size: 15px;
@@ -440,6 +452,7 @@ export default function ServicesPage() {
                     <div className="sv-panel-tag">{svc.tag}</div>
                     <div className="sv-panel-name">{svc.name}</div>
                     <div className="sv-panel-sub">{svc.sub}</div>
+                    <div className="sv-panel-from">{SERVICE_PRICING[svc.href.split("/").pop() as ServiceSlug]?.from}</div>
                     <p className="sv-panel-desc">{svc.desc}</p>
                   </div>
                   <a href={svc.href} className="sv-panel-btn">LEARN MORE →</a>

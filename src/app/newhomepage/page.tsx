@@ -31,7 +31,7 @@ const SERVICES = [
   },
   {
     tag: "02 — Social", name: "SOCIAL MEDIA", sub: "CONTENT THAT ACTUALLY CONVERTS",
-    desc: "Strategy, content creation, and community management that grows your audience and turns followers into loyal clients.",
+    desc: "Content editing and consistent posting: designed posts, edited videos and captions, scheduled and posted every month.",
     href: "/services/social-media",
     media: { type: "video" as const, src: "hero-social.mp4" },
   },

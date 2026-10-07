@@ -275,3 +275,12 @@
   .storyGrid { grid-template-columns: 1fr; gap: 40px; }
   .photo { position: static; max-width: 380px; margin: 0 auto; }
 }
+
+.priceLine {
+  margin: 28px 0 0;
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 16px;
+}
+
+.priceLine a { color: #e50586; text-decoration: none; }
+.priceLine a:hover { text-decoration: underline; }
