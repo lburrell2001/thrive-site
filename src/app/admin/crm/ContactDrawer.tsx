@@ -30,6 +30,7 @@ import { ReviewRequestDialog } from './ReviewRequestDialog';
 import { EmailDialog } from './EmailDialog';
 import { runContactAction } from './contactActions';
 import { isRetainer, retainerProgress } from '@/lib/retainer';
+import { LogCallForm } from './LogCallForm';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
@@ -54,6 +55,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   prospect: '#fd6100',
   reply: '#0a8f4f',
   print: '#9409ce',
+  visit: '#b8b2a7',
 };
 
 /** How a deal came to be, for "Opened … from …". Manual deals say nothing. */
@@ -90,6 +92,8 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   const [messaging, setMessaging] = useState(false);
   const [prospecting, setProspecting] = useState(false);
   const [tab, setTab] = useState<'overview' | 'activity' | 'details'>('overview');
+  // Bumped by the header's Log call button to open the call form.
+  const [callRequest, setCallRequest] = useState(0);
   const [busy, setBusy] = useState('');
 
   const reload = useCallback(async () => {
@@ -255,6 +259,9 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setMessaging(true)} disabled={!c.email && !c.phone && !c.portal_client_id}>
                   Quick message
                 </button>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setCallRequest((n) => n + 1); }}>
+                  ☏ Log call
+                </button>
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={startProposal} disabled={busy === 'proposal'}>
                   New proposal
                 </button>
@@ -332,7 +339,16 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
 
               {tab === 'activity' && (
                 <section className={s.section}>
-                  <LogForm contactId={id} onLogged={reload} notify={notify} />
+                  <LogForm
+                    key={callRequest}
+                    contactId={id}
+                    contactName={c.name}
+                    deals={detail.deals}
+                    focusDealId={focusDealId ?? null}
+                    initialKind={callRequest ? 'call' : 'note'}
+                    onLogged={async () => { await reload(); onChanged(); }}
+                    notify={notify}
+                  />
                   <Timeline detail={detail} onDelete={async (activityId) => {
                     try {
                       await apiSend(`/api/crm/activities/${activityId}`, 'DELETE');
@@ -930,12 +946,16 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   );
 }
 
-function LogForm({ contactId, onLogged, notify }: {
+function LogForm({ contactId, contactName, deals, focusDealId, initialKind, onLogged, notify }: {
   contactId: string;
+  contactName: string;
+  deals: CrmDeal[];
+  focusDealId: string | null;
+  initialKind: CrmActivityKind;
   onLogged: () => Promise<unknown>;
   notify: (message: string, tone?: 'ok' | 'error') => void;
 }) {
-  const [kind, setKind] = useState<CrmActivityKind>('note');
+  const [kind, setKind] = useState<CrmActivityKind>(initialKind);
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -954,7 +974,7 @@ function LogForm({ contactId, onLogged, notify }: {
   }
 
   return (
-    <form onSubmit={submit}>
+    <div>
       <div className={s.kindPicker} role="radiogroup" aria-label="What are you logging?">
         {ACTIVITY_KINDS.map((k) => (
           <button
@@ -969,20 +989,33 @@ function LogForm({ contactId, onLogged, notify }: {
           </button>
         ))}
       </div>
-      <textarea
-        className={p.textarea}
-        style={{ minHeight: 70 }}
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder={kind === 'note' ? 'Add a note…' : `What was the ${KIND_LABEL[kind].toLowerCase()} about?`}
-        aria-label="Note"
-      />
-      <div className={s.modalActions} style={{ marginTop: 8 }}>
-        <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={saving || !body.trim()}>
-          {saving ? 'Saving…' : `Log ${KIND_LABEL[kind].toLowerCase()}`}
-        </button>
-      </div>
-    </form>
+      {kind === 'call' ? (
+        <LogCallForm
+          contactId={contactId}
+          contactName={contactName}
+          deals={deals}
+          defaultDealId={focusDealId}
+          autoFocus={initialKind === 'call'}
+          onLogged={async () => { notify('Call logged'); await onLogged(); }}
+        />
+      ) : (
+        <form onSubmit={submit}>
+          <textarea
+            className={p.textarea}
+            style={{ minHeight: 70 }}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder={kind === 'note' ? 'Add a note…' : `What was the ${KIND_LABEL[kind].toLowerCase()} about?`}
+            aria-label="Note"
+          />
+          <div className={s.modalActions} style={{ marginTop: 8 }}>
+            <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={saving || !body.trim()}>
+              {saving ? 'Saving…' : `Log ${KIND_LABEL[kind].toLowerCase()}`}
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 

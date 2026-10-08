@@ -18,11 +18,15 @@ import {
   type CrmInquiry,
   type CrmLinkedProposal,
   type CrmStage,
+  type CrmCallLog,
+  type CrmCallRow,
   type CrmTask,
   type CrmToday,
   type TimelineItem,
 } from '@/types/crm';
 import { formatPhone } from '@/lib/phone';
+import { callSummary, readCall } from '@/lib/calls';
+import { visitsForContact } from '@/lib/siteVisitors';
 
 function money(cents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', {
@@ -190,14 +194,14 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies, print] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies, print, bookings] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
       .order('due_date', { ascending: true, nullsFirst: false }),
     db.from('crm_activities').select('*').eq('contact_id', id).order('created_at', { ascending: false }).limit(300),
     db.from('contact_inquiries')
-      .select('id, crm_deal_id, created_at, project_type, budget, timeline, message, status, source, first_source')
+      .select('id, crm_deal_id, created_at, project_type, budget, timeline, message, status, source, first_source, session_id')
       .eq('crm_contact_id', id).order('created_at', { ascending: false }),
     db.from('client_reminders').select('*').or(reminderFilter).order('created_at', { ascending: false }).limit(200),
     recipientIds.length
@@ -212,6 +216,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     db.from('prospect_emails').select('id, subject, body, style, status, error, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('email_replies').select('id, subject, text, from_email, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(100),
     db.from('marketing_recipients').select('id, outcome, note, created_at, marketing_campaigns ( id, name, piece, sent_on )').eq('contact_id', id),
+    db.from('bookings').select('id, starts_at, ends_at, status, notes, crm_deal_id').eq('crm_contact_id', id).order('starts_at', { ascending: false }).limit(50),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -230,6 +235,18 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
         body: a.body || null,
         dealId: a.deal_id ?? null,
       });
+    } else if (a.kind === 'call') {
+      const call = readCall(a.metadata);
+      timeline.push({
+        key: `activity:${a.id}`,
+        kind: 'call',
+        at: a.created_at,
+        title: call ? `Call · ${callSummary(call)}` : 'Call',
+        body: a.body || null,
+        activityId: a.id,
+        dealId: a.deal_id ?? null,
+        call,
+      });
     } else {
       timeline.push({
         key: `activity:${a.id}`,
@@ -238,8 +255,38 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
         title: ACTIVITY_TITLE[a.kind] ?? 'Note',
         body: a.body,
         activityId: a.id,
+        dealId: a.deal_id ?? null,
       });
     }
+  }
+
+  // Website visits, once an inquiry tied a browser to this person.
+  const sessionIds = (inquiries.data ?? []).map((i) => (i as { session_id?: string | null }).session_id).filter((v): v is string => Boolean(v));
+  for (const v of await visitsForContact(db, sessionIds)) {
+    const mins = Math.round(v.ms / 60_000);
+    timeline.push({
+      key: `visit:${v.session_id}`,
+      kind: 'visit',
+      at: v.at,
+      title: `Visited the site · ${v.pages.length} page${v.pages.length === 1 ? '' : 's'}${mins ? ` · ${mins} min` : ''}`,
+      meta: v.source ? `From ${v.source}` : null,
+      body: v.pages.map((pg) => pg.label).join(' → '),
+    });
+  }
+
+  // Calls booked through /book. The booking's inquiry shows separately.
+  for (const b of bookings.data ?? []) {
+    const minutes = Math.round((Date.parse(b.ends_at) - Date.parse(b.starts_at)) / 60_000);
+    const upcoming = b.status === 'confirmed' && Date.parse(b.starts_at) > Date.now();
+    timeline.push({
+      key: `booking:${b.id}`,
+      kind: 'call',
+      at: b.starts_at,
+      title: b.status === 'cancelled' ? 'Booked call · cancelled' : upcoming ? 'Booked call · coming up' : 'Booked call',
+      meta: `${minutes} min, booked through the website`,
+      body: b.notes || null,
+      dealId: b.crm_deal_id,
+    });
   }
 
   for (const i of (inquiries.data ?? []) as CrmInquiry[]) {
@@ -466,4 +513,69 @@ async function loadProspectCounts(db: SupabaseClient) {
   ]);
   const emailed = new Set([...(a.data ?? []), ...(b.data ?? [])].map((r) => r.contact_id));
   return { total: ids.length, never_emailed: ids.filter((id) => !emailed.has(id)).length };
+}
+
+/** How far back the Calls page looks. */
+const CALL_LOG_DAYS = 180;
+
+/** Every logged call and every booked call, for the Calls page. */
+export async function loadCallLog(db: SupabaseClient): Promise<CrmCallLog> {
+  const since = new Date(Date.now() - CALL_LOG_DAYS * 86_400_000).toISOString();
+  const [activities, bookings] = await Promise.all([
+    db.from('crm_activities')
+      .select('id, contact_id, deal_id, body, metadata, created_at, crm_contacts ( name, email, company, phone ), crm_deals ( title )')
+      .eq('kind', 'call').gte('created_at', since)
+      .order('created_at', { ascending: false }).limit(500),
+    db.from('bookings')
+      .select('id, starts_at, ends_at, name, email, company, phone, notes, crm_contact_id, crm_deal_id, crm_deals ( title )')
+      .eq('status', 'confirmed').gte('starts_at', since)
+      .order('starts_at', { ascending: false }).limit(500),
+  ]);
+  if (activities.error) throw new Error(activities.error.message);
+
+  type One<T> = T | T[] | null;
+  const one = <T,>(v: One<T>): T | null => (Array.isArray(v) ? v[0] ?? null : v);
+
+  const calls: CrmCallRow[] = (activities.data ?? []).map((a) => {
+    const c = one(a.crm_contacts as One<{ name: string; email: string | null; company: string | null; phone: string | null }>);
+    return {
+      key: `activity:${a.id}`,
+      activity_id: a.id,
+      booking_id: null,
+      contact_id: a.contact_id,
+      contact_name: c?.name || c?.email || 'Unnamed',
+      company: c?.company ?? null,
+      phone: c?.phone ?? null,
+      deal_id: a.deal_id,
+      deal_title: one(a.crm_deals as One<{ title: string }>)?.title ?? null,
+      at: a.created_at,
+      call: readCall(a.metadata),
+      body: a.body || null,
+    };
+  });
+
+  const now = Date.now();
+  const upcoming: CrmCallRow[] = [];
+  for (const b of bookings.data ?? []) {
+    const row: CrmCallRow = {
+      key: `booking:${b.id}`,
+      activity_id: null,
+      booking_id: b.id,
+      contact_id: b.crm_contact_id,
+      contact_name: b.name || b.email,
+      company: b.company,
+      phone: b.phone,
+      deal_id: b.crm_deal_id,
+      deal_title: one(b.crm_deals as One<{ title: string }>)?.title ?? null,
+      at: b.starts_at,
+      call: null,
+      body: b.notes || null,
+    };
+    if (Date.parse(b.starts_at) > now) upcoming.push(row);
+    else calls.push(row);
+  }
+
+  calls.sort((a, b) => b.at.localeCompare(a.at));
+  upcoming.sort((a, b) => a.at.localeCompare(b.at));
+  return { upcoming, calls };
 }

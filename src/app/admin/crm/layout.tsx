@@ -1,7 +1,7 @@
 'use client';
 
 // The CRM workspace: a sidebar of views (Today, Pipeline, Prospects,
-// Contacts, Emails), ⌘K search, and one contact panel any page can open.
+// Contacts, Calls, Visitors, Emails), ⌘K search, and one contact panel any page can open.
 // ?contact=<id>&deal=<id> (or ?portal=<portal client id>) in the URL opens
 // someone straight away, which is how the dashboard, digest and
 // notification emails link in.
@@ -22,6 +22,8 @@ const NAV = [
   { href: '/admin/crm/pipeline', label: 'Pipeline', icon: '▦' },
   { href: '/admin/crm/prospects', label: 'Prospects', icon: '◎' },
   { href: '/admin/crm/contacts', label: 'Contacts', icon: '☺' },
+  { href: '/admin/crm/calls', label: 'Calls', icon: '☏' },
+  { href: '/admin/crm/visitors', label: 'Visitors', icon: '◔' },
   { href: '/admin/crm/emails', label: 'Emails', icon: '✉' },
   { href: '/admin/crm/campaigns', label: 'Campaigns', icon: '◈' },
 ] as const;

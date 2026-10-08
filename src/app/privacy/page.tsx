@@ -50,7 +50,12 @@ export default function PrivacyPage() {
               full card number.
             </li>
             <li>
-              <strong>Site usage.</strong> Basic, aggregated analytics about page visits.
+              <strong>Site usage.</strong> The pages you visit, how long you stay, how you found the site, your
+              device type, and your approximate location (city, worked out from your IP address; we don’t store
+              the address itself). We don’t use cookies for this. Your browser keeps a random ID in local storage so
+              we can tell when someone comes back. If you later send an inquiry or book a call, we connect your
+              earlier visits to it so we know what you were interested in. You can clear the ID at any time by
+              clearing your browser’s site data.
             </li>
           </ul>
 

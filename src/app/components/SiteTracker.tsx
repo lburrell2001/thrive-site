@@ -1,9 +1,10 @@
 'use client';
 
-// Records page views for the admin analytics dashboard. No cookies: the
-// session id lives in sessionStorage (gone when the tab closes), and the
-// first visit's source is kept in localStorage so an inquiry can say how
-// this person first found the site.
+// Records page views for the admin analytics dashboard and the CRM's
+// Visitors page. No cookies: the session id lives in sessionStorage (gone
+// when the tab closes); a random visitor id and the first visit's source are
+// kept in localStorage, so return visits are recognised and an inquiry can
+// say how this person first found the site.
 //
 // Admin, portal and proposal pages are never tracked, and neither is any
 // browser that has signed in to /admin (see markThisBrowserAsAdmin).
@@ -12,6 +13,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 const SESSION_KEY = 'thrive_sid';
+const VISITOR_KEY = 'thrive_vid';
 const SESSION_SEEN_KEY = 'thrive_sid_seen';
 const FIRST_TOUCH_KEY = 'thrive_first_touch';
 const NO_TRACK_KEY = 'thrive_no_track';
@@ -104,8 +106,14 @@ export function SiteTracker() {
     // document.referrer is only meaningful for the page the visitor arrived on.
     const ref = landing && document.referrer ? document.referrer : null;
 
+    const ls = storage('local');
+    let vid = ls?.getItem(VISITOR_KEY) ?? null;
+    if (!vid || !/^[a-f0-9]{32}$/.test(vid)) {
+      vid = randomId();
+      ls?.setItem(VISITOR_KEY, vid);
+    }
+
     if (landing) {
-      const ls = storage('local');
       if (ls && !ls.getItem(FIRST_TOUCH_KEY)) {
         const first: FirstTouch = {
           ref,
@@ -126,6 +134,7 @@ export function SiteTracker() {
     void send({
       t: 'pv',
       sid,
+      vid: ls ? vid : null,
       path: pathname,
       landing,
       ref,

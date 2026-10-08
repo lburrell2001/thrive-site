@@ -19,6 +19,8 @@ const text = (max: number) =>
 const pageviewSchema = z.object({
   t: z.literal('pv'),
   sid: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  // The browser's lasting id (localStorage); absent where storage is blocked.
+  vid: z.string().regex(/^[a-f0-9]{32}$/).nullish(),
   path: z.string().startsWith('/').max(300),
   landing: z.boolean(),
   ref: text(500),
@@ -109,31 +111,33 @@ export async function POST(req: Request) {
       )
     : null;
 
-  const { data: row, error } = await db
-    .from('site_pageviews')
-    .insert({
-      session_id: data.sid,
-      visitor_hash: visitorHash(ip, ua),
-      path,
-      is_landing: data.landing,
-      referrer_host: origin?.referrer_host ?? null,
-      source: origin?.source ?? null,
-      channel: origin?.channel ?? null,
-      utm_source: data.landing ? data.utm_source : null,
-      utm_medium: data.landing ? data.utm_medium : null,
-      utm_campaign: data.landing ? data.utm_campaign : null,
-      utm_content: data.landing ? data.utm_content : null,
-      click_id: data.landing ? data.click ?? null : null,
-      device: deviceOf(ua),
-      country: header(req, 'x-vercel-ip-country'),
-      region: header(req, 'x-vercel-ip-country-region'),
-      city: header(req, 'x-vercel-ip-city'),
-    })
-    .select('id')
-    .single();
+  const view = {
+    session_id: data.sid,
+    visitor_hash: visitorHash(ip, ua),
+    path,
+    is_landing: data.landing,
+    referrer_host: origin?.referrer_host ?? null,
+    source: origin?.source ?? null,
+    channel: origin?.channel ?? null,
+    utm_source: data.landing ? data.utm_source : null,
+    utm_medium: data.landing ? data.utm_medium : null,
+    utm_campaign: data.landing ? data.utm_campaign : null,
+    utm_content: data.landing ? data.utm_content : null,
+    click_id: data.landing ? data.click ?? null : null,
+    device: deviceOf(ua),
+    country: header(req, 'x-vercel-ip-country'),
+    region: header(req, 'x-vercel-ip-country-region'),
+    city: header(req, 'x-vercel-ip-city'),
+  };
+  const insert = (v: object) => db.from('site_pageviews').insert(v).select('id').single();
+  let { data: row, error } = await insert({ ...view, visitor_id: data.vid ?? null });
+  if (error && /visitor_id/.test(error.message)) {
+    // Migration 034 not applied yet: still count the view.
+    ({ data: row, error } = await insert(view));
+  }
 
-  if (error) {
-    console.error('Page view not recorded:', error.message);
+  if (error || !row) {
+    console.error('Page view not recorded:', error?.message);
     return noContent();
   }
   return NextResponse.json({ id: row.id });

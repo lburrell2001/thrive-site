@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ACTIVITY_KINDS, CRM_STAGES } from '@/types/crm';
+import { ACTIVITY_KINDS, CALL_DIRECTIONS, CALL_OUTCOMES, CRM_STAGES } from '@/types/crm';
 
 const optionalText = (max: number) =>
   z
@@ -73,10 +73,27 @@ export const updateDealSchema = z
   .partial()
   .refine((v) => Object.keys(v).length > 0, 'Nothing to update');
 
-export const createActivitySchema = z.object({
-  kind: z.enum(ACTIVITY_KINDS),
-  body: z.string().trim().min(1, 'Write something first').max(5000),
-});
+export const createActivitySchema = z
+  .object({
+    kind: z.enum(ACTIVITY_KINDS),
+    body: z.string().trim().max(5000).default(''),
+    /** When it happened, if not just now (a call logged afterwards). */
+    at: z.iso.datetime({ offset: true }).nullish(),
+    deal_id: z.uuid().nullish(),
+    call: z
+      .object({
+        direction: z.enum(CALL_DIRECTIONS),
+        outcome: z.enum(CALL_OUTCOMES),
+        minutes: z.number().int().min(0).max(600).nullish(),
+      })
+      .nullish(),
+    /** A follow-up task to add at the same time. */
+    follow_up: z.object({ title: z.string().trim().min(1).max(200), due_date: isoDate.nullish() }).nullish(),
+  })
+  // A call that went unanswered needs no write-up; anything else does.
+  .refine((a) => a.kind === 'call' || a.body.length > 0, { message: 'Write something first', path: ['body'] })
+  .refine((a) => a.kind !== 'call' || a.call, { message: 'Say how the call went', path: ['call'] })
+  .refine((a) => !a.at || Date.parse(a.at) <= Date.now() + 5 * 60_000, { message: 'That time is in the future', path: ['at'] });
 
 export const createTaskSchema = z.object({
   title: z.string().trim().min(1, 'Add a task').max(200),

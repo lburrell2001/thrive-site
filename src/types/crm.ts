@@ -14,6 +14,45 @@ export const STAGE_LABEL: Record<CrmStage, string> = {
 export const ACTIVITY_KINDS = ['note', 'call', 'meeting', 'email'] as const;
 export type CrmActivityKind = (typeof ACTIVITY_KINDS)[number];
 
+/** A logged call keeps these in crm_activities.metadata. */
+export const CALL_DIRECTIONS = ['outbound', 'inbound'] as const;
+export type CallDirection = (typeof CALL_DIRECTIONS)[number];
+export const CALL_OUTCOMES = ['connected', 'voicemail', 'no_answer'] as const;
+export type CallOutcome = (typeof CALL_OUTCOMES)[number];
+
+export const CALL_DIRECTION_LABEL: Record<CallDirection, string> = { outbound: 'I called', inbound: 'They called' };
+export const CALL_OUTCOME_LABEL: Record<CallOutcome, string> = { connected: 'Talked', voicemail: 'Left voicemail', no_answer: 'No answer' };
+
+export interface CallDetails {
+  direction: CallDirection;
+  outcome: CallOutcome;
+  minutes: number | null;
+}
+
+/** One call on the Calls page: logged by hand, or booked through /book. */
+export interface CrmCallRow {
+  key: string;
+  /** Set on logged calls (deletable). */
+  activity_id: string | null;
+  booking_id: string | null;
+  contact_id: string | null;
+  contact_name: string;
+  company: string | null;
+  phone: string | null;
+  deal_id: string | null;
+  deal_title: string | null;
+  at: string;
+  call: CallDetails | null;
+  body: string | null;
+}
+
+export interface CrmCallLog {
+  /** Confirmed /book calls from now on, soonest first. */
+  upcoming: CrmCallRow[];
+  /** Logged calls (and booked calls that have happened), newest first. */
+  calls: CrmCallRow[];
+}
+
 /** A person. Their pieces of work are deals. */
 export interface CrmContact {
   id: string;
@@ -95,7 +134,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print' | 'visit';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */
@@ -111,6 +150,8 @@ export interface TimelineItem {
   activityId?: string;
   /** The deal this entry is about, when it is about one. */
   dealId?: string | null;
+  /** A logged call's direction, outcome and length. */
+  call?: CallDetails | null;
 }
 
 export interface CrmInquiry {

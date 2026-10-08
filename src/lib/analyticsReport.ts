@@ -67,7 +67,7 @@ const dayKey = (() => {
   return (iso: string) => fmt.format(new Date(iso));
 })();
 
-async function readAll<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
+export async function readAll<T>(query: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) {
   const rows: T[] = [];
   for (let from = 0; from < MAX_ROWS; from += PAGE) {
     const { data, error } = await query(from, from + PAGE - 1);
