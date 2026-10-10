@@ -1,0 +1,352 @@
+/* Homepage sections below the hero, in the hero's sticker look (phone first):
+   black outlines, hard offset shadows, white die-cut edges, the brand colours. */
+
+.wrap { overflow-x: clip; }
+
+/* service colours, shared by cards, step numbers and quotes */
+.toPink   { --bg: #e50586; --fg: #fff; }
+.toGreen  { --bg: #0cf574; --fg: #000; }
+.toOrange { --bg: #fd6100; --fg: #000; }
+.toBlue   { --bg: #3b43af; --fg: #fff; }
+.toBlack  { --bg: #0a0a0a; --fg: #fff; }
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-family: var(--font-bai), sans-serif; font-weight: 700;
+  font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+  color: #e50586;
+}
+.sectionH {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(34px, 11vw, 48px); line-height: .95; letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.lede {
+  margin: 14px 0 0;
+  font-size: 16px; line-height: 1.55; color: #333;
+}
+
+/* ── CROSSED TAPE ── */
+.tapes { position: relative; height: 112px; margin: 8px 0 0; }
+.tape {
+  position: absolute; left: -10%; right: -10%;
+  overflow: hidden; white-space: nowrap;
+  border-top: 2px solid #000; border-bottom: 2px solid #000;
+  font-family: var(--font-bungee), sans-serif; font-size: 15px; letter-spacing: .01em;
+  padding: 9px 0;
+}
+.tapeA { top: 18px; background: #e50586; color: #fff; transform: rotate(-4deg); z-index: 1; }
+.tapeB { top: 54px; background: #000; color: #0cf574; transform: rotate(3deg); border-color: #000; }
+.tapeTrack { display: inline-flex; animation: tapeScroll 28s linear infinite; }
+.tapeTrack span { padding-right: 0; }
+.tapeReverse { animation-direction: reverse; animation-duration: 34s; }
+
+/* ── ABOUT ── */
+.about { padding: 40px 20px 64px; }
+.aboutH {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(38px, 12.5vw, 54px); line-height: .92; letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.almost {
+  display: inline-block;
+  font-family: var(--font-bai), sans-serif; font-style: italic; font-weight: 700;
+  text-transform: lowercase; letter-spacing: -0.04em;
+  color: #e50586;
+  transform: rotate(-4deg);
+}
+
+.polaroid {
+  position: relative;
+  width: 78%; margin: 34px auto 0;
+  background: #fff; padding: 10px 10px 0;
+  border: 2px solid #000; border-radius: 6px;
+  box-shadow: 6px 6px 0 #000;
+  transform: rotate(-3deg);
+}
+.polaroid img { display: block; width: 100%; aspect-ratio: 4 / 4.4; object-fit: cover; object-position: 50% 30%; border-radius: 2px; }
+.polaroid figcaption {
+  padding: 10px 2px 12px; text-align: center;
+  font-family: var(--font-bai), sans-serif; font-style: italic; font-weight: 600; font-size: 16px;
+}
+
+/* round stickers, same build as the hero's */
+.badge {
+  position: absolute; z-index: 2;
+  display: grid; place-items: center; text-align: center;
+  width: 86px; aspect-ratio: 1; border-radius: 50%;
+  border: 5px solid #fff;
+  box-shadow: 0 0 0 2px #000, 0 4px 0 2px #000;
+  font-family: var(--font-bungee), sans-serif; font-size: 12px; line-height: 1.05;
+  text-transform: uppercase;
+}
+.badgeGreen  { background: #0cf574; color: #000; }
+.badgeOrange { background: #fd6100; color: #000; }
+.badgeA { top: -22px; right: -28px; transform: rotate(14deg); }
+.badgeB { bottom: 34px; left: -30px; transform: rotate(-12deg); }
+
+.aboutP { margin: 34px 0 0; font-size: 17px; line-height: 1.6; color: #222; }
+.aboutP strong { font-weight: 700; background: linear-gradient(transparent 60%, #0cf574 60%); }
+
+/* ── SERVICES: cards that stack as you scroll ── */
+.services { padding: 24px 16px 48px; }
+.services > .eyebrow, .services > .sectionH, .services > .lede { padding: 0 4px; }
+.stack { margin-top: 28px; display: flex; flex-direction: column; gap: 22px; }
+.card {
+  position: sticky; /* each card sticks a little lower, so they fan as they pile up */
+  top: calc(var(--stick, 80px) + var(--i, 0) * 14px);
+  display: block; text-decoration: none;
+  background: var(--bg); color: var(--fg);
+  border: 2px solid #000; border-radius: 22px;
+  box-shadow: 0 6px 0 #000;
+  overflow: hidden;
+}
+.card:active { box-shadow: 0 2px 0 #000; transform: translateY(4px); }
+.cardMedia {
+  position: relative; margin: 10px 10px 0;
+  aspect-ratio: 16 / 10; border-radius: 14px; overflow: hidden;
+  border: 2px solid #000; background: #111;
+}
+.cardMedia img, .cardMedia video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cardNum {
+  position: absolute; top: 10px; left: 10px;
+  display: grid; place-items: center;
+  width: 46px; aspect-ratio: 1; border-radius: 50%;
+  background: var(--bg); color: var(--fg);
+  border: 3px solid #fff; box-shadow: 0 0 0 2px #000;
+  font-family: var(--font-bungee), sans-serif; font-size: 15px;
+}
+.cardBody { padding: 16px 18px 20px; }
+.cardName {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(24px, 7.6vw, 32px); line-height: 1; letter-spacing: -0.02em;
+}
+.cardSub {
+  margin: 8px 0 0;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .8;
+}
+.cardDesc { margin: 10px 0 0; font-size: 15.5px; line-height: 1.5; }
+.cardBtn {
+  display: inline-block; margin-top: 16px;
+  background: var(--fg); color: var(--bg);
+  font-family: var(--font-bungee), sans-serif; font-size: 13px;
+  padding: 11px 16px; border-radius: 999px;
+  border: 2px solid #000;
+}
+.toBlack .cardBtn { border-color: #fff; }
+
+/* ── PROCESS: a stitched timeline ── */
+.process { padding: 64px 20px 56px; }
+.steps { list-style: none; margin: 30px 0 0; padding: 0; position: relative; }
+.steps::before {
+  content: ""; position: absolute; left: 27px; top: 20px; bottom: 30px;
+  border-left: 3px dashed #000;
+}
+.step { position: relative; display: grid; grid-template-columns: 58px 1fr; gap: 16px; padding-bottom: 30px; }
+.step:last-child { padding-bottom: 0; }
+.stepNum {
+  position: relative; z-index: 1;
+  display: grid; place-items: center;
+  width: 58px; aspect-ratio: 1; border-radius: 50%;
+  background: var(--bg); color: var(--fg);
+  border: 4px solid #fff; box-shadow: 0 0 0 2px #000, 0 4px 0 2px #000;
+  font-family: var(--font-bungee), sans-serif; font-size: 18px;
+}
+.step:nth-child(odd) .stepNum { transform: rotate(-8deg); }
+.step:nth-child(even) .stepNum { transform: rotate(7deg); }
+.stepTitle {
+  margin: 8px 0 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: 22px; line-height: 1.05; text-transform: uppercase;
+}
+.stepText { margin: 8px 0 0; font-size: 15.5px; line-height: 1.55; color: #333; }
+
+/* ── TESTIMONIALS: swipeable cards ── */
+.quotes { padding: 40px 0 56px; }
+.quotes > .eyebrow, .quotes > .sectionH { padding: 0 20px; }
+.quoteRail {
+  display: flex; gap: 16px;
+  overflow-x: auto; scroll-snap-type: x mandatory;
+  padding: 28px 20px 18px; scroll-padding: 0 20px;
+  scrollbar-width: none;
+}
+.quoteRail::-webkit-scrollbar { display: none; }
+.quote {
+  flex: 0 0 82%; margin: 0;
+  scroll-snap-align: start;
+  position: relative;
+  background: var(--bg); color: var(--fg);
+  border: 2px solid #000; border-radius: 22px;
+  box-shadow: 0 6px 0 #000;
+  padding: 46px 20px 20px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 18px;
+}
+.quote:nth-child(odd)  { transform: rotate(-1.5deg); }
+.quote:nth-child(even) { transform: rotate(1.5deg); }
+.quoteMark {
+  position: absolute; top: -18px; left: 18px;
+  display: grid; place-items: center;
+  width: 52px; aspect-ratio: 1; border-radius: 50%;
+  background: #fff; color: #000; border: 2px solid #000;
+  font-family: var(--font-bungee), sans-serif; font-size: 40px; line-height: 1; padding-top: 14px;
+}
+.quote blockquote { margin: 0; font-size: 18px; line-height: 1.45; font-weight: 600; }
+.quote figcaption {
+  font-family: var(--font-bungee), sans-serif; font-size: 14px; text-transform: uppercase;
+}
+.swipeHint {
+  margin: 4px 20px 0; text-align: right;
+  font-family: var(--font-bungee), sans-serif; font-size: 12px; color: #999;
+}
+
+/* ── CTA: pink, with a sticker of Lauren ── */
+.cta {
+  position: relative;
+  margin: 24px 0 0; padding: 64px 22px 48px;
+  background: #e50586; color: #fff;
+  border-top: 3px solid #000; border-bottom: 3px solid #000;
+  text-align: center;
+}
+.ctaSticker {
+  position: relative; display: block;
+  width: 150px; aspect-ratio: 1; margin: 0 auto 28px;
+  border-radius: 50%; overflow: hidden;
+  background: #fff; border: 7px solid #fff;
+  box-shadow: 0 0 0 3px #000, 0 6px 0 3px #000;
+  transition: box-shadow .12s ease;
+}
+.ctaSticker:active { box-shadow: 0 0 0 3px #000; }
+.ctaSticker img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 28%; }
+/* only the ring turns; the photo stays upright */
+.ctaSticker svg { position: absolute; inset: 0; width: 100%; height: 100%; animation: ctaSpin 18s linear infinite; }
+.ctaRing { fill: none; stroke: #0a0a0a; stroke-width: 17; }
+.ctaRingEdge { fill: none; stroke: #fff; stroke-width: 1.5; }
+.ctaRingText { fill: #fff; font-family: var(--font-bungee), sans-serif; }
+
+.ctaH {
+  margin: 0;
+  display: flex; flex-direction: column; align-items: center;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(38px, 12.5vw, 56px); line-height: .92; letter-spacing: -0.03em;
+  text-transform: uppercase;
+  text-shadow: 3px 3px 0 #000;
+}
+.ctaBold {
+  margin-top: 10px; padding: 4px 16px 6px;
+  background: #0cf574; color: #000; text-shadow: none;
+  border: 3px solid #000; border-radius: 14px;
+  box-shadow: 0 5px 0 #000;
+  transform: rotate(-3deg);
+}
+.ctaP { margin: 26px auto 0; max-width: 300px; font-size: 17px; line-height: 1.5; font-weight: 600; }
+.ctaBtn {
+  display: block; margin-top: 26px;
+  background: #000; color: #fff; text-decoration: none;
+  font-family: var(--font-bungee), sans-serif; font-size: 18px;
+  padding: 17px 20px; border-radius: 14px;
+  border: 3px solid #000; box-shadow: 0 6px 0 #fff, 0 6px 0 3px #000;
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+.ctaBtn:active { transform: translateY(5px); box-shadow: 0 1px 0 #fff, 0 1px 0 3px #000; }
+.ctaMail {
+  display: inline-block; margin-top: 18px;
+  color: #fff; font-size: 14px; font-weight: 600;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
+/* fade-ins, run by each section's own observer */
+/* translate/scale rather than transform, so tilted pieces keep their tilt */
+.reveal {
+  opacity: 0; translate: 0 32px; scale: .97;
+  transition: opacity .6s ease, translate .6s cubic-bezier(.34,1.56,.64,1), scale .6s cubic-bezier(.34,1.56,.64,1);
+}
+.reveal.shown { opacity: 1; translate: 0 0; scale: 1; }
+
+/* ─────────────── TABLETS AND DESKTOPS ─────────────── */
+@media (min-width: 768px) {
+  /* sections sit in a 1200px column */
+  .about, .services, .process, .cta { padding-left: max(48px, calc((100% - 1200px) / 2)); padding-right: max(48px, calc((100% - 1200px) / 2)); }
+
+  .eyebrow { font-size: 15px; }
+  .sectionH { font-size: clamp(52px, 6vw, 84px); }
+  .lede { font-size: 19px; max-width: 640px; }
+
+  /* tape */
+  .tapes { height: 170px; margin-top: 16px; }
+  .tape { font-size: 24px; padding: 14px 0; }
+  .tapeA { top: 24px; transform: rotate(-3deg); }
+  .tapeB { top: 86px; transform: rotate(2deg); }
+
+  /* about: words left, photo right */
+  .about {
+    display: grid; grid-template-columns: 1.15fr 1fr; column-gap: 72px; align-items: center;
+    grid-template-areas: "h photo" "p photo";
+    padding-top: 110px; padding-bottom: 120px;
+  }
+  .aboutH { grid-area: h; align-self: end; font-size: clamp(44px, 5.2vw, 78px); }
+  .aboutP { grid-area: p; align-self: start; margin-top: 30px; font-size: 20px; }
+  .polaroid { grid-area: photo; width: 100%; max-width: 410px; margin: 0 auto; padding: 14px 14px 0; box-shadow: 10px 10px 0 #000; }
+  .polaroid figcaption { font-size: 19px; padding: 14px 2px 16px; }
+  .badge { width: 120px; font-size: 16px; border-width: 7px; }
+  .badgeA { top: -36px; right: -44px; }
+  .badgeB { bottom: 50px; left: -50px; }
+
+  /* services: wide cards, photo left, words right, still stacking */
+  .services { padding-top: 60px; padding-bottom: 120px; }
+  .stack { margin-top: 48px; gap: 40px; }
+  .card { --stick: 124px; display: grid; grid-template-columns: 1.15fr 1fr; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000; }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 11px 0 #000; }
+  .cardMedia { margin: 16px; aspect-ratio: auto; min-height: 360px; border-radius: 18px; }
+  .cardNum { width: 64px; font-size: 20px; top: 16px; left: 16px; }
+  .cardBody { display: flex; flex-direction: column; justify-content: center; padding: 40px 48px 40px 24px; }
+  .cardName { font-size: clamp(36px, 3.6vw, 52px); }
+  .cardSub { font-size: 13px; margin-top: 12px; }
+  .cardDesc { font-size: 18px; margin-top: 16px; }
+  .cardBtn { align-self: flex-start; margin-top: 26px; font-size: 15px; padding: 14px 22px; }
+
+  /* process: one row, the stitched line runs across the top */
+  .process { padding-top: 120px; padding-bottom: 100px; }
+  .steps { margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+  /* from the first number's centre to the last one's */
+  .steps::before { left: 40px; right: calc((100% - 120px) / 4 - 40px); top: 40px; bottom: auto; border-left: 0; border-top: 3px dashed #000; }
+  .step { grid-template-columns: 1fr; align-content: start; gap: 18px; padding-bottom: 0; }
+  .stepNum { width: 80px; font-size: 24px; border-width: 5px; }
+  .stepTitle { font-size: 26px; margin-top: 4px; }
+  .stepText { font-size: 17px; }
+
+  /* testimonials: all three side by side */
+  .quotes { padding: 60px max(48px, calc((100% - 1200px) / 2)) 120px; }
+  .quotes > .eyebrow, .quotes > .sectionH { padding: 0; }
+  .quoteRail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; overflow: visible; padding: 48px 0 0; }
+  .quote { padding: 56px 28px 28px; }
+  .quote blockquote { font-size: 20px; }
+  .swipeHint { display: none; }
+
+  /* call to action */
+  .cta { padding-top: 96px; padding-bottom: 96px; border-top-width: 4px; border-bottom-width: 4px; }
+  .ctaSticker { width: 200px; border-width: 9px; margin-bottom: 36px; }
+  .ctaH { flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: .28em; font-size: clamp(56px, 7vw, 104px); text-shadow: 5px 5px 0 #000; }
+  .ctaBold { margin-top: 0; padding: 4px 22px 8px; }
+  .ctaP { max-width: 600px; font-size: 20px; margin-top: 34px; }
+  .ctaBtn { display: inline-block; margin-top: 32px; padding: 20px 64px; font-size: 20px; }
+  .ctaBtn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #fff, 0 9px 0 3px #000; }
+  .ctaMail { display: block; width: fit-content; margin: 22px auto 0; font-size: 16px; }
+}
+
+@keyframes ctaSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes tapeScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tapeTrack, .ctaSticker svg { animation: none; }
+  .reveal { opacity: 1; translate: none; scale: none; transition: none; }
+}
