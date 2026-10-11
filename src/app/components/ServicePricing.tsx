@@ -20,8 +20,7 @@ function Item({ item, accent }: { item: string; accent: string }) {
 function Card({ card, accent, accentText }: { card: PriceCard; accent: string; accentText: string }) {
   const cta = card.cta ?? { label: "Get started", href: "/contact" };
   return (
-    <div className={s.card}>
-      <span className={s.bar} style={{ background: accent }} />
+    <div className={`sticker-card flat ${s.card}`} style={{ "--card-accent": accent } as React.CSSProperties}>
       <h3 className={s.name}>{card.name}</h3>
       {/* A dollar amount gets the big treatment; "Contact for pricing" stays smaller. */}
       <p className={`${s.price} ${/\$/.test(card.price) ? "" : s.priceText}`}>{card.price}</p>
@@ -71,7 +70,6 @@ export default function ServicePricing({ slug, accent, accentText }: { slug: Ser
           className={`${s.section} ${i % 2 ? s.alt : ""}`}
           style={{ ["--cols" as string]: Math.min(sec.cards.length, 4) }}
         >
-          <p className={s.eyebrow}>{i > 0 ? "After launch" : sec.heading === "Pricing" ? "What it costs" : "Pricing"}</p>
           <h2 className={s.heading}>{sec.heading}</h2>
           {sec.intro && <p className={s.intro}>{sec.intro}</p>}
           <div className={s.grid}>

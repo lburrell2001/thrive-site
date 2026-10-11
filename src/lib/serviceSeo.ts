@@ -98,7 +98,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
       paragraphs: [
         'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs and builds websites that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
-        'Every site is custom-coded from scratch for your business, in your colors and fonts — not a template. Larger sites add an admin area so your team can edit text and photos, and custom builds can include forms with a database, client portals, logins, online payments and visitor dashboards.',
+        'Already on WordPress, Wix, Squarespace or another platform? We can work with your site where it is. If it needs more than the platform can do, we build it from scratch: custom-coded for your business, in your colors and fonts — not a template. Larger sites add an admin area so your team can edit text and photos, and custom builds can include forms with a database, client portals, logins, online payments and visitor dashboards.',
         'Every project starts with discovery and a page-by-page plan, then design with your colors, type and imagery, then the build, testing on phones and desktops, and launch. Every layout is designed mobile-first. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. The timeline and price are agreed in writing before work starts.',
       ],
       forWho: [
@@ -112,6 +112,10 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       {
         q: 'How long does a website take?',
         a: 'Starter sites are live in 2 to 3 weeks, Medium in 3 to 4 weeks and Large in 4 to 6 weeks. Custom builds get a timeline in their quote. Every project runs through discovery, design, the build, then launch.',
+      },
+      {
+        q: 'Can you work on my WordPress, Wix or Squarespace site?',
+        a: 'Yes. We can work with your site on WordPress, Wix, Squarespace and other platforms. If your site needs more than the platform can do, we build it from scratch.',
       },
       {
         q: 'Will my site work on phones?',

@@ -16,7 +16,6 @@ export default function PrivacyPage() {
     <PublicLayout>
       <main className={s.page}>
         <div className={s.inner}>
-          <p className={s.eyebrow}>Legal</p>
           <h1 className={s.title}>Privacy Policy</h1>
           <p className={s.updated}>Effective September 17, 2026</p>
 

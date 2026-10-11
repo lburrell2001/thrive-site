@@ -33,6 +33,5 @@ export const MEDIA = {
     squeezeShop: `${BASE}/work/squeeze-shop-cover.jpg`,
     stJohn: `${BASE}/work/st-john-cover.jpg`,
     tckt: `${BASE}/work/tckt-cover.jpg`,
-    thriveSite: `${BASE}/work/thrive-site-cover.jpg`,
   },
 }; 

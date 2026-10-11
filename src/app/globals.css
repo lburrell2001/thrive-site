@@ -516,13 +516,6 @@ body {
 }
 
 /* Hero text */
-.hero-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin: 0 0 10px;
-  color: var(--text-muted);
-}
 
 .hero-display {
   margin: 0 0 14px;
@@ -2040,13 +2033,6 @@ body {
 }
 
 /* Typography */
-.footer-cta-eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  color: rgba(255, 255, 255, 0.85) !important;
-}
 
 .footer-cta-title {
   margin: 0 0 8px;
@@ -2117,3 +2103,22 @@ body {
   .footer-cta-button { width: 100%; justify-content: center; }
   
 }
+
+/* ----------------------------------------------------------------------
+   Sticker card — the homepage look for any card: black outline, a hard
+   shadow in a brand colour, a slight tilt. Siblings cycle the colours;
+   set --card-accent on one to pick its colour.
+   ---------------------------------------------------------------------- */
+.sticker-card {
+  background: #fff;
+  border: 3px solid #000;
+  border-radius: 20px;
+  box-shadow: 6px 6px 0 var(--card-accent, #e50586), 6px 6px 0 3px #000;
+}
+.sticker-card:nth-child(5n + 1) { --card-accent: #e50586; rotate: -1deg; }
+.sticker-card:nth-child(5n + 2) { --card-accent: #0cf574; rotate: .8deg; }
+.sticker-card:nth-child(5n + 3) { --card-accent: #fd6100; rotate: -.6deg; }
+.sticker-card:nth-child(5n + 4) { --card-accent: #3b43af; rotate: 1deg; }
+.sticker-card:nth-child(5n + 5) { --card-accent: #861dc5; rotate: -.8deg; }
+/* forms and single panels stay straight */
+.sticker-card.flat { rotate: none; }

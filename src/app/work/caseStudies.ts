@@ -11,7 +11,8 @@
 export type CaseImage = { src: string; alt: string; caption?: string };
 
 export type CaseShowcase = {
-  title: string;
+  /** Optional: leave it out when the section heading already says what this is. */
+  title?: string;
   text?: string;
   images: CaseImage[];
   /** grid: even tiles · wide: one image per row · phones: phone frames · posts: tilted social posts */
@@ -25,6 +26,8 @@ export type CaseStudy = {
   headline: string;
   lede: string;
   liveUrl?: string;
+  /** Overrides the page's <title> (used as is, no site-name suffix) and meta description. */
+  seo?: { title: string; description: string };
   meta: { label: string; value: string }[];
   /** Big image under the overview; defaults to nothing. */
   heroImage?: CaseImage;
@@ -46,11 +49,14 @@ export type CaseStudy = {
   mobile?: { intro: string; shots: CaseImage[] };
   outcome: string[];
   quote?: { text: string; author: string };
+  /** One sentence with a link under the outcome, e.g. to a city page: before + link label + after. */
+  related?: { before: string; label: string; href: string; after?: string };
   stack?: string[];
 };
 
 import p2026GraduationPictures from "./case-studies/2026-graduation-pictures";
 import brewhaus from "./case-studies/brewhaus";
+import classicRollersCarClub from "./case-studies/classic-rollers-car-club";
 import curlAndCo from "./case-studies/curl-and-co";
 import dallasDerbyDay from "./case-studies/dallas-derby-day";
 import djMastamind from "./case-studies/dj-mastamind";
@@ -60,9 +66,8 @@ import soulcheck from "./case-studies/soulcheck";
 import squeezeShop from "./case-studies/squeeze-shop";
 import tckt from "./case-studies/tckt";
 import theBurrellGroup from "./case-studies/the-burrell-group";
-import thriveSite from "./case-studies/thrive-site";
 import thriveSocialMediaManagementGraphicsCreation from "./case-studies/thrive-social-media-management-graphics-creation";
 
 export const CASE_STUDIES: Record<string, CaseStudy> = Object.fromEntries(
-  [p2026GraduationPictures, brewhaus, curlAndCo, dallasDerbyDay, djMastamind, rootsToWellnessSocialMediaManagementGraphicsCreation, safespace, soulcheck, squeezeShop, tckt, theBurrellGroup, thriveSite, thriveSocialMediaManagementGraphicsCreation].map((cs) => [cs.slug, cs]),
+  [p2026GraduationPictures, brewhaus, classicRollersCarClub, curlAndCo, dallasDerbyDay, djMastamind, rootsToWellnessSocialMediaManagementGraphicsCreation, safespace, soulcheck, squeezeShop, tckt, theBurrellGroup, thriveSocialMediaManagementGraphicsCreation].map((cs) => [cs.slug, cs]),
 );

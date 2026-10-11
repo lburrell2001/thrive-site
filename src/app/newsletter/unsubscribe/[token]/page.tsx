@@ -15,7 +15,6 @@ export default async function UnsubscribePage({ params }: Props) {
     <PublicLayout>
       <div className={s.page}>
         <div className={s.card}>
-          <p className={s.eyebrow}>Email preferences</p>
           <h1 className={s.title}>UNSUBSCRIBE</h1>
           <UnsubscribeButton token={token} />
         </div>

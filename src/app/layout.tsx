@@ -45,11 +45,11 @@ const BRAND = {
 
 export const metadata: Metadata = {
   title: {
-    default: `Affordable Web Design & Branding in Dallas, TX | ${SITE_NAME}`,
+    default: `Affordable Web Development & Branding in Dallas, TX | ${SITE_NAME}`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Affordable web design, branding and social media for small businesses in Dallas–Fort Worth and across the US, from Thrive Creative Studios, a Black-owned Dallas design studio.",
+    "Affordable web development, branding and social media for small businesses in Dallas–Fort Worth and across the US, from Thrive Creative Studios, a Black-owned Dallas design studio.",
   applicationName: SITE_NAME,
   metadataBase: new URL(SITE_URL),
   keywords: [
@@ -93,7 +93,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE_NAME,
     description:
-      "Branding, web design, UX, and social media management with graphics creation for growing brands.",
+      "Branding, web development, UX, and social media management with graphics creation for growing brands.",
     url: SITE_URL,
     siteName: SITE_NAME,
     locale: "en_US",
@@ -111,7 +111,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description:
-      "Branding, web design, UX, social media management, and graphics creation.",
+      "Branding, web development, UX, social media management, and graphics creation.",
     images: [DEFAULT_OG_IMAGE],
   },
 };
@@ -162,7 +162,7 @@ export default function RootLayout({
       { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } },
       { "@type": "Country", name: "United States" },
     ],
-    knowsAbout: ["Brand identity design", "Logo design", "Website design", "Custom website development", "UX design", "Social media management", "Brand photography"],
+    knowsAbout: ["Brand identity design", "Logo design", "Web development", "Custom website development", "UX design", "Social media management", "Brand photography"],
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Creative services",

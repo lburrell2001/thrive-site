@@ -3,6 +3,8 @@
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
 import WorkReel from "../components/WorkReel";
+import PhotoStrip from "../components/PhotoStrip";
+import { mixedPhotos } from "@/lib/workPhotos";
 
 const bungee = Bungee({
   weight: "400",
@@ -83,17 +85,6 @@ export default function AboutPage() {
             white-space: nowrap;
             user-select: none;
           }
-          .ab-eyebrow {
-            position: relative;
-            z-index: 1;
-            font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: #808080;
-            margin-bottom: 32px;
-            display: block;
-          }
           .ab-hero-grid {
             position: relative;
             z-index: 1;
@@ -116,15 +107,6 @@ export default function AboutPage() {
             padding: 36px;
             box-sizing: border-box;
           }
-          .ab-mission-label {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: rgba(255,255,255,.4);
-            margin-bottom: 16px;
-            display: block;
-          }
           .ab-mission-text {
             font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
             font-size: 15px;
@@ -144,14 +126,8 @@ export default function AboutPage() {
             margin: 0 auto;
           }
           .ab-stat-card {
-            background: #fff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
             overflow: hidden;
             text-align: center;
-          }
-          .ab-stat-bar {
-            height: 4px;
           }
           .ab-stat-body {
             padding: 24px 16px;
@@ -229,15 +205,6 @@ export default function AboutPage() {
             object-fit: cover;
             display: block;
           }
-          .ab-founder-label {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: #e50586;
-            margin-bottom: 12px;
-            display: block;
-          }
           .ab-founder-name {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
             font-size: clamp(40px, 5vw, 64px);
@@ -280,13 +247,7 @@ export default function AboutPage() {
             gap: 24px;
           }
           .ab-val-card {
-            background: #fff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
             overflow: hidden;
-          }
-          .ab-val-bar {
-            height: 4px;
           }
           .ab-val-body {
             padding: 28px;
@@ -339,11 +300,9 @@ export default function AboutPage() {
           <section className="ab-hero">
             <span className="ab-ghost">THRIVE</span>
             <div className="ab-hero-inner">
-            <span className="ab-eyebrow">ABOUT</span>
             <div className="ab-hero-grid">
               <h1 className="ab-h1">BUILT FOR THE ONES WHO WERE MISSING FROM THE ROOM.</h1>
               <div className="ab-mission-card">
-                <span className="ab-mission-label">OUR MISSION</span>
                 <p className="ab-mission-text">
                   Thrive exists because Black creatives — especially Black women — have always been
                   forces in the creative world, but not always given the seat, the stage, or the
@@ -359,8 +318,7 @@ export default function AboutPage() {
           {/* ── STATS ── */}
           <div className="ab-stats">
             {STATS.map((stat, i) => (
-              <div key={i} className="ab-stat-card">
-                <div className="ab-stat-bar" style={{ background: stat.color }} />
+              <div key={i} className="sticker-card ab-stat-card">
                 <div className="ab-stat-body">
                   <div className="ab-stat-num">{stat.num}</div>
                   <p className="ab-stat-label">{stat.label}</p>
@@ -384,7 +342,6 @@ export default function AboutPage() {
                 </div>
               </div>
               <div>
-                <span className="ab-founder-label">MEET THE FOUNDER</span>
                 <h2 className="ab-founder-name">Lauren Burrell</h2>
                 <p className="ab-founder-title">Founder & Creative Director</p>
                 <p className="ab-founder-bio">
@@ -399,14 +356,15 @@ export default function AboutPage() {
             </div>
           </section>
 
+          <PhotoStrip photos={mixedPhotos(5)} title="Bold by design" />
+
           {/* ── VALUES ── */}
           <section className="ab-values">
             <div className="ab-values-inner">
             <h2 className="ab-values-heading">OUR VALUES</h2>
             <div className="ab-values-grid">
               {VALUES.map((val, i) => (
-                <div key={i} className="ab-val-card">
-                  <div className="ab-val-bar" style={{ background: val.color }} />
+                <div key={i} className="sticker-card ab-val-card">
                   <div className="ab-val-body">
                     <h3 className="ab-val-title">{val.title}</h3>
                     <p className="ab-val-desc">{val.desc}</p>
@@ -419,7 +377,7 @@ export default function AboutPage() {
 
         </div>
       </div>
-      <WorkReel eyebrow="The proof" title="What we've made together" tone="dark" />
+      <WorkReel title="What we've made together" tone="dark" />
     </PublicLayout>
   );
 }

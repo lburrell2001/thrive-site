@@ -35,7 +35,6 @@ export default async function ManageBooking({ params }: Props) {
     <PublicLayout>
       <div className={s.page}>
         <div className={s.head}>
-          <p className={s.eyebrow}>Your booking</p>
           <h1 className={s.title}>{booking.status === 'cancelled' ? 'CANCELLED' : past ? 'THANKS FOR TALKING' : 'SEE YOU SOON'}</h1>
         </div>
         <div className={s.panel} style={{ maxWidth: 560 }}>

@@ -13,15 +13,6 @@
   padding: 44px;
 }
 
-.eyebrow {
-  font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #888;
-  margin: 0 0 12px;
-}
-
 .title {
   font-family: var(--font-bungee, 'Bungee', sans-serif);
   font-size: clamp(32px, 6vw, 48px);

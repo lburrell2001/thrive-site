@@ -24,7 +24,6 @@ export default function SmsTermsPage() {
     <PublicLayout>
       <main className={s.page}>
         <div className={s.inner}>
-          <p className={s.eyebrow}>Client Updates by Text</p>
           <h1 className={s.title}>Text Message Terms</h1>
           <p className={s.updated}>Last updated September 17, 2026</p>
 

@@ -10,7 +10,6 @@ export default function ServiceAbout({ slug, accent }: { slug: ServiceSlug; acce
   if (!about) return null;
   return (
     <section className={s.about} aria-labelledby={`about-${slug}`}>
-      <p className="sp-section-eyebrow">The details</p>
       <h2 id={`about-${slug}`} className="sp-section-heading">{about.heading}</h2>
       <div className={s.grid}>
         <div className={s.copy}>

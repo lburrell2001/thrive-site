@@ -187,16 +187,6 @@
   line-height: 0.9;
 }
 
-.eyebrow {
-  margin: 4px 0 10px;
-  font-size: 11px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: #808080;
-}
-
-.eyebrowDark { color: rgba(255, 255, 255, 0.5); }
-
 .h2 {
   margin: 0;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -268,12 +258,8 @@
 
 .goal {
   padding: 28px 24px;
-  border-radius: 14px;
-  background: #fff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
 }
 
-.goalBar { display: block; width: 36px; height: 4px; margin-bottom: 18px; border-radius: 2px; }
 .goal h3 { margin: 0 0 10px; font-family: var(--font-bungee, 'Bungee', sans-serif); font-size: 16px; font-weight: 400; line-height: 1.25; }
 .goal p { margin: 0; font-size: 14px; line-height: 1.65; color: #555; }
 
@@ -652,3 +638,7 @@
 
 /* With an odd number of stats, the first (usually the headline result) spans the row. */
 .number:first-child:nth-last-child(odd) { grid-column: 1 / -1; }
+
+/* one-line link under the outcome (e.g. to the Amarillo page) */
+.related { max-width: 720px; margin: 20px 0 28px; font-size: 17px; line-height: 1.6; color: rgba(255,255,255,.92); }
+.related a { color: #fff; font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }

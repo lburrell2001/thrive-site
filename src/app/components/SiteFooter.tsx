@@ -116,7 +116,7 @@ export default function SiteFooter() {
       <footer className="nf">
         {/* Pattern watermark */}
         <div className="nf-pattern">
-          <img src="/new-thrive/pattern.png" alt="" />
+          <img src="/new-thrive/pattern.webp" alt="" width={1920} height={1080} loading="lazy" decoding="async" />
         </div>
 
         <div className="nf-inner">

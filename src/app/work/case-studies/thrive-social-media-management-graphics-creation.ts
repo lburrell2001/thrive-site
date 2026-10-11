@@ -25,7 +25,7 @@ const study: CaseStudy = {
     { value: "4", label: "Post formats: feed posts, carousels, spotlights, stories" },
   ],
   about: [
-    "Thrive Creative Studios is Lauren Burrell's Dallas design studio. It offers branding, web design, UX design, social media and photography.",
+    "Thrive Creative Studios is Lauren Burrell's Dallas design studio. It offers branding, web development, UX design, social media and photography.",
     "Instagram is where many small businesses first see Thrive's work, so the account has to do two jobs: show finished projects and make the case for clear, purposeful design.",
   ],
   challenge: {

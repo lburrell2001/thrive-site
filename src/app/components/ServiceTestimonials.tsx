@@ -14,7 +14,6 @@ export default async function ServiceTestimonials({ slug, accent }: { slug: Serv
 
   return (
     <section className={s.section} aria-labelledby={`reviews-${slug}`}>
-      <p className="sp-section-eyebrow">Kind words</p>
       <h2 id={`reviews-${slug}`} className="sp-section-heading">WHAT CLIENTS SAY</h2>
       <div className={s.grid}>
         {reviews.map((r) => (

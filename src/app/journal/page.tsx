@@ -11,7 +11,7 @@ import s from './journal.module.css';
 export const revalidate = 3600;
 
 export const metadata: Metadata = buildPageMetadata({
-  title: 'Journal — Branding, Web Design & Marketing Advice',
+  title: 'Journal — Branding, Web Development & Marketing Advice',
   description:
     'Straight answers on branding, websites, social media and photography for small businesses, from Thrive Creative Studios in Dallas.',
   path: '/journal',
@@ -23,7 +23,6 @@ export default async function JournalIndex() {
   return (
     <PublicLayout>
       <div className={s.page}>
-        <p className={s.eyebrow}>Journal</p>
         <h1 className={s.pageTitle}>NOTES FROM<br />THE STUDIO</h1>
         <p className={s.lede}>
           Straight answers on branding, websites, social media and photography — the questions clients ask us most.
@@ -51,7 +50,7 @@ export default async function JournalIndex() {
           </div>
         )}
       </div>
-      <WorkReel projects={reel} eyebrow="From the portfolio" title="Work worth reading about" tone="dark" />
+      <WorkReel projects={reel} title="Work worth reading about" tone="dark" />
     </PublicLayout>
   );
 }

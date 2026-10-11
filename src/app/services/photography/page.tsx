@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import PublicLayout from "../../components/PublicLayout";
-import { projectCoverThumb, storageUrl } from "@/lib/storage";
-import { loadReelProjects } from "@/lib/workReel";
-import WorkReel from "../../components/WorkReel";
+import PhotoStrip from "../../components/PhotoStrip";
+import { WORK_PHOTOS } from "@/lib/workPhotos";
+import { storageUrl } from "@/lib/storage";
 import { buildPageMetadata } from "@/lib/seo";
 import { SERVICE_SEO } from "@/lib/serviceSeo";
 import ServiceFaq from "../../components/ServiceFaq";
 import ServicePricing from "../../components/ServicePricing";
 import ServiceTestimonials from "../../components/ServiceTestimonials";
-import { supabase } from "@/lib/supabaseServer";
 
 export const metadata: Metadata = buildPageMetadata({
   title: SERVICE_SEO["photography"].title,
@@ -45,30 +44,7 @@ const PROCESS = [
 ];
 
 
-type FeaturedProject = { id: string; title: string; slug: string; category: string; tagline: string | null };
-
-async function getFeaturedProjects(serviceSlug: string): Promise<FeaturedProject[]> {
-  const { data: rows } = await supabase
-    .from('service_featured_projects')
-    .select('project_slug, display_order')
-    .eq('service_slug', serviceSlug)
-    .order('display_order', { ascending: true }) as {
-      data: { project_slug: string; display_order: number }[] | null;
-    };
-  if (!rows || rows.length === 0) return [];
-  const slugs = rows.map(r => r.project_slug);
-  const { data: projects } = await supabase
-    .from('projects')
-    .select('id, title, slug, category, tagline')
-    .in('slug', slugs) as { data: FeaturedProject[] | null };
-  if (!projects) return [];
-  const order = Object.fromEntries(rows.map(r => [r.project_slug, r.display_order]));
-  return projects.sort((a, b) => (order[a.slug] ?? 0) - (order[b.slug] ?? 0));
-}
-
-export default async function PhotographyPage() {
-  const [featured, reel] = await Promise.all([getFeaturedProjects('photography'), loadReelProjects()]);
-
+export default function PhotographyPage() {
   return (
     <PublicLayout>
       <div>
@@ -99,14 +75,6 @@ export default async function PhotographyPage() {
             flex-direction: column;
             gap: 40px;
             box-sizing: border-box;
-          }
-          .sp-hero-eyebrow {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: rgba(255,255,255,0.6);
-            margin-bottom: 16px;
           }
           .sp-hero-h1 {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -156,14 +124,6 @@ export default async function PhotographyPage() {
           }
           .sp-btn-secondary:hover { border-color: #fff; color: #fff; }
           .sp-deliverables { background: #f5f4f2; padding: 80px; box-sizing: border-box; }
-          .sp-section-eyebrow {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 11px;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #888;
-            margin-bottom: 12px;
-          }
           .sp-section-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
             font-size: clamp(28px, 4vw, 52px);
@@ -173,12 +133,8 @@ export default async function PhotographyPage() {
           }
           .sp-del-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
           .sp-del-card {
-            background: #fff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
             padding: 24px;
           }
-          .sp-del-bar { height: 3px; border-radius: 2px; margin-bottom: 16px; }
           .sp-del-title {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
             font-size: 16px;
@@ -189,12 +145,11 @@ export default async function PhotographyPage() {
             font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
             font-size: 14px;
             line-height: 1.6;
-            color: #808080;
+            color: #444;
             margin: 0;
           }
           .sp-process { background: #0a0a0a; padding: 80px; box-sizing: border-box; }
           .sp-process .sp-section-heading { color: #fff; }
-          .sp-process .sp-section-eyebrow { color: #555; }
           .sp-process-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
           .sp-step { border-top: 2px solid #222; padding-top: 20px; }
           .sp-step-num {
@@ -218,16 +173,6 @@ export default async function PhotographyPage() {
             color: #666;
             margin: 0;
           }
-          .sp-portfolio-link {
-            background: #f5f4f2;
-            padding: 80px;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 32px;
-            flex-wrap: wrap;
-          }
           .sp-cta { padding: 100px 80px; box-sizing: border-box; text-align: center; }
           .sp-cta-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -243,38 +188,14 @@ export default async function PhotographyPage() {
             margin: 0 auto 36px;
             max-width: 480px;
           }
-          .sp-featured { background: #fff; padding: 80px; box-sizing: border-box; }
-          .sp-work-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-          .sp-work-card {
-            border-radius: 12px; overflow: hidden;
-            border: 1px solid #e5e5e5; text-decoration: none;
-            color: inherit; display: block; transition: transform .2s;
-          }
-          .sp-work-card:hover { transform: translateY(-4px); }
-          .sp-work-img { aspect-ratio: 16 / 10; overflow: hidden; background: #f0f0f0; }
-          .sp-work-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
-          .sp-work-card:hover .sp-work-img img { transform: scale(1.04); }
-          .sp-work-info { padding: 16px 20px 20px; }
-          .sp-work-cat {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-            color: #808080; margin: 0 0 4px;
-          }
-          .sp-work-name {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 18px; letter-spacing: -0.02em; margin: 0;
-          }
           /* ── TABLET ── */
           @media (max-width: 960px) {
             .sp-hero-left { padding: 60px 48px; }
             .sp-deliverables,
             .sp-process,
-            .sp-featured { padding: 60px 48px; }
-            .sp-portfolio-link { padding: 60px 48px; }
             .sp-cta { padding: 80px 48px; }
             .sp-del-grid { grid-template-columns: repeat(2, 1fr); }
             .sp-process-steps { grid-template-columns: repeat(2, 1fr); }
-            .sp-work-grid { grid-template-columns: repeat(2, 1fr); }
           }
 
           @media (max-width: 767px) {
@@ -282,12 +203,9 @@ export default async function PhotographyPage() {
             .sp-hero-left { padding: 48px 24px; gap: 32px; }
             .sp-deliverables,
             .sp-process,
-            .sp-featured { padding: 60px 24px; }
-            .sp-portfolio-link { padding: 48px 24px; flex-direction: column; align-items: flex-start; }
             .sp-cta { padding: 72px 24px; }
             .sp-del-grid { grid-template-columns: 1fr; }
             .sp-process-steps { grid-template-columns: 1fr 1fr; }
-            .sp-work-grid { grid-template-columns: 1fr; }
           }
           @media (max-width: 480px) {
             .sp-process-steps { grid-template-columns: 1fr; }
@@ -299,7 +217,6 @@ export default async function PhotographyPage() {
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>
-                <p className="sp-hero-eyebrow">05 — Photo</p>
                 <h1 className="sp-hero-h1">PHOTO-<br />GRAPHY</h1>
               </div>
               <div>
@@ -319,12 +236,10 @@ export default async function PhotographyPage() {
           </section>
 
           <section className="sp-deliverables">
-            <p className="sp-section-eyebrow">What you get</p>
             <h2 className="sp-section-heading">IMAGES THAT<br />MAKE AN IMPRESSION</h2>
             <div className="sp-del-grid">
               {DELIVERABLES.map((d, i) => (
-                <div key={i} className="sp-del-card">
-                  <div className="sp-del-bar" style={{ background: ACCENT }} />
+                <div key={i} className="sticker-card sp-del-card">
                   <h3 className="sp-del-title">{d.title}</h3>
                   <p className="sp-del-desc">{d.desc}</p>
                 </div>
@@ -332,8 +247,9 @@ export default async function PhotographyPage() {
             </div>
           </section>
 
+          <PhotoStrip photos={WORK_PHOTOS["photography"]} title="2026 grad portraits" />
+
           <section className="sp-process">
-            <p className="sp-section-eyebrow">How it works</p>
             <h2 className="sp-section-heading">FROM BRIEF<br />TO GALLERY</h2>
             <div className="sp-process-steps">
               {PROCESS.map((s, i) => (
@@ -348,38 +264,7 @@ export default async function PhotographyPage() {
 
           <ServicePricing slug="photography" accent={ACCENT} accentText={ACCENT_TEXT} />
 
-          {featured && featured.length > 0 ? (
-            <section className="sp-featured">
-              <p className="sp-section-eyebrow">Recent work</p>
-              <h2 className="sp-section-heading">SEE WHAT WE&apos;VE<br />BEEN BUILDING</h2>
-              <div className="sp-work-grid">
-                {featured.map((p) => (
-                  <a key={p.id} href={`/work/${p.slug}`} className="sp-work-card">
-                    <div className="sp-work-img">
-                      <img src={projectCoverThumb(p.slug, 800)} alt={p.title} loading="lazy" />
-                    </div>
-                    <div className="sp-work-info">
-                      <p className="sp-work-cat">{p.category}</p>
-                      <h3 className="sp-work-name">{p.title}</h3>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </section>
-          ) : (
-            <div className="sp-portfolio-link">
-              <div>
-                <p className="sp-section-eyebrow">Our work</p>
-                <h2 className="sp-section-heading" style={{ margin: 0 }}>SEE WHAT WE&apos;VE<br />BEEN BUILDING</h2>
-              </div>
-              <a href="/portfolio" className="sp-btn-primary" style={{ background: "#0a0a0a", color: "#fff", flexShrink: 0 }}>
-                VIEW PORTFOLIO →
-              </a>
-            </div>
-          )}
 
-          {/* REVIEWS */}
-          <WorkReel projects={reel} eyebrow="More from the studio" title="Recent work" tone="dark" />
 
           <ServiceTestimonials slug="photography" accent={"#0a0a0a"} />
 

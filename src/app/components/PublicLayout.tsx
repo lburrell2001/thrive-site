@@ -339,7 +339,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <footer className="pl-footer" id="contact" ref={footerRef}>
 
         <div className="pl-footer-pattern">
-          <img src="/new-thrive/pattern.png" alt="" />
+          <img src="/new-thrive/pattern.webp" alt="" width={1920} height={1080} loading="lazy" decoding="async" />
         </div>
 
         {/* 3-col info bar */}
@@ -351,7 +351,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
               <br />
               Dallas, TX
               <br />
-              <Link href="/amarillo-web-design">Web design in Amarillo</Link>
+              <Link href="/amarillo-web-design">Amarillo, TX</Link>
             </div>
           </div>
           <div>

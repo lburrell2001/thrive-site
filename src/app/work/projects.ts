@@ -170,7 +170,7 @@ export const WORK_PROJECTS: Project[] = [
       "Designed for clarity and trust",
     ],
     deliverables: [
-      "Website design",
+      "Web development",
       "Brand refinement",
       "Content layout",
     ],
@@ -179,24 +179,18 @@ export const WORK_PROJECTS: Project[] = [
   },
 
   {
-    title: "Thrive Creative Studios",
-    slug: "thrive-site",
-    category: "Website · Development",
-    span: "span-5x4",
-    tagline: "A vibrant portfolio site built to sell the vibe and the value.",
+    title: "Classic Rollers Car Club",
+    slug: "classic-rollers-car-club",
+    category: "Website · Nonprofit",
+    span: "span-4x4",
+    year: "2026",
+    role: "Web development",
+    tagline: "Classic cars, community pride, and a site that keeps the scholarship fund front and center.",
     overview:
-      "The Thrive Creative Studios website is both a portfolio and a statement. Designed and developed with a modular system, it allows projects to grow organically while maintaining a bold, cohesive visual identity.",
-    highlights: [
-      "Thrive-branded UI system",
-      "Dynamic project routing",
-      "Modular layout for easy scaling",
-    ],
-    deliverables: [
-      "Design system",
-      "Front-end development",
-      "Project templates",
-    ],
-    tools: ["Next.js", "TypeScript", "CSS"],
-    gallery: ["01.jpg"],
+      "Classic Rollers has been part of Amarillo since 1985. The club is a 501(c)(3), and every event it hosts raises money for the Ike Avery Scholarship Fund, which supports Amarillo-area students. We designed and built a site that tells that story and gives the club one place to send members, donors, and neighbors.",
+    highlights: [],
+    deliverables: [],
+    tools: ["Next.js", "Vercel", "Supabase", "Figma"],
   },
+
 ];

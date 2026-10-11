@@ -5,7 +5,8 @@ import { Bungee, Bai_Jamjuree } from "next/font/google";
 import styles from "./newhomepage.module.css";
 import PublicLayout from "../components/PublicLayout";
 import WorkReel from "../components/WorkReel";
-import { storageUrl } from "@/lib/storage";
+import { SHOWCASE } from "@/lib/serviceShowcase";
+import PhotoSticker from "../components/PhotoSticker";
 import { HomeIntro, HomeOutro } from "./HomeSections";
 
 const bungee = Bungee({
@@ -23,81 +24,14 @@ const baiJamjuree = Bai_Jamjuree({
   display: "swap",
 });
 
-const SERVICES = [
-  {
-    tag: "01 — Web", name: "WEB DEVELOPMENT", sub: "TIMELINE SCOPED TO YOUR PROJECT",
-    desc: "Custom-coded websites built from scratch for your business — designed in your colors and fonts, not a template.",
-    href: "/services/digital-design",
-    media: { type: "image" as const, src: "/new-thrive/services/web-development.webp", local: true },
-  },
-  {
-    tag: "02 — Social", name: "SOCIAL MEDIA", sub: "CONTENT THAT ACTUALLY CONVERTS",
-    desc: "Content editing and consistent posting: designed posts, edited videos and captions, scheduled and posted every month.",
-    href: "/services/social-media",
-    media: { type: "video" as const, src: "hero-social.mp4", poster: "/new-thrive/services/social-media.webp" },
-  },
-  {
-    tag: "03 — UX", name: "UX DESIGN", sub: "EXPERIENCES PEOPLE ACTUALLY LOVE",
-    desc: "Human-centered product design that makes digital experiences feel effortless and intuitive — from wireframes to polished prototypes.",
-    href: "/services/ux-design",
-    media: { type: "video" as const, src: "ux-hero.mp4", poster: "/new-thrive/services/ux.webp" },
-  },
-  {
-    tag: "04 — Brand", name: "BRAND DESIGN", sub: "ALL YOURS IN ONLY 4–6 WEEKS",
-    desc: "Complete visual identities — logos, color systems, typography, and brand guidelines — built from the ground up to set you apart in your industry.",
-    href: "/services/brand-design",
-    media: { type: "video" as const, src: "thrive-hero-v2.mp4", poster: "/new-thrive/services/brand-design.webp" },
-  },
-  {
-    tag: "05 — Photo", name: "PHOTOGRAPHY", sub: "VISUALS THAT TELL YOUR STORY",
-    desc: "Brand photography and visual storytelling that captures real culture, real beauty, and real depth — bold, intentional, unforgettable.",
-    href: "/services/photography",
-    media: { type: "image" as const, src: "/new-thrive/services/photo.webp", local: true },
-  },
-];
-
-// Mobile hero: each service is a round photo sticker scattered around the logo.
-type Patch = { name: string; href: string; img: string; tone: string; spot: string };
-
-const HERO_PATCHES: Patch[] = [
-  { name: "Web Development", href: "/services/digital-design", img: "/new-thrive/services/web-development.webp", tone: "patchPink",   spot: "spotWeb" },
-  { name: "Social Media",    href: "/services/social-media",   img: "/new-thrive/services/social-media.webp",    tone: "patchGreen",  spot: "spotSocial" },
-  { name: "UX Design",       href: "/services/ux-design",      img: "/new-thrive/services/ux.webp",              tone: "patchOrange", spot: "spotUx" },
-  { name: "Brand Design",    href: "/services/brand-design",   img: "/new-thrive/services/brand-design.webp",    tone: "patchBlue",   spot: "spotBrand" },
-  { name: "Photography",     href: "/services/photography",    img: "/new-thrive/services/photo.webp",           tone: "patchBlack",  spot: "spotPhoto" },
-];
-
-// The full name runs round a colour ring, repeated twice with stars between.
-const RING_R = 41.5;
-const RING_LEN = 2 * Math.PI * RING_R;
-
-function PatchRing({ name, id }: { name: string; id: string }) {
-  const text = `${name.toUpperCase()} ✦ `.repeat(2);
-  const size = Math.min(9.5, RING_LEN / (text.length * 0.8));
-  return (
-    <svg viewBox="0 0 100 100" className={styles.patchRing} aria-hidden>
-      <defs>
-        <path id={id} d={`M${50 - RING_R},50 a${RING_R},${RING_R} 0 1,1 ${RING_R * 2},0 a${RING_R},${RING_R} 0 1,1 ${-RING_R * 2},0`} />
-      </defs>
-      <circle cx={50} cy={50} r={RING_R} className={styles.patchRingBand} />
-      <circle cx={50} cy={50} r={RING_R - 8.5} className={styles.patchRingEdge} />
-      <text className={styles.patchRingText} fontSize={size} dominantBaseline="central">
-        <textPath href={`#${id}`} textLength={RING_LEN - 2} lengthAdjust="spacing">{text}</textPath>
-      </text>
-    </svg>
-  );
-}
-
-function PatchLinks({ patches }: { patches: Patch[] }) {
-  return patches.map((p) => (
-    <a key={p.href} href={p.href} aria-label={p.name} className={`${styles.patch} ${styles[p.tone]} ${styles[p.spot]}`}>
-      <span className={styles.patchArt}>
-        <img src={p.img} alt="" className={styles.patchImg} />
-        <PatchRing name={p.name} id={`ring-${p.spot}`} />
-      </span>
-    </a>
-  ));
-}
+// Where each service's sticker sits in the hero (see .spot* in the CSS).
+const SPOTS: Record<string, string> = {
+  "digital-design": "spotWeb",
+  "social-media": "spotSocial",
+  "ux-design": "spotUx",
+  "brand-design": "spotBrand",
+  photography: "spotPhoto",
+};
 
 export default function NewHomePage() {
   useEffect(() => {
@@ -140,15 +74,19 @@ export default function NewHomePage() {
 
         {/* Mobile only: a full-screen hero with the services scattered around the logo as patches */}
         <nav className={styles.heroPatches} aria-label="Services">
-          <PatchLinks patches={HERO_PATCHES} />
+          {SHOWCASE.map((svc) => (
+            <a key={svc.href} href={svc.href} aria-label={svc.title} className={`${styles.patch} ${styles[SPOTS[svc.slug]]}`}>
+              <PhotoSticker name={svc.title} img={svc.sticker} tone={svc.tone} id={`ring-${svc.slug}`} />
+            </a>
+          ))}
         </nav>
         <a href="/contact" className={styles.heroCta}>LET&apos;S TALK →</a>
       </section>
 
-      <HomeIntro services={SERVICES} />
+      <HomeIntro services={SHOWCASE} />
 
       {/* ── WORK REEL ── */}
-      <WorkReel eyebrow="Fresh from the studio" title="Work we're proud of" tone="dark" />
+      <WorkReel title="Work we're proud of" tone="dark" />
 
       <HomeOutro />
 

@@ -6,6 +6,8 @@ import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
 import WorkReel from "../components/WorkReel";
 import FounderNote from "../components/FounderNote";
+import PhotoStrip from "../components/PhotoStrip";
+import { mixedPhotos } from "@/lib/workPhotos";
 import { readAttribution } from "../components/SiteTracker";
 
 const bungee = Bungee({
@@ -130,17 +132,6 @@ export default function ContactPage() {
             white-space: nowrap;
             user-select: none;
           }
-          .ct-eyebrow {
-            position: relative;
-            z-index: 1;
-            font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: #808080;
-            margin-bottom: 16px;
-            display: block;
-          }
           .ct-h1 {
             position: relative;
             z-index: 1;
@@ -172,14 +163,7 @@ export default function ContactPage() {
 
           /* ── FORM CARD ── */
           .ct-form-card {
-            background: #fff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
             overflow: hidden;
-          }
-          .ct-form-bar {
-            height: 4px;
-            background: #e50586;
           }
           .ct-form-inner {
             padding: 36px;
@@ -263,14 +247,7 @@ export default function ContactPage() {
 
           /* ── INFO CARD ── */
           .ct-info-card {
-            background: #f5f4f2;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
             overflow: hidden;
-          }
-          .ct-info-bar {
-            height: 4px;
-            background: #0cf574;
           }
           .ct-info-inner {
             padding: 36px;
@@ -381,20 +358,19 @@ export default function ContactPage() {
           {/* ── HERO ── */}
           <section className="ct-hero">
             <span className="ct-ghost">LET&apos;S TALK</span>
-            <span className="ct-eyebrow">GET IN TOUCH</span>
             <h1 className="ct-h1">READY TO THRIVE?</h1>
             <p className="ct-subtitle">
               Whether you&apos;re building from scratch or leveling up — let&apos;s make something
               unforgettable together.
             </p>
+            <PhotoStrip photos={mixedPhotos(4)} compact />
           </section>
 
           {/* ── BODY ── */}
           <div className="ct-body">
 
             {/* Form card */}
-            <div className="ct-form-card">
-              <div className="ct-form-bar" />
+            <div className="sticker-card flat ct-form-card">
               <div className="ct-form-inner">
                 <span className="ct-form-label-heading">START A PROJECT</span>
                 <p style={{ fontFamily: "var(--font-bai, 'Bai Jamjuree', sans-serif)", fontSize: 15, color: "#555", margin: "0 0 20px" }}>
@@ -493,8 +469,7 @@ export default function ContactPage() {
             </div>
 
             {/* Info card */}
-            <div className="ct-info-card">
-              <div className="ct-info-bar" />
+            <div className="sticker-card flat ct-info-card">
               <div className="ct-info-inner">
                 <span className="ct-info-label-heading">GET IN TOUCH</span>
                 {INFO_ROWS.map((row, i) => (
@@ -527,7 +502,7 @@ export default function ContactPage() {
 
         </div>
       </div>
-      <WorkReel eyebrow="While you're here" title="Some recent work" />
+      <WorkReel title="Some recent work" />
     </PublicLayout>
   );
 }

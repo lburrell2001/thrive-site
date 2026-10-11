@@ -12,7 +12,6 @@ const POSTS = [
 export default function SocialFeed({ accent }: { accent: string }) {
   return (
     <section className={s.feed} aria-labelledby="feed-heading">
-      <p className={s.eyebrow}>Straight from the feed</p>
       <h2 id="feed-heading" className={s.h2}>Posts we&apos;ve designed</h2>
       <div className={s.grid}>
         {POSTS.map((p, i) => (

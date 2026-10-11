@@ -34,7 +34,6 @@ export default async function ReviewPage({ params }: Props) {
     <PublicLayout>
       <div className={s.page}>
         <div className={s.card}>
-          <p className={s.eyebrow}>Thrive Creative Studios</p>
           {review.status === 'requested' ? (
             <>
               <h1 className={s.title}>HOW DID WE DO?</h1>

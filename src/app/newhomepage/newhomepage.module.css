@@ -76,35 +76,7 @@
 .patch:active { animation: wiggle .35s ease-in-out; }
 .patch:focus-visible { outline: 3px solid #000; outline-offset: 4px; border-radius: 50%; }
 
-/* die-cut photo sticker: white edge, the work inside, the full name round a colour ring */
-.patchArt {
-  position: relative; display: block;
-  width: 100%; aspect-ratio: 1;
-  border-radius: 50%; overflow: hidden;
-  background: #fff;
-  border: max(5px, calc(var(--s) * .055)) solid #fff;
-  box-shadow: 0 0 0 2px #000, 0 4px 0 2px #000, 0 12px 20px rgba(0,0,0,.22);
-  transition: box-shadow .12s ease;
-}
-/* pressed flat: the shadow drops away, only the outline stays */
-.patch:active .patchArt { box-shadow: 0 0 0 2px #000; }
-.patchImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-/* sticker shine */
-.patchArt::after {
-  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  background: linear-gradient(135deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 38%);
-}
-.patchRing { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.patchRingBand { fill: none; stroke-width: 17; }
-.patchRingEdge { fill: none; stroke: #000; stroke-width: 1.5; }
-.patchRingText { font-family: var(--font-bungee), sans-serif; }
-
-.patchPink   .patchRingBand { stroke: #e50586; } .patchPink   .patchRingText { fill: #fff; }
-.patchGreen  .patchRingBand { stroke: #0cf574; } .patchGreen  .patchRingText { fill: #000; }
-.patchOrange .patchRingBand { stroke: #fd6100; } .patchOrange .patchRingText { fill: #000; }
-.patchBlue   .patchRingBand { stroke: #3b43af; } .patchBlue   .patchRingText { fill: #fff; }
-.patchBlack  .patchRingBand { stroke: #0a0a0a; } .patchBlack  .patchRingText { fill: #fff; }
-.patchBlack  .patchRingEdge { stroke: #fff; }
+/* the sticker itself is components/PhotoSticker; it sizes its edge from --s */
 
 .heroCta {
   display: block; position: absolute; z-index: 12;

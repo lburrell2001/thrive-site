@@ -3,6 +3,10 @@ import { supabase } from "@/lib/supabaseServer";
 
 const SITE_URL = "https://thrivecreativestudios.org";
 
+// Rebuilt hourly, so projects added or removed in the database show up
+// without waiting for a deploy.
+export const revalidate = 3600;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 

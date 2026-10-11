@@ -1,0 +1,69 @@
+.strip { padding: 56px 0 64px; overflow-x: clip; }
+.dark { background: #0a0a0a; color: #fff; }
+
+.head { padding: 0 20px; margin-bottom: 8px; }
+.title {
+  margin: 0;
+  font-family: var(--font-bungee, 'Bungee', sans-serif); font-weight: 400;
+  font-size: clamp(32px, 10vw, 48px); line-height: .95; letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+
+/* prints overlap a little and scroll sideways on phones */
+.row {
+  display: flex; gap: 18px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  padding: 28px 20px 24px; scroll-padding: 0 20px;
+}
+.row::-webkit-scrollbar { display: none; }
+
+.print {
+  --tilt: -3deg;
+  position: relative; flex: 0 0 68%;
+  scroll-snap-align: start;
+  display: block; text-decoration: none; color: #0a0a0a;
+  background: #fff; padding: 10px 10px 0;
+  border: 2px solid #000; border-radius: 6px;
+  box-shadow: 6px 6px 0 #000;
+  transform: rotate(var(--tilt));
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.print:nth-child(4n + 2) { --tilt: 2.5deg;  margin-top: 18px; }
+.print:nth-child(4n + 3) { --tilt: -1.5deg; }
+.print:nth-child(4n + 4) { --tilt: 3deg;    margin-top: 10px; }
+.print:hover { transform: rotate(0deg) scale(1.04); z-index: 2; }
+
+/* a strip of tape holding each print down */
+.print::before {
+  content: ""; position: absolute; top: -12px; left: 50%; z-index: 1;
+  width: 70px; height: 24px; translate: -50% 0; rotate: -4deg;
+  background: rgba(12, 245, 116, .75);
+  border: 1px solid rgba(0,0,0,.15);
+}
+.print:nth-child(3n + 2)::before { background: rgba(229, 5, 134, .7); rotate: 5deg; }
+.print:nth-child(3n + 3)::before { background: rgba(253, 97, 0, .7); rotate: -2deg; }
+
+.print img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 2px; background: #eee; }
+.caption {
+  display: block; padding: 10px 2px 12px; text-align: center;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif); font-style: italic; font-weight: 600; font-size: 15px;
+}
+
+.compact { padding: 8px 0 16px; }
+.compact .print { flex-basis: 44%; padding: 7px 7px 0; box-shadow: 4px 4px 0 #000; }
+.compact .caption { font-size: 12.5px; padding: 7px 2px 9px; }
+.compact .print::before { width: 50px; height: 18px; top: -9px; }
+
+@media (min-width: 768px) {
+  .strip { padding: 80px max(48px, calc((100% - 1200px) / 2)) 88px; }
+  .head { padding: 0; }
+  .title { font-size: clamp(44px, 5vw, 72px); }
+  /* all prints in view, no scrolling */
+  .row { overflow: visible; padding: 36px 0 12px; gap: 28px; }
+  /* fixed print size, so a band of two or three looks the same as a band of four */
+  .print { flex: 0 1 270px; min-width: 0; }
+  .caption { font-size: 17px; }
+
+  .compact { padding: 8px 0 20px; }
+  .compact .row { padding: 24px 0 8px; gap: 20px; }
+}

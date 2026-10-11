@@ -24,7 +24,6 @@ export default async function ConfirmPage({ params }: Props) {
     <PublicLayout>
       <div className={s.page}>
         <div className={s.card}>
-          <p className={s.eyebrow}>Newsletter</p>
           <h1 className={s.title}>{copy.title}</h1>
           <p className={s.text}>{copy.text}</p>
           <p className={s.text}><Link href="/journal">Read the journal →</Link></p>

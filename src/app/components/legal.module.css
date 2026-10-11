@@ -11,16 +11,6 @@
   margin: 0 auto;
 }
 
-.eyebrow {
-  font-family: var(--font-bai), system-ui, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #e50586;
-  margin: 0 0 12px;
-}
-
 .title {
   font-family: var(--font-bungee), system-ui, sans-serif;
   font-size: clamp(32px, 6vw, 52px);

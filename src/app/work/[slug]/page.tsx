@@ -51,7 +51,7 @@ const PROJECTS: ProjectData[] = [
     slug: "burrell-group",
     name: "The Burrell Group",
     category: "Website Redesign",
-    services: "Website Design, Brand Identity",
+    services: "Web Development, Brand Identity",
     description:
       "The Burrell Group needed an identity and web presence as authoritative and forward-thinking as the work they do. We created a brand system and website built on confidence, clarity, and culture — one that immediately positions them as leaders in their space.",
     stats: [
@@ -59,7 +59,7 @@ const PROJECTS: ProjectData[] = [
       { value: "New", label: "Brand System" },
       { value: "100%", label: "Custom Build" },
     ],
-    deliverables: ["Website Design", "Logo Suite", "Color System", "Brand Guidelines"],
+    deliverables: ["Web Development", "Logo Suite", "Color System", "Brand Guidelines"],
     quote: "The work they did set us apart immediately. Bold, intentional, and exactly right.",
     quoteAuthor: "The Burrell Group",
     next: "curl-co",
@@ -153,16 +153,16 @@ const PROJECTS: ProjectData[] = [
   {
     slug: "st-john",
     name: "St. John",
-    category: "Website Design",
-    services: "Website Design, Photography",
+    category: "Web Development",
+    services: "Web Development, Photography",
     description:
       "A refined web presence for a refined brand. St. John needed a digital home that matched the elegance and intentionality of everything they stand for — clean, elevated, and built to convert.",
     stats: [
-      { value: "Full", label: "Website Design" },
+      { value: "Full", label: "Web Development" },
       { value: "New", label: "Visual Direction" },
       { value: "100%", label: "Custom Build" },
     ],
-    deliverables: ["Website Design", "Photography Direction", "Brand Styling", "Launch Assets"],
+    deliverables: ["Web Development", "Photography Direction", "Brand Styling", "Launch Assets"],
     quote: "Thrive built us something we are genuinely proud to send people to.",
     quoteAuthor: "St. John",
     next: "tckt",
@@ -182,23 +182,6 @@ const PROJECTS: ProjectData[] = [
     deliverables: ["UX Design", "UI Design", "Design System", "Developer Handoff"],
     quote: "The UX work Thrive did completely changed how our users experience the platform.",
     quoteAuthor: "TCKT",
-    next: "thrive-site",
-  },
-  {
-    slug: "thrive-site",
-    name: "Thrive Site",
-    category: "Website Design",
-    services: "Website Design, Brand Identity",
-    description:
-      "The Thrive website itself — a full-service creative agency site built to represent everything we stand for. Bold, eclectic, and built different. Every section designed to convert curious visitors into booked clients.",
-    stats: [
-      { value: "Full", label: "Website Design" },
-      { value: "New", label: "Brand System" },
-      { value: "100%", label: "Custom Build" },
-    ],
-    deliverables: ["Website Design", "Brand Identity", "Content Strategy", "Development"],
-    quote: "Built by Thrive, for Thrive. This is what we stand for.",
-    quoteAuthor: "Thrive Creative Studios",
     next: "brewhaus",
   },
 ];
@@ -219,15 +202,6 @@ const NEXT_CSS = `
     border-top: 1px solid rgba(0,0,0,0.08);
   }
   .wp-next-left {}
-  .wp-next-eyebrow {
-    font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: #808080;
-    margin-bottom: 8px;
-    display: block;
-  }
   .wp-next-title {
     font-family: var(--font-bungee, 'Bungee', sans-serif);
     font-size: clamp(28px, 4vw, 48px);
@@ -305,13 +279,15 @@ export async function generateMetadata({
   if (!project && !staticData) return { title: "Project", robots: { index: false, follow: false } };
 
   const title = project?.title ?? staticData?.name ?? slug;
+  const seo = CASE_STUDIES[slug]?.seo;
   const metaDescription =
+    seo?.description ??
     CASE_STUDIES[slug]?.lede ??
     project?.overview ?? project?.tagline ?? staticData?.description ?? `${title} — a project by Thrive Creative Studios.`;
   const coverSrc = projectCoverOg(slug);
 
   return {
-    title,
+    title: seo ? { absolute: seo.title } : title,
     description: metaDescription,
     alternates: { canonical: `/work/${slug}` },
     openGraph: {
@@ -407,7 +383,6 @@ export default async function ProjectSlugPage({
   const nextBlock = (
     <div className="wp-next">
       <div className="wp-next-left">
-        <span className="wp-next-eyebrow">Next Project</span>
         <h2 className="wp-next-title">{nextTitle.toUpperCase()}</h2>
         <p className="wp-next-cat">{nextCategory}</p>
       </div>
@@ -422,7 +397,7 @@ export default async function ProjectSlugPage({
         <style>{NEXT_CSS}</style>
         <CaseStudy cs={caseStudy} title={title} category={categoryLabel} />
         {nextBlock}
-        <WorkReel projects={reel} exclude={slug} eyebrow="Keep exploring" title="More work" tone="dark" />
+        <WorkReel projects={reel} exclude={slug} title="More work" tone="dark" />
       </PublicLayout>
     );
   }
@@ -593,15 +568,6 @@ export default async function ProjectSlugPage({
           box-sizing: border-box;
           align-items: start;
         }
-        .wp-overview-eyebrow {
-          font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 3px;
-          color: #808080;
-          margin-bottom: 12px;
-          display: block;
-        }
         .wp-overview-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(36px, 5vw, 52px);
@@ -624,14 +590,7 @@ export default async function ProjectSlugPage({
           margin: 0 0 20px;
         }
         .wp-stats-card {
-          border: 1px solid #e5e5e5;
-          border-radius: 12px;
           overflow: hidden;
-          background: #fff;
-        }
-        .wp-stats-card-bar {
-          height: 4px;
-          background: #e50586;
         }
         .wp-stats-card-body {
           padding: 32px;
@@ -718,15 +677,6 @@ export default async function ProjectSlugPage({
           padding: 80px;
           box-sizing: border-box;
         }
-        .wp-deliv-eyebrow {
-          font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-          font-size: 11px;
-          text-transform: uppercase;
-          letter-spacing: 3px;
-          color: #808080;
-          margin-bottom: 12px;
-          display: block;
-        }
         .wp-deliv-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(36px, 5vw, 52px);
@@ -740,13 +690,7 @@ export default async function ProjectSlugPage({
           gap: 20px;
         }
         .wp-deliv-card {
-          background: #fff;
-          border: 1px solid #e5e5e5;
-          border-radius: 12px;
           overflow: hidden;
-        }
-        .wp-deliv-card-bar {
-          height: 4px;
         }
         .wp-deliv-card-body {
           padding: 24px 20px;
@@ -937,7 +881,6 @@ export default async function ProjectSlugPage({
         {/* ── S3 OVERVIEW ── */}
         <section className="wp-overview" style={(pdata?.stats?.length ?? 0) === 0 ? { gridTemplateColumns: '1fr' } : undefined}>
           <div>
-            <span className="wp-overview-eyebrow">The Project</span>
             <h2 className="wp-overview-heading">OVERVIEW</h2>
             <div className="wp-overview-accent" />
             <p className="wp-overview-text">{overview}</p>
@@ -947,8 +890,7 @@ export default async function ProjectSlugPage({
           </div>
 
           {(pdata?.stats?.length ?? 0) > 0 && (
-            <div className="wp-stats-card">
-              <div className="wp-stats-card-bar" />
+            <div className="sticker-card flat wp-stats-card">
               <div className="wp-stats-card-body">
                 {pdata!.stats.map((stat, i) => (
                   <div key={i} className="wp-stat-row">
@@ -971,12 +913,10 @@ export default async function ProjectSlugPage({
         {/* ── S5 DELIVERABLES ── */}
         {(pdata?.deliverables?.length ?? 0) > 0 && (
           <section className="wp-deliv">
-            <span className="wp-deliv-eyebrow">What We Built</span>
             <h2 className="wp-deliv-heading">DELIVERABLES</h2>
             <div className="wp-deliv-grid">
               {pdata!.deliverables.map((name, i) => (
-                <div key={i} className="wp-deliv-card">
-                  <div className="wp-deliv-card-bar" style={{ background: ACCENT_COLORS[i % ACCENT_COLORS.length] }} />
+                <div key={i} className="sticker-card wp-deliv-card">
                   <div className="wp-deliv-card-body">
                     <div className="wp-deliv-card-name">{name}</div>
                   </div>
@@ -1033,7 +973,7 @@ export default async function ProjectSlugPage({
         {nextBlock}
 
       </div>
-      <WorkReel projects={reel} exclude={slug} eyebrow="Keep exploring" title="More work" tone="dark" />
+      <WorkReel projects={reel} exclude={slug} title="More work" tone="dark" />
     </PublicLayout>
   );
 }

@@ -10,15 +10,6 @@
   box-sizing: border-box;
 }
 
-.eyebrow {
-  font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: 11px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: #888;
-  margin: 0 0 12px;
-}
-
 .pageTitle {
   font-family: var(--font-bungee, 'Bungee', sans-serif);
   font-size: clamp(40px, 6vw, 72px);

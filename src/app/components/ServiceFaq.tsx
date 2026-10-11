@@ -53,7 +53,6 @@ export default function ServiceFaq({ slug, accent }: { slug: ServiceSlug; accent
   return (
     <section className={s.faq} aria-labelledby={`faq-${slug}`}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(data) }} />
-      <p className="sp-section-eyebrow">Questions</p>
       <h2 id={`faq-${slug}`} className="sp-section-heading">GOOD TO KNOW</h2>
       <div className={s.list}>
         {service.faqs.map((f) => (

@@ -1,0 +1,29 @@
+.art {
+  position: relative; display: block;
+  width: 100%; aspect-ratio: 1;
+  border-radius: 50%; overflow: hidden;
+  background: #fff;
+  border: max(5px, calc(var(--s, 120px) * .055)) solid #fff;
+  box-shadow: 0 0 0 2px #000, 0 4px 0 2px #000, 0 12px 20px rgba(0,0,0,.22);
+  transition: box-shadow .12s ease;
+}
+/* pressed flat: inside a link, the shadow drops away and only the outline stays */
+a:active > .art { box-shadow: 0 0 0 2px #000; }
+
+.img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+/* sticker shine */
+.art::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(135deg, rgba(255,255,255,.38) 0%, rgba(255,255,255,0) 38%);
+}
+.ring { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.band { fill: none; stroke-width: 17; }
+.edge { fill: none; stroke: #000; stroke-width: 1.5; }
+.text { font-family: var(--font-bungee), sans-serif; }
+
+.pink   .band { stroke: #e50586; } .pink   .text { fill: #fff; }
+.green  .band { stroke: #0cf574; } .green  .text { fill: #000; }
+.orange .band { stroke: #fd6100; } .orange .text { fill: #000; }
+.blue   .band { stroke: #3b43af; } .blue   .text { fill: #fff; }
+.black  .band { stroke: #0a0a0a; } .black  .text { fill: #fff; }
+.black  .edge { stroke: #fff; }

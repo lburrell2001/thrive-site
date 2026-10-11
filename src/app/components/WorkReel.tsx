@@ -14,14 +14,13 @@ const CHIP_COLORS = ["#e50586", "#3b43af", "#ea6b2c", "#861dc5", "#18c964"];
 
 type Props = {
   projects?: ReelProject[];
-  eyebrow?: string;
   title?: string;
   tone?: "light" | "dark";
   /** Leave this project out (e.g. the one being viewed). */
   exclude?: string;
 };
 
-export default function WorkReel({ projects: given, eyebrow = "Recent work", title, tone = "light", exclude }: Props) {
+export default function WorkReel({ projects: given, title, tone = "light", exclude }: Props) {
   const [loaded, setLoaded] = useState<ReelProject[] | null>(given ?? null);
 
   useEffect(() => {
@@ -41,11 +40,10 @@ export default function WorkReel({ projects: given, eyebrow = "Recent work", tit
   const loop = [...items, ...items];
 
   return (
-    <section className={`${s.reel} ${tone === "dark" ? s.dark : ""}`} aria-label={title ?? eyebrow}>
-      {(eyebrow || title) && (
+    <section className={`${s.reel} ${tone === "dark" ? s.dark : ""}`} aria-label={title ?? "Recent work"}>
+      {title && (
         <div className={s.head}>
-          {eyebrow && <p className={s.eyebrow}>{eyebrow}</p>}
-          {title && <h2 className={s.title}>{title}</h2>}
+          <h2 className={s.title}>{title}</h2>
         </div>
       )}
       <div className={s.viewport}>

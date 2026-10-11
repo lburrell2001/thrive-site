@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
-  title: "About Lauren Burrell — Dallas Web Designer & Brand Studio",
+  title: "About Lauren Burrell — Dallas Web Developer & Brand Studio",
   description:
     "Meet Lauren Burrell, founder of Thrive Creative Studios — a Black-owned Dallas studio designing websites, brands and social media for small businesses ready to stand out.",
   path: "/about",

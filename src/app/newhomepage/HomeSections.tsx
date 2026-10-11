@@ -1,6 +1,7 @@
 "use client";
 
 // The homepage's sections below the hero, in the same sticker look as the hero.
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { storageUrl } from "@/lib/storage";
 import s from "./HomeSections.module.css";
@@ -60,15 +61,22 @@ function Tape({ reverse }: { reverse?: boolean }) {
   );
 }
 
+/** Two crossed tapes scrolling opposite ways. */
+export function TapeStrip() {
+  return (
+    <div className={s.tapes}>
+      <Tape />
+      <Tape reverse />
+    </div>
+  );
+}
+
 /** Tape strip, about and services — sits between the hero and the work reel. */
 export function HomeIntro({ services }: { services: HomeService[] }) {
   const ref = useReveal<HTMLDivElement>();
   return (
     <div className={s.wrap} ref={ref}>
-      <div className={s.tapes}>
-        <Tape />
-        <Tape reverse />
-      </div>
+      <TapeStrip />
 
       {/* ── ABOUT ── */}
       <section className={s.about}>
@@ -88,15 +96,19 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
           Thrive Creative Studios is a full-service creative agency rooted in representation. We exist because Black
           creatives — especially Black women — have always been forces in the creative world, but not always given the
           seat, the stage, or the spotlight they deserve. <strong>So we built the room ourselves.</strong>
+          <span className={s.roots}>
+            We&apos;re based in Dallas, with <Link href="/amarillo-web-design">roots in Amarillo</Link> — our founder&apos;s
+            hometown, where we built the website for the{" "}
+            <Link href="/work/classic-rollers-car-club">Classic Rollers Car Club</Link>.
+          </span>
         </p>
       </section>
 
       {/* ── SERVICES ── */}
       <section className={s.services} id="services">
-        <p className={s.eyebrow}>Take a peek at</p>
         <h2 className={s.sectionH}>Our services</h2>
         <p className={s.lede}>
-          Whether you need a quick turnaround brand identity or the whole dream creative experience, I&apos;ll build you
+          Whether you need a quick turnaround brand identity or the whole dream creative experience, we&apos;ll build you
           something bold, strategic, and fun to show off.
         </p>
 
@@ -140,7 +152,6 @@ export function HomeOutro() {
     <div className={s.wrap} ref={ref}>
       {/* ── PROCESS ── */}
       <section className={s.process}>
-        <p className={s.eyebrow}>From first call to launch</p>
         <h2 className={s.sectionH}>How it works</h2>
         <ol className={s.steps}>
           {STEPS.map((step, i) => (
@@ -157,7 +168,6 @@ export function HomeOutro() {
 
       {/* ── TESTIMONIALS ── */}
       <section className={s.quotes}>
-        <p className={s.eyebrow}>Don&apos;t take our word for it</p>
         <h2 className={s.sectionH}>Client love</h2>
         <div className={s.quoteRail}>
           {QUOTES.map((q, i) => (
@@ -171,32 +181,38 @@ export function HomeOutro() {
         <p className={s.swipeHint} aria-hidden>Swipe →</p>
       </section>
 
-      {/* ── CTA ── */}
-      <section className={s.cta}>
-        <a href="/contact" className={s.ctaSticker} aria-label="Let's talk">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/lauren-portrait.jpg" alt="" loading="lazy" />
-          <svg viewBox="0 0 100 100" aria-hidden>
-            <defs>
-              <path id="cta-ring" d="M8.5,50 a41.5,41.5 0 1,1 83,0 a41.5,41.5 0 1,1 -83,0" />
-            </defs>
-            <circle cx={50} cy={50} r={41.5} className={s.ctaRing} />
-            <circle cx={50} cy={50} r={33} className={s.ctaRingEdge} />
-            <text className={s.ctaRingText} fontSize={9.5} dominantBaseline="central">
-              <textPath href="#cta-ring" textLength={258} lengthAdjust="spacing">LET&apos;S TALK ✦ LET&apos;S TALK ✦ LET&apos;S TALK ✦ </textPath>
-            </text>
-          </svg>
-        </a>
-
-        <h2 className={s.ctaH}>
-          <span>Let&apos;s build</span>
-          <span>something</span>
-          <span className={s.ctaBold}>bold.</span>
-        </h2>
-        <p className={s.ctaP}>Tell us what you&apos;re dreaming up — we&apos;ll take it from there.</p>
-        <a href="/contact" className={s.ctaBtn}>Start a project →</a>
-        <a href="mailto:hello@thrivecreativestudios.org" className={s.ctaMail}>or email hello@thrivecreativestudios.org</a>
-      </section>
+      <ClosingCta />
     </div>
+  );
+}
+
+/** The pink closing call to action with Lauren's spinning "Let's talk" sticker. */
+export function ClosingCta() {
+  return (
+    <section className={s.cta}>
+      <a href="/contact" className={s.ctaSticker} aria-label="Let's talk">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/lauren-portrait.jpg" alt="" loading="lazy" />
+        <svg viewBox="0 0 100 100" aria-hidden>
+          <defs>
+            <path id="cta-ring" d="M8.5,50 a41.5,41.5 0 1,1 83,0 a41.5,41.5 0 1,1 -83,0" />
+          </defs>
+          <circle cx={50} cy={50} r={41.5} className={s.ctaRing} />
+          <circle cx={50} cy={50} r={33} className={s.ctaRingEdge} />
+          <text className={s.ctaRingText} fontSize={9.5} dominantBaseline="central">
+            <textPath href="#cta-ring" textLength={258} lengthAdjust="spacing">LET&apos;S TALK ✦ LET&apos;S TALK ✦ LET&apos;S TALK ✦ </textPath>
+          </text>
+        </svg>
+      </a>
+
+      <h2 className={s.ctaH}>
+        <span>Let&apos;s build</span>
+        <span>something</span>
+        <span className={s.ctaBold}>bold.</span>
+      </h2>
+      <p className={s.ctaP}>Tell us what you&apos;re dreaming up — we&apos;ll take it from there.</p>
+      <a href="/contact" className={s.ctaBtn}>Start a project →</a>
+      <a href="mailto:hello@thrivecreativestudios.org" className={s.ctaMail}>or email hello@thrivecreativestudios.org</a>
+    </section>
   );
 }

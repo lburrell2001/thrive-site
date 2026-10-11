@@ -13,7 +13,7 @@ const NAMED: Record<string, string> = {
   '/contact': 'Contact',
   '/book': 'Book a call',
   '/journal': 'Journal',
-  '/amarillo-web-design': 'Amarillo Web Design',
+  '/amarillo-web-design': 'Amarillo',
   '/privacy': 'Privacy',
 };
 

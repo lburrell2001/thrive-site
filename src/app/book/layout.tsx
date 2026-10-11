@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { buildPageMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildPageMetadata({
-  title: 'Book a Free Call — Dallas Web Design & Branding',
+  title: 'Book a Free Call — Dallas Web Development & Branding',
   description:
     'Pick a time for a short intro call with Thrive Creative Studios, a Dallas creative studio for branding, websites, UX, social media and photography.',
   path: '/book',

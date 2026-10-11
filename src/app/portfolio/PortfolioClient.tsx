@@ -53,16 +53,6 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
             white-space: nowrap;
             user-select: none;
           }
-          .pf-eyebrow {
-            position: relative; z-index: 1;
-            font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            color: #808080;
-            margin-bottom: 16px;
-            display: block;
-          }
           .pf-h1 {
             position: relative; z-index: 1;
             font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -206,7 +196,6 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
         <div className="pf-page">
           <section className="pf-hero">
             <span className="pf-ghost">WORK</span>
-            <span className="pf-eyebrow">SELECTED WORK</span>
             <h1 className="pf-h1">CREATIVITY WITHOUT LIMITS.</h1>
           </section>
 

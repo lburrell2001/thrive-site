@@ -17,12 +17,11 @@ function Media({ img, width, priority }: { img: CaseImage; width?: number; prior
   return <img src={url} alt={img.alt} loading={priority ? "eager" : "lazy"} decoding="async" />;
 }
 
-function SectionHead({ n, eyebrow, title, dark }: { n: number; eyebrow: string; title: string; dark?: boolean }) {
+function SectionHead({ n, title }: { n: number; title: string }) {
   return (
     <div className={s.sectionHead}>
       <span className={s.sectionNum} style={{ color: ACCENTS[n % ACCENTS.length] }}>{String(n).padStart(2, "0")}</span>
       <div>
-        <p className={`${s.eyebrow} ${dark ? s.eyebrowDark : ""}`}>{eyebrow}</p>
         <h2 className={s.h2}>{title}</h2>
       </div>
     </div>
@@ -53,7 +52,7 @@ function Showcase({ block }: { block: CaseShowcase }) {
   const layout = block.layout ?? "grid";
   return (
     <div className={s.showcase}>
-      <h3 className={s.showcaseTitle}>{block.title}</h3>
+      {block.title && <h3 className={s.showcaseTitle}>{block.title}</h3>}
       {block.text && <p className={s.showcaseText}>{block.text}</p>}
       {layout === "phones" ? (
         <div className={s.phoneRow}>
@@ -149,7 +148,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
 
       {/* ── OVERVIEW ── */}
       <section id="overview" className={s.section}>
-        <SectionHead n={num("overview")} eyebrow="The project" title="Overview" />
+        <SectionHead n={num("overview")} title="Overview" />
         <div className={cs.numbers?.length ? s.overviewGrid : undefined}>
           <div className={s.prose}>
             {cs.about.map((p) => <p key={p.slice(0, 30)}>{p}</p>)}
@@ -176,13 +175,12 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── CHALLENGE ── */}
       {cs.challenge && (
         <section id="challenge" className={`${s.section} ${s.sand}`}>
-          <SectionHead n={num("challenge")} eyebrow="What the work had to do" title="The challenge" />
+          <SectionHead n={num("challenge")} title="The challenge" />
           <p className={s.intro}>{cs.challenge.intro}</p>
           {cs.challenge.goals?.length ? (
             <div className={s.goals}>
               {cs.challenge.goals.map((g, i) => (
-                <div key={g.title} className={s.goal}>
-                  <span className={s.goalBar} style={{ background: ACCENTS[i % ACCENTS.length] }} />
+                <div key={g.title} className={`sticker-card ${s.goal}`}>
                   <h3>{g.title}</h3>
                   <p>{g.text}</p>
                 </div>
@@ -195,7 +193,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── APPROACH ── */}
       {cs.approach && (
         <section id="approach" className={`${s.section} ${s.dark}`}>
-          <SectionHead n={num("approach")} eyebrow="How Thrive worked" title="The approach" dark />
+          <SectionHead n={num("approach")} title="The approach" />
           {cs.approach.intro && <p className={`${s.intro} ${s.introDark}`}>{cs.approach.intro}</p>}
           <ol className={s.steps}>
             {cs.approach.steps.map((st, i) => (
@@ -212,7 +210,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── PAGES ── */}
       {cs.pages?.length ? (
         <section id="pages" className={s.section}>
-          <SectionHead n={num("pages")} eyebrow={host ? `A tour of ${host}` : "A tour of the screens"} title="The pages" />
+          <SectionHead n={num("pages")} title="The pages" />
           <div className={s.pageList}>
             {cs.pages.map((pg, i) => (
               <article key={pg.title} className={`${s.pageRow} ${i % 2 ? s.flip : ""}`}>
@@ -234,9 +232,9 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── SHOWCASE ── */}
       {cs.showcase?.length ? (
         <section id="work" className={s.section}>
-          <SectionHead n={num("work")} eyebrow="What Thrive made" title="The work" />
+          <SectionHead n={num("work")} title="The work" />
           <div className={s.showcases}>
-            {cs.showcase.map((b) => <Showcase key={b.title} block={b} />)}
+            {cs.showcase.map((b, i) => <Showcase key={b.title ?? i} block={b} />)}
           </div>
         </section>
       ) : null}
@@ -244,7 +242,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── FEATURES ── */}
       {cs.features?.length ? (
         <section id="features" className={`${s.section} ${s.dark}`}>
-          <SectionHead n={num("features")} eyebrow="Behind the scenes" title="What it does" dark />
+          <SectionHead n={num("features")} title="What it does" />
           <div className={s.features}>
             {cs.features.map((f, i) => (
               <div key={f.title} className={s.feature}>
@@ -260,7 +258,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── DESIGN ── */}
       {cs.design && (
         <section id="design" className={s.section}>
-          <SectionHead n={num("design")} eyebrow="Look and feel" title="Design system" />
+          <SectionHead n={num("design")} title="Design system" />
           <p className={s.intro}>{cs.design.intro}</p>
           {cs.design.colors?.length ? (
             <div className={s.swatches}>
@@ -310,7 +308,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── MOBILE ── */}
       {cs.mobile && (
         <section id="mobile" className={`${s.section} ${s.sand}`}>
-          <SectionHead n={num("mobile")} eyebrow="On the go" title="Made for phones" />
+          <SectionHead n={num("mobile")} title="Made for phones" />
           <p className={s.intro}>{cs.mobile.intro}</p>
           <div className={s.phoneRow}>
             {cs.mobile.shots.map((img) => <Phone key={img.src} img={img} />)}
@@ -321,7 +319,7 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
       {/* ── TIMELINE ── */}
       {cs.timeline?.length ? (
         <section id="timeline" className={s.section}>
-          <SectionHead n={num("timeline")} eyebrow="How it came together" title="Timeline" />
+          <SectionHead n={num("timeline")} title="Timeline" />
           <ol className={s.timeline}>
             {cs.timeline.map((t, i) => (
               <li key={t.when + t.title}>
@@ -337,10 +335,15 @@ export default function CaseStudy({ cs, title, category }: { cs: CaseStudyData; 
 
       {/* ── OUTCOME ── */}
       <section id="outcome" className={`${s.section} ${s.outcome}`}>
-        <SectionHead n={num("outcome")} eyebrow="Where it landed" title="The outcome" dark />
+        <SectionHead n={num("outcome")} title="The outcome" />
         <div className={s.outcomeText}>
           {cs.outcome.map((p) => <p key={p.slice(0, 30)}>{p}</p>)}
         </div>
+        {cs.related && (
+          <p className={s.related}>
+            {cs.related.before}<a href={cs.related.href}>{cs.related.label}</a>{cs.related.after}
+          </p>
+        )}
         {cs.quote && (
           <blockquote className={s.quote}>
             <p>&ldquo;{cs.quote.text}&rdquo;</p>
