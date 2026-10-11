@@ -2,6 +2,8 @@
 
 // Tagged links: the same page, with utm_ tags that tell the dashboard
 // exactly which bio link, story, post or email a visit came from.
+// Takes a path on this site or a full URL to any site; tags on another
+// site show up in that site's own analytics, not here.
 
 import { useState } from 'react';
 import p from '../proposals/proposals.module.css';
@@ -20,6 +22,18 @@ const PRESETS: { label: string; source: string; medium: string; campaign: string
 
 const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 
+// A path, a bare domain or a full URL → a URL, keeping any query and hash.
+function toUrl(raw: string): URL | null {
+  const v = raw.trim() || '/';
+  try {
+    if (v.startsWith('/')) return new URL(v, SITE);
+    const url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`);
+    return url.hostname.includes('.') ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export function LinkBuilder({ pages }: { pages: string[] }) {
   const [page, setPage] = useState('/');
   const [source, setSource] = useState('instagram');
@@ -28,11 +42,15 @@ export function LinkBuilder({ pages }: { pages: string[] }) {
   const [copied, setCopied] = useState(false);
 
   const options = [...new Set(['/', '/contact', '/services', '/portfolio', ...pages])];
-  const params = new URLSearchParams();
-  if (slug(source)) params.set('utm_source', slug(source));
-  if (slug(medium)) params.set('utm_medium', slug(medium));
-  if (slug(campaign)) params.set('utm_campaign', slug(campaign));
-  const url = `${SITE}${page}${params.size ? `?${params}` : ''}`;
+  const target = toUrl(page);
+  const ours = target?.hostname.replace(/^www\./, '') === new URL(SITE).hostname;
+  if (target) {
+    for (const [key, value] of [['utm_source', source], ['utm_medium', medium], ['utm_campaign', campaign]]) {
+      if (slug(value)) target.searchParams.set(key, slug(value));
+      else target.searchParams.delete(key);
+    }
+  }
+  const url = target ? target.toString() : '';
 
   async function copy() {
     try {
@@ -60,10 +78,18 @@ export function LinkBuilder({ pages }: { pages: string[] }) {
       </div>
       <div className={s.builderGrid}>
         <label>
-          <span className={s.miniLabel}>Page</span>
-          <select className={p.select} value={page} onChange={(e) => setPage(e.target.value)}>
-            {options.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
+          <span className={s.miniLabel}>Page or any URL</span>
+          <input
+            className={p.input}
+            list="link-builder-pages"
+            value={page}
+            onChange={(e) => setPage(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            placeholder="/work/… or https://example.com"
+          />
+          <datalist id="link-builder-pages">
+            {options.map((o) => <option key={o} value={o} />)}
+          </datalist>
         </label>
         <label>
           <span className={s.miniLabel}>Where it is shared</span>
@@ -79,15 +105,21 @@ export function LinkBuilder({ pages }: { pages: string[] }) {
         </label>
       </div>
       <div className={s.output}>
-        <code>{url}</code>
-        <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={copy}>
+        <code>{url || 'Enter a page path or a full URL.'}</code>
+        <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={copy} disabled={!url}>
           {copied ? 'Copied' : 'Copy link'}
         </button>
       </div>
-      <p className={s.panelSub} style={{ marginTop: 8 }}>
-        Visits from this link show up as <strong>{slug(source) ? source : 'its source'}</strong>
-        {slug(campaign) ? <> under the campaign <strong>{slug(campaign)}</strong></> : null} in the tables above.
-      </p>
+      {target && (ours ? (
+        <p className={s.panelSub} style={{ marginTop: 8 }}>
+          Visits from this link show up as <strong>{slug(source) ? source : 'its source'}</strong>
+          {slug(campaign) ? <> under the campaign <strong>{slug(campaign)}</strong></> : null} in the tables above.
+        </p>
+      ) : (
+        <p className={s.panelSub} style={{ marginTop: 8 }}>
+          This link goes to <strong>{target.hostname}</strong>, so its visits show up in that site’s analytics (Google Analytics, Vercel and the like), not on this page.
+        </p>
+      ))}
     </div>
   );
 }

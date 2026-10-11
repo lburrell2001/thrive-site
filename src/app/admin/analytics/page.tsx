@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
                 <div>
                   <h2 className={s.panelTitle}>Link builder</h2>
                   <p className={s.panelSub}>
-                    Use these links wherever you share the site, so each bio link, story, post and email shows up by name instead of as “Direct”.
+                    Use these links wherever you share the site, so each bio link, story, post and email shows up by name instead of as “Direct”. Paste any URL to tag a link to another site, like a client’s.
                   </p>
                 </div>
               </div>
