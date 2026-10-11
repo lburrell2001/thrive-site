@@ -95,6 +95,8 @@ export interface AnalyticsReport {
   locations: BreakdownRow[];
   /** Sitemap pages nobody visited in the period. */
   unseenPages: string[];
+  /** Visits in the period left out as bots (src/lib/botFilter.ts). */
+  botVisits: number;
   /** Google Search Console for the same length of period. */
   search: SearchSection;
   insights: Insight[];

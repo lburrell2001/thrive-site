@@ -7,6 +7,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { readAll } from '@/lib/analyticsReport';
+import { withoutBots } from '@/lib/botFilter';
 import { isServicePage, pageLabel } from '@/lib/pageLabel';
 import type { SiteVisitor, Visit, VisitorReport } from '@/types/visitors';
 
@@ -22,22 +23,26 @@ interface ViewRow {
   region: string | null;
   country: string | null;
   engaged_ms: number | null;
+  interacted?: boolean | null;
 }
 
-const COLS = 'created_at, session_id, visitor_id, path, is_landing, source, device, city, region, country, engaged_ms';
-const COLS_OLD = COLS.replace(' visitor_id,', '');
+const COLS = 'created_at, session_id, visitor_id, path, is_landing, source, device, city, region, country, engaged_ms, interacted';
+const COLS_035 = COLS.replace(', interacted', '');
+const COLS_OLD = COLS_035.replace(' visitor_id,', '');
 
-/** Read views, tolerating a database without migration 034. */
+/** Read views, tolerating a database without migrations 034 and 035. */
 async function readViews(
   db: SupabaseClient,
   build: (cols: string, from: number, to: number) => PromiseLike<{ data: ViewRow[] | null; error: { message: string } | null }>,
 ): Promise<ViewRow[]> {
-  try {
-    return await readAll<ViewRow>((a, b) => build(COLS, a, b));
-  } catch (error) {
-    if (!(error instanceof Error) || !/visitor_id/.test(error.message)) throw error;
-    return readAll<ViewRow>((a, b) => build(COLS_OLD, a, b));
+  for (const cols of [COLS, COLS_035, COLS_OLD]) {
+    try {
+      return await readAll<ViewRow>((a, b) => build(cols, a, b));
+    } catch (error) {
+      if (!(error instanceof Error) || !/visitor_id|interacted/.test(error.message)) throw error;
+    }
   }
+  return [];
 }
 
 function place(v: ViewRow): string | null {
@@ -92,8 +97,12 @@ async function contactsForSessions(db: SupabaseClient, sessionIds: string[]) {
 
 export async function loadVisitors(db: SupabaseClient, days = 30): Promise<VisitorReport> {
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
-  const views = await readViews(db, (cols, a, b) =>
+  const recorded = await readViews(db, (cols, a, b) =>
     db.from('site_pageviews').select(cols).gte('created_at', since).order('created_at').range(a, b) as never);
+
+  // Bots are left out; anyone who sent an inquiry or booked a call stays.
+  const known = await contactsForSessions(db, [...new Set(recorded.map((v) => v.session_id))]);
+  const { views } = withoutBots(recorded, new Set(known.keys()));
 
   const groups = new Map<string, ViewRow[]>();
   for (const v of views) {
@@ -117,9 +126,6 @@ export async function loadVisitors(db: SupabaseClient, days = 30): Promise<Visit
       earlier.set(v.visitor_id!, e);
     }
   }
-
-  const allSessions = [...new Set(views.map((v) => v.session_id))];
-  const known = await contactsForSessions(db, allSessions);
 
   const visitors: SiteVisitor[] = [...groups.entries()].map(([key, list]) => {
     const sessions = sessionsOf(list);

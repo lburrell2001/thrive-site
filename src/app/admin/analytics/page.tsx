@@ -124,6 +124,7 @@ export default function AnalyticsPage() {
                     {r.trackingSince
                       ? `Counting since ${new Date(r.trackingSince).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}. Days are Dallas time.`
                       : 'No visits recorded yet — tracking started with this update.'}
+                    {r.botVisits > 0 && ` Real people only: ${r.botVisits} bot ${r.botVisits === 1 ? 'visit' : 'visits'} left out.`}
                   </p>
                 </div>
                 <button type="button" className={s.linkButton} onClick={() => setAsTable((v) => !v)}>

@@ -49,7 +49,8 @@ export default function PrivacyPage() {
               full card number.
             </li>
             <li>
-              <strong>Site usage.</strong> The pages you visit, how long you stay, how you found the site, your
+              <strong>Site usage.</strong> The pages you visit, how long you stay, whether you scrolled or clicked
+              (only yes or no, to tell people from bots), how you found the site, your
               device type, and your approximate location (city, worked out from your IP address; we don’t store
               the address itself). We don’t use cookies for this. Your browser keeps a random ID in local storage so
               we can tell when someone comes back. If you later send an inquiry or book a call, we connect your

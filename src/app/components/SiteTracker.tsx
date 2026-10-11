@@ -8,6 +8,10 @@
 //
 // Admin, portal and proposal pages are never tracked, and neither is any
 // browser that has signed in to /admin (see markThisBrowserAsAdmin).
+//
+// The first scroll, tap, click or key press on a page is reported too, so
+// the admin reports can leave out bots that load pages like a browser but
+// never touch them (src/lib/botFilter.ts).
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
@@ -128,7 +132,7 @@ export function SiteTracker() {
       }
     }
 
-    const page = { id: null as string | null, sid: sid!, visibleSince: document.visibilityState === 'visible' ? now : null, ms: 0 };
+    const page = { id: null as string | null, sid: sid!, visibleSince: document.visibilityState === 'visible' ? now : null, ms: 0, interacted: false };
     current.current = page;
 
     void send({
@@ -146,15 +150,28 @@ export function SiteTracker() {
       click: landing ? click : null,
     }).then((res) => {
       if (res?.id) page.id = res.id;
+      if (page.interacted) report();
     });
 
-    const flush = () => {
-      if (page.visibleSince != null) {
-        page.ms += Date.now() - page.visibleSince;
-        page.visibleSince = null;
-      }
-      if (page.id) void send({ t: 'engage', id: page.id, sid: page.sid, ms: Math.round(page.ms) }, true);
+    const visibleMs = () => page.ms + (page.visibleSince != null ? Date.now() - page.visibleSince : 0);
+    const report = () => {
+      if (page.id) void send({ t: 'engage', id: page.id, sid: page.sid, ms: Math.round(visibleMs()), i: page.interacted }, true);
     };
+    const flush = () => {
+      page.ms = visibleMs();
+      page.visibleSince = null;
+      report();
+    };
+    // Not 'scroll': the page scrolls itself on navigation. Wheel, touch and
+    // keys cover a person scrolling.
+    const INTERACTIONS = ['wheel', 'pointerdown', 'keydown', 'touchstart'] as const;
+    const onInteract = (e: Event) => {
+      if (!e.isTrusted || page.interacted) return;
+      page.interacted = true;
+      for (const type of INTERACTIONS) window.removeEventListener(type, onInteract, true);
+      report();
+    };
+    for (const type of INTERACTIONS) window.addEventListener(type, onInteract, { capture: true, passive: true });
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') flush();
       else page.visibleSince = Date.now();
@@ -166,6 +183,7 @@ export function SiteTracker() {
       // Navigating to another page in the app: report this one's time.
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', flush);
+      for (const type of INTERACTIONS) window.removeEventListener(type, onInteract, true);
       flush();
     };
   }, [pathname]);

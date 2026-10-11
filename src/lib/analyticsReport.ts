@@ -8,6 +8,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Channel } from '@/lib/trafficSource';
 import type { SearchSection } from '@/types/searchConsole';
 import { buildInsights } from '@/lib/trafficInsights';
+import { botSessions } from '@/lib/botFilter';
 import type {
   AnalyticsReport,
   BreakdownRow,
@@ -39,6 +40,7 @@ interface ViewRow {
   region: string | null;
   city: string | null;
   engaged_ms: number | null;
+  interacted?: boolean | null;
 }
 
 interface InquiryRow {
@@ -152,10 +154,15 @@ export async function buildReport(
   const from = new Date(now.getTime() - days * 86_400_000);
   const prevFrom = new Date(from.getTime() - days * 86_400_000);
 
-  const viewCols = 'created_at, session_id, visitor_hash, path, is_landing, source, channel, utm_campaign, device, country, region, city, engaged_ms';
-  const [allViews, allInquiries, firstView] = await Promise.all([
-    readAll<ViewRow>((a, b) =>
-      db.from('site_pageviews').select(viewCols).gte('created_at', prevFrom.toISOString()).order('created_at').range(a, b)),
+  const viewCols = 'created_at, session_id, visitor_hash, path, is_landing, source, channel, utm_campaign, device, country, region, city, engaged_ms, interacted';
+  const readViews = (cols: string) => readAll<ViewRow>((a, b) =>
+    db.from('site_pageviews').select(cols).gte('created_at', prevFrom.toISOString()).order('created_at').range(a, b) as never);
+  const [recordedViews, allInquiries, firstView] = await Promise.all([
+    // Without migration 035 there is no interacted column; read without it.
+    readViews(viewCols).catch((error: Error) => {
+      if (!/interacted/.test(error.message)) throw error;
+      return readViews(viewCols.replace(', interacted', ''));
+    }),
     readAll<InquiryRow>((a, b) =>
       db.from('contact_inquiries').select('created_at, session_id, source, channel, crm_deal_id')
         .gte('created_at', prevFrom.toISOString()).order('created_at').range(a, b)),
@@ -163,6 +170,11 @@ export async function buildReport(
   ]);
 
   const fromIso = from.toISOString();
+  // Bots that got past /api/track are left out of every number. A session
+  // that sent an inquiry is always a person.
+  const bots = botSessions(recordedViews, new Set(allInquiries.map((i) => i.session_id).filter((s): s is string => Boolean(s))));
+  const allViews = recordedViews.filter((v) => !bots.has(v.session_id));
+  const botVisits = new Set(recordedViews.filter((v) => v.created_at >= fromIso && bots.has(v.session_id)).map((v) => v.session_id)).size;
   const views = allViews.filter((v) => v.created_at >= fromIso);
   const prevViews = allViews.filter((v) => v.created_at < fromIso);
   const inquiries = allInquiries.filter((i) => i.created_at >= fromIso);
@@ -288,6 +300,7 @@ export async function buildReport(
     devices,
     locations,
     unseenPages,
+    botVisits,
     search,
   };
 

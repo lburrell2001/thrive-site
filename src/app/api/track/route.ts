@@ -39,6 +39,8 @@ const engageSchema = z.object({
   id: z.string().uuid(),
   sid: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
   ms: z.number().int().min(0),
+  // Someone scrolled, tapped, clicked or typed on the page.
+  i: z.boolean().optional(),
 });
 
 const bodySchema = z.discriminatedUnion('t', [pageviewSchema, engageSchema]);
@@ -91,11 +93,12 @@ export async function POST(req: Request) {
 
   if (data.t === 'engage') {
     // Cap at 30 minutes: a tab left open overnight is not engagement.
-    await db
-      .from('site_pageviews')
-      .update({ engaged_ms: Math.min(data.ms, 30 * 60_000) })
-      .eq('id', data.id)
-      .eq('session_id', data.sid);
+    const engaged = { engaged_ms: Math.min(data.ms, 30 * 60_000) };
+    const update = (v: object) => db.from('site_pageviews').update(v).eq('id', data.id).eq('session_id', data.sid);
+    // interacted only ever goes to true.
+    const { error } = await update(data.i ? { ...engaged, interacted: true } : engaged);
+    // Migration 035 not applied yet: still record the time.
+    if (error && /interacted/.test(error.message)) await update(engaged);
     return noContent();
   }
 
