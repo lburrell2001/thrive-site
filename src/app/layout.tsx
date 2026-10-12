@@ -150,6 +150,7 @@ export default function RootLayout({
     description:
       "Dallas creative studio for brand identity, custom website development and design, UX design, social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
     email: "hello@thrivecreativestudios.org",
+    telephone: "+1-806-414-5241",
     founder: { "@type": "Person", name: "Lauren Burrell" },
     address: {
       "@type": "PostalAddress",
@@ -173,6 +174,7 @@ export default function RootLayout({
     },
     sameAs: [
       "https://www.instagram.com/thrivecreativestudio_/",
+      "https://www.linkedin.com/company/thrive-creative-studios/",
       "https://www.instagram.com/rootstowellnessnow/",
     ],
   };

@@ -126,6 +126,7 @@ export default function SiteFooter() {
               <div className="nf-col-label">Contact</div>
               <div className="nf-col-text">
                 <a href="mailto:hello@thrivecreativestudios.org">hello@thrivecreativestudios.org</a><br />
+                <a href="tel:+18064145241">(806) 414-5241</a><br />
                 Dallas, TX
               </div>
             </div>

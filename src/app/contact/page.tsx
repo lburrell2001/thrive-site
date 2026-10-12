@@ -25,10 +25,11 @@ const baiJamjuree = Bai_Jamjuree({
   display: "swap",
 });
 
-const INFO_ROWS = [
-  { label: "Email", value: "hello@thrivecreativestudios.org" },
+const INFO_ROWS: { label: string; value: string; href?: string }[] = [
+  { label: "Email", value: "hello@thrivecreativestudios.org", href: "mailto:hello@thrivecreativestudios.org" },
+  { label: "Phone", value: "(806) 414-5241", href: "tel:+18064145241" },
   { label: "Location", value: "Dallas, TX" },
-  { label: "Instagram", value: "@thrivecreativestudios" },
+  { label: "Instagram", value: "@thrivecreativestudio_", href: "https://www.instagram.com/thrivecreativestudio_/" },
   { label: "Response Time", value: "Within 24–48 hours" },
 ];
 
@@ -475,7 +476,17 @@ export default function ContactPage() {
                 {INFO_ROWS.map((row, i) => (
                   <div key={i} className="ct-info-row">
                     <span className="ct-info-row-label">{row.label}</span>
-                    <p className="ct-info-row-value">{row.value}</p>
+                    <p className="ct-info-row-value">
+                      {row.href ? (
+                        <a
+                          href={row.href}
+                          style={{ color: "inherit", textDecoration: "none" }}
+                          {...(row.href.startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                        >
+                          {row.value}
+                        </a>
+                      ) : row.value}
+                    </p>
                   </div>
                 ))}
                 <div style={{ marginTop: 24 }}>

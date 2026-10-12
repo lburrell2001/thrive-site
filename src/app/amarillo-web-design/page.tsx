@@ -119,6 +119,7 @@ export default function AmarilloPage() {
         name: SITE_NAME,
         url: SITE_URL,
         email: "hello@thrivecreativestudios.org",
+        telephone: "+1-806-414-5241",
         address: { "@type": "PostalAddress", addressLocality: "Dallas", addressRegion: "TX", addressCountry: "US" },
         areaServed: [city("Amarillo"), city("Dallas")],
       },

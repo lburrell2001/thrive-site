@@ -349,6 +349,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             <div className="pl-footer-col-text">
               <a href="mailto:hello@thrivecreativestudios.org">hello@thrivecreativestudios.org</a>
               <br />
+              <a href="tel:+18064145241">(806) 414-5241</a>
+              <br />
               Dallas, TX
               <br />
               <Link href="/amarillo-web-design">Amarillo, TX</Link>
@@ -390,7 +392,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
                 <circle cx="17.5" cy="6.5" r="1" fill="#000" stroke="none"/>
               </svg>
             </a>
-            <a href="https://linkedin.com/company/thrivecreativestudios" className="pl-social-icon" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer">
+            <a href="https://www.linkedin.com/company/thrive-creative-studios/" className="pl-social-icon" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer">
               <svg viewBox="0 0 24 24" fill="#000" width="18" height="18">
                 <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z"/>
                 <rect x="2" y="9" width="4" height="12"/>

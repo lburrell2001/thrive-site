@@ -217,7 +217,7 @@ export default function PhotographyPage() {
             <div className="sp-hero-overlay" />
             <div className="sp-hero-left">
               <div>
-                <h1 className="sp-hero-h1">PHOTO-<br />GRAPHY</h1>
+                <h1 className="sp-hero-h1" aria-label="Photography">PHOTO-<br />GRAPHY</h1>
               </div>
               <div>
                 <p className="sp-hero-sub" style={{ color: ACCENT }}>VISUALS THAT TELL YOUR STORY</p>
