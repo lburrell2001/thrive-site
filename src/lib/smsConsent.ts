@@ -6,9 +6,11 @@
 
 export const SMS_PROGRAM_NAME = 'Thrive Creative Studios Client Updates';
 
-export const SMS_CONSENT_LABEL = 'Text me updates';
-export const SMS_CONSENT_SUMMARY = 'invoices, proposals, new files, and reminders.';
-export const SMS_CONSENT_TEXT =
-  'By checking this, you agree to receive text messages from Thrive Creative Studios at this number. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out, HELP for help.';
+// The checkbox label, word for word as submitted for toll-free
+// verification. It ends with "Text Terms: thrivecreativestudios.org/sms",
+// where "Text Terms" links to /sms — see SmsOptInLabel.
+export const SMS_OPT_IN_TEXT =
+  'Text me updates about my project from Thrive Creative Studios, including invoices, proposals, delivered files, and reminders. Message frequency varies. Msg & data rates may apply. Reply STOP to opt out, HELP for help. Consent is not a condition of purchase.';
+export const SMS_TERMS_URL_TEXT = 'thrivecreativestudios.org/sms';
 
 export const SMS_SUPPORT_EMAIL = 'hello@thrivecreativestudios.org';

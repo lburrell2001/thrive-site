@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { formatPhone, normalizePhone } from '@/lib/phone';
-import { SMS_CONSENT_LABEL, SMS_CONSENT_SUMMARY, SMS_CONSENT_TEXT } from '@/lib/smsConsent';
+import SmsOptInLabel from '../../../components/SmsOptInLabel';
 
 const F = {
   bungee: `var(--font-bungee), 'Bungee', sans-serif`,
@@ -121,12 +121,7 @@ export default function SettingsPage() {
 
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? '#0a0a0a' : '#bfbfbf', lineHeight: 1.5 }}>
                 <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={e => setSmsOptIn(e.target.checked)} style={{ marginTop: 3, accentColor: '#e40586' }} />
-                <span>
-                  <strong>{SMS_CONSENT_LABEL}</strong> — {SMS_CONSENT_SUMMARY}
-                  <span style={{ display: 'block', fontSize: 11, color: '#808080' }}>
-                    {SMS_CONSENT_TEXT} <a href="/sms" target="_blank" style={{ color: '#808080' }}>Terms</a> · <a href="/privacy" target="_blank" style={{ color: '#808080' }}>Privacy</a>
-                  </span>
-                </span>
+                <SmsOptInLabel newTab linkStyle={{ color: 'inherit', textDecoration: 'underline' }} />
               </label>
 
               {saveErr && (

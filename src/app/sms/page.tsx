@@ -2,13 +2,8 @@ import type { Metadata } from 'next';
 import PublicLayout from '../components/PublicLayout';
 import s from '../components/legal.module.css';
 import { buildPageMetadata } from '@/lib/seo';
-import {
-  SMS_CONSENT_LABEL,
-  SMS_CONSENT_SUMMARY,
-  SMS_CONSENT_TEXT,
-  SMS_PROGRAM_NAME,
-  SMS_SUPPORT_EMAIL,
-} from '@/lib/smsConsent';
+import SmsOptInLabel from '../components/SmsOptInLabel';
+import { SMS_PROGRAM_NAME, SMS_SUPPORT_EMAIL } from '@/lib/smsConsent';
 
 export const metadata: Metadata = buildPageMetadata({
   title: 'Text Message Terms',
@@ -26,6 +21,22 @@ export default function SmsTermsPage() {
         <div className={s.inner}>
           <h1 className={s.title}>Text Message Terms</h1>
           <p className={s.updated}>Last updated September 17, 2026</p>
+
+          <h2>How to opt in</h2>
+          <p>Clients turn on texts in the client portal under Settings → Profile. Here is what the opt-in looks like.</p>
+          <div className={s.mockCard} aria-label="Opt-in form as shown in the client portal">
+            <div className={s.mockBar} />
+            <div className={s.mockBody}>
+              <div>
+                <span className={s.mockLabel}>Mobile number</span>
+                <div className={s.mockInput}>(555) 123-4567</div>
+              </div>
+              <label className={s.mockCheck}>
+                <input type="checkbox" disabled aria-label="Text me updates" />
+                <SmsOptInLabel />
+              </label>
+            </div>
+          </div>
 
           <h2>The program</h2>
           <p>
@@ -55,11 +66,8 @@ export default function SmsTermsPage() {
                 <div className={s.mockInput}>(555) 123-4567</div>
               </div>
               <label className={s.mockCheck}>
-                <input type="checkbox" disabled aria-label={SMS_CONSENT_LABEL} />
-                <span>
-                  <strong>{SMS_CONSENT_LABEL}</strong> — {SMS_CONSENT_SUMMARY}
-                  <span className={s.mockFine}>{SMS_CONSENT_TEXT}</span>
-                </span>
+                <input type="checkbox" disabled aria-label="Text me updates" />
+                <SmsOptInLabel />
               </label>
             </div>
           </div>
