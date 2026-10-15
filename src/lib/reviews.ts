@@ -62,19 +62,19 @@ export async function requestReview(
 
   const service = input.service_slug ? SERVICE_SEO[input.service_slug].name.toLowerCase() : null;
   const link = `${site}/review/${token}`;
-  const subject = 'Would you share a few words about working with Thrive?';
+  const subject = 'Thank you for working with Thrive';
   const report = await deliver(
     db,
     contact,
     {
       subject,
-      eyebrow: 'A quick favor',
-      headline: `Thank you for trusting Thrive with your ${service ?? 'project'}. If you have two minutes, a short review would mean a lot — it is how other businesses decide to work with a small studio.`,
-      detail: 'It is one page: a rating, a sentence or two, and whether it is okay to share it on the website.',
+      eyebrow: 'Thank you',
+      headline: `Thank you for trusting me with your ${service ?? 'project'}. It was a real pleasure working with you, and I hope we get to work together again soon.`,
+      detail: `If you have two minutes, would you leave a short review? It is one page: a rating and a sentence or two. With your okay I will share it on the website${process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL ? ', and you will get a link to post it on Google too' : ''} — that is how other businesses find a small studio like mine.`,
       note: input.note || null,
       ctaUrl: link,
       ctaLabel: 'Leave a review',
-      sms: 'Thank you for working with Thrive! Would you leave a quick review? It takes two minutes:',
+      sms: 'Thank you so much for working with me — I hope we get to do it again soon! If you have two minutes, would you leave a quick review?',
     },
     input.channels,
   );

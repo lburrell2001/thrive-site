@@ -77,13 +77,13 @@ export function ReviewRequestDialog({ contactId, deal, onClose, onSent }: {
     <>
       <div className={s.backdrop} style={{ zIndex: 60 }} onClick={() => !sending && onClose()} />
       <form className={s.modal} style={{ zIndex: 61 }} role="dialog" aria-modal="true" aria-labelledby="review-request-title" onSubmit={send}>
-        <h2 id="review-request-title" className={s.modalTitle}>Ask for a review</h2>
+        <h2 id="review-request-title" className={s.modalTitle}>Thank them & ask for a review</h2>
         {!preview ? (
           <p className={s.eventMeta}>{loadError || 'Loading…'}</p>
         ) : (
           <>
             <p className={s.eventMeta} style={{ marginTop: 0 }}>
-              {preview.recipient} gets a private link to rate the work, write a few words, and say whether you may share it.
+              {preview.recipient} gets a thank-you for working together, with a private link to leave a review for the website and then Google.
             </p>
             <div className={s.formGrid} style={{ marginTop: 12 }}>
               <label className={s.full}>
@@ -114,7 +114,7 @@ export function ReviewRequestDialog({ contactId, deal, onClose, onSent }: {
         <div className={s.modalActions}>
           <button type="button" className={p.btn} onClick={onClose} disabled={sending}>Cancel</button>
           <button type="submit" className={`${p.btn} ${p.btnPrimary}`} disabled={sending || !preview || (!email && !sms)}>
-            {sending ? 'Sending…' : 'Send request'}
+            {sending ? 'Sending…' : 'Send thank-you'}
           </button>
         </div>
       </form>
