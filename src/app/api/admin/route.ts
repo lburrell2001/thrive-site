@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse, after } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
-import { decryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
+import { decryptSecret, encryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
 import { loadProposalById } from '@/lib/proposalRepo';
 import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
@@ -729,6 +729,50 @@ export async function POST(req: NextRequest) {
             notes: decryptSecret(row.notes_encrypted ?? ''),
           },
         });
+      }
+
+      case 'save_credential': {
+        // A login the client handed over some other way (text, call, email),
+        // saved into their vault. Same encryption as the portal route; it shows
+        // in the client's vault too. A blank password or notes on an edit
+        // keeps what is stored.
+        const { id, clientId, label, category, site_url, username, secret, notes, projectId } =
+          params as Record<string, string | undefined>;
+        if (!vaultKeyReady()) return err('PORTAL_CREDENTIALS_KEY is not set on the server.', 503);
+        if (!clientId) return err('clientId is required');
+        if (!label?.trim()) return err('A label is required');
+        const categories = ['website_host', 'domain', 'cms', 'ftp', 'analytics', 'social', 'email', 'other'];
+        let project_id: string | null = null;
+        if (projectId) {
+          const { data: proj } = await admin.from('portal_projects').select('id').eq('id', projectId).eq('client_id', clientId).maybeSingle();
+          project_id = proj ? projectId : null;
+        }
+        const row: Record<string, unknown> = {
+          label: label.trim().slice(0, 200),
+          category: categories.includes(category ?? '') ? category : 'other',
+          site_url: (site_url ?? '').trim().slice(0, 500),
+          username: (username ?? '').trim().slice(0, 300),
+          project_id,
+          updated_at: new Date().toISOString(),
+        };
+        if (!id || secret) row.secret_encrypted = encryptSecret(secret ?? '');
+        if (!id || notes) row.notes_encrypted = encryptSecret(notes ?? '');
+
+        if (id) {
+          const { data, error } = await admin.from('portal_credentials').update(row)
+            .eq('id', id).eq('client_id', clientId).select('id').maybeSingle();
+          if (error) return err(error.message);
+          if (!data) return err('Credential not found', 404);
+        } else {
+          const { error } = await admin.from('portal_credentials').insert({ ...row, client_id: clientId });
+          if (error) return err(error.message);
+          await admin.from('portal_activity').insert({
+            client_id: clientId,
+            text: `Thrive saved access details to your secure vault: ${row.label}`,
+            dot_color: '#1e3add',
+          });
+        }
+        return NextResponse.json({ ok: true });
       }
 
       case 'delete_credential': {

@@ -85,7 +85,7 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 
 - Table: `portal_credentials` (migration `011`). RLS is on with **no policies** — the anon key cannot read it at all.
 - Passwords and notes are encrypted with AES-256-GCM in `src/lib/credentialCrypto.ts` before they are written, so the DB holds no plaintext.
-- Every read/write goes through a server route with the service role key: `POST /api/portal/credentials` (client, Supabase bearer token; actions `list` / `reveal` / `create` / `update` / `delete`) and the `reveal_credential` / `delete_credential` actions on `/api/admin` (passcode).
+- Every read/write goes through a server route with the service role key: `POST /api/portal/credentials` (client, Supabase bearer token; actions `list` / `reveal` / `create` / `update` / `delete`) and the `save_credential` / `reveal_credential` / `delete_credential` actions on `/api/admin` (passcode). `save_credential` is for logins a client gave Lauren another way (text, call); they show in the client's vault too, and a blank password or notes on an edit keeps the stored one.
 - List responses carry metadata only (`has_secret`, `has_notes`) — a secret leaves the server only in response to an explicit `reveal`. Admin reveals stamp `last_viewed_at` / `last_viewed_by`, which the client sees in their vault.
 
 ### Reminders and text messages

@@ -644,7 +644,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       <Divider />
       <RequestInboxSection clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
       <Divider />
-      <CredentialsSection data={data} api={api} onRefresh={onRefresh} />
+      <CredentialsSection clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
       <Divider />
       {/* Every proposal for this client — project-attached ones included. */}
       <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} reminders={data.reminders} api={api} onRefresh={onRefresh} />
@@ -857,7 +857,8 @@ const CRED_CATEGORIES: Record<string, { label: string; color: string; bg: string
   other:        { label: 'Other',            color: '#808080', bg: '#f1f0ef' },
 };
 
-function CredentialsSection({ data, api, onRefresh }: {
+function CredentialsSection({ clientId, data, api, onRefresh }: {
+  clientId: string;
   data: ClientData;
   api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
   onRefresh: () => void;
@@ -867,6 +868,8 @@ function CredentialsSection({ data, api, onRefresh }: {
   const [revealing, setRevealing] = useState<string | null>(null);
   const [copied,    setCopied]    = useState('');
   const [error,     setError]     = useState('');
+  // null = closed, 'new' = adding, otherwise the entry being edited.
+  const [editing,   setEditing]   = useState<Credential | 'new' | null>(null);
 
   async function toggleReveal(c: Credential) {
     if (revealed[c.id]) {
@@ -905,15 +908,34 @@ function CredentialsSection({ data, api, onRefresh }: {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Secure Vault</h3>
         <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{credentials.length}</span>
+        {editing === null && (
+          <Btn variant="ghost" style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 12 }} onClick={() => setEditing('new')}>+ Add login</Btn>
+        )}
       </div>
       <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
-        Logins the client submitted from their portal. Stored encrypted — revealing one is recorded and shown to the client.
+        Logins from the client&rsquo;s portal, or ones they gave you another way. Stored encrypted and shown in the client&rsquo;s vault — revealing one is recorded and shown to the client.
       </p>
 
       <ErrorMsg msg={error} />
 
+      {editing !== null && (
+        <CredentialForm
+          key={editing === 'new' ? 'new' : editing.id}
+          clientId={clientId}
+          credential={editing === 'new' ? null : editing}
+          projects={data.projects}
+          api={api}
+          onCancel={() => setEditing(null)}
+          onSaved={() => {
+            if (editing !== 'new') setRevealed(prev => { const next = { ...prev }; delete next[editing.id]; return next; });
+            setEditing(null);
+            onRefresh();
+          }}
+        />
+      )}
+
       {credentials.length === 0 ? (
-        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No credentials shared yet.</p>
+        editing === null && <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No credentials saved yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {credentials.map((c) => {
@@ -939,6 +961,7 @@ function CredentialsSection({ data, api, onRefresh }: {
                     <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => toggleReveal(c)} disabled={revealing === c.id}>
                       {revealing === c.id ? 'Opening…' : open ? 'Hide' : 'Reveal'}
                     </Btn>
+                    <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => setEditing(c)}>Edit</Btn>
                     <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => handleDelete(c)}>Delete</Btn>
                   </div>
                 </div>
@@ -987,6 +1010,80 @@ function CredentialsSection({ data, api, onRefresh }: {
         </div>
       )}
     </div>
+  );
+}
+
+/** Add or edit a vault entry for a login the client handed over outside the portal. */
+function CredentialForm({ clientId, credential, projects, api, onCancel, onSaved }: {
+  clientId: string;
+  credential: Credential | null;
+  projects: Project[];
+  api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [label,     setLabel]     = useState(credential?.label ?? '');
+  const [category,  setCategory]  = useState(credential?.category ?? 'website_host');
+  const [siteUrl,   setSiteUrl]   = useState(credential?.site_url ?? '');
+  const [username,  setUsername]  = useState(credential?.username ?? '');
+  const [secret,    setSecret]    = useState('');
+  const [notes,     setNotes]     = useState('');
+  const [projectId, setProjectId] = useState(credential?.project_id ?? '');
+  const [showPw,    setShowPw]    = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState('');
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (!label.trim()) { setError('Give it a label, e.g. "GoDaddy hosting".'); return; }
+    setSaving(true); setError('');
+    const r = await api({
+      action: 'save_credential',
+      id: credential?.id,
+      clientId,
+      label, category, site_url: siteUrl, username, secret, notes,
+      projectId: projectId || null,
+    }) as { error?: string };
+    setSaving(false);
+    if (r.error) { setError(r.error); return; }
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={save} style={{ border: '1.5px solid #e5e5e5', borderRadius: 10, padding: 16, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <FormGrid>
+        <FormRow label="Label *"><input style={INPUT} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="GoDaddy hosting" /></FormRow>
+        <FormRow label="Type">
+          <select style={SELECT} value={category} onChange={(e) => setCategory(e.target.value)}>
+            {Object.entries(CRED_CATEGORIES).map(([value, c]) => <option key={value} value={value}>{c.label}</option>)}
+          </select>
+        </FormRow>
+        <FormRow label="Login page"><input style={INPUT} value={siteUrl} onChange={(e) => setSiteUrl(e.target.value)} placeholder="https://…" /></FormRow>
+        <FormRow label="Username / email"><input style={INPUT} value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off" /></FormRow>
+        <FormRow label={credential?.has_secret ? 'New password (blank keeps current)' : 'Password'}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input style={INPUT} type={showPw ? 'text' : 'password'} value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" />
+            <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => setShowPw(v => !v)}>{showPw ? 'Hide' : 'Show'}</Btn>
+          </div>
+        </FormRow>
+        {projects.length > 0 && (
+          <FormRow label="Project">
+            <select style={SELECT} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">None</option>
+              {projects.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+            </select>
+          </FormRow>
+        )}
+      </FormGrid>
+      <FormRow label={credential?.has_notes ? 'New notes (blank keeps current)' : 'Notes (2FA, security questions…)'}>
+        <textarea style={{ ...INPUT, minHeight: 64, resize: 'vertical' }} value={notes} onChange={(e) => setNotes(e.target.value)} />
+      </FormRow>
+      <ErrorMsg msg={error} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : credential ? 'Save changes' : 'Save to vault'}</Btn>
+        <Btn variant="ghost" onClick={onCancel} disabled={saving}>Cancel</Btn>
+      </div>
+    </form>
   );
 }
 
