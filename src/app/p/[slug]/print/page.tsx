@@ -57,6 +57,8 @@ export default async function ProposalPrintPage({ params, searchParams }: PagePr
           lineItems={renderable.lineItems}
           imageUrls={renderable.imageUrls}
           headerNote={renderable.theme.headerNote}
+          depositPercent={renderable.depositPercent}
+          clientName={renderable.client?.name}
         />
       </div>
     </div>

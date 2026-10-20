@@ -68,11 +68,12 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: clamp(28px, 5cqw, 52px);
-  font-size: var(--label);
-  letter-spacing: 0.2em;
+  margin-bottom: clamp(20px, 4cqw, 44px);
+  /* Set like the cover's header: plain, white, barely tracked. */
+  font-size: clamp(10px, 1.5cqw, 15px);
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--paper);
 }
 
 .runningHeaderNote {
@@ -82,14 +83,27 @@
 /* ---------------------------------------------------------------- kicker */
 
 .kicker {
-  margin: 0 0 clamp(12px, 1.8cqw, 20px);
-  padding-bottom: 7px;
-  border-bottom: var(--rule) solid var(--accent);
-  font-size: var(--label);
+  /* The rule runs on past the margin to the page's right edge. */
+  margin: 0 calc(var(--pad-inline) * -1) clamp(12px, 1.8cqw, 20px) 0;
+  padding-bottom: 3px;
+  border-bottom: 1.5px solid var(--accent-2);
+  font-size: clamp(11px, 1.9cqw, 18px);
   font-weight: 700;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-2);
+}
+
+/* Over a stack of panels the label is quiet: light, white, no rule. */
+.page[data-type='feature_list'] .kicker,
+.page[data-type='pricing'] .kicker {
+  margin-right: 0;
+  border-bottom: 0;
+  padding-bottom: 0;
+  font-size: clamp(10px, 1.6cqw, 15px);
+  font-weight: 300;
+  color: var(--paper);
 }
 
 /* ------------------------------------------------- the clipped heading */
@@ -179,12 +193,23 @@
   );
 }
 
+/* A line 2 that opens with "&" sets it oversized, rising into line 1. */
+.headingAmp {
+  display: inline-block;
+  font-size: 1.45em;
+  line-height: 0;
+  margin-right: 0.02em;
+  vertical-align: -0.04em;
+}
+
 /* ---------------------------------------------------------------- prose */
 
 .prose {
-  max-width: 68ch;
-  color: var(--muted);
+  max-width: 92%;
+  color: var(--paper);
   font-size: var(--lede);
+  font-weight: 300;
+  line-height: 1.55;
 }
 
 .prose p {
@@ -208,6 +233,45 @@
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.prose strong {
+  font-weight: 600;
+}
+
+/* ### subheadings take the brand colours in turn. */
+.prose h3 {
+  margin: 1.1em 0 0.35em;
+  font-size: 1.3em;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--magenta);
+}
+
+.prose h3:nth-of-type(3n + 2) { color: var(--orange); }
+.prose h3:nth-of-type(3n) { color: var(--green); }
+
+.prose h3 + p { margin-top: 0; }
+
+/* > callouts: a thick bar down the left, the text indented and bold. */
+.prose blockquote {
+  margin: 1.2em 0 1.2em clamp(14px, 4cqw, 48px);
+  max-width: 60ch;
+  padding: 0.05em 0 0.05em 0.8em;
+  border-left: clamp(3px, 0.6cqw, 6px) solid var(--callout);
+  font-weight: 600;
+  color: var(--paper);
+}
+
+/* A callout that opens with a bold label ("**Revisions** …") reads that
+   label in the bar's colour, uppercase, and the rest at normal weight. */
+.prose blockquote[data-label] {
+  font-weight: 400;
+}
+
+.prose blockquote[data-label] > strong:first-child {
+  color: var(--callout);
+  text-transform: uppercase;
 }
 
 .prose ul {
@@ -284,6 +348,9 @@
      the heading the loudest thing on the page. */
   aspect-ratio: var(--cover-ratio);
   overflow: hidden;
+  /* With a negative offset the photograph's top edge cuts across the foot
+     of line 2, so it has to sit above the heading. */
+  z-index: 1;
   background: rgba(232, 235, 234, 0.05);
 }
 
@@ -312,10 +379,10 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.22) 0%,
-    rgba(0, 0, 0, 0.46) 45%,
-    rgba(0, 0, 0, 0.46) 58%,
-    rgba(0, 0, 0, 0.26) 100%
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.22) 45%,
+    rgba(0, 0, 0, 0.22) 58%,
+    rgba(0, 0, 0, 0.1) 100%
   );
 }
 
@@ -413,8 +480,8 @@
 }
 
 .panel {
-  border-radius: var(--panel-radius);
-  padding: clamp(6px, 1.05cqw, 11px) clamp(9px, 1.6cqw, 17px);
+  border-radius: var(--panel-radius-tight);
+  padding: clamp(6px, 0.9cqw, 10px) clamp(8px, 1cqw, 12px);
   background: var(--panel);
   color: var(--white);
 }
@@ -424,8 +491,8 @@
 
 .panelTitle {
   margin: 0;
-  font-size: clamp(10px, 1.28cqw, 13px);
-  font-weight: 700;
+  font-size: clamp(11px, 1.75cqw, 17px);
+  font-weight: 600;
   line-height: 1.25;
   color: var(--white);
 }
@@ -433,6 +500,7 @@
 .panelBody {
   margin: 2px 0 0;
   font-size: var(--body);
+  font-weight: 300;
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.94);
 }
@@ -443,6 +511,10 @@
 .featureItem { composes: panel; }
 .featureTitle { composes: panelTitle; }
 .featureDescription { composes: panelBody; }
+
+.featureFootnote {
+  margin-top: clamp(10px, 1.6cqw, 18px);
+}
 
 /* ------------------------------------------------------------ moodboard */
 /* The grid runs to the page edges — the imagery is the page here, not a
@@ -577,14 +649,27 @@
   flex-wrap: wrap;
   margin-top: clamp(10px, 1.7cqw, 18px);
   border-radius: var(--panel-radius);
-  background: var(--orange);
-  padding: clamp(9px, 1.5cqw, 16px) clamp(12px, 2cqw, 22px);
+  background: var(--accent);
+  padding: clamp(12px, 2.4cqw, 26px) clamp(14px, 2.8cqw, 30px);
+}
+
+.pricingTotalRight {
+  text-align: right;
+}
+
+.pricingDeposit {
+  margin-top: clamp(4px, 0.8cqw, 8px);
+  font-size: clamp(9px, 1.3cqw, 13px);
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--white);
 }
 
 .pricingTotalLabel {
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: clamp(15px, 2.5cqw, 26px);
+  font-size: clamp(20px, 4.4cqw, 44px);
   line-height: 1;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -594,7 +679,7 @@
 .pricingTotalValue {
   font-family: var(--font-display);
   font-weight: var(--display-weight);
-  font-size: clamp(15px, 2.5cqw, 26px);
+  font-size: clamp(20px, 4.4cqw, 44px);
   line-height: 1;
   color: var(--white);
   font-variant-numeric: tabular-nums;
@@ -755,53 +840,83 @@
 
 /* ------------------------------------------------------------ signature */
 
+.signaturePanel {
+  margin-top: clamp(12px, 2cqw, 22px);
+  border-radius: var(--panel-radius);
+  background: var(--accent);
+  padding: clamp(12px, 2.4cqw, 26px) clamp(14px, 2.8cqw, 30px);
+  color: var(--white);
+}
+
+/* Straight after the total, the signature joins it as one panel. */
+.page[data-type='pricing']:has(+ .page[data-type='signature']) {
+  padding-bottom: 0;
+}
+
+.page[data-type='pricing']:has(+ .page[data-type='signature']) .pricingTotal {
+  border-radius: var(--panel-radius) var(--panel-radius) 0 0;
+  padding-bottom: clamp(6px, 1cqw, 10px);
+}
+
+.page[data-type='pricing'] + .page[data-type='signature'] .signaturePanel {
+  margin-top: 0;
+  border-radius: 0 0 var(--panel-radius) var(--panel-radius);
+  padding-top: clamp(4px, 0.8cqw, 8px);
+}
+
 .signatureGrid {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: clamp(16px, 4cqw, 48px);
-  margin-top: clamp(12px, 2cqw, 22px);
 }
 
 .signatureLabel {
-  font-size: clamp(10px, 1.4cqw, 13px);
-  font-weight: 700;
-  color: var(--paper);
+  font-weight: 600;
 }
 
 .signatureMeta {
-  margin: 2px 0 0;
-  font-size: var(--label);
-  color: var(--muted);
+  margin: 1px 0 0;
+  font-size: clamp(8px, 1.1cqw, 11px);
+  font-weight: 300;
+  color: var(--white);
 }
 
 .signatureName {
-  font-size: clamp(11px, 1.5cqw, 15px);
-  font-weight: 700;
-  color: var(--paper);
+  margin: 0;
+  font-size: clamp(11px, 1.75cqw, 17px);
+  font-weight: 600;
+  color: var(--white);
 }
 
 /* The client signs in a white field, as on the printed page. */
 .signatureField {
-  flex: 0 1 46%;
-  text-align: right;
+  flex: 0 1 50%;
 }
 
 .signatureBox {
-  height: clamp(28px, 3.6cqw, 44px);
-  margin: 6px 0 4px;
-  border-radius: 4px;
+  height: clamp(32px, 6cqw, 60px);
+  margin: 0 0 5px;
   background: var(--white);
 }
 
+.signatureFieldLabels {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: clamp(9px, 1.3cqw, 13px);
+  font-weight: 600;
+  color: var(--white);
+}
+
 .signatureTerms {
-  margin-top: clamp(16px, 2.6cqw, 26px);
-  font-size: var(--body);
-  color: var(--muted);
+  margin: clamp(10px, 1.6cqw, 16px) 0 0;
+  font-size: clamp(8px, 1.1cqw, 11px);
+  color: var(--white);
 }
 
 .signatureTerms a {
-  color: var(--accent);
+  color: var(--white);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -852,7 +967,6 @@
   .phaseItem { grid-template-columns: 1fr; }
   .pricingRow { flex-direction: column; align-items: flex-start; gap: 6px; }
   .signatureGrid { flex-direction: column; align-items: stretch; }
-  .signatureField { text-align: left; }
 }
 
 /* --------------------------------------------------------------- print */

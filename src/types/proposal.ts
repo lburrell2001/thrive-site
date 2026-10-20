@@ -67,6 +67,8 @@ export interface FeatureListBlock extends BaseBlock {
   content: {
     kicker?: string;
     items: { title: string; description: string }[];
+    /** Optional note under the list, e.g. "> **Revisions** Unlimited rounds…". */
+    footnote?: string;
   };
 }
 

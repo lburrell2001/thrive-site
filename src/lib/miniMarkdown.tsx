@@ -5,7 +5,8 @@
 // than HTML strings. There is no dangerouslySetInnerHTML anywhere in the
 // proposal renderer, which makes injection structurally impossible.
 //
-// Supported: paragraphs, - bullet lists, **bold**, *italic*, [text](url).
+// Supported: paragraphs, - bullet lists, ### subheadings, > callouts,
+// **bold**, *italic*, [text](url).
 import { Fragment, type ReactNode } from 'react';
 
 const INLINE = /(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)\s]+\))/g;
@@ -55,6 +56,23 @@ export function Markdown({ source, className }: { source: string; className?: st
       {chunks.map((chunk, ci) => {
         const lines = chunk.split('\n');
         const isList = lines.every((l) => /^\s*[-*]\s+/.test(l));
+
+        // A ### line is a subheading; the proposal colours them in turn.
+        if (lines.length === 1 && /^#{1,3}\s+/.test(lines[0])) {
+          return <h3 key={ci}>{renderInline(lines[0].replace(/^#{1,3}\s+/, ''), String(ci))}</h3>;
+        }
+
+        // Lines starting with > are a callout: a bar down the left.
+        if (lines.every((l) => /^\s*>/.test(l))) {
+          const text = lines.map((l) => l.replace(/^\s*>\s?/, '')).join(' ');
+          // "**Revisions** Unlimited rounds…" — a bold label, then the point.
+          const labelled = /^\*\*[^*]+\*\*\s*\S/.test(text);
+          return (
+            <blockquote key={ci} data-label={labelled || undefined}>
+              {renderInline(text, String(ci))}
+            </blockquote>
+          );
+        }
 
         if (isList) {
           return (

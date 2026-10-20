@@ -28,6 +28,8 @@
 
   /* Accent resolved per block; defaults to magenta, overridden inline. */
   --accent: var(--magenta);
+  --accent-2: var(--orange);
+  --callout: var(--orange);
   /* The fill used for content panels — deliberately constant so a page's
      accent can change without the panels changing colour. */
   --panel: var(--purple);
@@ -50,6 +52,8 @@
   --pad-block: clamp(20px, 3.5cqw, 40px);
   --rule: 2px;
   --panel-radius: 10px;
+  /* Scope panels are near-square, as printed. */
+  --panel-radius-tight: 2px;
 
   /* Display line 2 is sized to span this — the page's content width, less a
      hair so a rounding error cannot push it into a clip. */
@@ -67,24 +71,27 @@
   --heading-overlap: 0.64;
   /* Cover photograph: shape, how far it sits below line 2's baseline, and how
      far the duotone is held down in tone. */
-  --cover-ratio: 0.8 / 1;
-  --cover-offset: 0.075;
-  --cover-brightness: 0.64;
+  --cover-ratio: 1.42 / 1;
+  --cover-offset: -0.1;
+  --cover-brightness: 1;
   --cover-tint: 1;
 
   --label: clamp(8px, 1.12cqw, 10.5px);
-  --body: clamp(9.5px, 1.2cqw, 12px);
-  --lede: clamp(10.5px, 1.3cqw, 13px);
+  --body: clamp(10px, 1.3cqw, 13px);
+  --lede: clamp(12px, 1.75cqw, 17px);
 }
 
-.thriveProposal[data-accent="green"]   { --accent: var(--green); }
-.thriveProposal[data-accent="orange"]  { --accent: var(--orange); }
-.thriveProposal[data-accent="magenta"] { --accent: var(--magenta); }
-.thriveProposal[data-accent="purple"]  { --accent: var(--purple); }
-.thriveProposal[data-accent="blue"]    { --accent: var(--blue); }
-
-.thriveProposal [data-accent="green"]   { --accent: var(--green); }
-.thriveProposal [data-accent="orange"]  { --accent: var(--orange); }
-.thriveProposal [data-accent="magenta"] { --accent: var(--magenta); }
-.thriveProposal [data-accent="purple"]  { --accent: var(--purple); }
-.thriveProposal [data-accent="blue"]    { --accent: var(--blue); }
+/* Each accent brings its partners, paired the way the printed proposals are:
+   a magenta page has an orange kicker and orange callout bars, an orange page
+   a green kicker and magenta bars. --accent-2 is the kicker, --callout the
+   bar down the left of a > callout. */
+.thriveProposal[data-accent="green"],
+.thriveProposal [data-accent="green"]   { --accent: var(--green);   --accent-2: var(--magenta); --callout: var(--magenta); }
+.thriveProposal[data-accent="orange"],
+.thriveProposal [data-accent="orange"]  { --accent: var(--orange);  --accent-2: var(--green);   --callout: var(--magenta); }
+.thriveProposal[data-accent="magenta"],
+.thriveProposal [data-accent="magenta"] { --accent: var(--magenta); --accent-2: var(--orange);  --callout: var(--orange); }
+.thriveProposal[data-accent="purple"],
+.thriveProposal [data-accent="purple"]  { --accent: var(--purple);  --accent-2: var(--orange);  --callout: var(--orange); }
+.thriveProposal[data-accent="blue"],
+.thriveProposal [data-accent="blue"]    { --accent: var(--blue);    --accent-2: var(--green);   --callout: var(--magenta); }

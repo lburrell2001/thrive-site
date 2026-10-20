@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { createProposalSchema } from '@/lib/proposalWriteSchemas';
-import { parseBlocksLenient } from '@/lib/proposalSchemas';
+import { emptyBlock, parseBlocksLenient } from '@/lib/proposalSchemas';
+import { headerDate, starterBlocks } from '@/lib/proposalStarter';
 import type { ProposalBlock } from '@/types/proposal';
 
 export function newAccessToken() {
@@ -43,7 +44,10 @@ export async function GET(req: Request) {
   });
 }
 
-/** Create a proposal: blank, from a template, or copied from another proposal. */
+/**
+ * Create a proposal: blank, the Thrive layout, from a template, or copied
+ * from another proposal. `cover` decides whether its cover page shows.
+ */
 export async function POST(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
@@ -58,7 +62,7 @@ export async function POST(req: Request) {
   const parsed = createProposalSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
 
-  const { title, clientId, templateId, fromProposalId } = parsed.data;
+  const { title, clientId, templateId, fromProposalId, starter, cover = false, crmDealId } = parsed.data;
   const db = auth.db;
 
   // Work out the starting blocks.
@@ -113,6 +117,24 @@ export async function POST(req: Request) {
         id: randomUUID(),
       })),
     );
+  } else if (starter) {
+    const { data: client } = clientId
+      ? await db.from('proposal_clients').select('name, company').eq('id', clientId).maybeSingle()
+      : { data: null };
+    blocks = starterBlocks({ cover, clientName: client?.name, projectName: client?.company });
+    theme = { accent: 'magenta', headerNote: headerDate() };
+  }
+
+  // Most proposals go without a cover. Keep a copied or templated cover but
+  // hide it (one click to bring back), or add one when asked for.
+  const hasCover = blocks.some((block) => block.type === 'cover');
+  blocks = blocks.map((block) => (block.type === 'cover' ? { ...block, visible: cover } : block));
+  if (cover && !hasCover) {
+    const added = emptyBlock('cover', randomUUID(), 0);
+    if (added.type === 'cover') {
+      added.content = { ...added.content, dateLabel: headerDate(), preparedBy: 'Thrive Creative Studios' };
+    }
+    blocks = [added, ...blocks];
   }
 
   const { data: slug, error: slugError } = await db.rpc('next_proposal_slug', { base: title });
@@ -126,6 +148,9 @@ export async function POST(req: Request) {
       title,
       client_id: clientId ?? null,
       template_id: templateId ?? null,
+      // Set when started from a deal; otherwise the CRM trigger files it
+      // under the client's most recent open deal.
+      ...(crmDealId ? { crm_deal_id: crmDealId } : {}),
       status: 'draft',
       currency,
       deposit_percent: depositPercent,

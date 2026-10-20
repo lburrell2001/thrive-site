@@ -77,7 +77,7 @@ export default function ProposalsListPage() {
     try {
       const created = await apiSend<{ id: string }>(`/api/proposals/${id}/duplicate`, 'POST');
       show('Duplicated.');
-      router.push(`/admin/proposals/${created.id}/edit`);
+      router.push(`/admin/crm/proposals/${created.id}/edit`);
     } catch (error) {
       show(error instanceof Error ? error.message : 'Could not duplicate', 'error');
       setBusyId(null);
@@ -116,10 +116,10 @@ export default function ProposalsListPage() {
             </p>
           </div>
           <span style={{ display: 'flex', gap: 8 }}>
-            <Link href="/admin/proposals/templates" className={s.btn}>
+            <Link href="/admin/crm/proposals/templates" className={s.btn}>
               Templates
             </Link>
-            <Link href="/admin/proposals/new" className={`${s.btn} ${s.btnPrimary}`}>
+            <Link href="/admin/crm/proposals/new" className={`${s.btn} ${s.btnPrimary}`}>
               New proposal
             </Link>
           </span>
@@ -155,7 +155,7 @@ export default function ProposalsListPage() {
           {visible.map((row) => (
             <div key={row.id} className={s.row}>
               <div style={{ minWidth: 0 }}>
-                <Link href={`/admin/proposals/${row.id}/edit`} className={s.rowTitle}>
+                <Link href={`/admin/crm/proposals/${row.id}/edit`} className={s.rowTitle}>
                   {row.title}
                 </Link>
                 <p className={s.rowMeta}>
@@ -201,7 +201,7 @@ export default function ProposalsListPage() {
                   Duplicate
                 </button>
                 <Link
-                  href={`/admin/proposals/${row.id}/edit`}
+                  href={`/admin/crm/proposals/${row.id}/edit`}
                   className={`${s.btn} ${s.btnSmall}`}
                 >
                   Edit

@@ -115,11 +115,11 @@ export async function POST(
       }),
       totalLabel: formatMoney(renderable.totalCents, renderable.currency),
       proposalUrl: `${site}/p/${slug}?t=${row.access_token}`,
-      adminUrl: `${site}/admin/proposals/${row.id}/edit`,
+      adminUrl: `${site}/admin/crm/proposals/${row.id}/edit`,
       ipAddress,
     });
     await textAgency(
-      `Declined: ${renderable.title}${input.declinedBy ? ` by ${input.declinedBy}` : ''}. Reason: ${input.reason.slice(0, 200)} ${site}/admin/proposals/${row.id}/edit`,
+      `Declined: ${renderable.title}${input.declinedBy ? ` by ${input.declinedBy}` : ''}. Reason: ${input.reason.slice(0, 200)} ${site}/admin/crm/proposals/${row.id}/edit`,
     );
   });
 

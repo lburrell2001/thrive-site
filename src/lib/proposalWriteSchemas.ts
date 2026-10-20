@@ -68,6 +68,12 @@ export const createProposalSchema = z.object({
   templateId: z.string().uuid().nullable().optional(),
   /** …or from an existing proposal, which is how most get made in practice. */
   fromProposalId: z.string().uuid().nullable().optional(),
+  /** Neither of those: start from the Thrive layout (lib/proposalStarter). */
+  starter: z.boolean().optional(),
+  /** Show a cover page. Off by default; the cover block is kept hidden. */
+  cover: z.boolean().optional(),
+  /** The CRM deal this proposal is for, when started from one. */
+  crmDealId: z.string().uuid().nullable().optional(),
 });
 
 export const createClientSchema = z.object({

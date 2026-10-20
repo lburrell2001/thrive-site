@@ -58,6 +58,7 @@ const narrativeContent = z.object({
 const featureListContent = z.object({
   kicker: z.string().optional(),
   items: z.array(titleDescription).default([]),
+  footnote: z.string().optional(),
 });
 
 const moodboardContent = z.object({

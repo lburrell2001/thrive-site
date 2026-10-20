@@ -20,6 +20,10 @@ export interface RenderContext {
   /** Running-header text, repeated on every page. */
   agencyName: string;
   headerNote: string;
+  /** Share due at signing, for the line under the total. Undefined = no line. */
+  depositPercent?: number;
+  /** The client's name, printed under their signature field. */
+  clientName?: string;
   /**
    * Weights the two display lines are set in. Carried here because a heading
    * is sized from its own measured width, and that width depends on weight —
@@ -50,6 +54,14 @@ export function resolveAccent(block: ProposalBlock, theme: ProposalTheme): Accen
 export function imageUrl(ctx: RenderContext, path: string | null | undefined): string | null {
   if (!path) return null;
   return ctx.imageUrls[path] ?? null;
+}
+
+/** "Half due at signing · half due at completion", from the deposit share. */
+export function depositLine(percent: number | undefined): string | null {
+  if (percent === undefined || percent === null || percent <= 0) return null;
+  if (percent >= 100) return 'Due in full at signing';
+  if (percent === 50) return 'Half due at signing · half due at completion';
+  return `${percent}% due at signing · ${100 - percent}% due at completion`;
 }
 
 export function formatMoney(cents: number, currency: string): string {

@@ -160,11 +160,12 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
     [id],
   );
 
-  async function startProposal() {
+  async function startProposal(dealId?: string) {
     setBusy('proposal');
     try {
       const recipient = await apiSend<{ id: string }>(`/api/crm/contacts/${id}/recipient`, 'POST');
-      router.push(`/admin/proposals/new?client=${recipient.id}`);
+      const deal = dealId ? `&deal=${dealId}` : '';
+      router.push(`/admin/crm/proposals/new?client=${recipient.id}${deal}`);
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Could not start a proposal', 'error');
       setBusy('');
@@ -262,7 +263,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setCallRequest((n) => n + 1); }}>
                   ☏ Log call
                 </button>
-                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={startProposal} disabled={busy === 'proposal'}>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => startProposal()} disabled={busy === 'proposal'}>
                   New proposal
                 </button>
                 {detail.portal ? (
@@ -330,6 +331,8 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                     contactId={id}
                     detail={detail}
                     focusDealId={focusDealId ?? null}
+                    onStartProposal={(dealId) => startProposal(dealId)}
+                    startingProposal={busy === 'proposal'}
                     onSave={saveDeal}
                     onChange={async () => { await reload(); onChanged(); }}
                     notify={notify}
@@ -408,10 +411,12 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   );
 }
 
-function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify }: {
+function DealsSection({ contactId, detail, focusDealId, onStartProposal, startingProposal, onSave, onChange, notify }: {
   contactId: string;
   detail: CrmContactDetail;
   focusDealId: string | null;
+  onStartProposal: (dealId: string) => void;
+  startingProposal: boolean;
   onSave: (dealId: string, patch: Partial<CrmDeal>, okMessage?: string) => Promise<boolean>;
   onChange: () => Promise<void>;
   notify: (message: string, tone?: 'ok' | 'error') => void;
@@ -501,6 +506,17 @@ function DealsSection({ contactId, detail, focusDealId, onSave, onChange, notify
                 {proposals.map((pr) => <ProposalLine key={pr.id} proposal={pr} />)}
               </ul>
             )}
+            {deal.stage !== 'won' && deal.stage !== 'lost' && (
+              <button
+                type="button"
+                className={`${p.btn} ${p.btnSmall}`}
+                style={{ marginTop: 8 }}
+                onClick={() => onStartProposal(deal.id)}
+                disabled={startingProposal}
+              >
+                + Proposal for this deal
+              </button>
+            )}
             {deal.stage === 'won' && <ReviewLine deal={deal} reviews={detail.reviews} onAsk={() => setAskingReview(deal)} />}
             <p className={s.eventMeta} style={{ marginTop: 8 }}>
               Opened {formatDate(deal.created_at)}{DEAL_SOURCE[deal.source] ? ` from ${DEAL_SOURCE[deal.source]}` : ''}
@@ -561,7 +577,7 @@ function ReviewLine({ deal, reviews, onAsk }: { deal: CrmDeal; reviews: CrmConta
 function ProposalLine({ proposal: pr }: { proposal: CrmContactDetail['proposals'][number] }) {
   return (
     <li className={s.task}>
-      <Link href={`/admin/proposals/${pr.id}/edit`} className={s.taskTitle} style={{ color: '#111' }}>{pr.title}</Link>
+      <Link href={`/admin/crm/proposals/${pr.id}/edit`} className={s.taskTitle} style={{ color: '#111' }}>{pr.title}</Link>
       <span className={s.chip}>{pr.status}</span>
       <span className={s.taskDue}>{formatMoneyCents(pr.total_cents, pr.currency)}</span>
     </li>

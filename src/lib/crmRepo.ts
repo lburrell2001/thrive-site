@@ -323,7 +323,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     signed_at: string | null; declined_at: string | null; decline_reason: string | null;
   })[];
   for (const p of proposalRows) {
-    const href = `/admin/proposals/${p.id}/edit`;
+    const href = `/admin/crm/proposals/${p.id}/edit`;
     const amount = money(p.total_cents, p.currency);
     const push = (suffix: string, at: string | null, title: string, body?: string | null) => {
       if (at) timeline.push({ key: `proposal:${p.id}:${suffix}`, kind: 'proposal', at, title, meta: amount, href, body, dealId: p.crm_deal_id });

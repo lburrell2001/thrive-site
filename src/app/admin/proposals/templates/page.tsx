@@ -147,7 +147,7 @@ export default function TemplateLibraryPage() {
               pre-selected on the new proposal screen.
             </p>
           </div>
-          <Link href="/admin/proposals" className={s.btn}>
+          <Link href="/admin/crm/proposals" className={s.btn}>
             Back to proposals
           </Link>
         </div>
@@ -278,7 +278,7 @@ export default function TemplateLibraryPage() {
 
               <div className={s.rowActions}>
                 <Link
-                  href={`/admin/proposals/new?template=${template.id}`}
+                  href={`/admin/crm/proposals/new?template=${template.id}`}
                   className={`${s.btn} ${s.btnSmall}`}
                 >
                   Use

@@ -27,7 +27,7 @@ interface ProposalRow {
   proposal_clients: { name: string; company: string | null } | null;
 }
 
-type StartFrom = { kind: 'blank' } | { kind: 'template'; id: string } | { kind: 'copy'; id: string };
+type StartFrom = { kind: 'blank' } | { kind: 'starter' } | { kind: 'template'; id: string } | { kind: 'copy'; id: string };
 
 export default function NewProposalPage() {
   const router = useRouter();
@@ -39,7 +39,9 @@ export default function NewProposalPage() {
 
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
-  const [startFrom, setStartFrom] = useState<StartFrom>({ kind: 'blank' });
+  const [startFrom, setStartFrom] = useState<StartFrom>({ kind: 'starter' });
+  const [cover, setCover] = useState(false);
+  const [dealId, setDealId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
   const [newClientName, setNewClientName] = useState('');
@@ -65,7 +67,9 @@ export default function NewProposalPage() {
       if (requestedClient && c.status === 'fulfilled' && (c.value ?? []).some((row) => row.id === requestedClient)) {
         setClientId(requestedClient);
       }
-      // An explicit ?template=<id> beats the default, which beats blank.
+      // ?deal=<id> when started from a deal in a contact's panel.
+      setDealId(params.get('deal'));
+      // An explicit ?template=<id> beats the default, which beats the Thrive layout.
       const requested = params.get('template');
       const available = t.status === 'fulfilled' ? t.value ?? [] : [];
       const chosen =
@@ -108,8 +112,11 @@ export default function NewProposalPage() {
         clientId: clientId || null,
         templateId: startFrom.kind === 'template' ? startFrom.id : null,
         fromProposalId: startFrom.kind === 'copy' ? startFrom.id : null,
+        starter: startFrom.kind === 'starter',
+        cover,
+        crmDealId: dealId,
       });
-      router.push(`/admin/proposals/${created.id}/edit`);
+      router.push(`/admin/crm/proposals/${created.id}/edit`);
     } catch (error) {
       show(error instanceof Error ? error.message : 'Could not create proposal', 'error');
       setCreating(false);
@@ -124,7 +131,7 @@ export default function NewProposalPage() {
             <h1 className={s.pageTitle}>New proposal</h1>
             <p className={s.pageSub}>Name it, choose a client, and pick what to start from.</p>
           </div>
-          <Link href="/admin/proposals" className={s.btn}>
+          <Link href="/admin/crm/proposals" className={s.btn}>
             Cancel
           </Link>
         </div>
@@ -241,6 +248,13 @@ export default function NewProposalPage() {
 
           <div className={s.pickerGrid}>
             <StartOption
+              selected={startFrom.kind === 'starter'}
+              name="Thrive layout"
+              description="The assignment, what's included, how it works, then the total and signature — like The Social Reserve proposal."
+              onSelect={() => setStartFrom({ kind: 'starter' })}
+            />
+
+            <StartOption
               selected={startFrom.kind === 'blank'}
               name="Blank proposal"
               description="An empty document. You add every block yourself."
@@ -278,6 +292,18 @@ export default function NewProposalPage() {
               library. Copying an existing proposal does the same job in the meantime.
             </p>
           )}
+        </div>
+
+        <div className={s.card} style={{ marginBottom: 16 }}>
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={cover} onChange={(e) => setCover(e.target.checked)} style={{ marginTop: 3 }} />
+            <span>
+              <strong>Include a cover page</strong>
+              <span className={s.hint} style={{ display: 'block', marginTop: 2 }}>
+                The big title over a photo. Off, the proposal opens on its first page. You can turn it on or off later in the builder.
+              </span>
+            </span>
+          </label>
         </div>
 
         <button

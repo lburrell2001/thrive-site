@@ -34,6 +34,14 @@ export function FeatureListForm({ block, onContentChange }: FormProps<FeatureLis
           </>
         )}
       />
+
+      <TextArea
+        label="Note under the list"
+        value={c.footnote ?? ''}
+        rows={3}
+        onChange={(v) => set({ footnote: v || undefined })}
+        hint="Optional. > **Revisions** Unlimited rounds… makes a callout with the label in colour."
+      />
     </>
   );
 }

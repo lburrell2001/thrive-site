@@ -163,7 +163,7 @@ export async function POST(
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
     await textAgency(
-      `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/proposals/${row.id}/edit`,
+      `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
     );
     const pdf = await fetchProposalPdf(site, row.id, row.access_token, renderable.title);
     await sendSigningEmails({
@@ -183,7 +183,7 @@ export async function POST(
       proposalUrl: `${site}/p/${slug}?t=${row.access_token}`,
       printUrl: `${proposalPrintUrl(site, slug, row.access_token)}&print=1`,
       portalUrl: `${site}/portal/invoices`,
-      adminUrl: `${site}/admin/proposals/${row.id}/edit`,
+      adminUrl: `${site}/admin/crm/proposals/${row.id}/edit`,
       contentHash: snapshot.contentHash,
       ipAddress,
       pdf,

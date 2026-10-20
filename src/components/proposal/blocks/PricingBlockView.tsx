@@ -1,7 +1,7 @@
 import styles from '../proposal.module.css';
 import { Markdown } from '@/lib/miniMarkdown';
 import { Kicker, Page } from '../Page';
-import { formatMoney, resolveAccent, type BlockProps } from '../context';
+import { depositLine, formatMoney, resolveAccent, type BlockProps } from '../context';
 import type { PricingBlock } from '@/types/proposal';
 
 /**
@@ -17,13 +17,15 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
   const accent = resolveAccent(block, ctx.theme);
   const c = block.content;
   const itemised = c.showLineItemPrices && ctx.lineItems.length > 0;
+  const deposit = depositLine(ctx.depositPercent);
+  const hasRows = itemised || c.deliverables.length > 0;
 
   return (
     <Page ctx={ctx} accent={accent} startsPage={startsPage} type="pricing">
       <Kicker>{c.kicker}</Kicker>
       <Markdown source={c.intro} className={styles.prose} />
 
-      <div className={styles.pricingList}>
+      {hasRows && <div className={styles.pricingList}>
         {itemised
           ? ctx.lineItems.map((item) => (
               <div key={item.id} className={styles.pricingRow}>
@@ -48,13 +50,16 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
                 </div>
               </div>
             ))}
-      </div>
+      </div>}
 
       <div className={styles.pricingTotal}>
         <span className={styles.pricingTotalLabel}>{c.totalLabel}</span>
-        <span className={styles.pricingTotalValue}>
-          {formatMoney(ctx.totalCents, ctx.currency)}
-        </span>
+        <div className={styles.pricingTotalRight}>
+          <div className={styles.pricingTotalValue}>
+            {formatMoney(ctx.totalCents, ctx.currency)}
+          </div>
+          {deposit && <div className={styles.pricingDeposit}>{deposit}</div>}
+        </div>
       </div>
 
       {c.footnote && <Markdown source={c.footnote} className={styles.pricingFootnote} />}

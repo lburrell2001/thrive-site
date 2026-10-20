@@ -23,6 +23,9 @@ const nextConfig: NextConfig = {
       { source: "/admin/crm/newsletters/:id", destination: "/admin/crm/emails/:id", permanent: false },
       { source: "/admin/crm/prospecting", destination: "/admin/crm/emails?tab=templates", permanent: false },
       { source: "/admin/crm/prospecting/:id", destination: "/admin/crm/emails/templates/:id", permanent: false },
+      // The proposal builder moved into the CRM.
+      { source: "/admin/proposals", destination: "/admin/crm/proposals", permanent: false },
+      { source: "/admin/proposals/:path*", destination: "/admin/crm/proposals/:path*", permanent: false },
     ];
   },
   async headers() {

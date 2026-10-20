@@ -74,9 +74,25 @@ export function ClippedHeading({
   return (
     <h2 className={styles.headingClip} style={headingStyle(l1, l2, 'shared', weights)}>
       {l1 && <span className={styles.headingLine1}>{l1}</span>}
-      {l2 && <span className={styles.headingLine2}>{l2}</span>}
+      {l2 && <span className={styles.headingLine2}><HeadingLine2Text text={l2} /></span>}
     </h2>
   );
+}
+
+/** "& PRICING" sets its ampersand oversized, as on the printed proposals. */
+function HeadingLine2Text({ text }: { text: string }) {
+  if (!text.startsWith('& ')) return <>{text}</>;
+  return (
+    <>
+      <span className={styles.headingAmp}>&amp;</span>
+      {text.slice(1)}
+    </>
+  );
+}
+
+/** How much wider the oversized ampersand makes a line, in em. */
+function ampExtraEm(line: string, weight: number): number {
+  return line.startsWith('& ') ? displayWidthEm('&', weight) * 0.47 : 0;
 }
 
 /**
@@ -102,7 +118,8 @@ export function headingStyle(
   // Measured at the weight each line is rendered in, and the weights are set
   // here too, so the two can never drift apart.
   const em1 = displayWidthEm(line1.trim(), weights.line1);
-  const em2 = displayWidthEm(line2.trim(), weights.line2);
+  const em2 =
+    displayWidthEm(line2.trim(), weights.line2) + ampExtraEm(line2.trim(), weights.line2);
   const weightVars = {
     '--heading-weight-1': weights.line1,
     '--heading-weight-2': weights.line2,

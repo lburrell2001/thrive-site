@@ -26,7 +26,7 @@ export interface InquiryItem {
 }
 
 export interface AwaitingProposal {
-  /** 'builder' proposals live at /admin/proposals; 'portal' ones are uploaded PDFs. */
+  /** 'builder' proposals live at /admin/crm/proposals; 'portal' ones are uploaded PDFs. */
   kind: 'builder' | 'portal';
   id: string;
   title: string;

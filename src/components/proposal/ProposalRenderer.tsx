@@ -35,6 +35,10 @@ export interface ProposalRendererProps {
   agencyName?: string;
   /** Right side of the running header — usually the proposal date. */
   headerNote?: string;
+  /** Share due at signing; prints "Half due at signing…" under the total. */
+  depositPercent?: number;
+  /** Printed under the client's signature field. */
+  clientName?: string;
   /** Overrides the document's heading weights — used by the design tuner. */
   headingWeights?: HeadingWeights;
 }
@@ -54,6 +58,8 @@ export function ProposalRenderer({
   imageUrls = {},
   agencyName,
   headerNote = '',
+  depositPercent,
+  clientName,
   headingWeights = HEADING_WEIGHTS,
 }: ProposalRendererProps) {
   const ctx: RenderContext = {
@@ -65,6 +71,8 @@ export function ProposalRenderer({
     imageUrls,
     agencyName: agencyName ?? theme.agencyName ?? 'Thrive Creative Studios',
     headerNote: headerNote || theme.headerNote || '',
+    depositPercent,
+    clientName: clientName || undefined,
     headingWeights,
   };
 

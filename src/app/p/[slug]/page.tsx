@@ -103,6 +103,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         lineItems={renderable.lineItems}
         imageUrls={renderable.imageUrls}
         headerNote={renderable.theme.headerNote}
+        depositPercent={renderable.depositPercent}
+        clientName={renderable.client?.name}
       />
 
       <ProposalFooter

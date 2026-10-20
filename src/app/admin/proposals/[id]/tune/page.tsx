@@ -160,7 +160,7 @@ export default function TunePage({ params }: { params: Promise<{ id: string }> }
       <div className={s.screen}>
         <div className={s.wrap}>
           <p className={s.empty}>{error}</p>
-          <Link href="/admin/proposals" className={s.btn}>
+          <Link href="/admin/crm/proposals" className={s.btn}>
             Back to proposals
           </Link>
         </div>
@@ -183,7 +183,7 @@ export default function TunePage({ params }: { params: Promise<{ id: string }> }
     <div className={t.screen}>
       <div className={t.controls}>
         <div className={t.head}>
-          <Link href={`/admin/proposals/${id}/edit`} className={`${s.btn} ${s.btnSmall}`}>
+          <Link href={`/admin/crm/proposals/${id}/edit`} className={`${s.btn} ${s.btnSmall}`}>
             ← Editor
           </Link>
           <span className={t.changedCount}>
@@ -304,6 +304,7 @@ export default function TunePage({ params }: { params: Promise<{ id: string }> }
                 lineItems={doc.lineItems}
                 imageUrls={doc.imageUrls}
                 headerNote={doc.proposal.theme?.headerNote}
+                depositPercent={doc.proposal.deposit_percent}
                 headingWeights={headingWeights}
               />
             </div>

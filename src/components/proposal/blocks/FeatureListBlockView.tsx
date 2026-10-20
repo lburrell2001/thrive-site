@@ -1,4 +1,5 @@
 import styles from '../proposal.module.css';
+import { Markdown } from '@/lib/miniMarkdown';
 import { Kicker, Page } from '../Page';
 import { resolveAccent, type BlockProps } from '../context';
 import type { FeatureListBlock } from '@/types/proposal';
@@ -18,6 +19,9 @@ export function FeatureListBlockView({ block, ctx, startsPage }: BlockProps<Feat
           </div>
         ))}
       </div>
+      {c.footnote && (
+        <Markdown source={c.footnote} className={`${styles.prose} ${styles.featureFootnote}`} />
+      )}
     </Page>
   );
 }

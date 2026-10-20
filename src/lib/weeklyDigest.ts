@@ -81,7 +81,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
           p.kind === 'builder' ? (p.viewed ? 'opened' : 'not opened') : 'uploaded PDF',
           p.since && `sent ${shortDate(p.since)}`,
         ].filter(Boolean).join(' · '),
-        href: p.kind === 'builder' ? `${site}/admin/proposals/${p.id}/edit` : `${site}/admin/clients?client=${p.client_id}`,
+        href: p.kind === 'builder' ? `${site}/admin/crm/proposals/${p.id}/edit` : `${site}/admin/clients?client=${p.client_id}`,
       })),
     });
   }

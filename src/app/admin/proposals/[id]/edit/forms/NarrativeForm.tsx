@@ -22,7 +22,7 @@ export function NarrativeForm({ block, onContentChange }: FormProps<NarrativeBlo
           label="Heading line 2"
           value={c.headingLine2}
           onChange={(v) => set({ headingLine2: v })}
-          hint="Accent, clipped at the page edge."
+          hint="Accent colour. Start it with & (as in & PRICING) for the big ampersand."
         />
       </div>
 
@@ -30,7 +30,7 @@ export function NarrativeForm({ block, onContentChange }: FormProps<NarrativeBlo
         label="Kicker"
         value={c.kicker ?? ''}
         onChange={(v) => set({ kicker: v || undefined })}
-        hint="Small label above an accent rule."
+        hint="Bold label on a rule that runs to the page edge, in the accent's partner colour."
       />
 
       <TextArea
@@ -38,7 +38,7 @@ export function NarrativeForm({ block, onContentChange }: FormProps<NarrativeBlo
         value={c.body}
         rows={10}
         onChange={(v) => set({ body: v })}
-        hint="Blank line starts a new paragraph. **bold**, *italic*, [link](https://…), and - bullets."
+        hint="Blank line starts a new paragraph. **bold**, *italic*, [link](https://…), - bullets, ### coloured subheading, > callout with a bar (> **Label** text puts the label in colour)."
       />
     </>
   );

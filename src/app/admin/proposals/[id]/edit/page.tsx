@@ -222,6 +222,32 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
     [edit],
   );
 
+  /** Show or hide the cover; adds one at the top if there isn't one yet. */
+  const toggleCover = useCallback(() => {
+    let addedId: string | null = null;
+    edit((current) => {
+      if (current.blocks.some((block) => block.type === 'cover')) {
+        return {
+          blocks: current.blocks.map((block) =>
+            block.type === 'cover' ? { ...block, visible: !block.visible } : block,
+          ),
+        };
+      }
+      const created = emptyBlock('cover', crypto.randomUUID(), 0);
+      if (created.type === 'cover') {
+        created.content = {
+          ...created.content,
+          dateLabel: current.headerNote,
+          preparedBy: current.agencyName || 'Thrive Creative Studios',
+          preparedFor: clients.find((c) => c.id === current.clientId)?.name ?? '',
+        };
+      }
+      addedId = created.id;
+      return { blocks: [created, ...current.blocks].map((block, i) => ({ ...block, position: i })) };
+    });
+    if (addedId) setSelectedId(addedId);
+  }, [edit, clients]);
+
   const duplicateBlock = useCallback(
     (blockId: string) => {
       edit((current) => {
@@ -319,7 +345,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
       <div className={s.screen}>
         <div className={s.wrap}>
           <p className={s.empty}>{loadError}</p>
-          <Link href="/admin/proposals" className={s.btn}>
+          <Link href="/admin/crm/proposals" className={s.btn}>
             Back to proposals
           </Link>
         </div>
@@ -336,13 +362,14 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   }
 
   const selected = doc.blocks.find((block) => block.id === selectedId) ?? null;
+  const hasCover = doc.blocks.some((block) => block.type === 'cover' && block.visible);
 
   return (
     <BuilderProvider value={builderCtx}>
       <div className={s.builder}>
         <div className={s.pane}>
           <div className={s.builderBar}>
-            <Link href="/admin/proposals" className={`${s.btn} ${s.btnSmall}`}>
+            <Link href="/admin/crm/proposals" className={`${s.btn} ${s.btnSmall}`}>
               ← Proposals
             </Link>
             <span
@@ -367,22 +394,31 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
               }
             </span>
             <span style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                className={`${s.btn} ${s.btnSmall}`}
+                aria-pressed={hasCover}
+                onClick={toggleCover}
+                title="Most proposals go without one; the first page opens with the running header instead"
+              >
+                Cover: {hasCover ? 'on' : 'off'}
+              </button>
               <Link
-                href={`/admin/proposals/${id}/tune`}
+                href={`/admin/crm/proposals/${id}/tune`}
                 className={`${s.btn} ${s.btnSmall}`}
                 title="Tune the template's proportions and lock them in"
               >
                 Tune design
               </Link>
               <Link
-                href={`/admin/proposals/templates?from=${id}`}
+                href={`/admin/crm/proposals/templates?from=${id}`}
                 className={`${s.btn} ${s.btnSmall}`}
                 title="Save this proposal's blocks as a reusable template"
               >
                 Save as template
               </Link>
               <Link
-                href={`/admin/proposals/${id}/preview`}
+                href={`/admin/crm/proposals/${id}/preview`}
                 target="_blank"
                 className={`${s.btn} ${s.btnSmall}`}
               >
@@ -604,6 +640,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
               }))}
               imageUrls={imageUrls}
               headerNote={doc.headerNote}
+              depositPercent={doc.depositPercent}
+              clientName={clients.find((c) => c.id === doc.clientId)?.name}
             />
           </div>
         </div>

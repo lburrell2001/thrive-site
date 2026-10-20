@@ -1,7 +1,7 @@
 'use client';
 
 // The CRM workspace: a sidebar of views (Today, Pipeline, Prospects,
-// Contacts, Calls, Visitors, Emails), ⌘K search, and one contact panel any page can open.
+// Contacts, Calls, Visitors, Emails, Proposals), ⌘K search, and one contact panel any page can open.
 // ?contact=<id>&deal=<id> (or ?portal=<portal client id>) in the URL opens
 // someone straight away, which is how the dashboard, digest and
 // notification emails link in.
@@ -25,6 +25,7 @@ const NAV = [
   { href: '/admin/crm/calls', label: 'Calls', icon: '☏' },
   { href: '/admin/crm/visitors', label: 'Visitors', icon: '◔' },
   { href: '/admin/crm/emails', label: 'Emails', icon: '✉' },
+  { href: '/admin/crm/proposals', label: 'Proposals', icon: '❏' },
   { href: '/admin/crm/campaigns', label: 'Campaigns', icon: '◈' },
 ] as const;
 
@@ -108,10 +109,13 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
   const active = (href: string) => (href === '/admin/crm' ? pathname === href : pathname.startsWith(href));
   // The email designer wants the whole width.
   const editing = /^\/admin\/crm\/emails\/(?!$)/.test(pathname);
+  // The proposal builder, preview and tuner are full-screen tools with their
+  // own top bar, so they go without the sidebar.
+  const fullScreen = /^\/admin\/crm\/proposals\/[^/]+\/(edit|preview|tune)/.test(pathname);
 
   return (
     <CrmContext.Provider value={ctx}>
-      <div className={w.shell}>
+      {fullScreen ? children : <div className={w.shell}>
         <nav className={w.side} aria-label="CRM">
           <button type="button" className={w.searchButton} onClick={() => setPalette(true)}>
             <span aria-hidden="true">⌕</span><span>Search</span><span className={w.kbd}>⌘K</span>
@@ -133,7 +137,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <main className={w.main} style={editing ? { overflow: 'auto' } : undefined}>{children}</main>
-      </div>
+      </div>}
 
       {open && (
         <ContactDrawer

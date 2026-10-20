@@ -166,11 +166,11 @@ export default function AdminHome() {
                 ))}
               </Panel>
 
-              <Panel id="proposals" title="Waiting on a signature" link={{ href: '/admin/proposals', label: 'Proposals' }} empty={d.proposalsAwaiting.length === 0 ? 'Nothing out for signature.' : null}>
+              <Panel id="proposals" title="Waiting on a signature" link={{ href: '/admin/crm/proposals', label: 'Proposals' }} empty={d.proposalsAwaiting.length === 0 ? 'Nothing out for signature.' : null}>
                 {d.proposalsAwaiting.map((pr) => (
                   <li key={`${pr.kind}:${pr.id}`} className={s.item}>
                     <div className={s.itemMain}>
-                      <Link href={pr.kind === 'builder' ? `/admin/proposals/${pr.id}/edit` : `/admin/clients?client=${pr.client_id}`} className={s.itemTitle}>{pr.title}</Link>
+                      <Link href={pr.kind === 'builder' ? `/admin/crm/proposals/${pr.id}/edit` : `/admin/clients?client=${pr.client_id}`} className={s.itemTitle}>{pr.title}</Link>
                       <p className={s.itemSub}>
                         {[
                           pr.client_name,

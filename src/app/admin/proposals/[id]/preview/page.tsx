@@ -122,6 +122,8 @@ export default function ProposalPreviewPage({
             lineItems={proposal.lineItems}
             imageUrls={proposal.imageUrls}
             headerNote={proposal.theme.headerNote}
+            depositPercent={proposal.depositPercent}
+            clientName={proposal.client?.name}
           />
         </div>
       )}

@@ -117,6 +117,14 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - The contact timeline is assembled at read time in `src/lib/crmRepo.ts` from `crm_activities`, inquiries, `client_reminders`, builder proposals, uploaded proposals, invoices, emails sent (`prospect_emails`, `newsletter_sends`) and `email_replies`. It is not copied into one table.
 - Routes: `/api/crm/deals` (+ `[id]`), `/api/crm/contacts` (+ `[id]`, `[id]/activities`, `[id]/tasks`, `[id]/portal`, `[id]/recipient`, `[id]/seen`), `/api/crm/tasks/[id]`, `/api/crm/activities/[id]`, `/api/crm/today`, `/api/crm/replies/[id]`, all gated by `requireAdmin`. "Quick message" uses the `crm_contact` reminder target, which can email anyone but texts only via a portal or proposal record that carries consent.
 
+### Proposal builder
+
+`/admin/crm/proposals` (in the CRM sidebar; old `/admin/proposals` URLs redirect). The page files still live in `src/app/admin/proposals/` and the CRM routes re-export them; edit/preview/tune go full-screen without the sidebar. A contact's panel starts one from the contact or from a specific open deal (`?client=&deal=` → `crm_deal_id`).
+
+- One renderer, `src/components/proposal/ProposalRenderer.tsx`, for the builder, `/p/[slug]`, print and PDF. The look follows the printed Social Reserve proposal (Sept 2026): black pages, two-line headings (line 2 in the accent; a line 2 starting `& ` gets an oversized ampersand), kickers in the accent's partner colour (`--accent-2`) on a rule to the page edge, purple scope panels, and the total + signature as one panel when the signature block follows pricing.
+- Proposal markdown (`src/lib/miniMarkdown.tsx`) adds `### ` subheadings (magenta → orange → green in turn) and `> ` callouts; `> **Label** text` puts the label in the bar's colour.
+- New proposals have no cover unless "Include a cover page" is ticked; copied/templated covers are kept hidden. "Cover: on/off" in the builder's top bar toggles it. "Thrive layout" (`src/lib/proposalStarter.ts`) seeds the Social Reserve structure with empty prose.
+
 ### Prospects and replies
 
 Migration `030`. Prospects are people Lauren reaches out to before they've shown interest: `crm_contacts.prospect_status = 'prospect'`, no deal, listed at `/admin/crm/prospects` (`src/lib/prospectList.ts`, `GET/POST /api/prospects` — add one or a pasted list; existing contacts are never duplicated, and anyone with deals is left alone). Any new deal for a prospect converts them (`crm_convert_prospect` trigger → `'converted'`), so the board only holds people who engaged.
