@@ -36,6 +36,8 @@ export default function LoginPage() {
   const [code, setCode]       = useState(['', '', '', '', '', '', '', '']);
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
+  // Where the code went: the email always, a text too if they opted in.
+  const [sentTo, setSentTo]   = useState<{ email: boolean; texted: boolean }>({ email: true, texted: false });
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -49,20 +51,24 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const { error: otpError } = await supabasePortal.auth.signInWithOtp({
-      email: contact.trim(),
-      options: { shouldCreateUser: false },
-    });
-
-    setLoading(false);
-    if (otpError) {
-      console.error('signInWithOtp error:', otpError);
-      const notFound = otpError.message.toLowerCase().includes('not found') ||
-                       otpError.message.toLowerCase().includes('signups not allowed') ||
-                       otpError.status === 422;
-      setError(notFound
-        ? "We don't recognise that email. Contact your Thrive team to get set up."
-        : `Error: ${otpError.message}`);
+    // The server sends the code by email, and by text when the client has
+    // opted in (api/portal/auth/send-otp).
+    try {
+      const res = await fetch('/api/portal/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: contact.trim() }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string; email?: boolean; texted?: boolean };
+      setLoading(false);
+      if (!res.ok) {
+        setError(data.error ?? 'Could not send a code. Try again.');
+        return;
+      }
+      setSentTo({ email: data.email !== false, texted: Boolean(data.texted) });
+    } catch {
+      setLoading(false);
+      setError('Connection error. Try again.');
       return;
     }
     setStep('verify');
@@ -284,11 +290,18 @@ export default function LoginPage() {
             ) : (
               <div style={{ marginBottom: 32 }}>
                 <h1 style={{ fontFamily: F.bungee, fontSize: 36, color: '#0A0A0A', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-                  CHECK YOUR<br />EMAIL
+                  {sentTo.email ? <>CHECK YOUR<br />EMAIL</> : <>CHECK YOUR<br />TEXTS</>}
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>
-                  We sent an 8-digit code to{' '}
-                  <strong style={{ color: '#0A0A0A' }}>{contact}</strong>.
+                  {sentTo.email ? (
+                    <>
+                      We sent an 8-digit code to{' '}
+                      <strong style={{ color: '#0A0A0A' }}>{contact}</strong>
+                      {sentTo.texted ? ' and texted it to your phone.' : '.'}
+                    </>
+                  ) : (
+                    'We texted an 8-digit code to your phone.'
+                  )}
                 </p>
               </div>
             )}

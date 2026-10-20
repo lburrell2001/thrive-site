@@ -464,6 +464,10 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, startin
       {detail.deals.length === 0 && <p className={s.eventMeta} style={{ margin: '0 0 8px' }}>No deals with this person yet.</p>}
       {detail.deals.map((deal) => {
         const proposals = detail.proposals.filter((pr) => pr.crm_deal_id === deal.id);
+        // Projects, uploaded proposals and invoices from the Clients tab.
+        const clientWork = detail.timeline.filter(
+          (item) => item.dealId === deal.id && (item.kind === 'portal_proposal' || item.kind === 'invoice'),
+        );
         const isFocused = deal.id === focusDealId;
         return (
           <article
@@ -504,6 +508,16 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, startin
             {proposals.length > 0 && (
               <ul className={s.dealProposals}>
                 {proposals.map((pr) => <ProposalLine key={pr.id} proposal={pr} />)}
+              </ul>
+            )}
+            {clientWork.length > 0 && (
+              <ul className={s.dealProposals}>
+                {clientWork.map((item) => (
+                  <li key={item.key} className={s.task}>
+                    <Link href={`/admin/clients?client=${detail.portal?.id ?? ''}`} className={s.taskTitle} style={{ color: '#111' }}>{item.title}</Link>
+                    {item.meta && <span className={s.taskDue}>{item.meta}</span>}
+                  </li>
+                ))}
               </ul>
             )}
             {deal.stage !== 'won' && deal.stage !== 'lost' && (

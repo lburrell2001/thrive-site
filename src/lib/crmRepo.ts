@@ -28,6 +28,13 @@ import { formatPhone } from '@/lib/phone';
 import { callSummary, readCall } from '@/lib/calls';
 import { visitsForContact } from '@/lib/siteVisitors';
 
+const PROJECT_STATUS: Record<string, string> = {
+  kickoff: 'Kickoff',
+  in_progress: 'In progress',
+  review: 'In review',
+  completed: 'Completed',
+};
+
 function money(cents: number, currency = 'USD') {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -194,7 +201,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, newsletters, prospects, replies, print, bookings] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -210,8 +217,11 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
           .in('client_id', recipientIds).order('updated_at', { ascending: false })
       : none,
     portalId ? db.from('portal_clients').select('id, full_name').eq('id', portalId).maybeSingle() : Promise.resolve({ data: null }),
-    portalId ? db.from('portal_proposals').select('id, name, status, created_at').eq('client_id', portalId) : none,
-    portalId ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, created_at').eq('client_id', portalId) : none,
+    // select('*') so crm_deal_id (migration 036) comes back once it exists,
+    // without breaking the panel before it is applied.
+    portalId ? db.from('portal_proposals').select('*').eq('client_id', portalId) : none,
+    portalId ? db.from('portal_invoices').select('*').eq('client_id', portalId) : none,
+    portalId ? db.from('portal_projects').select('*').eq('client_id', portalId) : none,
     db.from('newsletter_sends').select('id, status, error, sent_at, newsletters ( id, subject )').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('prospect_emails').select('id, subject, body, style, status, error, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     db.from('email_replies').select('id, subject, text, from_email, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(100),
@@ -335,6 +345,17 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     push('declined', p.declined_at, `Proposal declined · ${p.title}`, p.decline_reason ? `“${p.decline_reason}”` : null);
   }
 
+  for (const p of portalProjects.data ?? []) {
+    timeline.push({
+      key: `portal_project:${p.id}`,
+      kind: 'portal_proposal',
+      at: p.created_at,
+      title: `Project added · ${p.name}`,
+      meta: PROJECT_STATUS[p.status] ?? p.status,
+      dealId: p.crm_deal_id ?? null,
+    });
+  }
+
   for (const p of portalProposals.data ?? []) {
     timeline.push({
       key: `portal_proposal:${p.id}`,
@@ -342,6 +363,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       at: p.created_at,
       title: `Proposal uploaded to portal · ${p.name}`,
       meta: p.status === 'signed' ? 'Signed' : 'Awaiting signature',
+      dealId: p.crm_deal_id ?? null,
     });
   }
 
@@ -421,6 +443,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       at: inv.created_at,
       title: `Invoice ${inv.invoice_number}${inv.project_name ? ` · ${inv.project_name}` : ''}`,
       meta: `${money(inv.amount_cents)} · ${inv.status}`,
+      dealId: inv.crm_deal_id ?? null,
     });
   }
 

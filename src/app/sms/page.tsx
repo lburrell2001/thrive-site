@@ -48,6 +48,7 @@ export default function SmsTermsPage() {
             <li>Proposals ready for review and signature</li>
             <li>Project files delivered to the client portal</li>
             <li>Onboarding reminders and messages about an active project</li>
+            <li>Sign-in codes for the client portal, when you ask for one</li>
           </ul>
           <p>We do not send marketing or promotional texts.</p>
 
