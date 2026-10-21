@@ -13,6 +13,17 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // One canonical host. Vercel's domain settings already 308 www to the
+      // apex before requests reach the app; this is the backup if that is
+      // ever removed. It only goes www → apex, so it can't loop.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.thrivecreativestudios.org" }],
+        destination: "https://thrivecreativestudios.org/:path*",
+        permanent: true,
+      },
+      // Project pages live under /work; /portfolio is only the index.
+      { source: "/portfolio/:slug", destination: "/work/:slug", permanent: true },
       // The homepage is served from app/newhomepage; keep its old address
       // from being indexed as a second copy of the homepage.
       { source: "/newhomepage", destination: "/", permanent: true },
@@ -38,6 +49,12 @@ const nextConfig: NextConfig = {
             value: "application/manifest+json",
           },
         ],
+      },
+      {
+        // Admin and the client portal carry a noindex meta tag from their
+        // layouts; this covers crawlers that only read headers.
+        source: "/:area(admin|portal)/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
       },
       {
         // Proposals are private documents behind a secret link. The noindex

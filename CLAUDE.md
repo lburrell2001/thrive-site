@@ -160,7 +160,7 @@ Migration `030`. Prospects are people Lauren reaches out to before they've shown
 - Prices live in `src/lib/servicePricing.ts` (packages, add-ons, care plans, small print) and render through `ServicePricing` on each service page; the "From" line on `/services` reads it too. Meta descriptions in `serviceSeo.ts` mention the starting price — update both together. Never show an hourly rate anywhere on the site.
 - `/amarillo-web-design` targets Amarillo (Lauren's hometown; remote, in person when she's in town). Her story goes in `HOMETOWN_STORY` in that page. Amarillo is also in the root `areaServed`.
 - `ServiceFaq` renders the FAQ plus `Service`, `FAQPage` and `BreadcrumbList` JSON-LD; the root layout's `ProfessionalService` (`@id` = `BUSINESS_ID`) lists the services and DFW cities. Always serialize JSON-LD with `jsonLd()` from `src/lib/seo.ts`.
-- The canonical host is `thrivecreativestudios.org` (Vercel 308-redirects www to it). `robots.txt` disallows `/admin`, `/portal`, `/api/`; `/p/` and `/review/` stay crawlable because they carry `noindex`.
+- The canonical host is `thrivecreativestudios.org` (Vercel 308-redirects www to it). `robots.txt` disallows only `/api/`; `/admin`, `/portal` (noindex from their layouts plus an `X-Robots-Tag` header), `/p/` and `/review/` stay crawlable so Google can see their `noindex`. `/portfolio/:slug` redirects to `/work/:slug`.
 
 ### Journal
 
