@@ -11,7 +11,7 @@ export const STAGE_LABEL: Record<CrmStage, string> = {
   lost: 'Lost',
 };
 
-export const ACTIVITY_KINDS = ['note', 'call', 'meeting', 'email'] as const;
+export const ACTIVITY_KINDS = ['note', 'call', 'dm', 'meeting', 'email'] as const;
 export type CrmActivityKind = (typeof ACTIVITY_KINDS)[number];
 
 /** A logged call keeps these in crm_activities.metadata. */
@@ -70,6 +70,10 @@ export interface CrmContact {
   newsletter_subscribed_at: string | null;
   newsletter_unsubscribed_at: string | null;
   website: string | null;
+  /** Instagram handle without the @ (migration 037). */
+  instagram: string | null;
+  /** The part after facebook.com/ (migration 037). */
+  facebook: string | null;
   /** On the Prospects list ('prospect'), or a prospect who became a lead ('converted'). */
   prospect_status: 'prospect' | 'converted' | null;
   prospected_at: string | null;
@@ -133,7 +137,7 @@ export interface CrmTask {
 }
 
 export type TimelineKind =
-  | 'note' | 'call' | 'meeting' | 'email' | 'stage'
+  | 'note' | 'call' | 'dm' | 'meeting' | 'email' | 'stage'
   | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print' | 'visit';
 
 export interface TimelineItem {
@@ -200,6 +204,8 @@ export interface ProspectRow {
   company: string | null;
   email: string | null;
   website: string | null;
+  instagram: string | null;
+  facebook: string | null;
   tags: string[];
   prospected_at: string | null;
   created_at: string;
@@ -208,6 +214,10 @@ export interface ProspectRow {
   emails_sent: number;
   last_emailed_at: string | null;
   last_subject: string | null;
+  /** DMs logged as sent on Instagram or Facebook. */
+  dms_sent: number;
+  last_dm_at: string | null;
+  last_dm_platform: 'instagram' | 'facebook' | null;
 }
 
 /** The CRM's Today page: what needs Lauren now. */

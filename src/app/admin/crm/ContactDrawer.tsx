@@ -31,10 +31,13 @@ import { EmailDialog } from './EmailDialog';
 import { runContactAction } from './contactActions';
 import { isRetainer, retainerProgress } from '@/lib/retainer';
 import { LogCallForm } from './LogCallForm';
+import { LogDmForm } from './LogDmForm';
+import { facebookLabel, facebookUrl, instagramUrl } from '@/lib/social';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
   call: 'Call',
+  dm: 'DM',
   meeting: 'Meeting',
   email: 'Email',
 };
@@ -42,6 +45,7 @@ const KIND_LABEL: Record<CrmActivityKind, string> = {
 const EVENT_COLOR: Record<TimelineKind, string> = {
   note: '#808080',
   call: '#1e3add',
+  dm: '#d62976',
   meeting: '#1e3add',
   email: '#1e3add',
   stage: '#111',
@@ -66,6 +70,8 @@ const DEAL_SOURCE: Record<string, string> = {
   'email reply': 'a reply to your email',
   booking: 'a booked call',
   print: 'a print campaign',
+  instagram: 'a reply to your Instagram DM',
+  facebook: 'a reply to your Facebook DM',
 };
 
 function when(iso: string) {
@@ -94,6 +100,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   const [tab, setTab] = useState<'overview' | 'activity' | 'details'>('overview');
   // Bumped by the header's Log call button to open the call form.
   const [callRequest, setCallRequest] = useState(0);
+  const [logKind, setLogKind] = useState<'call' | 'dm'>('call');
   const [busy, setBusy] = useState('');
 
   const reload = useCallback(async () => {
@@ -241,12 +248,14 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                   <span className={`${w.avatar} ${w.avatarLg}`} style={{ background: avatarColor(c.id) }} aria-hidden="true">{initials(c.name, c.email)}</span>
                   <div style={{ minWidth: 0 }}>
                     <h2 id="crm-drawer-title" className={s.drawerTitle}>
-                      {c.name || c.email || 'Unnamed'}
+                      {c.name || c.company || c.email || (c.instagram ? `@${c.instagram}` : 'Unnamed')}
                       {stage && <span className={`${w.pill} ${w[`pill${LIFECYCLE_LABEL[stage]}` as 'pillLead']}`} style={{ marginLeft: 10, verticalAlign: 'middle' }}><span className={w.pillDot} />{LIFECYCLE_LABEL[stage]}</span>}
                     </h2>
                     <p className={s.drawerSub}>
                       {[c.company, c.email, c.phone && formatPhone(c.phone)].filter(Boolean).join(' · ') || 'No contact details yet'}
                       {c.website && <> · <a href={/^https?:/i.test(c.website) ? c.website : `https://${c.website}`} target="_blank" rel="noreferrer">{c.website.replace(/^https?:\/\//, '')}</a></>}
+                      {c.instagram && <> · <a href={instagramUrl(c.instagram)} target="_blank" rel="noreferrer">@{c.instagram}</a></>}
+                      {c.facebook && <> · <a href={facebookUrl(c.facebook)} target="_blank" rel="noreferrer">{c.facebook.startsWith('profile.php') ? facebookLabel(c.facebook) : `fb/${c.facebook}`}</a></>}
                     </p>
                   </div>
                 </div>
@@ -260,9 +269,14 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setMessaging(true)} disabled={!c.email && !c.phone && !c.portal_client_id}>
                   Quick message
                 </button>
-                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setCallRequest((n) => n + 1); }}>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setLogKind('call'); setCallRequest((n) => n + 1); }}>
                   ☏ Log call
                 </button>
+                {(c.instagram || c.facebook) && (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setLogKind('dm'); setCallRequest((n) => n + 1); }}>
+                    💬 Log DM
+                  </button>
+                )}
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => startProposal()} disabled={busy === 'proposal'}>
                   New proposal
                 </button>
@@ -348,7 +362,10 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                     contactName={c.name}
                     deals={detail.deals}
                     focusDealId={focusDealId ?? null}
-                    initialKind={callRequest ? 'call' : 'note'}
+                    instagram={c.instagram}
+                    facebook={c.facebook}
+                    prospect={c.prospect_status === 'prospect'}
+                    initialKind={callRequest ? logKind : 'note'}
                     onLogged={async () => { await reload(); onChanged(); }}
                     notify={notify}
                   />
@@ -912,18 +929,20 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   const [source, setSource] = useState(c.source);
   const [tags, setTags] = useState(c.tags.join(', '));
   const [website, setWebsite] = useState(c.website ?? '');
+  const [instagram, setInstagram] = useState(c.instagram ? `@${c.instagram}` : '');
+  const [facebook, setFacebook] = useState(c.facebook ?? '');
   const [saving, setSaving] = useState(false);
 
   const nextTags = tags.split(',').map((t) => t.trim()).filter(Boolean);
   const dirty =
     name !== c.name || company !== (c.company ?? '') || email !== (c.email ?? '') ||
     phone !== (c.phone ? formatPhone(c.phone) : '') || source !== c.source || nextTags.join(',') !== c.tags.join(',') ||
-    website !== (c.website ?? '');
+    website !== (c.website ?? '') || instagram !== (c.instagram ? `@${c.instagram}` : '') || facebook !== (c.facebook ?? '');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await onSave({ name, company, email, phone, website, source: source.trim() || 'manual', tags: nextTags } as Partial<CrmContact>);
+    await onSave({ name, company, email, phone, website, instagram, facebook, source: source.trim() || 'manual', tags: nextTags } as Partial<CrmContact>);
     setSaving(false);
   }
 
@@ -953,6 +972,14 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
             <input className={p.input} value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="bloombakery.com" />
           </label>
           <label>
+            <span className={s.miniLabel}>Instagram</span>
+            <input className={p.input} value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="@bloombakery" />
+          </label>
+          <label>
+            <span className={s.miniLabel}>Facebook</span>
+            <input className={p.input} value={facebook} onChange={(e) => setFacebook(e.target.value)} placeholder="facebook.com/bloombakery" />
+          </label>
+          <label>
             <span className={s.miniLabel}>Source</span>
             <input className={p.input} value={source} onChange={(e) => setSource(e.target.value)} />
           </label>
@@ -976,9 +1003,12 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   );
 }
 
-function LogForm({ contactId, contactName, deals, focusDealId, initialKind, onLogged, notify }: {
+function LogForm({ contactId, contactName, instagram, facebook, prospect, deals, focusDealId, initialKind, onLogged, notify }: {
   contactId: string;
   contactName: string;
+  instagram: string | null;
+  facebook: string | null;
+  prospect: boolean;
   deals: CrmDeal[];
   focusDealId: string | null;
   initialKind: CrmActivityKind;
@@ -1027,6 +1057,16 @@ function LogForm({ contactId, contactName, deals, focusDealId, initialKind, onLo
           defaultDealId={focusDealId}
           autoFocus={initialKind === 'call'}
           onLogged={async () => { notify('Call logged'); await onLogged(); }}
+        />
+      ) : kind === 'dm' ? (
+        <LogDmForm
+          contactId={contactId}
+          contactName={contactName}
+          instagram={instagram}
+          facebook={facebook}
+          prospect={prospect}
+          autoFocus={initialKind === 'dm'}
+          onLogged={async () => { notify('DM logged'); await onLogged(); }}
         />
       ) : (
         <form onSubmit={submit}>

@@ -26,6 +26,7 @@ import {
 } from '@/types/crm';
 import { formatPhone } from '@/lib/phone';
 import { callSummary, readCall } from '@/lib/calls';
+import { dmSummary, readDm } from '@/lib/social';
 import { visitsForContact } from '@/lib/siteVisitors';
 
 const PROJECT_STATUS: Record<string, string> = {
@@ -153,6 +154,7 @@ export async function loadContactList(db: SupabaseClient): Promise<CrmContactRow
 const ACTIVITY_TITLE: Record<string, string> = {
   note: 'Note',
   call: 'Call',
+  dm: 'DM',
   meeting: 'Meeting',
   email: 'Email (logged)',
 };
@@ -256,6 +258,16 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
         activityId: a.id,
         dealId: a.deal_id ?? null,
         call,
+      });
+    } else if (a.kind === 'dm') {
+      timeline.push({
+        key: `activity:${a.id}`,
+        kind: 'dm',
+        at: a.created_at,
+        title: dmSummary(readDm(a.metadata)),
+        body: a.body || null,
+        activityId: a.id,
+        dealId: a.deal_id ?? null,
       });
     } else {
       timeline.push({

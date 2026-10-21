@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ACTIVITY_KINDS, CALL_DIRECTIONS, CALL_OUTCOMES, CRM_STAGES } from '@/types/crm';
+import { DM_DIRECTIONS, DM_PLATFORMS, normalizeFacebook, normalizeInstagram } from '@/lib/social';
 
 const optionalText = (max: number) =>
   z
@@ -20,6 +21,23 @@ const email = z
   .transform((v) => (v ? v : null))
   .refine((v) => v === null || z.email().safeParse(v).success, 'Enter a valid email');
 
+/** A handle or profile link, stored normalized; blank clears it. */
+const social = (normalize: (v: string) => string | null, message: string) =>
+  z
+    .string()
+    .trim()
+    .max(300)
+    .nullish()
+    .transform((v, ctx) => {
+      if (!v) return null;
+      const n = normalize(v);
+      if (!n) ctx.addIssue({ code: 'custom', message });
+      return n;
+    });
+
+export const instagramField = social(normalizeInstagram, 'Enter an Instagram handle, e.g. @bloombakery');
+export const facebookField = social(normalizeFacebook, 'Enter a Facebook page, e.g. facebook.com/bloombakery');
+
 const contactFields = {
   name: z.string().trim().min(1, 'Add a name').max(160),
   company: optionalText(160),
@@ -28,6 +46,8 @@ const contactFields = {
   source: z.string().trim().min(1).max(60),
   tags: z.array(z.string().trim().min(1).max(40)).max(20),
   website: optionalText(300),
+  instagram: instagramField,
+  facebook: facebookField,
   /** 'prospect' puts them on the Prospects list; null takes them off it. */
   prospect_status: z.enum(['prospect', 'converted']).nullable(),
 };
@@ -87,12 +107,16 @@ export const createActivitySchema = z
         minutes: z.number().int().min(0).max(600).nullish(),
       })
       .nullish(),
+    /** An Instagram or Facebook DM, sent or received. */
+    dm: z.object({ platform: z.enum(DM_PLATFORMS), direction: z.enum(DM_DIRECTIONS) }).nullish(),
     /** A follow-up task to add at the same time. */
     follow_up: z.object({ title: z.string().trim().min(1).max(200), due_date: isoDate.nullish() }).nullish(),
   })
   // A call that went unanswered needs no write-up; anything else does.
-  .refine((a) => a.kind === 'call' || a.body.length > 0, { message: 'Write something first', path: ['body'] })
+  // A DM's text is optional too: it happened in the app.
+  .refine((a) => a.kind === 'call' || a.kind === 'dm' || a.body.length > 0, { message: 'Write something first', path: ['body'] })
   .refine((a) => a.kind !== 'call' || a.call, { message: 'Say how the call went', path: ['call'] })
+  .refine((a) => a.kind !== 'dm' || a.dm, { message: 'Pick Instagram or Facebook', path: ['dm'] })
   .refine((a) => !a.at || Date.parse(a.at) <= Date.now() + 5 * 60_000, { message: 'That time is in the future', path: ['at'] });
 
 export const createTaskSchema = z.object({
