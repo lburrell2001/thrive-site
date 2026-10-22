@@ -8,6 +8,7 @@ import { supabaseService } from "@/lib/supabaseService";
 import { textAgency } from "@/lib/sms";
 import { BRAND, brandEmail, button as emailButton, links, panel, paragraph, rows } from "@/lib/emailLayout";
 import { attributionFor, type AttributionInput } from "@/lib/inquiryAttribution";
+import { cleanAnonId, trackConversion } from "@/lib/opinly";
 
 // The generated Database type only knows the original contact_inquiries
 // columns; the attribution columns and site_pageviews came later.
@@ -27,6 +28,8 @@ type Payload = {
   pageUrl?: string;
   referrer?: string;
   attribution?: AttributionInput;
+  /** The browser's Opinly visitor ID, so the lead is credited to its source. */
+  opinlyAnonId?: string | null;
 };
 
 function isEmail(s: string) {
@@ -151,6 +154,16 @@ export async function POST(req: Request) {
         ? `${attribution.source} (first found via ${attribution.first_source})`
         : attribution.source
       : attribution?.first_source ?? null;
+
+    // Opinly: a lead, attributed to the visit that brought them. After the response.
+    after(() =>
+      trackConversion(
+        "generate_lead",
+        { anonId: cleanAnonId(body.opinlyAnonId), email },
+        { form: "contact", project_type: projectType && projectType !== "—" ? projectType : null, source: attribution?.source ?? null },
+        `inquiry-${crypto.randomUUID()}`,
+      )
+    );
 
     // Text Lauren too, if CONTACT_NOTIFY_PHONE is set. After the response.
     after(() =>

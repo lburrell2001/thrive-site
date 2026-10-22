@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withOpinlyConfig } from "@opinly/next";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const withPWA = require("next-pwa")({
@@ -78,6 +79,17 @@ const nextConfig: NextConfig = {
   },
 };
 
+// Opinly blog at /blog: sets the SDK's env vars (site URL and blog path are
+// reported to Opinly from them) and rewrites /blog-images/* to the Opinly CDN
+// (https://cdn.opinly.ai/qwgvML9pOi6gEoJeyhSXO).
+const withOpinly = withOpinlyConfig({
+  blogPath: "/blog",
+  imagesPath: "/blog-images",
+  companyName: "Thrive Creative Studios",
+  cdnNamespace: "qwgvML9pOi6gEoJeyhSXO",
+  siteUrl: "https://thrivecreativestudios.org",
+});
+
 export default process.env.NODE_ENV === "development"
-  ? nextConfig
-  : withPWA(nextConfig);
+  ? withOpinly(nextConfig)
+  : withPWA(withOpinly(nextConfig));

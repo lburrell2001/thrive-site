@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Bungee, Bai_Jamjuree } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import { SiteTracker } from "./components/SiteTracker";
+import { OpinlyPixel } from "./components/OpinlyPixel";
 import "./globals.css";
 import { BUSINESS_ID, DEFAULT_OG_IMAGE, SITE_NAME, SITE_URL, jsonLd } from "@/lib/seo";
 import { DFW_AREAS, SERVICE_SEO } from "@/lib/serviceSeo";
@@ -210,6 +211,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         {children}
         <Analytics />
         <SiteTracker />
+        <OpinlyPixel />
         <Script
           src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`}
           strategy="afterInteractive"

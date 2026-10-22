@@ -1,9 +1,10 @@
 export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { serviceClient } from '@/lib/adminAuth';
 import { BookingError, availability, bookSchema, createBooking } from '@/lib/booking';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
+import { cleanAnonId, trackConversion } from '@/lib/opinly';
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -33,11 +34,21 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const parsed = bookSchema.safeParse(await req.json().catch(() => null));
+  const raw = await req.json().catch(() => null);
+  const parsed = bookSchema.safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Please check the form');
 
   try {
     const result = await createBooking(serviceClient(), parsed.data, resolveSiteOrigin(req), req.headers.get('host'));
+    // Opinly: a booked call is a lead, credited to the visit that brought them.
+    after(() =>
+      trackConversion(
+        'generate_lead',
+        { anonId: cleanAnonId((raw as { opinlyAnonId?: unknown } | null)?.opinlyAnonId), email: parsed.data.email },
+        { form: 'booking', service: parsed.data.service_slug ?? null },
+        `booking-${result.id}`,
+      ),
+    );
     return NextResponse.json({ ok: true, data: result });
   } catch (error) {
     if (error instanceof BookingError) return fail(error.message, 409);

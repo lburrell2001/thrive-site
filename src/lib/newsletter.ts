@@ -17,10 +17,12 @@
 
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { after } from 'next/server';
 import { Resend } from 'resend';
 import { REASON, placeholdersIn, renderEmail, type EmailStyle } from '@/lib/emailContent';
 import { blockImages, normalizeBlocks, type NewsletterBlock, type NewsletterDesign } from '@/lib/newsletterBlocks';
 import { replyAddress, signToken, verifyToken } from '@/lib/newsletterTokens';
+import { trackConversion } from '@/lib/opinly';
 
 export class NewsletterError extends Error {}
 
@@ -154,13 +156,16 @@ export async function requestSubscription(
 export async function confirmSubscription(db: SupabaseClient, token: string): Promise<'confirmed' | 'invalid' | 'unsubscribed'> {
   const id = verifyToken(token, 'confirm');
   if (!id) return 'invalid';
-  const { data } = await db.from('crm_contacts').select('newsletter_status').eq('id', id).maybeSingle();
+  const { data } = await db.from('crm_contacts').select('newsletter_status, email').eq('id', id).maybeSingle();
   if (!data) return 'invalid';
   // An old confirm link can't undo a later unsubscribe.
   if (data.newsletter_status === 'unsubscribed') return 'unsubscribed';
   if (data.newsletter_status !== 'subscribed') {
     await db.from('crm_contacts').update({ newsletter_status: 'subscribed' }).eq('id', id);
     await db.from('crm_activities').insert({ contact_id: id, kind: 'note', body: 'Subscribed to the newsletter (confirmed by email).' });
+    // Opinly: a confirmed sign-up, matched to the visitor by their email
+    // (the confirm link may be opened in another browser).
+    after(() => trackConversion('sign_up', { email: data.email }, { list: 'newsletter' }, `newsletter-${id}`));
   }
   return 'confirmed';
 }

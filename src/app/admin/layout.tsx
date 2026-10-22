@@ -8,5 +8,11 @@ export const metadata: Metadata = {
 };
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <AdminShell>{children}</AdminShell>;
+  // data-opinly-no-capture: if the Opinly pixel loaded on a public page first,
+  // nothing typed or clicked in admin (client emails above all) reaches it.
+  return (
+    <div data-opinly-no-capture style={{ display: 'contents' }}>
+      <AdminShell>{children}</AdminShell>
+    </div>
+  );
 }

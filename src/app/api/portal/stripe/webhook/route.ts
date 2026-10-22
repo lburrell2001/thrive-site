@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { trackPaidSession } from '@/lib/opinlyStripe';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
         .from('portal_invoices')
         .update({ status: 'paid', stripe_checkout_session_id: session.id })
         .eq('id', invoiceId);
+      after(() => trackPaidSession(session, invoiceId));
     }
   }
 

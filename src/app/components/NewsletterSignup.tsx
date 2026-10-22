@@ -4,6 +4,7 @@
 // email, and nobody is on the list until they click it.
 
 import { useState } from 'react';
+import { opinlyIdentify } from './OpinlyPixel';
 
 export default function NewsletterSignup({ className }: { className?: string }) {
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function NewsletterSignup({ className }: { className?: string }) 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? 'Something went wrong — please try again.');
       setState('done');
+      opinlyIdentify(email);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong — please try again.');
       setState('idle');

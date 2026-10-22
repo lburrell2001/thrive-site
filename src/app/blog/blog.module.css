@@ -1,0 +1,100 @@
+/* Opinly blog extras. Page, cards and article text reuse journal.module.css. */
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 36px;
+}
+
+.chip {
+  display: inline-block;
+  border: 1.5px solid #0a0a0a;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: #0a0a0a;
+  text-decoration: none;
+}
+
+.chip:hover {
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.metaLink {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: #e40586;
+  text-underline-offset: 3px;
+}
+
+.faq {
+  margin-top: 48px;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+}
+
+.faqTitle {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+
+.faqItem {
+  border-top: 1px solid #e4e1dc;
+  padding: 16px 0;
+}
+
+.faqItem:last-child { border-bottom: 1px solid #e4e1dc; }
+
+.faqItem summary {
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0a0a0a;
+}
+
+.faqItem p {
+  margin: 10px 0 0;
+  font-size: 17px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.authors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.author {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1.5px solid #0a0a0a;
+  border-radius: 14px;
+  padding: 22px;
+  color: #0a0a0a;
+  text-decoration: none;
+  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
+}
+
+.authorName {
+  font-family: var(--font-bungee, 'Bungee', sans-serif);
+  font-size: 20px;
+}
+
+.authorBio { font-size: 15px; line-height: 1.6; color: #444; }
+.authorCount { font-size: 13px; color: #888; }
+
+/* Opinly posts can carry tables and code; the journal's prose has neither. */
+.body { overflow-wrap: break-word; }
+.body table { width: 100%; border-collapse: collapse; margin: 0 0 1.3em; font-size: 16px; display: block; overflow-x: auto; }
+.body th,
+.body td { border: 1px solid #e4e1dc; padding: 8px 12px; text-align: left; vertical-align: top; }
+.body th { background: #f5f4f2; }
+.body code { font-size: 0.9em; background: #f5f4f2; border-radius: 4px; padding: 1px 5px; }
+.body h4 { font-size: 18px; font-weight: 700; margin: 1.4em 0 0.4em; color: #0a0a0a; }

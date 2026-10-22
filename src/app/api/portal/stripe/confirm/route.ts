@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { trackPaidSession } from '@/lib/opinlyStripe';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    after(() => trackPaidSession(session, invoiceId));
     return NextResponse.json({ paid: true, invoiceId });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';

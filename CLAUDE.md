@@ -38,6 +38,8 @@ ANALYTICS_SALT=                  # Optional key for the daily visitor hash; fall
 NEXT_PUBLIC_GOOGLE_REVIEW_URL=   # Optional: Google Business Profile "write a review" link, offered after a client submits a review
 RESEND_INBOUND_DOMAIN=           # Optional: Resend receiving domain (e.g. mail.thrivecreativestudios.org). Set → emails get signed reply-… Reply-To addresses
 RESEND_WEBHOOK_SECRET=           # Signing secret of the Resend webhook for `email.received` → POST /api/email/inbound
+OPINLY_API_KEY=                  # Opinly secret key (sk-…): /blog content and server-side conversion events. Never commit it
+OPINLY_WEBHOOK_SIGNING_SECRET=   # Svix signing secret of the Opinly webhook (content.routes-changed → POST /api/opinly)
 ```
 
 `PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
@@ -166,6 +168,16 @@ Migration `030`. Prospects are people Lauren reaches out to before they've shown
 ### Journal
 
 Articles at `/journal`, written at `/admin/journal` (migration `022`). Bodies are markdown rendered by `src/lib/articleMarkdown.tsx` as React elements — no raw HTML. Public reads use the anon key; RLS returns only published posts. Publishing/editing calls `revalidatePath` for the index, the article and the sitemap. The editor's search checklist is `src/lib/journalChecklist.ts`. Cover uploads are capped at 4 MB (Vercel's body limit is 4.5 MB).
+
+### Opinly blog and analytics
+
+A second blog at `/blog`, written and published in Opinly (the Journal at `/journal` is separate and unchanged). `withOpinlyConfig` in `next.config.ts` sets the SDK env vars (blog path, site URL, company name, CDN namespace `qwgvML9pOi6gEoJeyhSXO`) and rewrites `/blog-images/*` to the Opinly CDN.
+
+- `src/lib/opinly.ts`: the content client (`force-cache`, every fetch tagged `opinly`) and an uncached events client, both created on first use because `createOpinlyClient` throws without `OPINLY_API_KEY`.
+- `src/app/blog/[[...slug]]/page.tsx` routes `/blog`, `/blog/<post>`, `/blog/category/<slug>`, `/blog/tag/<slug>`, `/blog/authors[/<slug>]`; posts render with `<OpinlyContent>` inside the Journal's styles. Metadata from `generateOpinlyMetadata` (absolute canonical); JSON-LD from `buildBlogPostingJsonLd`/`buildFaqJsonLd`, serialized with `jsonLd()`. The sitemap adds `buildSitemapEntries(opinly.routes())` and leaves the blog out if Opinly is down.
+- `POST /api/opinly` (Svix-verified) on `content.routes-changed`: `revalidateTag('opinly', { expire: 0 })` plus `revalidatePath` for each changed route — both are needed.
+- Pixel: `OpinlyPixel` in the root layout — production only, not on `/admin`, `/portal`, `/p/`, `/review/`, `/book/<token>`, and not in browsers signed in to admin (same rule as `SiteTracker`). Admin and portal layouts carry `data-opinly-no-capture`. Forms send `opinlyAnonId` and call `opinlyIdentify(email)` on success.
+- Server events (never block, sent in `after()`): `generate_lead` from `/api/contact` and `/api/booking`, `sign_up` when a newsletter subscription is confirmed, `purchase` (deduped on `invoice-<id>`) from the Stripe webhook and return-page confirm (`src/lib/opinlyStripe.ts`). The privacy page describes all of this — keep it true.
 
 ### Reviews
 

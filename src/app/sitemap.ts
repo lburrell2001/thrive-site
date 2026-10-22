@@ -1,10 +1,14 @@
 import type { MetadataRoute } from "next";
+import { buildSitemapEntries } from "@opinly/shared";
+import { opinlyConfig } from "@opinly/next";
 import { supabase } from "@/lib/supabaseServer";
+import { opinly } from "@/lib/opinly";
 
 const SITE_URL = "https://thrivecreativestudios.org";
 
 // Rebuilt hourly, so projects added or removed in the database show up
-// without waiting for a deploy.
+// without waiting for a deploy. Opinly's /api/opinly webhook also
+// revalidates it the moment a blog post is published.
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -56,5 +60,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }));
 
-  return [...staticUrls, ...projectUrls, ...postUrls];
+  // The Opinly blog (/blog): posts flat, archives under their prefixes.
+  // A failed fetch leaves the blog out rather than failing the sitemap.
+  const blogUrls: MetadataRoute.Sitemap = await opinly
+    .routes()
+    .then((routes) =>
+      buildSitemapEntries(routes, opinlyConfig).map((e) => ({
+        url: e.url,
+        lastModified: new Date(e.lastModified),
+        changeFrequency: "monthly" as const,
+        priority: e.url === `${SITE_URL}/blog` ? 0.8 : 0.75,
+      })),
+    )
+    .catch((error) => {
+      console.error("[sitemap] Opinly routes unavailable:", error instanceof Error ? error.message : error);
+      return [];
+    });
+
+  return [...staticUrls, ...projectUrls, ...postUrls, ...blogUrls];
 }

@@ -11,6 +11,7 @@ import FounderNote from '../components/FounderNote';
 import PhotoStrip from '../components/PhotoStrip';
 import { mixedPhotos } from '@/lib/workPhotos';
 import { readAttribution } from '../components/SiteTracker';
+import { opinlyAnonId, opinlyIdentify } from '../components/OpinlyPixel';
 import { SERVICE_SEO } from '@/lib/serviceSeo';
 import s from './book.module.css';
 
@@ -97,6 +98,7 @@ export default function BookPage() {
           starts_at: slot,
           visitor_tz: tz,
           attribution: readAttribution(),
+          opinlyAnonId: opinlyAnonId(),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -105,6 +107,7 @@ export default function BookPage() {
         if (res.status === 409) { setSlot(null); void load(); }
       } else {
         setBooked(body.data);
+        opinlyIdentify(form.email);
       }
     } catch {
       setError('Network error — please try again.');

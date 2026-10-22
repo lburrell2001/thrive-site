@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <main className={s.page}>
         <div className={s.inner}>
           <h1 className={s.title}>Privacy Policy</h1>
-          <p className={s.updated}>Effective September 17, 2026</p>
+          <p className={s.updated}>Effective October 22, 2026</p>
 
           <p>
             Thrive Creative Studios (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is a creative studio based in Dallas,
@@ -57,6 +57,15 @@ export default function PrivacyPage() {
               earlier visits to it so we know what you were interested in. You can clear the ID at any time by
               clearing your browser’s site data.
             </li>
+            <li>
+              <strong>Which articles and campaigns bring in work.</strong> On our public pages we use Opinly, which
+              publishes our blog, to see the same kind of usage (pages, clicks, how you found us, country) and which
+              articles and campaigns lead to inquiries, bookings, newsletter sign-ups and paid invoices. It uses no
+              cookies; a random ID is kept in your browser’s local storage. If you type your email into one of our
+              forms, Opinly receives it and keeps only a one-way hash of it, so a later inquiry or payment can be
+              matched to your earlier visits. When you pay an invoice we send it the amount and that same email,
+              hashed. It never sees what else you type. It does not run in the client portal or admin.
+            </li>
           </ul>
 
           <h2>How we use it</h2>
@@ -83,7 +92,7 @@ export default function PrivacyPage() {
           <p>
             We use a small number of service providers who process data only to provide their service to us:
             Supabase (database, file storage, and portal login), Vercel (hosting and analytics), Stripe
-            (payments), Resend (email), and Twilio (text messages). We may also disclose information if the law
+            (payments), Resend (email), Twilio (text messages), and Opinly (blog and marketing analytics). We may also disclose information if the law
             requires it.
           </p>
 

@@ -9,6 +9,7 @@ import FounderNote from "../components/FounderNote";
 import PhotoStrip from "../components/PhotoStrip";
 import { mixedPhotos } from "@/lib/workPhotos";
 import { readAttribution } from "../components/SiteTracker";
+import { opinlyAnonId, opinlyIdentify } from "../components/OpinlyPixel";
 
 const bungee = Bungee({
   weight: "400",
@@ -86,10 +87,12 @@ export default function ContactPage() {
           pageUrl: window.location.href,
           referrer: document.referrer,
           attribution: readAttribution(),
+          opinlyAnonId: opinlyAnonId(),
         }),
       });
       if (res.ok) {
         setSubmitted(true);
+        opinlyIdentify(formData.email);
         // Google Ads conversion, as the site's other contact form reports it.
         const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
         gtag?.("event", "conversion", { send_to: "AW-18142291257/UtwfCIi36agcELnK9cpD" });

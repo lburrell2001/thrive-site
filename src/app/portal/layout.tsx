@@ -7,5 +7,7 @@ export const metadata: Metadata = {
 };
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  // data-opinly-no-capture: if the Opinly pixel loaded on a public page first,
+  // nothing typed or clicked in the portal reaches it.
+  return <div data-opinly-no-capture style={{ display: 'contents' }}>{children}</div>;
 }
