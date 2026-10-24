@@ -289,11 +289,11 @@ export async function generateMetadata({
   return {
     title: seo ? { absolute: seo.title } : title,
     description: metaDescription,
-    alternates: { canonical: `/work/${slug}` },
+    alternates: { canonical: absoluteUrl(`/work/${slug}`) },
     openGraph: {
       title,
       description: metaDescription,
-      url: `/work/${slug}`,
+      url: absoluteUrl(`/work/${slug}`),
       type: "article",
       images: [{ url: coverSrc, width: 1200, height: 630, alt: `${title} cover` }],
     },

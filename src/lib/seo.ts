@@ -23,7 +23,7 @@ export function buildPageMetadata(args: {
     description,
     keywords,
     alternates: {
-      canonical: path,
+      canonical: url,
     },
     openGraph: {
       title,
