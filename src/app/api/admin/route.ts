@@ -6,6 +6,7 @@ import { loadProposalById } from '@/lib/proposalRepo';
 import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
+import { DOC_BUCKET, docRef, isDocPath, removeDoc, signDocs } from '@/lib/clientDocs';
 import { MIN_PASSCODE_LENGTH, checkAdminPasscode, forgetVerifiedPasscodes, hashPasscode, passcodeFailure } from '@/lib/adminAuth';
 import {
   ReminderError,
@@ -141,11 +142,11 @@ export async function POST(req: NextRequest) {
             projects: projects.data ?? [],
             requests: requests.data ?? [],
             invoices: invoices.data ?? [],
-            files: files.data ?? [],
+            files: await signDocs(admin, files.data, ['file_url']),
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],
-            proposals: proposals.data ?? [],
+            proposals: await signDocs(admin, proposals.data, ['file_url', 'signed_file_url']),
             subscriptions: subscriptions.data ?? [],
             reminders: reminders.data ?? [],
             credentials: (credentials.data ?? []).map((c) => ({
@@ -401,9 +402,9 @@ export async function POST(req: NextRequest) {
       case 'upload_file': {
         const { clientId, name, projectName, path } = params as Record<string, string>;
         if (!clientId || !name || !path) return err('clientId, name, and path are required');
-        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        if (!isDocPath(path)) return err('Unexpected file location');
         const { data, error: insertErr } = await admin.from('portal_files').insert({
-          client_id: clientId, name, project_name: projectName ?? '', file_url: publicUrl,
+          client_id: clientId, name, project_name: projectName ?? '', file_url: docRef(path),
         }).select().single();
         if (insertErr) return err(insertErr.message);
         logActivity(admin, clientId, `New file delivered: ${name}`, '#fd6100', projectName || null);
@@ -562,11 +563,14 @@ export async function POST(req: NextRequest) {
       case 'create_upload_url': {
         const { path, upsert } = params as { path: string; upsert?: boolean };
         if (!path) return err('path is required');
+        if (path.includes('..')) return err('Invalid path');
+        // Client documents go to the private bucket; site media to the public one.
+        const bucket = isDocPath(path) ? DOC_BUCKET : 'course-media';
         const { data, error } = await admin.storage
-          .from('course-media')
+          .from(bucket)
           .createSignedUploadUrl(path, { upsert: upsert ?? false });
         if (error) return err(error.message);
-        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        const publicUrl = bucket === 'course-media' ? admin.storage.from(bucket).getPublicUrl(path).data.publicUrl : undefined;
         return NextResponse.json({ ok: true, signedUrl: data.signedUrl, path: data.path, publicUrl });
       }
 
@@ -602,8 +606,8 @@ export async function POST(req: NextRequest) {
       case 'upload_proposal': {
         const { clientId, projectId, name, path } = params as Record<string, string>;
         if (!clientId || !name || !path) return err('clientId, name, and path are required');
-        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
-        const row: Record<string, unknown> = { client_id: clientId, name, file_url: publicUrl, storage_path: path, status: 'pending' };
+        if (!isDocPath(path)) return err('Unexpected file location');
+        const row: Record<string, unknown> = { client_id: clientId, name, file_url: docRef(path), storage_path: path, status: 'pending' };
         if (projectId) row.project_id = projectId;
         const { data, error: insertErr } = await admin.from('portal_proposals').insert(row).select().single();
         if (insertErr) return err(insertErr.message);
@@ -623,9 +627,9 @@ export async function POST(req: NextRequest) {
         if (!id || !path) return err('id and path are required');
         const { data: proposal } = await admin.from('portal_proposals').select('client_id, name').eq('id', id).single();
         if (!proposal) return err('Proposal not found');
-        const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(path);
+        if (!isDocPath(path)) return err('Unexpected file location');
         const { error } = await admin.from('portal_proposals')
-          .update({ signed_file_url: publicUrl, signed_storage_path: path, status: 'signed' })
+          .update({ signed_file_url: docRef(path), signed_storage_path: path, status: 'signed' })
           .eq('id', id);
         if (error) return err(error.message);
         logActivity(admin, proposal.client_id, `Signed proposal ready to download: ${proposal.name}`, '#0cf574', null);
@@ -642,8 +646,11 @@ export async function POST(req: NextRequest) {
       case 'delete_proposal': {
         const { id } = params as { id: string };
         if (!id) return err('id is required');
-        const { data: row } = await admin.from('portal_proposals').select('storage_path').eq('id', id).single();
-        if (row?.storage_path) await admin.storage.from('course-media').remove([row.storage_path]);
+        const { data: row } = await admin.from('portal_proposals').select('file_url, storage_path, signed_file_url, signed_storage_path').eq('id', id).single();
+        if (row) {
+          await removeDoc(admin, row.file_url, row.storage_path);
+          await removeDoc(admin, row.signed_file_url, row.signed_storage_path);
+        }
         const { error } = await admin.from('portal_proposals').delete().eq('id', id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });

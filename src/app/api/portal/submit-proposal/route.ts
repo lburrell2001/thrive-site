@@ -2,6 +2,8 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { DOC_BUCKET, docRef } from '@/lib/clientDocs';
+import { SITE_URL } from '@/lib/seo';
 import { Resend } from 'resend';
 import { brandEmail, button as emailButton, rows } from '@/lib/emailLayout';
 
@@ -53,16 +55,17 @@ export async function POST(req: NextRequest) {
   const storagePath = `proposals/${user.id}/signed/${Date.now()}-${safeName}`;
 
   const { error: uploadErr } = await admin.storage
-    .from('course-media')
+    .from(DOC_BUCKET)
     .upload(storagePath, buf, { contentType: mimeType ?? 'application/pdf', upsert: false });
-  if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 });
-
-  const { data: { publicUrl } } = admin.storage.from('course-media').getPublicUrl(storagePath);
+  if (uploadErr) {
+    console.error('[submit-proposal] upload failed', uploadErr.message);
+    return NextResponse.json({ error: 'Upload failed. Please try again.' }, { status: 500 });
+  }
 
   // Update proposal record
   const { error: updateErr } = await admin
     .from('portal_proposals')
-    .update({ signed_file_url: publicUrl, signed_storage_path: storagePath, status: 'signed' })
+    .update({ signed_file_url: docRef(storagePath), signed_storage_path: storagePath, status: 'signed' })
     .eq('id', proposalId);
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
@@ -84,6 +87,8 @@ export async function POST(req: NextRequest) {
       const company    = profile?.company_name ? ` · ${profile.company_name}` : '';
       const subject    = `Signed proposal received — ${clientName}${company}`;
 
+      // The file is private: the email links to the client in admin, not the file.
+      const adminLink = `${SITE_URL}/admin/clients?client=${user.id}`;
       const html = brandEmail({
         title: subject,
         eyebrow: 'Signed proposal received',
@@ -95,7 +100,7 @@ export async function POST(req: NextRequest) {
             { label: 'Email', value: user.email ?? '—', ...(user.email ? { href: `mailto:${user.email}` } : {}) },
             { label: 'Proposal', value: proposal.name },
           ]),
-          emailButton(publicUrl, 'View the signed proposal'),
+          emailButton(adminLink, 'Open in admin'),
         ].join('\n'),
       });
 
@@ -106,7 +111,7 @@ export async function POST(req: NextRequest) {
         `Email: ${user.email ?? '—'}`,
         `Proposal: ${proposal.name}`,
         ``,
-        `View signed file: ${publicUrl}`,
+        `Open in admin: ${adminLink}`,
       ].join('\n');
 
       await resend.emails.send({
@@ -121,5 +126,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, signedUrl: publicUrl });
+  const { data: signed } = await admin.storage.from(DOC_BUCKET).createSignedUrl(storagePath, 60 * 60);
+  return NextResponse.json({ ok: true, signedUrl: signed?.signedUrl ?? null });
 }

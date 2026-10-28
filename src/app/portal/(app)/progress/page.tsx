@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { loadMyDocuments } from '@/lib/portalDocuments';
 
 interface DbStage    { key: string; label: string; }
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; stages?: DbStage[]; archived?: boolean; }
@@ -75,11 +76,11 @@ export default function ProgressPage() {
     const { data: { user } } = await supabasePortal.auth.getUser();
     if (!user) return;
     setUserId(user.id);
-    const [projRes, invRes, fileRes, propRes, msRes, reqRes, actRes] = await Promise.all([
+    const [projRes, invRes, docs, msRes, reqRes, actRes] = await Promise.all([
       supabasePortal.from('portal_projects').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
       supabasePortal.from('portal_invoices').select('*').eq('client_id', user.id).order('invoice_date', { ascending: false }),
-      supabasePortal.from('portal_files').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
-      supabasePortal.from('portal_proposals').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
+      // Files and proposals come from the server, so private links come back signed.
+      loadMyDocuments<DbFile, DbProposal>(),
       supabasePortal.from('portal_milestones').select('*').eq('client_id', user.id).order('due_date', { ascending: true }),
       supabasePortal.from('portal_requests').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
       supabasePortal.from('portal_activity').select('*').eq('client_id', user.id).order('created_at', { ascending: false }).limit(50),
@@ -87,8 +88,8 @@ export default function ProgressPage() {
     if (projRes.error) { setError(true); setLoading(false); return; }
     setProjects(projRes.data ?? []);
     setInvoices(invRes.data ?? []);
-    setFiles(fileRes.data ?? []);
-    setProposals(propRes.data ?? []);
+    setFiles(docs?.files ?? []);
+    setProposals(docs?.proposals ?? []);
     setMilestones(msRes.data ?? []);
     setRequests(reqRes.data ?? []);
     setActivity(actRes.data ?? []);

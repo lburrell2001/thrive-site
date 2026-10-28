@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { signDocs } from '@/lib/clientDocs';
 import { nextInvoiceNumberFor, addInterval, addOneMonth, IntervalUnit } from '@/lib/invoiceHelpers';
 
 // Re-export so existing imports from this route still resolve.
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
             projects: projects.data ?? [],
             requests: requests.data ?? [],
             invoices: invoices.data ?? [],
-            files: files.data ?? [],
+            files: await signDocs(admin, files.data, ['file_url']),
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],

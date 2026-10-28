@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { loadMyDocuments } from '@/lib/portalDocuments';
 
 interface DbFile {
   id: string;
@@ -38,24 +39,16 @@ export default function FilesPage() {
   const [justSigned, setJustSigned] = useState<string | null>(null);
 
   async function refreshProposals() {
-    const { data: { user } } = await supabasePortal.auth.getUser();
-    if (!user) return;
-    const { data } = await supabasePortal.from('portal_proposals').select('*').eq('client_id', user.id).order('created_at', { ascending: false });
-    setProposals(data ?? []);
+    const docs = await loadMyDocuments<DbFile, DbProposal>();
+    if (docs) setProposals(docs.proposals);
   }
 
   useEffect(() => {
     async function load() {
-      const { data: { user } } = await supabasePortal.auth.getUser();
-      if (!user) return;
-
-      const [filesRes, proposalsRes] = await Promise.all([
-        supabasePortal.from('portal_files').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
-        supabasePortal.from('portal_proposals').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
-      ]);
-
-      setFiles(filesRes.data ?? []);
-      setProposals(proposalsRes.data ?? []);
+      // From the server, so links to private documents come back signed.
+      const docs = await loadMyDocuments<DbFile, DbProposal>();
+      setFiles(docs?.files ?? []);
+      setProposals(docs?.proposals ?? []);
       setLoading(false);
     }
     load();
