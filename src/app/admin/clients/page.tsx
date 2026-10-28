@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import { formatPhone } from '@/lib/phone';
+import { adminHeaders, rememberPasscode, storedPasscode } from '@/lib/adminSession';
 
 const F = {
   inter: `var(--font-inter), 'Inter', sans-serif`,
@@ -280,10 +281,9 @@ export default function AdminPage() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const api = useCallback(async (body: Record<string, unknown>) => {
-    const passcode = sessionStorage.getItem('admin_passcode') ?? '';
     const res = await fetch('/api/admin', {
       method: 'POST',
-      headers: { 'X-Admin-Passcode': passcode, 'Content-Type': 'application/json' },
+      headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     const text = await res.text();
@@ -2702,7 +2702,7 @@ function SettingsTab({ api, clientId, clientEmail, onRefresh }: {
     setSaving(true); setError(''); setSuccess('');
     const r = await api({ action: 'change_passcode', new_passcode: newPass }) as { ok?: boolean; error?: string };
     if (r.error) { setError(r.error); setSaving(false); return; }
-    sessionStorage.setItem('admin_passcode', newPass);
+    if (storedPasscode()) rememberPasscode(newPass);
     setSuccess('Passcode updated. Use the new passcode next time you sign in.');
     setNewPass(''); setConfirm(''); setSaving(false);
   }

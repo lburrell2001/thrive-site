@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { adminHeaders } from '@/lib/adminSession';
 
 const F = {
   bungee: `var(--font-bungee), 'Bungee', sans-serif`,
@@ -17,14 +18,10 @@ const SERVICES = [
 
 type Project = { id: string; title: string; slug: string; category: string | null };
 
-function getPasscode() {
-  return typeof window !== 'undefined' ? sessionStorage.getItem('admin_passcode') ?? '' : '';
-}
-
 async function apiFetch(action: string, params: Record<string, unknown> = {}) {
   const res = await fetch('/api/admin', {
     method: 'POST',
-    headers: { 'X-Admin-Passcode': getPasscode(), 'Content-Type': 'application/json' },
+    headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...params }),
   });
   const data = await res.json() as { ok?: boolean; error?: string; data?: unknown; url?: string; signedUrl?: string; path?: string };

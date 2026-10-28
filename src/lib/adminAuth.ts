@@ -9,7 +9,7 @@
 import 'server-only';
 import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { callerKey, recentHits, recordHit } from '@/lib/rateLimit';
 
@@ -95,10 +95,67 @@ export function forgetVerifiedPasscodes() {
   verified.clear();
 }
 
-export function passcodeFailure(result: Exclude<PasscodeCheck, 'ok'>): NextResponse {
-  return result === 'locked'
-    ? NextResponse.json({ error: 'Too many wrong passcodes. Try again in 15 minutes.' }, { status: 429 })
-    : NextResponse.json({ error: 'Incorrect passcode' }, { status: 401 });
+// ── Admin accounts ──────────────────────────────────────────────────────────
+// The passcode is being replaced by real admin accounts: a Supabase Auth user
+// with app_metadata.role = 'thrive_admin' (only the service role can set it)
+// who has signed in with password AND an authenticator-app code (aal2).
+// Admin pages send that session as `Authorization: Bearer …`. Once an account
+// works, the Security page turns the passcode off (admin_config
+// passcode_retired = 'true') and only accounts get in.
+
+export const ADMIN_ROLE = 'thrive_admin';
+
+function tokenClaims(token: string): { aal?: string } {
+  try {
+    return JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as { aal?: string };
+  } catch {
+    return {};
+  }
+}
+
+/** The admin behind a bearer token, if it is an admin account with 2FA done. */
+export async function adminFromToken(db: SupabaseClient, token: string): Promise<User | null> {
+  if (!token) return null;
+  const { data: { user } } = await db.auth.getUser(token); // verifies the token
+  if (!user || user.app_metadata?.role !== ADMIN_ROLE) return null;
+  return tokenClaims(token).aal === 'aal2' ? user : null;
+}
+
+export function bearerToken(req: Request): string {
+  return req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim() ?? '';
+}
+
+let retiredCache: { value: boolean; until: number } | null = null;
+
+/** True once the Security page has turned the passcode off. */
+export async function passcodeRetired(db: SupabaseClient): Promise<boolean> {
+  if (retiredCache && retiredCache.until > Date.now()) return retiredCache.value;
+  const { data } = await db.from('admin_config').select('value').eq('key', 'passcode_retired').maybeSingle();
+  const value = data?.value === 'true';
+  retiredCache = { value, until: Date.now() + 30_000 };
+  return value;
+}
+
+export function forgetPasscodeMode() {
+  retiredCache = null;
+}
+
+export type AccessCheck = PasscodeCheck | 'retired';
+
+/** Admin access by account (bearer) or, until it is turned off, the passcode. */
+export async function checkAdminAccess(db: SupabaseClient, req: Request): Promise<AccessCheck> {
+  const token = bearerToken(req);
+  if (token) return (await adminFromToken(db, token)) ? 'ok' : 'bad';
+  const supplied = req.headers.get('X-Admin-Passcode') ?? '';
+  if (!supplied) return 'bad';
+  if (await passcodeRetired(db)) return 'retired';
+  return checkAdminPasscode(db, req, supplied);
+}
+
+export function passcodeFailure(result: Exclude<AccessCheck, 'ok'>): NextResponse {
+  if (result === 'locked') return NextResponse.json({ error: 'Too many wrong passcodes. Try again in 15 minutes.' }, { status: 429 });
+  if (result === 'retired') return NextResponse.json({ error: 'The passcode is turned off. Sign in with your admin account.' }, { status: 401 });
+  return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
 }
 
 export type AdminResult =
@@ -106,8 +163,7 @@ export type AdminResult =
   | { ok: false; response: NextResponse };
 
 export async function requireAdmin(req: Request): Promise<AdminResult> {
-  const supplied = req.headers.get('X-Admin-Passcode') ?? '';
-  if (!supplied) {
+  if (!bearerToken(req) && !req.headers.get('X-Admin-Passcode')) {
     return { ok: false, response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 
@@ -121,7 +177,7 @@ export async function requireAdmin(req: Request): Promise<AdminResult> {
     };
   }
 
-  const check = await checkAdminPasscode(db, req, supplied);
+  const check = await checkAdminAccess(db, req);
   if (check !== 'ok') return { ok: false, response: passcodeFailure(check) };
 
   return { ok: true, db };

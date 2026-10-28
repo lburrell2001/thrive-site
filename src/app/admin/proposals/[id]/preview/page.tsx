@@ -5,6 +5,7 @@ import { ProposalRenderer } from '@/components/proposal/ProposalRenderer';
 import { proposalFontClass } from '@/lib/proposalFonts';
 import type { RenderableProposal } from '@/types/proposal';
 import type { RenderMode } from '@/components/proposal/context';
+import { adminHeaders } from '@/lib/adminSession';
 
 /**
  * Admin preview. Renders the client view exactly — same <ProposalRenderer /> —
@@ -31,10 +32,7 @@ export default function ProposalPreviewPage({
       try {
         const res = await fetch('/api/admin', {
           method: 'POST',
-          headers: {
-            'X-Admin-Passcode': sessionStorage.getItem('admin_passcode') ?? '',
-            'Content-Type': 'application/json',
-          },
+          headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
           // A UUID goes through as `id`; anything else is treated as a slug.
           body: JSON.stringify(
             /^[0-9a-f-]{36}$/i.test(id)

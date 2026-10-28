@@ -13,6 +13,7 @@ import type { BuilderLineItem } from './forms/PricingForm';
 import { ProposalRenderer } from '@/components/proposal/ProposalRenderer';
 import { proposalFontClass } from '@/lib/proposalFonts';
 import { emptyBlock } from '@/lib/proposalSchemas';
+import { adminHeaders } from '@/lib/adminSession';
 import type {
   AccentName,
   BlockType,
@@ -315,7 +316,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
     setDownloading(true);
     try {
       const res = await fetch(`/api/proposals/${id}/pdf`, {
-        headers: { 'X-Admin-Passcode': sessionStorage.getItem('admin_passcode') ?? '' },
+        headers: await adminHeaders(),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };

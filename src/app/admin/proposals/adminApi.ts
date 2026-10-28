@@ -1,10 +1,8 @@
 'use client';
 
-/** Thin wrapper over the proposal API routes, carrying the admin passcode. */
+/** Thin wrapper over the admin API routes, carrying the admin sign-in. */
 
-function passcode(): string {
-  return typeof window !== 'undefined' ? sessionStorage.getItem('admin_passcode') ?? '' : '';
-}
+import { adminHeaders } from '@/lib/adminSession';
 
 export class ApiError extends Error {}
 
@@ -15,7 +13,7 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return handle<T>(await fetch(path, { headers: { 'X-Admin-Passcode': passcode() } }));
+  return handle<T>(await fetch(path, { headers: await adminHeaders() }));
 }
 
 export async function apiSend<T>(
@@ -26,7 +24,7 @@ export async function apiSend<T>(
   return handle<T>(
     await fetch(path, {
       method,
-      headers: { 'X-Admin-Passcode': passcode(), 'Content-Type': 'application/json' },
+      headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     }),
   );
@@ -36,7 +34,7 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   return handle<T>(
     await fetch(path, {
       method: 'POST',
-      headers: { 'X-Admin-Passcode': passcode() },
+      headers: await adminHeaders(),
       body: form,
     }),
   );

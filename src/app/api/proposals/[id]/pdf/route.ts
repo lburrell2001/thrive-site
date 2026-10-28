@@ -41,7 +41,7 @@ export async function GET(req: Request, { params }: Ctx) {
   let authorised = false;
   if (safeEquals(suppliedToken, proposal.access_token)) {
     authorised = true;
-  } else if (req.headers.get('X-Admin-Passcode')) {
+  } else if (req.headers.get('X-Admin-Passcode') || req.headers.get('Authorization')) {
     const auth = await requireAdmin(req);
     if (!auth.ok) return auth.response;
     authorised = true;

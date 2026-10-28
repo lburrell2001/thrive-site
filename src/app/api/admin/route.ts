@@ -7,7 +7,10 @@ import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { DOC_BUCKET, docRef, isDocPath, removeDoc, signDocs } from '@/lib/clientDocs';
-import { MIN_PASSCODE_LENGTH, checkAdminPasscode, forgetVerifiedPasscodes, hashPasscode, passcodeFailure } from '@/lib/adminAuth';
+import {
+  ADMIN_ROLE, MIN_PASSCODE_LENGTH, adminFromToken, bearerToken, checkAdminAccess, forgetPasscodeMode,
+  forgetVerifiedPasscodes, hashPasscode, passcodeFailure, passcodeRetired,
+} from '@/lib/adminAuth';
 import {
   ReminderError,
   previewReminder,
@@ -69,14 +72,34 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
 }
 
+/** Whether the sign-in screen should still offer the passcode. Public. */
+export async function GET() {
+  let admin: ReturnType<typeof getAdmin>;
+  try { admin = getAdmin(); } catch { return err('Server misconfiguration', 500); }
+  return NextResponse.json({ passcode: !(await passcodeRetired(admin)) }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+/** Admin accounts: Supabase users carrying the admin role. */
+async function adminAccounts(admin: ReturnType<typeof getAdmin>) {
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  const admins = (data?.users ?? []).filter((u) => u.app_metadata?.role === ADMIN_ROLE);
+  // listUsers doesn't carry MFA factors, so ask for each admin's.
+  return Promise.all(admins.map(async (u) => {
+    const { data: f } = await admin.auth.admin.mfa.listFactors({ userId: u.id });
+    return {
+      id: u.id,
+      email: u.email ?? '',
+      authenticator: (f?.factors ?? []).some((x) => x.status === 'verified'),
+      last_sign_in_at: u.last_sign_in_at ?? null,
+    };
+  }));
+}
+
 export async function POST(req: NextRequest) {
   let admin: ReturnType<typeof getAdmin>;
   try { admin = getAdmin(); } catch { return err('Server misconfiguration', 500); }
 
-  const passcode = req.headers.get('X-Admin-Passcode') ?? '';
-  if (!passcode) return err('Unauthorized', 401);
-
-  const check = await checkAdminPasscode(admin, req, passcode);
+  const check = await checkAdminAccess(admin, req);
   if (check !== 'ok') return passcodeFailure(check);
 
   let body: Record<string, unknown>;
@@ -89,6 +112,57 @@ export async function POST(req: NextRequest) {
 
       case 'verify':
         return NextResponse.json({ ok: true });
+
+      // ── Security: admin accounts in place of the passcode ──
+      case 'security_status': {
+        const signedInAs = await adminFromToken(admin, bearerToken(req));
+        return NextResponse.json({
+          ok: true,
+          data: {
+            passcodeOn: !(await passcodeRetired(admin)),
+            accounts: await adminAccounts(admin),
+            signedInAs: signedInAs?.email ?? null,
+          },
+        });
+      }
+
+      case 'create_admin_account': {
+        const { email, password } = params as { email?: string; password?: string };
+        const cleanEmail = (email ?? '').trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) return err('Enter a valid email');
+        if (!password || password.length < MIN_PASSCODE_LENGTH) return err(`Password must be at least ${MIN_PASSCODE_LENGTH} characters`);
+        const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        const existing = list?.users.find((u) => u.email?.toLowerCase() === cleanEmail);
+        if (existing) {
+          // A client's portal login can't double as the admin account.
+          const { data: client } = await admin.from('portal_clients').select('id').eq('id', existing.id).maybeSingle();
+          if (client) return err('That email is a client portal login. Use a different email for admin.');
+          const { error } = await admin.auth.admin.updateUserById(existing.id, {
+            password, email_confirm: true, app_metadata: { ...existing.app_metadata, role: ADMIN_ROLE },
+          });
+          if (error) return err('Could not update that account');
+        } else {
+          const { error } = await admin.auth.admin.createUser({
+            email: cleanEmail, password, email_confirm: true, app_metadata: { role: ADMIN_ROLE },
+          });
+          if (error) return err('Could not create the account');
+        }
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'retire_passcode': {
+        // Only from a working account with the authenticator, so turning the
+        // passcode off can never lock the last way in.
+        if (!(await adminFromToken(admin, bearerToken(req)))) {
+          return err('Sign in with your admin account and authenticator first', 403);
+        }
+        const { error } = await admin.from('admin_config')
+          .upsert({ key: 'passcode_retired', value: 'true', updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        if (error) return err('Could not turn the passcode off');
+        forgetPasscodeMode();
+        forgetVerifiedPasscodes();
+        return NextResponse.json({ ok: true });
+      }
 
       case 'change_passcode': {
         const { new_passcode } = params as Record<string, string>;
