@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import p from '../proposals/proposals.module.css';
 import { adminAuth, adminHeaders, adminSignOut } from '@/lib/adminSession';
-import { formatDate } from '../proposals/adminApi';
+import SecurityDashboard from './SecurityDashboard';
 
 type Status = {
   passcodeOn: boolean;
@@ -35,6 +35,7 @@ export default function SecurityPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [version, setVersion] = useState(0);
 
   const load = useCallback(async () => {
     try { setStatus(await adminAction<Status>('security_status')); }
@@ -69,6 +70,7 @@ export default function SecurityPage() {
       await adminAction('retire_passcode');
       setNote('The passcode is off. Admin now needs your account and authenticator code.');
       await load();
+      setVersion((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not turn the passcode off');
     }
@@ -79,16 +81,17 @@ export default function SecurityPage() {
 
   return (
     <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: 720 }}>
+      <div className={p.wrap} style={{ maxWidth: 980 }}>
         <div className={p.pageHead}>
           <div>
             <h1 className={p.pageTitle}>Security</h1>
             <p className={p.pageSub}>
-              Admin sign-in uses an account with a password and a code from an authenticator app on your phone,
-              instead of a shared passcode.
+              How well the site protects your clients’ personal data, checked live, plus what only you can confirm.
             </p>
           </div>
         </div>
+
+        <SecurityDashboard version={version} />
 
         {status === null && !error && <p className={p.empty}>Loading…</p>}
         {error && <p style={{ color: '#c40473', fontSize: 14, margin: '0 0 16px' }}>{error}</p>}
@@ -96,20 +99,6 @@ export default function SecurityPage() {
 
         {status && (
           <>
-            <section className={p.card} style={{ marginBottom: 20 }}>
-              <h2 style={{ margin: '0 0 12px', fontSize: 16 }}>Status</h2>
-              <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.8, fontSize: 14 }}>
-                <li>Passcode: <b>{status.passcodeOn ? 'still on' : 'off'}</b></li>
-                <li>Signed in now with: <b>{status.signedInAs ? `${status.signedInAs} + authenticator` : 'the passcode'}</b></li>
-                {status.accounts.map((a) => (
-                  <li key={a.id}>
-                    Admin account <b>{a.email}</b> — authenticator {a.authenticator ? 'paired' : <b>not paired yet</b>}
-                    {a.last_sign_in_at ? `, last sign-in ${formatDate(a.last_sign_in_at)}` : ''}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
             {!hasAccount && (
               <section className={p.card} style={{ marginBottom: 20 }}>
                 <h2 style={{ margin: '0 0 6px', fontSize: 16 }}>1. Create your admin account</h2>

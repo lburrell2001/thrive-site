@@ -76,7 +76,7 @@ end $$;
 -- 6. Rate limits (src/lib/rateLimit.ts): wrong admin passcodes (8 per 15
 --    minutes locks that address out), the contact form, bookings, portal
 --    sign-in codes and newsletter sign-ups. client_key is an HMAC of the IP,
---    never the IP itself; rows older than a day are deleted as it goes.
+--    never the IP itself; rows older than 30 days are deleted as it goes.
 create table if not exists rate_limit_hits (
   id bigint generated always as identity primary key,
   bucket text not null,

@@ -26,9 +26,10 @@ export async function recentHits(db: SupabaseClient, bucket: string, key: string
 
 export async function recordHit(db: SupabaseClient, bucket: string, key: string): Promise<void> {
   await db.from('rate_limit_hits').insert({ bucket, client_key: key });
-  // Keep the table small: nothing older than a day counts toward any limit.
+  // Limits only look back an hour or less; rows are kept 30 days so the
+  // Security dashboard can show recent activity, then trimmed.
   if (Math.random() < 0.1) {
-    await db.from('rate_limit_hits').delete().lt('created_at', new Date(Date.now() - 86_400_000).toISOString());
+    await db.from('rate_limit_hits').delete().lt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString());
   }
 }
 
