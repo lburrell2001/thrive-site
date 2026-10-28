@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { trackPaidSession } from '@/lib/opinlyStripe';
+import { markInvoicePaid } from '@/lib/invoicePayment';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -30,14 +31,11 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const invoiceId = session.metadata?.invoiceId;
-    if (invoiceId) {
-      const supabase = getServiceClient();
-      await supabase
-        .from('portal_invoices')
-        .update({ status: 'paid', stripe_checkout_session_id: session.id })
-        .eq('id', invoiceId);
-      after(() => trackPaidSession(session, invoiceId));
+    if (session.metadata?.invoiceId) {
+      // Checks the amount collected against the invoice before marking it paid.
+      const result = await markInvoicePaid(getServiceClient(), session);
+      if (result.ok) after(() => trackPaidSession(session, result.invoiceId));
+      else console.error('[stripe] webhook did not mark invoice paid:', result.reason, session.id);
     }
   }
 

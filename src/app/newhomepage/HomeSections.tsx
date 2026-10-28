@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { storageUrl } from "@/lib/storage";
+import { WORK_PHOTOS } from "@/lib/workPhotos";
 import s from "./HomeSections.module.css";
 
 // Each section watches its own fade-ins, so they show however the section was mounted.
@@ -55,6 +56,11 @@ const ONE_STUDIO = [
   { title: "One team owns it", text: "One team knows your brand inside out, from the first logo sketch to the hundredth post." },
   { title: "It all matches", text: "Your colors, your voice and your story carry from your business card to your homepage to your feed." },
 ];
+
+// The collage behind "We're not for everyone": one real photo per client project
+// (Thrive's own social is left out), 12 in all to fill the grid.
+const COLLAGE = Object.values(WORK_PHOTOS).flat()
+  .filter((p, i, all) => all.findIndex((q) => q.href === p.href) === i && !p.href.includes("/work/thrive-"));
 
 const QUOTES = [
   { text: "Thrive completely transformed how our brand shows up. The energy, the vision, the execution — nothing short of exceptional.", who: "DJ Mastamind" },
@@ -140,16 +146,7 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
       </section>
 
       {/* ── NOT FOR EVERYONE ── */}
-      <section className={s.notFor}>
-        <h2 className={`${s.notForH} ${s.reveal}`}>
-          We&apos;re <span>not</span> for everyone.
-        </h2>
-        <p className={`${s.notForP} ${s.reveal}`}>
-          If your business doesn&apos;t have a story, or it got so big the soul left the building, we&apos;re not your
-          studio. No hard feelings — there&apos;s no shortage of people who&apos;ll make you look like everyone else.
-        </p>
-      </section>
-
+      <NotForEveryone />
       {/* ── SERVICES ── */}
       <section className={s.services} id="services">
         <h2 className={s.sectionH}>What we do</h2>
@@ -206,6 +203,83 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
         </div>
       </section>
     </div>
+  );
+}
+
+// Where each photo sits in the mosaic (row / column / end row / end column):
+// four 2×2 tiles and eight singles fill every cell, 4 across × 6 down on phones
+// and 6 across × 4 down on desktop.
+const MOSAIC: [phone: string, desktop: string][] = [
+  ["1/1/3/3", "1/1/3/3"],
+  ["1/3/2/4", "1/3/2/4"],
+  ["1/4/2/5", "2/3/3/4"],
+  ["2/3/3/4", "1/6/2/7"],
+  ["3/3/5/5", "1/4/3/6"],
+  ["2/4/3/5", "2/6/3/7"],
+  ["3/1/4/2", "3/1/4/2"],
+  ["5/1/7/3", "3/2/5/4"],
+  ["3/2/4/3", "4/1/5/2"],
+  ["4/1/5/2", "3/4/4/5"],
+  ["5/3/7/5", "3/5/5/7"],
+  ["4/2/5/3", "4/4/5/5"],
+];
+
+/** "We're not for everyone" over a mosaic of project photos. The tiles pop in as
+ *  the section arrives, and the mosaic drifts and slowly zooms as the page scrolls. */
+function NotForEveryone() {
+  const ref = useReveal<HTMLElement>();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const r = el.getBoundingClientRect();
+      // -1 as the section enters at the bottom, 0 centred, 1 leaving at the top
+      const p = Math.max(-1, Math.min(1, (window.innerHeight / 2 - (r.top + r.height / 2)) / ((window.innerHeight + r.height) / 2)));
+      el.style.setProperty("--p", p.toFixed(3));
+    };
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update); };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [ref]);
+
+  return (
+    <section className={s.notFor} ref={ref}>
+      <div className={s.collage} aria-hidden>
+        {COLLAGE.map((p, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={p.href}
+            src={p.src}
+            alt=""
+            loading="lazy"
+            className={`${s.tile} ${s.reveal}`}
+            style={{
+              objectPosition: p.position,
+              transitionDelay: `${i * 70}ms`,
+              ["--gm" as string]: MOSAIC[i]?.[0],
+              ["--gd" as string]: MOSAIC[i]?.[1],
+              ["--r" as string]: `${i % 2 ? 7 : -7}deg`,
+            }}
+          />
+        ))}
+      </div>
+
+      <h2 className={`${s.notForH} ${s.reveal}`}>
+        We&apos;re <span>not</span> for everyone.
+      </h2>
+      <p className={`${s.notForP} ${s.reveal}`}>
+        If your business doesn&apos;t have a story, or it got so big the soul left the building, we&apos;re not your
+        studio. No hard feelings — there&apos;s no shortage of people who&apos;ll make you look like everyone else.
+      </p>
+    </section>
   );
 }
 

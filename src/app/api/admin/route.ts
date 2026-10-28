@@ -6,6 +6,7 @@ import { loadProposalById } from '@/lib/proposalRepo';
 import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
+import { MIN_PASSCODE_LENGTH, checkAdminPasscode, forgetVerifiedPasscodes, hashPasscode, passcodeFailure } from '@/lib/adminAuth';
 import {
   ReminderError,
   previewReminder,
@@ -67,11 +68,6 @@ function err(msg: string, status = 400) {
   return NextResponse.json({ error: msg }, { status });
 }
 
-async function verifyPasscode(admin: ReturnType<typeof getAdmin>, passcode: string): Promise<boolean> {
-  const { data } = await admin.from('admin_config').select('value').eq('key', 'passcode').single();
-  return !!data && data.value === passcode;
-}
-
 export async function POST(req: NextRequest) {
   let admin: ReturnType<typeof getAdmin>;
   try { admin = getAdmin(); } catch { return err('Server misconfiguration', 500); }
@@ -79,8 +75,8 @@ export async function POST(req: NextRequest) {
   const passcode = req.headers.get('X-Admin-Passcode') ?? '';
   if (!passcode) return err('Unauthorized', 401);
 
-  const valid = await verifyPasscode(admin, passcode);
-  if (!valid) return err('Incorrect passcode', 401);
+  const check = await checkAdminPasscode(admin, req, passcode);
+  if (check !== 'ok') return passcodeFailure(check);
 
   let body: Record<string, unknown>;
   try { body = await req.json(); } catch { return err('Invalid JSON'); }
@@ -95,9 +91,14 @@ export async function POST(req: NextRequest) {
 
       case 'change_passcode': {
         const { new_passcode } = params as Record<string, string>;
-        if (!new_passcode || new_passcode.length < 4) return err('Passcode must be at least 4 characters');
-        const { error } = await admin.from('admin_config').update({ value: new_passcode, updated_at: new Date().toISOString() }).eq('key', 'passcode');
-        if (error) return err(error.message);
+        if (!new_passcode || new_passcode.length < MIN_PASSCODE_LENGTH) {
+          return err(`Passcode must be at least ${MIN_PASSCODE_LENGTH} characters`);
+        }
+        const { error } = await admin.from('admin_config')
+          .update({ value: await hashPasscode(new_passcode), updated_at: new Date().toISOString() })
+          .eq('key', 'passcode');
+        if (error) return err('Could not save the new passcode');
+        forgetVerifiedPasscodes();
         return NextResponse.json({ ok: true });
       }
 

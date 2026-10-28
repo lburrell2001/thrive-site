@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateDueInvoices } from '@/lib/invoiceHelpers';
+import { cronAuthorized } from '@/lib/safeEquals';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -24,12 +25,6 @@ async function isPortalAdmin(req: NextRequest): Promise<boolean> {
   return data?.role === 'admin';
 }
 
-function cronAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const header = req.headers.get('Authorization') ?? '';
-  return header === `Bearer ${secret}`;
-}
 
 // GET — used by Vercel Cron (sends Authorization: Bearer ${CRON_SECRET}).
 export async function GET(req: NextRequest) {

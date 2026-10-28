@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import styles from "./newhomepage.module.css";
 import PublicLayout from "../components/PublicLayout";
@@ -8,6 +8,7 @@ import WorkReel from "../components/WorkReel";
 import { SHOWCASE } from "@/lib/serviceShowcase";
 import PhotoSticker from "../components/PhotoSticker";
 import { HomeIntro, HomeOutro } from "./HomeSections";
+import ColorIntro from "./ColorIntro";
 
 const bungee = Bungee({
   weight: "400",
@@ -33,10 +34,11 @@ const SPOTS: Record<string, string> = {
   photography: "spotPhoto",
 };
 
-// "color" in the headline, one brand colour per letter.
-const COLOR: [string, string][] = [["c", "cPink"], ["o", "cOrange"], ["l", "cGreen"], ["o", "cBlue"], ["r", "cPink"]];
-
 export default function NewHomePage() {
+  // The hero's own animations wait, paused, until the colour intro starts to fade.
+  const [revealed, setRevealed] = useState(false);
+  const reveal = useCallback(() => setRevealed(true), []);
+
   useEffect(() => {
     let raf: number;
     const onScroll = () => {
@@ -63,28 +65,18 @@ export default function NewHomePage() {
     <PublicLayout>
     <div className={`${bungee.variable} ${baiJamjuree.variable} ${styles.page}`}>
 
+      <ColorIntro onReveal={reveal} />
+
       {/* ── HERO ── */}
-      <section className={styles.hero}>
-        <span className={`${styles.gh} ${styles.ghA}`}        data-hx="-0.08">COLOR</span>
-        <span className={`${styles.gh} ${styles.ghFull}`}     data-py="0.12">SOUL</span>
-        <span className={`${styles.gh} ${styles.ghService}`}  data-hx="0.10">STORY</span>
-        <span className={`${styles.gh} ${styles.ghCreative}`} data-hx="-0.06">CULTURE</span>
-        <span className={`${styles.gh} ${styles.ghAgency}`}   data-hx="0.08">BOLD</span>
+      <section className={`${styles.hero} ${revealed ? "" : styles.heroWaiting}`}>
+        <span className={`${styles.gh} ${styles.ghA}`}        data-hx="-0.08">A</span>
+        <span className={`${styles.gh} ${styles.ghFull}`}     data-py="0.12">FULL</span>
+        <span className={`${styles.gh} ${styles.ghService}`}  data-hx="0.10">SERVICE</span>
+        <span className={`${styles.gh} ${styles.ghCreative}`} data-hx="-0.06">CREATIVE</span>
+        <span className={`${styles.gh} ${styles.ghAgency}`}   data-hx="0.08">AGENCY</span>
         <div className={styles.heroWordmark}>
-          <h1 className={styles.heroH1}>
-            <span>Design went <span className={styles.beige}>beige.</span></span>
-            <span>We brought the</span>
-            <span>
-              <span className={styles.color}>
-                {COLOR.map(([ch, c], i) => <span key={i} className={styles[c]}>{ch}</span>)}
-              </span>{" "}
-              back.
-            </span>
-          </h1>
-          <p className={styles.heroSub}>
-            We&apos;re a Dallas studio for brands with a real story. Branding, web, social media and photography, all
-            under one roof.
-          </p>
+          <img src="/new-thrive/logo.svg" alt="Thrive" className={styles.heroThrive} />
+          <p className={styles.heroKicker}>Full-service creative agency · Dallas, TX</p>
         </div>
 
         {/* Mobile only: a full-screen hero with the services scattered around the logo as patches */}

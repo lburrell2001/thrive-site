@@ -1,5 +1,5 @@
 .section {
-  padding: 80px;
+  padding: 130px 96px;
   background: #fff;
   box-sizing: border-box;
   scroll-margin-top: 100px;
@@ -10,7 +10,7 @@
 .heading {
   margin: 0 0 16px;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(28px, 4vw, 52px);
+  font-size: clamp(22px, 3.2vw, 42px);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1.05;
@@ -29,10 +29,10 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
-  gap: 20px;
+  gap: 26px;
   /* One or two cards don't stretch across the page. */
   max-width: calc(max(var(--cols, 3), 2) * 400px);
-  margin-top: 40px;
+  margin-top: 65px;
 }
 
 .card {
@@ -56,7 +56,7 @@
 .price {
   margin: 0 0 8px;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(26px, 2.6vw, 34px);
+  font-size: clamp(21px, 2.08vw, 27px);
   letter-spacing: -0.03em;
   line-height: 1.1;
   color: #0a0a0a;
@@ -128,7 +128,7 @@
 .includes {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr);
-  gap: 24px 40px;
+  gap: 31px 52px;
   align-items: start;
   margin-top: 20px;
   padding: 24px;
@@ -156,7 +156,7 @@
 }
 
 .addOnItems { margin: 0; padding: 0; border-top: none; }
-.includes .addOnItems { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 32px; }
+.includes .addOnItems { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 42px; }
 
 .notes {
   max-width: 760px;
@@ -177,11 +177,11 @@
 }
 
 @media (max-width: 960px) {
-  .section { padding: 60px 48px; }
+  .section { padding: 98px 58px; }
 }
 
 @media (max-width: 767px) {
-  .section { padding: 60px 24px; scroll-margin-top: 64px; }
+  .section { padding: 98px 24px; scroll-margin-top: 64px; }
   .grid { grid-template-columns: 1fr; max-width: none; }
   .addOn, .includes { max-width: none; }
   .addOn { grid-template-columns: 1fr; gap: 16px; }

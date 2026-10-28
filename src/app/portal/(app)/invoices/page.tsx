@@ -92,7 +92,9 @@ export default function InvoicesPage() {
   async function handlePay(invoiceId: string, amountCents: number, description: string) {
     setPayLoading(true); setPayError('');
     try {
-      const res  = await fetch('/api/portal/stripe', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ invoiceId, amount:amountCents/100, description }) });
+      const { data: { session } } = await supabasePortal.auth.getSession();
+      if (!session) { setPayError('Please sign in again.'); return; }
+      const res  = await fetch('/api/portal/stripe', { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${session.access_token}`}, body:JSON.stringify({ invoiceId }) });
       const data = await res.json() as { url?:string; error?:string };
       if (!res.ok || !data.url) { setPayError(data.error ?? 'Failed to initiate payment.'); return; }
       window.location.href = data.url;

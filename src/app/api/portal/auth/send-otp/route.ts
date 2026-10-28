@@ -19,6 +19,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendSms, smsConfigured } from '@/lib/sms';
 import { brandEmail, esc, paragraph } from '@/lib/emailLayout';
+import { allow } from '@/lib/rateLimit';
 
 const WAIT_MS = 60_000;
 const NOT_FOUND = "We don't recognise that email. Contact your Thrive team to get set up.";
@@ -51,6 +52,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sign-in is not set up. Contact your Thrive team.' }, { status: 500 });
   }
   const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  // Per address, on top of the one-code-a-minute rule per email: stops one
+  // connection from guessing which emails have logins or running up texts.
+  if (!(await allow(admin, req, 'portal_code', 6, 15 * 60_000))) {
+    return NextResponse.json({ error: 'Too many sign-in attempts. Try again in 15 minutes.' }, { status: 429 });
+  }
 
   // Find the login first, so the throttle is checked before a new code
   // replaces the one already sent. The client list is small.

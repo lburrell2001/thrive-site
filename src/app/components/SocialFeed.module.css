@@ -1,14 +1,14 @@
 .feed {
-  padding: 80px;
+  padding: 130px 96px;
   background: #f5f4f2;
   box-sizing: border-box;
   overflow: hidden;
 }
 
 .h2 {
-  margin: 0 0 44px;
+  margin: 0 0 72px;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(28px, 4vw, 52px);
+  font-size: clamp(22px, 3.2vw, 42px);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1.05;
@@ -18,7 +18,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 24px;
+  gap: 31px;
   align-items: center;
 }
 
@@ -52,12 +52,12 @@
 }
 
 @media (max-width: 960px) {
-  .feed { padding: 60px 48px; }
+  .feed { padding: 98px 58px; }
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 @media (max-width: 767px) {
-  .feed { padding: 56px 24px; }
+  .feed { padding: 91px 24px; }
   .grid {
     display: flex;
     gap: 18px;

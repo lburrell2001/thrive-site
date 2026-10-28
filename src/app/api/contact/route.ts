@@ -9,6 +9,7 @@ import { textAgency } from "@/lib/sms";
 import { BRAND, brandEmail, button as emailButton, links, panel, paragraph, rows } from "@/lib/emailLayout";
 import { attributionFor, type AttributionInput } from "@/lib/inquiryAttribution";
 import { cleanAnonId, trackConversion } from "@/lib/opinly";
+import { allow } from "@/lib/rateLimit";
 
 // The generated Database type only knows the original contact_inquiries
 // columns; the attribution columns and site_pageviews came later.
@@ -111,6 +112,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Valid email is required.", code: "VALIDATION_EMAIL" }, { status: 400 });
     }
 
+    // Every inquiry emails and texts Lauren, so cap how often one address can send.
+    if (!(await allow(db, req, "contact", 5, 10 * 60_000))) {
+      return NextResponse.json({ error: "Too many messages — please try again in a few minutes.", code: "RATE_LIMITED" }, { status: 429 });
+    }
+
     const referrer = body.referrer || req.headers.get("referer") || null;
     const pageUrl = body.pageUrl || null;
 
@@ -143,7 +149,7 @@ export async function POST(req: Request) {
     if (dbError) {
       console.error("SUPABASE ERROR:", dbError, requestInfo);
       return NextResponse.json(
-        { error: "Failed to submit. Try again.", code: "SUPABASE_INSERT", dbError },
+        { error: "Failed to submit. Try again.", code: "SUPABASE_INSERT" },
         { status: 500 }
       );
     }
@@ -245,14 +251,14 @@ export async function POST(req: Request) {
 
       if (emailError) {
         console.error("RESEND ERROR:", emailError, requestInfo);
-        return NextResponse.json({ ok: true, emailed: false, code: "EMAIL_FAILED", emailError }, { status: 200 });
+        return NextResponse.json({ ok: true, emailed: false, code: "EMAIL_FAILED" }, { status: 200 });
       }
 
-      return NextResponse.json({ ok: true, emailed: true, code: "OK", data }, { status: 200 });
+      return NextResponse.json({ ok: true, emailed: true, code: "OK" }, { status: 200 });
     } catch (emailCrash) {
       console.error("EMAIL CRASH:", emailCrash, requestInfo);
       return NextResponse.json(
-        { ok: true, emailed: false, code: "EMAIL_CRASH", details: emailCrash instanceof Error ? emailCrash.message : String(emailCrash) },
+        { ok: true, emailed: false, code: "EMAIL_CRASH" },
         { status: 200 }
       );
     }
@@ -262,8 +268,6 @@ export async function POST(req: Request) {
       {
         error: "Invalid request.",
         code: "REQUEST_PARSE_OR_RUNTIME",
-        details: err instanceof Error ? err.message : String(err),
-        requestInfo,
       },
       { status: 400 }
     );

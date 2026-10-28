@@ -43,6 +43,21 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Baseline security headers on every response. The CSP here only sets
+        // the directives that can't break third-party scripts (GTM, Opinly,
+        // Stripe, Vercel): no framing by other sites, no <base> hijacking, no
+        // plugins, and https for every subresource.
+        source: "/:path*",
+        headers: [
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), usb=(), browsing-topics=()" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests" },
+        ],
+      },
+      {
         source: "/manifest.webmanifest",
         headers: [
           {

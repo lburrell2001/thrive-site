@@ -1,5 +1,5 @@
 .reel {
-  padding: 72px 0 80px;
+  padding: 117px 0 130px;
   background: #fff;
   color: #0a0a0a;
   overflow: hidden;
@@ -7,12 +7,12 @@
 
 .dark { background: #0a0a0a; color: #fff; }
 
-.head { padding: 0 80px; margin-bottom: 36px; }
+.head { padding: 0 96px; margin-bottom: 36px; }
 
 .title {
   margin: 0;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(28px, 4vw, 48px);
+  font-size: clamp(22px, 3.2vw, 38px);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1.05;
@@ -26,7 +26,7 @@
 
 .track {
   display: flex;
-  gap: 28px;
+  gap: 36px;
   width: max-content;
   margin: 0;
   padding: 16px 0 8px;
@@ -101,11 +101,11 @@
 .dark .skeleton { background: #1c1c1c; }
 
 @media (max-width: 960px) {
-  .head { padding: 0 48px; }
+  .head { padding: 0 58px; }
 }
 
 @media (max-width: 767px) {
-  .reel { padding: 56px 0 64px; }
+  .reel { padding: 91px 0 104px; }
   .head { padding: 0 24px; }
   .card { width: 230px; }
   .skeleton { height: 200px; }

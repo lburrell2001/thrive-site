@@ -1,13 +1,13 @@
 .section {
   background: #f5f4f2;
-  padding: 80px;
+  padding: 130px 96px;
   box-sizing: border-box;
 }
 
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px;
+  gap: 26px;
 }
 
 .card {
@@ -52,9 +52,9 @@
 .who strong { color: #0a0a0a; font-size: 15px; }
 
 @media (max-width: 960px) {
-  .section { padding: 60px 48px; }
+  .section { padding: 98px 58px; }
 }
 
 @media (max-width: 767px) {
-  .section { padding: 60px 24px; }
+  .section { padding: 98px 24px; }
 }

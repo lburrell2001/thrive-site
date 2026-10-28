@@ -64,7 +64,7 @@ export default function AboutPage() {
           /* ── HERO ── */
           .ab-hero {
             position: relative;
-            padding: 80px 80px 64px;
+            padding: 130px 96px 104px;
             box-sizing: border-box;
             overflow: hidden;
           }
@@ -90,12 +90,12 @@ export default function AboutPage() {
             z-index: 1;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 48px;
+            gap: 62px;
             align-items: start;
           }
           .ab-h1 {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(36px, 5vw, 72px);
+            font-size: clamp(29px, 4vw, 58px);
             letter-spacing: -0.04em;
             line-height: 1;
             margin: 0;
@@ -119,8 +119,8 @@ export default function AboutPage() {
           .ab-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            padding: 0 80px 80px;
+            gap: 26px;
+            padding: 0 96px 130px;
             box-sizing: border-box;
             max-width: 1360px;
             margin: 0 auto;
@@ -134,7 +134,7 @@ export default function AboutPage() {
           }
           .ab-stat-num {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(36px, 5vw, 56px);
+            font-size: clamp(29px, 4vw, 45px);
             letter-spacing: -0.03em;
             line-height: 1;
             margin: 0 0 8px;
@@ -149,7 +149,7 @@ export default function AboutPage() {
           /* ── FOUNDER ── */
           .ab-founder {
             background: #f5f4f2;
-            padding: 80px;
+            padding: 130px 96px;
             box-sizing: border-box;
           }
           .ab-founder-inner {
@@ -184,7 +184,7 @@ export default function AboutPage() {
           .ab-founder-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 56px;
+            gap: 73px;
             align-items: stretch;
           }
           .ab-founder-photo-wrap {
@@ -207,7 +207,7 @@ export default function AboutPage() {
           }
           .ab-founder-name {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(40px, 5vw, 64px);
+            font-size: clamp(32px, 4vw, 51px);
             letter-spacing: -0.04em;
             line-height: 1;
             margin: 0 0 8px;
@@ -228,7 +228,7 @@ export default function AboutPage() {
 
           /* ── VALUES ── */
           .ab-values {
-            padding: 80px;
+            padding: 130px 96px;
             box-sizing: border-box;
           }
           .ab-values-inner {
@@ -237,14 +237,14 @@ export default function AboutPage() {
           }
           .ab-values-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(36px, 5vw, 60px);
+            font-size: clamp(29px, 4vw, 48px);
             letter-spacing: -0.04em;
-            margin: 0 0 48px;
+            margin: 0 0 78px;
           }
           .ab-values-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
+            gap: 31px;
           }
           .ab-val-card {
             overflow: hidden;
@@ -268,25 +268,25 @@ export default function AboutPage() {
 
           /* ── TABLET ── */
           @media (max-width: 960px) {
-            .ab-hero { padding: 60px 48px 40px; }
-            .ab-stats { padding: 0 48px 60px; grid-template-columns: repeat(2, 1fr); }
-            .ab-founder { padding: 60px 48px; }
-            .ab-values { padding: 60px 48px; }
+            .ab-hero { padding: 98px 58px 65px; }
+            .ab-stats { padding: 0 58px 98px; grid-template-columns: repeat(2, 1fr); }
+            .ab-founder { padding: 98px 58px; }
+            .ab-values { padding: 98px 58px; }
             .ab-values-grid { grid-template-columns: 1fr; }
           }
 
           /* ── MOBILE ── */
           @media (max-width: 767px) {
-            .ab-hero { padding: 60px 24px 40px; }
+            .ab-hero { padding: 98px 24px 65px; }
             .ab-ghost { display: none; }
-            .ab-hero-grid { grid-template-columns: 1fr; gap: 28px; }
+            .ab-hero-grid { grid-template-columns: 1fr; gap: 36px; }
             .ab-stats {
               grid-template-columns: repeat(2, 1fr);
-              padding: 0 24px 60px;
+              padding: 0 24px 98px;
             }
-            .ab-founder { padding: 60px 24px; }
-            .ab-founder-grid { grid-template-columns: 1fr; gap: 32px; }
-            .ab-values { padding: 60px 24px; }
+            .ab-founder { padding: 98px 24px; }
+            .ab-founder-grid { grid-template-columns: 1fr; gap: 42px; }
+            .ab-values { padding: 98px 24px; }
             .ab-values-grid { grid-template-columns: 1fr; }
           }
           @media (max-width: 480px) {

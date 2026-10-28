@@ -6,13 +6,13 @@
 .page {
   background: #fff;
   color: #0a0a0a;
-  padding: 160px 80px 100px;
+  padding: 160px 96px 162px;
   box-sizing: border-box;
 }
 
 .pageTitle {
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(40px, 6vw, 72px);
+  font-size: clamp(32px, 4.8vw, 58px);
   letter-spacing: -0.04em;
   line-height: 1;
   margin: 0 0 20px;
@@ -24,7 +24,7 @@
   line-height: 1.7;
   color: #555;
   max-width: 620px;
-  margin: 0 0 56px;
+  margin: 0 0 91px;
 }
 
 /* ------------------------------------------------------------ index */
@@ -32,7 +32,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 28px;
+  gap: 36px;
 }
 
 .card {
@@ -123,7 +123,7 @@
 
 .articleTitle {
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(32px, 5vw, 54px);
+  font-size: clamp(26px, 4vw, 43px);
   letter-spacing: -0.03em;
   line-height: 1.05;
   margin: 0 0 18px;
@@ -137,7 +137,7 @@
 }
 
 .cover {
-  margin: 0 0 40px;
+  margin: 0 0 65px;
   border-radius: 14px;
   overflow: hidden;
   background: #f5f4f2;
@@ -219,7 +219,7 @@
 }
 
 .cta {
-  margin-top: 56px;
+  margin-top: 91px;
   border-radius: 16px;
   padding: 36px;
   color: #fff;
@@ -259,7 +259,7 @@
 
 .more {
   max-width: 1120px;
-  margin: 96px auto 0;
+  margin: 156px auto 0;
 }
 
 .moreTitle {
@@ -270,12 +270,12 @@
 }
 
 @media (max-width: 960px) {
-  .page { padding: 140px 48px 80px; }
+  .page { padding: 140px 58px 130px; }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 767px) {
-  .page { padding: 120px 20px 64px; }
+  .page { padding: 150px 20px 104px; }
   .grid { grid-template-columns: 1fr; }
   .prose { font-size: 17px; }
   .prose h2 { font-size: 24px; }

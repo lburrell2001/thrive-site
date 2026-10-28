@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin, serviceClient } from '@/lib/adminAuth';
 import { pdfFilename, renderProposalPdf } from '@/lib/proposalPdf';
 import { proposalPrintUrl, resolveSiteOrigin } from '@/lib/proposalUrls';
+import { safeEquals } from '@/lib/safeEquals';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -38,7 +39,7 @@ export async function GET(req: Request, { params }: Ctx) {
 
   // Authorise before anything expensive happens.
   let authorised = false;
-  if (suppliedToken && suppliedToken === proposal.access_token) {
+  if (safeEquals(suppliedToken, proposal.access_token)) {
     authorised = true;
   } else if (req.headers.get('X-Admin-Passcode')) {
     const auth = await requireAdmin(req);

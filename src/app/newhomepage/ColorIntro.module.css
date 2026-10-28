@@ -1,0 +1,93 @@
+/* Fullscreen over the header too. Pages slide in from the left, one over another,
+   each stopping a stripe to the right of the last so the stack shows at the left
+   edge: beige and grey first, then the brand colours, then the whole thing fades. */
+.intro {
+  --stripe: clamp(9px, 2.4vw, 34px);
+  position: fixed; inset: 0; z-index: 1000;
+  overflow: hidden; isolation: isolate;
+  background: #f4f1ea;
+  font-family: var(--font-bai), sans-serif;
+  cursor: pointer;
+  animation: introOut .7s ease 6.3s forwards;
+}
+/* tapped: fade out now */
+.intro.skip { animation: introOut .35s ease forwards; }
+
+.sheet {
+  position: absolute; top: 0; bottom: 0; right: 0;
+  left: calc(var(--i) * var(--stripe));
+  box-shadow: -10px 0 28px rgba(0, 0, 0, .16);
+  /* off the left edge by its own width plus its offset and shadow */
+  transform: translateX(calc(-100% - var(--i) * var(--stripe) - 48px));
+  animation: slideIn .75s cubic-bezier(.7, 0, .2, 1) forwards;
+}
+.grey   { z-index: 1; animation-delay: calc(.1s + var(--i) * .24s); }
+.bright { z-index: 3; animation-duration: .6s; animation-delay: calc(3.5s + var(--i) * .18s); }
+
+.before, .after {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  margin: 0; padding: 0 24px 0 calc(5 * var(--stripe) + 24px);
+  text-align: center; text-wrap: balance;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  line-height: 1.02; letter-spacing: -0.03em; text-transform: uppercase;
+}
+
+/* first line, on the grey */
+.before {
+  z-index: 2; color: #4d4943;
+  animation: rise .6s ease-out 1.35s both, fade .45s ease-in 3.3s forwards;
+}
+.beige, .gray { display: inline-block; padding: 0 .16em .04em; border-radius: .14em; }
+.beige { background: #e9dfcc; color: #6f6656; transform: rotate(-2deg); }
+.gray  { background: #8d8983; color: #eceae6; transform: rotate(2deg); }
+
+/* second line, on the last colour page */
+.after {
+  z-index: 4; color: #fff;
+  text-shadow: .05em .05em 0 #000;
+  animation: popIn .8s cubic-bezier(.34, 1.56, .64, 1) 4.45s both;
+}
+.line { display: block; }
+.oneAtATime {
+  margin-top: .3em; padding: .06em .3em .1em;
+  background: #0cf574; color: #000; text-shadow: none;
+  border: 3px solid #000; border-radius: .2em;
+  box-shadow: 0 .1em 0 #000;
+  font-size: .62em;
+  transform: rotate(-2.5deg);
+}
+
+.skipBtn {
+  position: absolute; z-index: 5; right: 16px; bottom: 16px;
+  background: rgba(0, 0, 0, .55); color: #fff;
+  border: 0; border-radius: 999px; padding: 8px 14px;
+  font-family: var(--font-bungee), sans-serif; font-size: 12px;
+  cursor: pointer;
+}
+
+@keyframes slideIn { to { transform: translateX(0); } }
+@keyframes rise {
+  from { opacity: 0; translate: 0 24px; }
+  to   { opacity: 1; translate: 0 0; }
+}
+@keyframes fade { to { opacity: 0; visibility: hidden; } }
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(.7) rotate(-6deg); }
+  70%  { transform: scale(1.06) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes introOut { to { opacity: 0; visibility: hidden; } }
+
+@media (max-width: 767px) {
+  .before { font-size: clamp(32px, 10vw, 44px); }
+  .after { font-size: clamp(30px, 9.4vw, 42px); }
+}
+@media (min-width: 768px) {
+  .before { font-size: clamp(48px, 6vw, 96px); padding-right: 64px; }
+  .after { font-size: clamp(48px, min(6vw, 11vh), 104px); padding-right: 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro { display: none; }
+}

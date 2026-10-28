@@ -1,6 +1,6 @@
 .page {
   background: #f5f4f2;
-  padding: 150px 24px 90px;
+  padding: 150px 24px 146px;
   min-height: 70vh;
 }
 
@@ -10,12 +10,12 @@
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 18px;
-  padding: 44px;
+  padding: 72px 44px;
 }
 
 .title {
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(32px, 6vw, 48px);
+  font-size: clamp(26px, 4.8vw, 38px);
   letter-spacing: -0.03em;
   line-height: 1;
   margin: 0 0 14px;
@@ -36,7 +36,7 @@
 .starRow { display: flex; align-items: center; gap: 4px; }
 
 .star {
-  font-size: 38px;
+  font-size: 30px;
   line-height: 1;
   color: #d9d6d2;
   cursor: pointer;
@@ -137,5 +137,5 @@
 @media (max-width: 640px) {
   .card { padding: 28px 22px; }
   .row { grid-template-columns: 1fr; }
-  .star { font-size: 34px; }
+  .star { font-size: 27px; }
 }

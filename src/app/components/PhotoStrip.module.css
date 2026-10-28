@@ -1,11 +1,11 @@
-.strip { padding: 56px 0 64px; overflow-x: clip; }
+.strip { padding: 91px 0 104px; overflow-x: clip; }
 .dark { background: #0a0a0a; color: #fff; }
 
 .head { padding: 0 20px; margin-bottom: 8px; }
 .title {
   margin: 0;
   font-family: var(--font-bungee, 'Bungee', sans-serif); font-weight: 400;
-  font-size: clamp(32px, 10vw, 48px); line-height: .95; letter-spacing: -0.03em;
+  font-size: clamp(26px, 8vw, 38px); line-height: .95; letter-spacing: -0.03em;
   text-transform: uppercase;
 }
 
@@ -57,13 +57,13 @@
 @media (min-width: 768px) {
   .strip { padding: 80px max(48px, calc((100% - 1200px) / 2)) 88px; }
   .head { padding: 0; }
-  .title { font-size: clamp(44px, 5vw, 72px); }
+  .title { font-size: clamp(35px, 4vw, 58px); }
   /* all prints in view, no scrolling */
-  .row { overflow: visible; padding: 36px 0 12px; gap: 28px; }
+  .row { overflow: visible; padding: 36px 0 12px; gap: 36px; }
   /* fixed print size, so a band of two or three looks the same as a band of four */
   .print { flex: 0 1 270px; min-width: 0; }
   .caption { font-size: 17px; }
 
   .compact { padding: 8px 0 20px; }
-  .compact .row { padding: 24px 0 8px; gap: 20px; }
+  .compact .row { padding: 24px 0 8px; gap: 26px; }
 }

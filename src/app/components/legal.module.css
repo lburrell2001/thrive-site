@@ -3,7 +3,7 @@
 .page {
   background: #fff;
   color: #0a0a0a;
-  padding: 80px 24px 96px;
+  padding: 130px 24px 156px;
 }
 
 .inner {
@@ -13,7 +13,7 @@
 
 .title {
   font-family: var(--font-bungee), system-ui, sans-serif;
-  font-size: clamp(32px, 6vw, 52px);
+  font-size: clamp(26px, 4.8vw, 42px);
   line-height: 1.05;
   margin: 0 0 12px;
 }
@@ -21,14 +21,14 @@
 .updated {
   font-size: 14px;
   color: rgba(0, 0, 0, 0.55);
-  margin: 0 0 40px;
+  margin: 0 0 65px;
 }
 
 .page h2 {
   font-family: var(--font-bungee), system-ui, sans-serif;
   font-size: 20px;
   line-height: 1.2;
-  margin: 40px 0 12px;
+  margin: 65px 0 12px;
 }
 
 .page p,

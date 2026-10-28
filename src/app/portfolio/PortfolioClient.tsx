@@ -38,7 +38,7 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           .pf-page { background: #fff; color: #0a0a0a; }
           .pf-hero {
             position: relative;
-            padding: 80px 80px 48px;
+            padding: 130px 96px 78px;
             box-sizing: border-box;
             overflow: hidden;
           }
@@ -56,13 +56,13 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           .pf-h1 {
             position: relative; z-index: 1;
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(48px, 7vw, 88px);
+            font-size: clamp(38px, 5.6vw, 70px);
             letter-spacing: -0.04em;
             line-height: 1;
             margin: 0;
           }
           .pf-filters {
-            padding: 0 80px 48px;
+            padding: 0 96px 78px;
             display: flex; flex-wrap: wrap; gap: 10px;
             box-sizing: border-box;
             overflow-x: auto;
@@ -84,10 +84,10 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           .pf-pill:hover { transform: scale(1.04); }
           .pf-pill-active { background: #0a0a0a; color: #fff; }
           .pf-grid {
-            padding: 0 80px 80px;
+            padding: 0 96px 130px;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
+            gap: 31px;
             box-sizing: border-box;
           }
           .pf-card {
@@ -142,7 +142,7 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           }
           .pf-view-btn:hover { opacity: 0.8; }
           .pf-empty {
-            padding: 80px;
+            padding: 130px 96px;
             text-align: center;
             font-family: var(--font-bungee, 'Bungee', sans-serif);
             font-size: 20px;
@@ -151,13 +151,13 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           }
           .pf-cta {
             background: #0a0a0a;
-            padding: 40px 80px;
+            padding: 65px 96px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             box-sizing: border-box;
             flex-wrap: wrap;
-            gap: 24px;
+            gap: 31px;
           }
           .pf-cta-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -179,16 +179,16 @@ export default function PortfolioClient({ projects }: { projects: Project[] }) {
           }
           .pf-cta-btn:hover { opacity: 0.88; transform: scale(1.04); }
           @media (max-width: 960px) {
-            .pf-hero { padding: 60px 48px 32px; }
-            .pf-filters { padding: 0 48px 36px; }
-            .pf-grid { grid-template-columns: repeat(2, 1fr); padding: 0 48px 60px; }
-            .pf-cta { padding: 36px 48px; }
+            .pf-hero { padding: 98px 58px 32px; }
+            .pf-filters { padding: 0 58px 36px; }
+            .pf-grid { grid-template-columns: repeat(2, 1fr); padding: 0 58px 98px; }
+            .pf-cta { padding: 36px 58px; }
           }
           @media (max-width: 767px) {
-            .pf-hero { padding: 60px 24px 32px; }
+            .pf-hero { padding: 98px 24px 32px; }
             .pf-ghost { display: none; }
             .pf-filters { padding: 0 24px 36px; flex-wrap: nowrap; }
-            .pf-grid { grid-template-columns: 1fr; padding: 0 24px 60px; }
+            .pf-grid { grid-template-columns: 1fr; padding: 0 24px 98px; }
             .pf-cta { padding: 36px 24px; }
           }
         `}</style>

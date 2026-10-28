@@ -12,12 +12,12 @@
 .sectionH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(34px, 11vw, 48px); line-height: .95; letter-spacing: -0.03em;
+  font-size: clamp(27px, 8.8vw, 38px); line-height: .95; letter-spacing: -0.03em;
   text-transform: uppercase;
   text-wrap: balance;
 }
 .lede {
-  margin: 14px 0 0;
+  margin: 20px 0 0;
   font-size: 16px; line-height: 1.55; color: #333;
 }
 
@@ -37,11 +37,11 @@
 .tapeReverse { animation-direction: reverse; animation-duration: 34s; }
 
 /* ── ABOUT ── */
-.about { padding: 40px 20px 64px; }
+.about { padding: 65px 20px 104px; }
 .aboutH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(38px, 12.5vw, 54px); line-height: .92; letter-spacing: -0.03em;
+  font-size: clamp(30px, 10vw, 43px); line-height: .92; letter-spacing: -0.03em;
   text-transform: uppercase;
 }
 .almost {
@@ -89,49 +89,82 @@
 .roots a:hover { color: #e50586; }
 
 /* ── WHAT WE BELIEVE: three big stickers ── */
-.beliefs { padding: 56px 20px 24px; }
-.beliefList { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-direction: column; gap: 22px; }
+.beliefs { padding: 91px 20px 24px; }
+.beliefList { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-direction: column; gap: 29px; }
+/* square stickers: the line and the why together, centred */
 .belief {
+  aspect-ratio: 1; width: min(100%, 330px);
+  display: flex; flex-direction: column; justify-content: center;
   background: var(--bg); color: var(--fg);
   border: 2px solid #000; border-radius: 22px;
   box-shadow: 0 6px 0 #000;
-  padding: 22px 20px 24px;
+  padding: 26px 24px;
 }
+.belief:nth-child(2) { align-self: flex-end; }
 .belief:nth-child(1) { rotate: -1.5deg; }
 .belief:nth-child(2) { rotate: 1.2deg; }
 .belief:nth-child(3) { rotate: -.8deg; }
 .beliefLine {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(22px, 7.4vw, 34px); line-height: 1; letter-spacing: -0.02em;
+  font-size: clamp(18px, 5.92vw, 27px); line-height: 1; letter-spacing: -0.02em;
   text-transform: uppercase;
 }
 .beliefText { margin: 12px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
 
 /* ── NOT FOR EVERYONE: a black band ── */
 .notFor {
-  padding: 56px 20px;
+  position: relative; isolation: isolate; overflow: hidden;
+  padding: 91px 20px;
   background: #0a0a0a; color: #fff;
   border-top: 3px solid #000; border-bottom: 3px solid #000;
   text-align: center;
 }
+/* a mosaic of project photos behind, under a 40% black wash. The whole mosaic
+   drifts and zooms with --p (scroll progress, -1…1, set by NotForEveryone); it
+   overhangs the section so the drift never shows an edge. */
+.collage {
+  position: absolute; z-index: -1; inset: -56px -4px;
+  display: grid; gap: 5px;
+  grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr);
+  transform: translateY(calc(var(--p, 0) * -40px)) scale(calc(1.07 - var(--p, 0) * .05));
+}
+.collage::after { content: ""; position: absolute; inset: 0; background: rgba(0, 0, 0, .4); }
+.tile {
+  grid-area: var(--gm);
+  width: 100%; height: 100%; min-height: 0; object-fit: cover; display: block;
+  border-radius: 6px;
+}
+/* pops in from small and tilted, in place of the usual fade-up */
+.tile.reveal {
+  translate: none; scale: .55; rotate: var(--r, 0deg);
+  transition: opacity .6s ease, scale .7s cubic-bezier(.34,1.56,.64,1), rotate .7s cubic-bezier(.34,1.56,.64,1);
+}
+.tile.reveal.shown { scale: 1; rotate: 0deg; }
+.notForH, .notForP { position: relative; text-shadow: 0 2px 14px rgba(0, 0, 0, .85), 0 0 2px rgba(0, 0, 0, .9); }
 .notForH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(36px, 11.5vw, 52px); line-height: .95; letter-spacing: -0.03em;
+  font-size: clamp(29px, 9.2vw, 42px); line-height: .95; letter-spacing: -0.03em;
   text-transform: uppercase;
 }
 .notForH span {
+  text-shadow: none;
   display: inline-block; padding: 0 .16em .04em;
   background: #fd6100; color: #000;
   border-radius: .14em; transform: rotate(-3deg);
 }
-.notForP { margin: 22px auto 0; max-width: 560px; font-size: 17px; line-height: 1.55; color: #ddd; text-wrap: balance; }
+/* on its own dark panel so it reads over the busiest photos */
+.notForP {
+  margin: 22px auto 0; max-width: 560px; padding: 14px 18px;
+  font-size: 17px; line-height: 1.55; font-weight: 600; color: #fff; text-wrap: balance;
+  background: rgba(10, 10, 10, .78); border-radius: 16px;
+}
 
 /* ── SERVICES: cards that stack as you scroll ── */
-.services { padding: 24px 16px 48px; }
+.services { padding: 24px 16px 78px; }
 .services > .sectionH, .services > .lede { padding: 0 4px; }
-.stack { margin-top: 28px; display: flex; flex-direction: column; gap: 22px; }
+.stack { margin-top: 28px; display: flex; flex-direction: column; gap: 29px; }
 .card {
   position: sticky; /* each card sticks a little lower, so they fan as they pile up */
   top: calc(var(--stick, 80px) + var(--i, 0) * 14px);
@@ -177,23 +210,29 @@
 .toBlack .cardBtn { border-color: #fff; }
 
 /* ── WHY ONE STUDIO ── */
-.oneStudio { padding: 24px 20px 64px; }
-.oneGrid { margin-top: 28px; display: flex; flex-direction: column; gap: 18px; }
+.oneStudio { padding: 24px 20px 104px; }
+.oneGrid { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+/* round stickers, built like the badges: white die-cut edge, black outline */
 .oneCard {
+  aspect-ratio: 1; min-height: 0; width: min(100%, 290px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; text-wrap: balance;
   background: var(--bg); color: var(--fg);
-  border: 2px solid #000; border-radius: 22px;
-  box-shadow: 0 6px 0 #000;
-  padding: 22px 20px;
+  border: 6px solid #fff; border-radius: 50%;
+  box-shadow: 0 0 0 2px #000, 0 6px 0 2px #000;
+  padding: 36px;
 }
+.oneCard:nth-child(odd)  { rotate: -4deg; }
+.oneCard:nth-child(even) { rotate: 5deg; }
 .oneCard h3 {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
   font-size: 22px; line-height: 1.05; text-transform: uppercase;
 }
-.oneCard p { margin: 10px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
+.oneCard p { margin: 10px 0 0; font-size: 15px; line-height: 1.45; font-weight: 600; }
 
 /* ── PROCESS: a stitched timeline ── */
-.process { padding: 64px 20px 56px; }
+.process { padding: 104px 20px 91px; }
 .steps { list-style: none; margin: 30px 0 0; padding: 0; position: relative; }
 .steps::before {
   content: ""; position: absolute; left: 27px; top: 20px; bottom: 30px;
@@ -219,7 +258,7 @@
 .stepText { margin: 8px 0 0; font-size: 15.5px; line-height: 1.55; color: #333; }
 
 /* ── TESTIMONIALS: swipeable cards ── */
-.quotes { padding: 40px 0 56px; }
+.quotes { padding: 65px 0 91px; }
 .quotes > .sectionH { padding: 0 20px; }
 .quoteRail {
   display: flex; gap: 16px;
@@ -235,7 +274,7 @@
   background: var(--bg); color: var(--fg);
   border: 2px solid #000; border-radius: 22px;
   box-shadow: 0 6px 0 #000;
-  padding: 46px 20px 20px;
+  padding: 75px 20px 20px;
   display: flex; flex-direction: column; justify-content: space-between; gap: 18px;
 }
 .quote:nth-child(odd)  { transform: rotate(-1.5deg); }
@@ -245,7 +284,7 @@
   display: grid; place-items: center;
   width: 52px; aspect-ratio: 1; border-radius: 50%;
   background: #fff; color: #000; border: 2px solid #000;
-  font-family: var(--font-bungee), sans-serif; font-size: 40px; line-height: 1; padding-top: 14px;
+  font-family: var(--font-bungee), sans-serif; font-size: 32px; line-height: 1; padding-top: 14px;
 }
 .quote blockquote { margin: 0; font-size: 18px; line-height: 1.45; font-weight: 600; }
 .quote figcaption {
@@ -259,7 +298,7 @@
 /* ── CTA: pink, with a sticker of Lauren ── */
 .cta {
   position: relative;
-  margin: 0; padding: 64px 22px 48px;
+  margin: 0; padding: 104px 22px 78px;
   background: #e50586; color: #fff;
   border-top: 3px solid #000; border-bottom: 3px solid #000;
   text-align: center;
@@ -284,7 +323,7 @@
   margin: 0;
   display: flex; flex-direction: column; align-items: center;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(38px, 12.5vw, 56px); line-height: .92; letter-spacing: -0.03em;
+  font-size: clamp(30px, 10vw, 45px); line-height: .92; letter-spacing: -0.03em;
   text-transform: uppercase;
   text-shadow: 3px 3px 0 #000;
 }
@@ -323,8 +362,8 @@
 /* ─────────────── TABLETS AND DESKTOPS ─────────────── */
 @media (min-width: 768px) {
   /* sections sit in a 1200px column */
-  .about, .services, .process, .cta, .beliefs, .oneStudio, .notFor { padding-left: max(48px, calc((100% - 1200px) / 2)); padding-right: max(48px, calc((100% - 1200px) / 2)); }
-  .sectionH { font-size: clamp(52px, 6vw, 84px); }
+  .about, .services, .process, .cta, .beliefs, .oneStudio, .notFor { padding-left: max(64px, calc((100% - 1120px) / 2)); padding-right: max(64px, calc((100% - 1120px) / 2)); }
+  .sectionH { font-size: clamp(42px, 4.8vw, 67px); }
   .lede { font-size: 19px; max-width: 640px; }
 
   /* tape */
@@ -333,37 +372,63 @@
   .tapeA { top: 24px; transform: rotate(-3deg); }
   .tapeB { top: 86px; transform: rotate(2deg); }
 
-  /* beliefs: one wide band each, the line left and the why right */
-  .beliefs { padding-top: 110px; padding-bottom: 40px; }
-  .beliefList { margin-top: 56px; gap: 30px; }
+  /* beliefs: three squares in a row, the middle one dropped a little */
+  .beliefs { padding-top: 138px; padding-bottom: 65px; }
+  .beliefList { margin-top: 91px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 39px; align-items: start; }
   .belief {
-    display: grid; grid-template-columns: 1.5fr 1fr; align-items: center; gap: 48px;
-    padding: 36px 44px; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000;
+    width: 100%;
+    padding: clamp(22px, 2.4vw, 34px); border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000;
   }
-  .belief:nth-child(2) { margin-left: 6%; }
-  .belief:nth-child(3) { margin-right: 6%; }
-  .beliefLine { font-size: clamp(34px, 3.9vw, 58px); }
-  .beliefText { font-size: 19px; margin-top: 0; }
+  .belief:nth-child(2) { margin-top: 48px; }
+  .beliefLine { font-size: clamp(14px, 1.75vw, 26px); }
+  .beliefText { font-size: 17px; margin-top: 18px; }
 
   /* not for everyone */
-  .notFor { padding-top: 96px; padding-bottom: 96px; border-top-width: 4px; border-bottom-width: 4px; }
-  .notForH { font-size: clamp(56px, 7vw, 104px); }
-  .notForP { max-width: 680px; font-size: 20px; margin-top: 30px; }
+  .notFor { padding-top: 156px; padding-bottom: 156px; border-top-width: 4px; border-bottom-width: 4px; }
+  .notForH { font-size: clamp(45px, 5.6vw, 83px); }
+  .collage { grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(4, 1fr); gap: 6px; }
+  .tile { grid-area: var(--gd); }
+  .notForP { max-width: 720px; font-size: 20px; margin-top: 30px; padding: 18px 28px; }
 
   /* why one studio */
-  .oneStudio { padding-top: 20px; padding-bottom: 120px; }
-  .oneGrid { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
-  .oneCard { padding: 30px 28px; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000; }
-  .oneCard h3 { font-size: 26px; }
-  .oneCard p { font-size: 18px; }
+  .oneStudio { padding-top: 20px; padding-bottom: 150px; }
+  .oneGrid { margin-top: 78px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 42px; justify-items: center; }
+  .oneCard { width: 100%; max-width: 340px; padding: 40px; border-width: 8px; box-shadow: 0 0 0 3px #000, 0 8px 0 3px #000; }
+  .oneCard:nth-child(2) { margin-top: 40px; }
+  .oneCard h3 { font-size: 22px; }
+  .oneCard p { font-size: 16px; }
+}
+/* small tablets: the belief squares stack and zig-zag, as on phones */
+@media (min-width: 768px) and (max-width: 999px) {
+  .beliefList { display: flex; flex-direction: column; gap: 32px; }
+  .belief { width: 340px; padding: 30px; }
+  .belief:nth-child(2) { margin-top: 0; align-self: flex-end; }
+  .beliefLine { font-size: 24px; }
+  .beliefText { font-size: 16px; }
+}
+/* small tablets: three across won't fit, so they stack as on phones */
+@media (min-width: 768px) and (max-width: 899px) {
+  .oneGrid { display: flex; flex-direction: column; align-items: center; }
+  .oneCard { width: 300px; }
+  .oneCard:nth-child(2) { margin-top: 0; }
+}
+/* tablets: the three circles are narrower, so the type steps down */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .oneGrid { gap: 24px; }
+  .oneCard { padding: 26px; border-width: 6px; }
+  .oneCard h3 { font-size: 17px; }
+  .oneCard p { font-size: 13.5px; margin-top: 8px; }
+}
 
+/* ── TABLETS AND DESKTOPS, continued ── */
+@media (min-width: 768px) {
   /* about: words left, photo right */
   .about {
-    display: grid; grid-template-columns: 1.15fr 1fr; column-gap: 72px; align-items: center;
+    display: grid; grid-template-columns: 1.15fr 1fr; column-gap: 94px; align-items: center;
     grid-template-areas: "h photo" "p photo";
-    padding-top: 110px; padding-bottom: 120px;
+    padding-top: 138px; padding-bottom: 150px;
   }
-  .aboutH { grid-area: h; align-self: end; font-size: clamp(44px, 5.2vw, 78px); }
+  .aboutH { grid-area: h; align-self: end; font-size: clamp(35px, 4.16vw, 62px); }
   .aboutP { grid-area: p; align-self: start; margin-top: 30px; font-size: 20px; }
   .polaroid { grid-area: photo; width: 100%; max-width: 410px; margin: 0 auto; padding: 14px 14px 0; box-shadow: 10px 10px 0 #000; }
   .polaroid figcaption { font-size: 19px; padding: 14px 2px 16px; }
@@ -372,21 +437,21 @@
   .badgeB { bottom: 50px; left: -50px; }
 
   /* services: wide cards, photo left, words right, still stacking */
-  .services { padding-top: 60px; padding-bottom: 120px; }
-  .stack { margin-top: 48px; gap: 40px; }
+  .services { padding-top: 98px; padding-bottom: 150px; }
+  .stack { margin-top: 78px; gap: 52px; }
   .card { --stick: 124px; display: grid; grid-template-columns: 1.15fr 1fr; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000; }
   .card:hover { transform: translateY(-3px); box-shadow: 0 11px 0 #000; }
-  .cardMedia { margin: 16px; aspect-ratio: auto; min-height: 360px; border-radius: 18px; }
+  .cardMedia { margin: 16px; aspect-ratio: auto; min-height: 300px; border-radius: 18px; }
   .cardNum { width: 64px; font-size: 20px; top: 16px; left: 16px; }
-  .cardBody { display: flex; flex-direction: column; justify-content: center; padding: 40px 48px 40px 24px; }
-  .cardName { font-size: clamp(36px, 3.6vw, 52px); }
+  .cardBody { display: flex; flex-direction: column; justify-content: center; padding: 65px 58px 65px 24px; }
+  .cardName { font-size: clamp(29px, 2.88vw, 42px); }
   .cardSub { font-size: 13px; margin-top: 12px; }
   .cardDesc { font-size: 18px; margin-top: 16px; }
   .cardBtn { align-self: flex-start; margin-top: 26px; font-size: 15px; padding: 14px 22px; }
 
   /* process: one row, the stitched line runs across the top */
-  .process { padding-top: 120px; padding-bottom: 100px; }
-  .steps { margin-top: 56px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; }
+  .process { padding-top: 150px; padding-bottom: 162px; }
+  .steps { margin-top: 91px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 52px; }
   /* from the first number's centre to the last one's */
   .steps::before { left: 40px; right: calc((100% - 120px) / 4 - 40px); top: 40px; bottom: auto; border-left: 0; border-top: 3px dashed #000; }
   .step { grid-template-columns: 1fr; align-content: start; gap: 18px; padding-bottom: 0; }
@@ -395,20 +460,20 @@
   .stepText { font-size: 17px; }
 
   /* testimonials: all three side by side */
-  .quotes { padding: 60px max(48px, calc((100% - 1200px) / 2)) 120px; }
+  .quotes { padding: 60px max(64px, calc((100% - 1120px) / 2)) 120px; }
   .quotes > .sectionH { padding: 0; }
-  .quoteRail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; overflow: visible; padding: 48px 0 0; }
-  .quote { padding: 56px 28px 28px; }
+  .quoteRail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 42px; overflow: visible; padding: 78px 0 0; }
+  .quote { padding: 91px 28px 28px; }
   .quote blockquote { font-size: 20px; }
   .swipeHint { display: none; }
 
   /* call to action */
-  .cta { padding-top: 96px; padding-bottom: 96px; border-top-width: 4px; border-bottom-width: 4px; }
+  .cta { padding-top: 156px; padding-bottom: 156px; border-top-width: 4px; border-bottom-width: 4px; }
   .ctaSticker { width: 200px; border-width: 9px; margin-bottom: 36px; }
-  .ctaH { flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: .28em; font-size: clamp(56px, 7vw, 104px); text-shadow: 5px 5px 0 #000; }
+  .ctaH { flex-direction: row; flex-wrap: wrap; justify-content: center; column-gap: .28em; font-size: clamp(45px, 5.6vw, 83px); text-shadow: 5px 5px 0 #000; }
   .ctaBold { margin-top: 0; padding: 4px 22px 8px; }
   .ctaP { max-width: 600px; font-size: 20px; margin-top: 34px; }
-  .ctaBtn { display: inline-block; margin-top: 32px; padding: 20px 64px; font-size: 20px; }
+  .ctaBtn { display: inline-block; margin-top: 32px; padding: 20px 77px; font-size: 20px; }
   .ctaBtn:hover { transform: translateY(-3px); box-shadow: 0 9px 0 #fff, 0 9px 0 3px #000; }
   .ctaMail { display: block; width: fit-content; margin: 22px auto 0; font-size: 16px; }
 }
@@ -426,4 +491,6 @@
 @media (prefers-reduced-motion: reduce) {
   .tapeTrack, .ctaSticker svg { animation: none; }
   .reveal { opacity: 1; translate: none; scale: none; transition: none; }
+  .tile.reveal { scale: none; rotate: none; }
+  .collage { transform: none; }
 }

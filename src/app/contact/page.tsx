@@ -119,7 +119,7 @@ export default function ContactPage() {
           /* ── HERO ── */
           .ct-hero {
             position: relative;
-            padding: 80px 80px 64px;
+            padding: 130px 96px 104px;
             box-sizing: border-box;
             overflow: hidden;
           }
@@ -140,7 +140,7 @@ export default function ContactPage() {
             position: relative;
             z-index: 1;
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(48px, 7vw, 88px);
+            font-size: clamp(38px, 5.6vw, 70px);
             letter-spacing: -0.04em;
             line-height: 1;
             margin: 0 0 20px;
@@ -158,10 +158,10 @@ export default function ContactPage() {
 
           /* ── BODY ── */
           .ct-body {
-            padding: 0 80px 80px;
+            padding: 0 96px 130px;
             display: grid;
             grid-template-columns: 3fr 2fr;
-            gap: 32px;
+            gap: 42px;
             box-sizing: border-box;
           }
 
@@ -232,7 +232,7 @@ export default function ContactPage() {
           .ct-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
           .ct-success {
             text-align: center;
-            padding: 48px 24px;
+            padding: 78px 24px;
           }
           .ct-success-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
@@ -287,7 +287,7 @@ export default function ContactPage() {
           /* ── FAQ ── */
           .ct-faq {
             background: #0a0a0a;
-            padding: 80px;
+            padding: 130px 96px;
             box-sizing: border-box;
             position: relative;
             overflow: hidden;
@@ -306,17 +306,17 @@ export default function ContactPage() {
           }
           .ct-faq-h2 {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(32px, 5vw, 52px);
+            font-size: clamp(26px, 4vw, 42px);
             color: #fff;
             letter-spacing: -0.03em;
-            margin: 0 0 56px;
+            margin: 0 0 91px;
             position: relative;
             z-index: 1;
           }
           .ct-faq-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 32px;
+            gap: 42px;
             position: relative;
             z-index: 1;
           }
@@ -337,21 +337,21 @@ export default function ContactPage() {
 
           /* ── TABLET ── */
           @media (max-width: 960px) {
-            .ct-hero { padding: 60px 48px 40px; }
-            .ct-body { padding: 0 48px 60px; }
-            .ct-faq { padding: 60px 48px; }
+            .ct-hero { padding: 98px 58px 65px; }
+            .ct-body { padding: 0 58px 98px; }
+            .ct-faq { padding: 98px 58px; }
             .ct-faq-grid { grid-template-columns: repeat(2, 1fr); }
           }
 
           /* ── MOBILE ── */
           @media (max-width: 767px) {
-            .ct-hero { padding: 60px 24px 40px; }
+            .ct-hero { padding: 98px 24px 65px; }
             .ct-ghost { display: none; }
             .ct-body {
               grid-template-columns: 1fr;
-              padding: 0 24px 60px;
+              padding: 0 24px 98px;
             }
-            .ct-faq { padding: 60px 24px; }
+            .ct-faq { padding: 98px 24px; }
             .ct-faq-ghost { display: none; }
             .ct-faq-grid { grid-template-columns: 1fr; }
           }

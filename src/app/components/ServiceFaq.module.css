@@ -1,6 +1,6 @@
 .faq {
   background: #fff;
-  padding: 80px;
+  padding: 130px 96px;
   box-sizing: border-box;
 }
 
@@ -57,10 +57,10 @@
 }
 
 @media (max-width: 960px) {
-  .faq { padding: 60px 48px; }
+  .faq { padding: 98px 58px; }
 }
 
 @media (max-width: 767px) {
-  .faq { padding: 60px 24px; }
+  .faq { padding: 98px 24px; }
   .question { font-size: 16px; }
 }

@@ -73,16 +73,16 @@ export default function BrandDesignPage() {
           .sp-hero-left {
             position: relative;
             z-index: 1;
-            padding: 80px;
+            padding: 130px 96px;
             max-width: 680px;
             display: flex;
             flex-direction: column;
-            gap: 40px;
+            gap: 52px;
             box-sizing: border-box;
           }
           .sp-hero-h1 {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(44px, 6vw, 72px);
+            font-size: clamp(35px, 4.8vw, 58px);
             letter-spacing: -0.04em;
             line-height: 1;
             color: #fff;
@@ -131,20 +131,20 @@ export default function BrandDesignPage() {
           /* ── DELIVERABLES ── */
           .sp-deliverables {
             background: #f5f4f2;
-            padding: 80px;
+            padding: 130px 96px;
             box-sizing: border-box;
           }
           .sp-section-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(28px, 4vw, 52px);
+            font-size: clamp(22px, 3.2vw, 42px);
             letter-spacing: -0.04em;
             line-height: 1.05;
-            margin: 0 0 48px;
+            margin: 0 0 78px;
           }
           .sp-del-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            gap: 26px;
           }
           .sp-del-card {
             padding: 24px;
@@ -166,19 +166,19 @@ export default function BrandDesignPage() {
           /* ── PROCESS ── */
           .sp-process {
             background: #0a0a0a;
-            padding: 80px;
+            padding: 130px 96px;
             box-sizing: border-box;
           }
           .sp-process .sp-section-heading { color: #fff; }
           .sp-process-steps {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
+            gap: 31px;
           }
           .sp-step { border-top: 2px solid #222; padding-top: 20px; }
           .sp-step-num {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 40px;
+            font-size: 32px;
             letter-spacing: -0.04em;
             line-height: 1;
             margin-bottom: 12px;
@@ -202,13 +202,13 @@ export default function BrandDesignPage() {
 
           /* ── CTA ── */
           .sp-cta {
-            padding: 100px 80px;
+            padding: 162px 96px;
             box-sizing: border-box;
             text-align: center;
           }
           .sp-cta-heading {
             font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(32px, 5vw, 60px);
+            font-size: clamp(26px, 4vw, 48px);
             letter-spacing: -0.04em;
             line-height: 1.05;
             margin: 0 0 16px;
@@ -223,10 +223,10 @@ export default function BrandDesignPage() {
 
           /* ── TABLET ── */
           @media (max-width: 960px) {
-            .sp-hero-left { padding: 60px 48px; max-width: 100%; }
+            .sp-hero-left { padding: 98px 58px; max-width: 100%; }
             .sp-deliverables,
             .sp-process,
-            .sp-cta { padding: 80px 48px; }
+            .sp-cta { padding: 130px 58px; }
             .sp-del-grid { grid-template-columns: repeat(2, 1fr); }
             .sp-process-steps { grid-template-columns: repeat(2, 1fr); }
           }
@@ -234,10 +234,10 @@ export default function BrandDesignPage() {
           /* ── MOBILE ── */
           @media (max-width: 767px) {
             .sp-hero { min-height: 480px; align-items: flex-end; }
-            .sp-hero-left { padding: 48px 24px; gap: 32px; max-width: 100%; }
+            .sp-hero-left { padding: 78px 24px; gap: 42px; max-width: 100%; }
             .sp-deliverables,
             .sp-process,
-            .sp-cta { padding: 72px 24px; }
+            .sp-cta { padding: 117px 24px; }
             .sp-del-grid { grid-template-columns: 1fr; }
             .sp-process-steps { grid-template-columns: 1fr 1fr; }
           }

@@ -2697,7 +2697,7 @@ function SettingsTab({ api, clientId, clientEmail, onRefresh }: {
 
   async function handleChange(e: React.FormEvent) {
     e.preventDefault();
-    if (newPass.length < 4) { setError('Must be at least 4 characters'); return; }
+    if (newPass.length < 12) { setError('Must be at least 12 characters'); return; }
     if (newPass !== confirm) { setError('Passcodes do not match'); return; }
     setSaving(true); setError(''); setSuccess('');
     const r = await api({ action: 'change_passcode', new_passcode: newPass }) as { ok?: boolean; error?: string };
@@ -2722,7 +2722,7 @@ function SettingsTab({ api, clientId, clientEmail, onRefresh }: {
       {/* Passcode */}
       <div>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Change Admin Passcode</h3>
-        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 24px', lineHeight: 1.6 }}>Must be at least 4 characters. Stored securely in your database.</p>
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '0 0 24px', lineHeight: 1.6 }}>At least 12 characters — a short sentence works well. Stored only as a one-way hash.</p>
         <form onSubmit={handleChange} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <FormRow label="New Passcode"><input style={INPUT} type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="Enter new passcode" /></FormRow>
           <FormRow label="Confirm Passcode"><input style={INPUT} type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Repeat new passcode" /></FormRow>

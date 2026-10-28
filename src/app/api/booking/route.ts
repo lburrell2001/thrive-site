@@ -5,6 +5,7 @@ import { serviceClient } from '@/lib/adminAuth';
 import { BookingError, availability, bookSchema, createBooking } from '@/lib/booking';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { cleanAnonId, trackConversion } from '@/lib/opinly';
+import { allow } from '@/lib/rateLimit';
 
 function fail(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -29,7 +30,8 @@ export async function GET() {
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error) {
-    return fail(error instanceof Error ? error.message : 'Booking is unavailable', 503);
+    console.error('Booking availability failed:', error);
+    return fail('Booking is unavailable right now', 503);
   }
 }
 
@@ -37,6 +39,11 @@ export async function POST(req: Request) {
   const raw = await req.json().catch(() => null);
   const parsed = bookSchema.safeParse(raw);
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? 'Please check the form');
+
+  // Each booking emails an invite and texts Lauren, and holds a slot: cap it.
+  if (!(await allow(serviceClient(), req, 'booking', 3, 60 * 60_000))) {
+    return fail('Too many bookings from this connection — please try again later, or use the contact form.', 429);
+  }
 
   try {
     const result = await createBooking(serviceClient(), parsed.data, resolveSiteOrigin(req), req.headers.get('host'));

@@ -11,7 +11,7 @@
 .h2 {
   margin: 0 0 32px;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(32px, 4.6vw, 60px);
+  font-size: clamp(26px, 3.68vw, 48px);
   font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 0.98;
@@ -45,14 +45,14 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-  gap: 56px;
+  gap: 73px;
   align-items: center;
   padding: 72px max(48px, calc((100% - 1240px) / 2)) 96px;
 }
 .h1 {
   margin: 0;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(38px, 4.6vw, 68px);
+  font-size: clamp(30px, 3.68vw, 54px);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 0.92;
@@ -73,7 +73,7 @@
 .workGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-  gap: 48px;
+  gap: 62px;
   align-items: center;
 }
 .workPrint {
@@ -91,7 +91,7 @@
 .workTitle {
   margin: 0 0 16px;
   font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: clamp(26px, 2.8vw, 38px);
+  font-size: clamp(21px, 2.24vw, 30px);
   font-weight: 400;
   line-height: 1;
   text-transform: uppercase;
@@ -99,7 +99,7 @@
 .workP { margin: 0 0 14px; font-size: 17px; line-height: 1.65; color: #ddd; }
 .also {
   max-width: 760px;
-  margin: 56px 0 0;
+  margin: 91px 0 0;
   padding-top: 28px;
   border-top: 2px dashed rgba(255,255,255,.3);
   font-size: 17px;
@@ -128,18 +128,18 @@
 .polaroid figcaption { padding: 12px 2px 14px; text-align: center; font-style: italic; font-weight: 600; font-size: 15px; }
 
 /* ── SERVICES: one section each ── */
-.services { padding: 24px max(48px, calc((100% - 1240px) / 2)) 96px; display: grid; gap: 72px; }
+.services { padding: 24px max(48px, calc((100% - 1240px) / 2)) 96px; display: grid; gap: 94px; }
 .service {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 48px;
-  padding-top: 40px;
+  gap: 62px;
+  padding-top: 65px;
   border-top: 6px solid var(--tone);
 }
 .pink { --tone: #e50586; }
 .orange { --tone: #fd6100; }
 .green { --tone: #0cf574; }
-.service .h2 { margin: 0; font-size: clamp(30px, 3.6vw, 48px); }
+.service .h2 { margin: 0; font-size: clamp(24px, 2.88vw, 38px); }
 .serviceBody p { margin: 0 0 16px; font-size: 17px; line-height: 1.7; color: #333; }
 .serviceBody a, .priceMore, .story a {
   color: #0a0a0a; font-weight: 700;
@@ -149,7 +149,7 @@
 
 /* ── PRICING ── */
 .pricing { padding: 96px max(48px, calc((100% - 1240px) / 2)); background: #f5f4f2; }
-.priceGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; align-items: start; }
+.priceGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; align-items: start; }
 .priceCard { padding: 26px 26px 22px; background: #fff; }
 .priceGroup {
   margin: 0 0 14px;
@@ -181,26 +181,26 @@
 /* ── tablet ── */
 @media (max-width: 1023px) {
   .hero, .workGrid, .service { grid-template-columns: 1fr; }
-  .hero { gap: 48px; padding-top: 56px; }
-  .service { gap: 20px; }
+  .hero { gap: 62px; padding-top: 91px; }
+  .service { gap: 26px; }
   .priceGrid { grid-template-columns: 1fr; max-width: 560px; }
   .polaroid { width: min(100%, 340px); }
 }
 
 /* ── phone ── */
 @media (max-width: 767px) {
-  .hero, .work, .story, .pricing, .faq { padding: 56px 20px; }
-  .services { padding: 8px 20px 56px; gap: 48px; }
-  .hero { padding-top: 40px; gap: 40px; }
+  .hero, .work, .story, .pricing, .faq { padding: 91px 20px; }
+  .services { padding: 8px 20px 91px; gap: 62px; }
+  .hero { padding-top: 65px; gap: 52px; }
   .lead { font-size: 17px; }
   .polaroid { box-shadow: 6px 6px 0 #000; }
   .workPrint { box-shadow: 6px 6px 0 #e50586; padding: 6px; }
-  .also { margin-top: 40px; }
+  .also { margin-top: 65px; }
   .h2 { margin-bottom: 24px; }
 }
 
 /* service heading with a real project photo under it */
-.serviceHead { display: grid; gap: 28px; align-content: start; }
+.serviceHead { display: grid; gap: 36px; align-content: start; }
 .servicePhoto {
   display: block;
   width: min(100%, 300px);
@@ -235,7 +235,7 @@
 .storyToggle:active { translate: 4px 4px; box-shadow: none; }
 
 @media (max-width: 1023px) {
-  .serviceHead { grid-template-columns: minmax(0, 1fr) 160px; align-items: start; gap: 20px; }
+  .serviceHead { grid-template-columns: minmax(0, 1fr) 160px; align-items: start; gap: 26px; }
   .servicePhoto { width: 100%; padding: 5px 5px 0; box-shadow: 4px 4px 0 var(--tone); }
   .servicePhoto span { font-size: 11.5px; padding: 6px 2px 7px; }
 }
@@ -245,7 +245,7 @@
 
 /* wide screens: heading | text | photo in one row, so the photo doesn't leave a gap under short copy */
 @media (min-width: 1024px) {
-  .service { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr) 230px; gap: 44px; align-items: start; }
+  .service { grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr) 230px; gap: 57px; align-items: start; }
   .serviceHead { display: contents; }
   .service .h2 { grid-column: 1; grid-row: 1; }
   .serviceBody { grid-column: 2; grid-row: 1; }

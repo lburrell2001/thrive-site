@@ -192,19 +192,19 @@ const NEXT_CSS = `
   /* ── S9 NEXT PROJECT ── */
   .wp-next {
     background: #fff;
-    padding: 64px 80px;
+    padding: 104px 96px;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 32px;
+    gap: 42px;
     flex-wrap: wrap;
     border-top: 1px solid rgba(0,0,0,0.08);
   }
   .wp-next-left {}
   .wp-next-title {
     font-family: var(--font-bungee, 'Bungee', sans-serif);
-    font-size: clamp(28px, 4vw, 48px);
+    font-size: clamp(22px, 3.2vw, 38px);
     letter-spacing: -0.03em;
     line-height: 1;
     margin: 0 0 8px;
@@ -229,7 +229,7 @@ const NEXT_CSS = `
   }
   .wp-next-btn:hover { opacity: 0.88; transform: scale(1.03); }
 
-  @media (max-width: 767px) { .wp-next { padding: 48px 24px; } }
+  @media (max-width: 767px) { .wp-next { padding: 78px 24px; } }
 `;
 
 const ACCENT_COLORS = ["#e50586", "#fd6100", "#0cf574", "#1e3ade"];
@@ -424,7 +424,7 @@ export default async function ProjectSlugPage({
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
-          padding: 0 80px 64px;
+          padding: 0 96px 104px;
           box-sizing: border-box;
           overflow: hidden;
         }
@@ -488,7 +488,7 @@ export default async function ProjectSlugPage({
         }
         .wp-hero-title {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: clamp(40px, 6vw, 72px);
+          font-size: clamp(32px, 4.8vw, 58px);
           color: #fff;
           letter-spacing: -0.03em;
           line-height: 1;
@@ -526,7 +526,7 @@ export default async function ProjectSlugPage({
           min-height: 96px;
           display: flex;
           align-items: center;
-          padding: 0 80px;
+          padding: 0 96px;
           box-sizing: border-box;
           gap: 0;
           border-top: 1px solid rgba(255,255,255,0.08);
@@ -563,14 +563,14 @@ export default async function ProjectSlugPage({
           background: #fff;
           display: grid;
           grid-template-columns: 1fr 420px;
-          gap: 64px;
-          padding: 80px 80px;
+          gap: 83px;
+          padding: 130px 96px;
           box-sizing: border-box;
           align-items: start;
         }
         .wp-overview-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: clamp(36px, 5vw, 52px);
+          font-size: clamp(29px, 4vw, 42px);
           letter-spacing: -0.04em;
           line-height: 1;
           margin: 0 0 24px;
@@ -595,7 +595,7 @@ export default async function ProjectSlugPage({
         .wp-stats-card-body {
           padding: 32px;
           display: grid;
-          gap: 28px;
+          gap: 36px;
         }
         .wp-stat-row {
           display: flex;
@@ -607,7 +607,7 @@ export default async function ProjectSlugPage({
         .wp-stat-row:last-child { border-bottom: none; padding-bottom: 0; }
         .wp-stat-value {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: 38px;
+          font-size: 30px;
           color: #e50586;
           letter-spacing: -0.02em;
           line-height: 1;
@@ -674,20 +674,20 @@ export default async function ProjectSlugPage({
         /* ── S5 DELIVERABLES ── */
         .wp-deliv {
           background: #f5f0eb;
-          padding: 80px;
+          padding: 130px 96px;
           box-sizing: border-box;
         }
         .wp-deliv-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: clamp(36px, 5vw, 52px);
+          font-size: clamp(29px, 4vw, 42px);
           letter-spacing: -0.04em;
           line-height: 1;
-          margin: 0 0 48px;
+          margin: 0 0 78px;
         }
         .wp-deliv-grid {
           display: grid;
           grid-template-columns: repeat(4, 1fr);
-          gap: 20px;
+          gap: 26px;
         }
         .wp-deliv-card {
           overflow: hidden;
@@ -726,11 +726,11 @@ export default async function ProjectSlugPage({
         /* ── S7 TESTIMONIAL ── */
         .wp-testi {
           background: #0a0a0a;
-          padding: 80px;
+          padding: 130px 96px;
           box-sizing: border-box;
           display: flex;
           align-items: flex-start;
-          gap: 32px;
+          gap: 42px;
         }
         .wp-testi-bar {
           width: 6px;
@@ -763,11 +763,11 @@ export default async function ProjectSlugPage({
         /* ── S8 MORE WORK ── */
         .wp-more {
           background: #f1f0ee;
-          padding: 40px 80px;
+          padding: 65px 96px;
           box-sizing: border-box;
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 31px;
           flex-wrap: wrap;
         }
         .wp-more-label {
@@ -797,23 +797,23 @@ export default async function ProjectSlugPage({
 
         /* ── TABLET ── */
         @media (max-width: 960px) {
-          .wp-hero { padding: 0 48px 56px; }
-          .wp-meta { padding: 0 48px; }
-          .wp-overview { padding: 60px 48px; grid-template-columns: 1fr 360px; gap: 40px; }
-          .wp-deliv { padding: 60px 48px; }
+          .wp-hero { padding: 0 58px 91px; }
+          .wp-meta { padding: 0 58px; }
+          .wp-overview { padding: 98px 58px; grid-template-columns: 1fr 360px; gap: 52px; }
+          .wp-deliv { padding: 98px 58px; }
           .wp-deliv-grid { grid-template-columns: repeat(2, 1fr); }
-          .wp-testi { padding: 60px 48px; }
-          .wp-more { padding: 32px 48px; }
-          .wp-next { padding: 48px 48px; }
+          .wp-testi { padding: 98px 58px; }
+          .wp-more { padding: 32px 58px; }
+          .wp-next { padding: 78px 58px; }
         }
 
         /* ── MOBILE ── */
         @media (max-width: 767px) {
-          .wp-hero { padding: 0 24px 48px; min-height: 480px; }
+          .wp-hero { padding: 0 24px 78px; min-height: 480px; }
           .wp-meta { padding: 0 24px; }
           .wp-meta-item { min-width: 50%; border-right: none; padding: 16px 0; padding-left: 0; }
           .wp-meta-item:last-child { padding-left: 0; }
-          .wp-overview { grid-template-columns: 1fr; padding: 56px 24px; gap: 40px; }
+          .wp-overview { grid-template-columns: 1fr; padding: 91px 24px; gap: 52px; }
           .wp-imgrid-solo { height: 300px; }
           .wp-imgrid-two,
           .wp-imgrid-three,
@@ -826,12 +826,12 @@ export default async function ProjectSlugPage({
           .wp-imgrid-three .wp-ig-right { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
           .wp-imgrid-many { grid-auto-rows: 240px; }
           .wp-imgrid-many .wp-ig-cover { grid-row: span 1; }
-          .wp-deliv { padding: 56px 24px; }
+          .wp-deliv { padding: 91px 24px; }
           .wp-deliv-grid { grid-template-columns: 1fr 1fr; }
           .wp-fullimg { height: 240px; }
-          .wp-testi { padding: 56px 24px; }
+          .wp-testi { padding: 91px 24px; }
           .wp-more { padding: 32px 24px; }
-          .wp-next { padding: 48px 24px; }
+          .wp-next { padding: 78px 24px; }
         }
         @media (max-width: 480px) {
           .wp-deliv-grid { grid-template-columns: 1fr; }

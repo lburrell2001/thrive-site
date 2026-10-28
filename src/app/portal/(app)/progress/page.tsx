@@ -212,7 +212,9 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
   async function handlePay(inv: DbInvoice) {
     setPayingId(inv.id); setPayError('');
     try {
-      const res  = await fetch('/api/portal/stripe', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoiceId: inv.id, amount: inv.amount_cents / 100, description: `Invoice ${inv.invoice_number} — ${proj.name}` }) });
+      const { data: { session } } = await supabasePortal.auth.getSession();
+      if (!session) { setPayError('Please sign in again.'); return; }
+      const res  = await fetch('/api/portal/stripe', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ invoiceId: inv.id }) });
       const data = await res.json() as { url?: string; error?: string };
       if (!res.ok || !data.url) { setPayError(data.error ?? 'Payment error'); return; }
       window.location.href = data.url;

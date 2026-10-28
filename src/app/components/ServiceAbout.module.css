@@ -1,13 +1,13 @@
 .about {
   background: #fff;
-  padding: 80px;
+  padding: 130px 96px;
   box-sizing: border-box;
 }
 
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 48px;
+  gap: 62px;
   align-items: start;
 }
 
@@ -60,11 +60,11 @@
 }
 
 @media (max-width: 960px) {
-  .about { padding: 60px 48px; }
-  .grid { grid-template-columns: 1fr; gap: 28px; }
+  .about { padding: 98px 58px; }
+  .grid { grid-template-columns: 1fr; gap: 36px; }
 }
 
 @media (max-width: 767px) {
-  .about { padding: 60px 24px; }
+  .about { padding: 98px 24px; }
   .copy p { font-size: 16px; }
 }

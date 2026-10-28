@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { serviceClient } from '@/lib/adminAuth';
 import { NewsletterError, requestSubscription } from '@/lib/newsletter';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
+import { allow } from '@/lib/rateLimit';
 
 const schema = z.object({
   email: z.string().trim().toLowerCase().email('Enter a valid email'),
@@ -22,6 +23,8 @@ export async function POST(req: Request) {
     if (honeypot) return NextResponse.json({ ok: true });
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Enter a valid email' }, { status: 400 });
   }
+  // Answers like a success so the limit can't be used to probe who is subscribed.
+  if (!(await allow(serviceClient(), req, 'newsletter', 5, 10 * 60_000))) return NextResponse.json({ ok: true });
   try {
     await requestSubscription(serviceClient(), { email: parsed.data.email, name: parsed.data.name, source: 'footer' }, resolveSiteOrigin(req));
     return NextResponse.json({ ok: true });
