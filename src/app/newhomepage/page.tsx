@@ -33,6 +33,9 @@ const SPOTS: Record<string, string> = {
   photography: "spotPhoto",
 };
 
+// "color" in the headline, one brand colour per letter.
+const COLOR: [string, string][] = [["c", "cPink"], ["o", "cOrange"], ["l", "cGreen"], ["o", "cBlue"], ["r", "cPink"]];
+
 export default function NewHomePage() {
   useEffect(() => {
     let raf: number;
@@ -62,14 +65,26 @@ export default function NewHomePage() {
 
       {/* ── HERO ── */}
       <section className={styles.hero}>
-        <span className={`${styles.gh} ${styles.ghA}`}        data-hx="-0.08">A</span>
-        <span className={`${styles.gh} ${styles.ghFull}`}     data-py="0.12">FULL</span>
-        <span className={`${styles.gh} ${styles.ghService}`}  data-hx="0.10">SERVICE</span>
-        <span className={`${styles.gh} ${styles.ghCreative}`} data-hx="-0.06">CREATIVE</span>
-        <span className={`${styles.gh} ${styles.ghAgency}`}   data-hx="0.08">AGENCY</span>
+        <span className={`${styles.gh} ${styles.ghA}`}        data-hx="-0.08">COLOR</span>
+        <span className={`${styles.gh} ${styles.ghFull}`}     data-py="0.12">SOUL</span>
+        <span className={`${styles.gh} ${styles.ghService}`}  data-hx="0.10">STORY</span>
+        <span className={`${styles.gh} ${styles.ghCreative}`} data-hx="-0.06">CULTURE</span>
+        <span className={`${styles.gh} ${styles.ghAgency}`}   data-hx="0.08">BOLD</span>
         <div className={styles.heroWordmark}>
-          <img src="/new-thrive/logo.svg" alt="Thrive" className={styles.heroThrive} />
-          <p className={styles.heroKicker}>Full-service creative agency · Dallas, TX</p>
+          <h1 className={styles.heroH1}>
+            <span>Design went <span className={styles.beige}>beige.</span></span>
+            <span>We brought the</span>
+            <span>
+              <span className={styles.color}>
+                {COLOR.map(([ch, c], i) => <span key={i} className={styles[c]}>{ch}</span>)}
+              </span>{" "}
+              back.
+            </span>
+          </h1>
+          <p className={styles.heroSub}>
+            We&apos;re a Dallas studio for brands with a real story. Branding, web, social media and photography, all
+            under one roof.
+          </p>
         </div>
 
         {/* Mobile only: a full-screen hero with the services scattered around the logo as patches */}

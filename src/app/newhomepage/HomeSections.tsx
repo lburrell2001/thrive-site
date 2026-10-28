@@ -35,13 +35,25 @@ export type HomeService = {
 // Same colours as the hero stickers, so each service keeps its colour down the page.
 const SERVICE_TONES = [s.toPink, s.toGreen, s.toOrange, s.toBlue, s.toBlack];
 
-const TAPE = "THRIVE CREATIVE STUDIOS ✦ BOLD BRANDING ✦ WEB DEVELOPMENT ✦ UX DESIGN ✦ SOCIAL MEDIA ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ BUILT FOR THE BOLD ✦ ";
+const TAPE = "BRING THE COLOR BACK ✦ BRANDING ✦ WEB DEVELOPMENT ✦ SOCIAL MEDIA ✦ UX/UI DESIGN ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ NO BEIGE HERE ✦ ";
 
 const STEPS = [
   { title: "Listen", text: "We start by listening. Deep dives into your brand, your audience, your goals — and the story only you can tell." },
-  { title: "Strategize", text: "Strategy first. We build a creative brief and direction that becomes the north star for every decision we make." },
+  { title: "Strategize", text: "Strategy first. You get a written proposal with the scope, timeline and price before any work begins." },
   { title: "Create", text: "This is where we create. Bold concepts, refined execution, and relentless attention to every detail." },
   { title: "Launch & grow", text: "Launch-ready deliverables — and ongoing partnership to keep your brand growing long after handoff." },
+];
+
+const BELIEFS = [
+  { line: "Color isn't clutter.", text: "Color is how people feel your brand before they read a word. We use it on purpose." },
+  { line: "Bold isn't unprofessional.", text: "You can be taken seriously and still look like yourself. Those were never at odds." },
+  { line: "Blending in was never the magic.", text: "The brands people remember are the ones that didn't play it safe. Yours should be one of them." },
+];
+
+const ONE_STUDIO = [
+  { title: "We design and build", text: "No handing a mockup to a stranger and hoping it survives. The people who design your site are the people who build it." },
+  { title: "One team owns it", text: "One team knows your brand inside out, from the first logo sketch to the hundredth post." },
+  { title: "It all matches", text: "Your colors, your voice and your story carry from your business card to your homepage to your feed." },
 ];
 
 const QUOTES = [
@@ -71,17 +83,34 @@ export function TapeStrip() {
   );
 }
 
-/** Tape strip, about and services — sits between the hero and the work reel. */
+/** Tape strip, beliefs, who we're for, services and why one studio — between the hero and the work reel. */
 export function HomeIntro({ services }: { services: HomeService[] }) {
   const ref = useReveal<HTMLDivElement>();
   return (
     <div className={s.wrap} ref={ref}>
       <TapeStrip />
 
-      {/* ── ABOUT ── */}
+      {/* ── WHAT WE BELIEVE ── */}
+      <section className={s.beliefs}>
+        <h2 className={`${s.sectionH} ${s.reveal}`}>What we believe</h2>
+        <p className={`${s.lede} ${s.reveal}`}>
+          Somewhere along the way, design got quiet. Beige, minimal, safe — until every brand looked like every other
+          brand. We think that&apos;s a loss, and we&apos;re here to undo it.
+        </p>
+        <ol className={s.beliefList}>
+          {BELIEFS.map((b, i) => (
+            <li key={b.line} className={`${s.belief} ${SERVICE_TONES[i]} ${s.reveal}`}>
+              <h3 className={s.beliefLine}>{b.line}</h3>
+              <p className={s.beliefText}>{b.text}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ── WHO WE'RE FOR ── */}
       <section className={s.about}>
         <h2 className={`${s.aboutH} ${s.reveal}`}>
-          We do <span className={s.almost}>almost</span> everything
+          For the founder who&apos;s <span className={s.almost}>still</span> in it
         </h2>
 
         <figure className={`${s.polaroid} ${s.reveal}`}>
@@ -92,24 +121,41 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
           <span className={`${s.badge} ${s.badgeOrange} ${s.badgeB}`}>Dallas<br />TX</span>
         </figure>
 
-        <p className={`${s.aboutP} ${s.reveal}`}>
-          Thrive Creative Studios is a full-service creative agency rooted in representation. We exist because Black
-          creatives — especially Black women — have always been forces in the creative world, but not always given the
-          seat, the stage, or the spotlight they deserve. <strong>So we built the room ourselves.</strong>
-          <span className={s.roots}>
+        <div className={`${s.aboutP} ${s.reveal}`}>
+          <p>
+            We work with founder-led brands — the ones where there&apos;s still a real person behind the business. Small,
+            mission-driven, and often Black-owned and women-owned. You started this for a reason, and your brand should
+            look like that reason.
+          </p>
+          <p>
+            Black creatives — especially Black women — have always been forces in the creative world, but not always
+            given the seat, the stage, or the spotlight they deserve. <strong>So we built the room ourselves.</strong>
+          </p>
+          <p className={s.roots}>
             We&apos;re based in Dallas, with <Link href="/amarillo-web-design">roots in Amarillo</Link> — our founder&apos;s
             hometown, where we built the website for the{" "}
             <Link href="/work/classic-rollers-car-club">Classic Rollers Car Club</Link>.
-          </span>
+          </p>
+        </div>
+      </section>
+
+      {/* ── NOT FOR EVERYONE ── */}
+      <section className={s.notFor}>
+        <h2 className={`${s.notForH} ${s.reveal}`}>
+          We&apos;re <span>not</span> for everyone.
+        </h2>
+        <p className={`${s.notForP} ${s.reveal}`}>
+          If your business doesn&apos;t have a story, or it got so big the soul left the building, we&apos;re not your
+          studio. No hard feelings — there&apos;s no shortage of people who&apos;ll make you look like everyone else.
         </p>
       </section>
 
       {/* ── SERVICES ── */}
       <section className={s.services} id="services">
-        <h2 className={s.sectionH}>Our services</h2>
+        <h2 className={s.sectionH}>What we do</h2>
         <p className={s.lede}>
-          Whether you need a quick turnaround brand identity or the whole dream creative experience, we&apos;ll build you
-          something bold, strategic, and fun to show off.
+          Branding, web development, social media, UX/UI design and photography — everything a brand with a story needs
+          to show up in full color.
         </p>
 
         <div className={s.stack}>
@@ -138,6 +184,24 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
                 <span className={s.cardBtn}>Gimme the details →</span>
               </div>
             </a>
+          ))}
+        </div>
+      </section>
+
+      {/* ── WHY ONE STUDIO ── */}
+      <section className={s.oneStudio}>
+        <h2 className={`${s.sectionH} ${s.reveal}`}>One studio. The whole brand.</h2>
+        <p className={`${s.lede} ${s.reveal}`}>
+          Most brands get pieced together: a logo from one person, a website from another, social from whoever&apos;s
+          free. That&apos;s how a business ends up looking like three different businesses. With us, the same team
+          does all of it, so everything looks like it came from the same place — because it did.
+        </p>
+        <div className={s.oneGrid}>
+          {ONE_STUDIO.map((w, i) => (
+            <div key={w.title} className={`${s.oneCard} ${[s.toPink, s.toOrange, s.toGreen][i]} ${s.reveal}`}>
+              <h3>{w.title}</h3>
+              <p>{w.text}</p>
+            </div>
           ))}
         </div>
       </section>
@@ -206,11 +270,11 @@ export function ClosingCta() {
       </a>
 
       <h2 className={s.ctaH}>
-        <span>Let&apos;s build</span>
-        <span>something</span>
-        <span className={s.ctaBold}>bold.</span>
+        <span>Let&apos;s bring</span>
+        <span>the <span className={s.ctaBold}>color</span></span>
+        <span>back.</span>
       </h2>
-      <p className={s.ctaP}>Tell us what you&apos;re dreaming up — we&apos;ll take it from there.</p>
+      <p className={s.ctaP}>Tell us your story — we&apos;ll show you what it looks like in full color.</p>
       <a href="/contact" className={s.ctaBtn}>Start a project →</a>
       <a href="mailto:hello@thrivecreativestudios.org" className={s.ctaMail}>or email hello@thrivecreativestudios.org</a>
     </section>

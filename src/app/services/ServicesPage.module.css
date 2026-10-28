@@ -139,6 +139,17 @@
 .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--bg), 0 1px 0 2px #000; }
 
 /* ── WHY THRIVE ── */
+/* proposal first: a blue sticker band */
+.proposal {
+  margin: 48px 16px 8px; padding: 34px 22px;
+  background: #3b43af; color: #fff;
+  border: 3px solid #000; border-radius: 22px;
+  box-shadow: 0 6px 0 #000;
+  rotate: -.8deg;
+}
+.proposal .sectionH { font-size: clamp(28px, 8.4vw, 40px); }
+.proposal p { margin: 16px 0 0; font-size: 17px; line-height: 1.55; font-weight: 600; text-wrap: balance; }
+
 .why { padding: 40px 20px 72px; }
 .whyGrid { display: grid; gap: 20px; margin-top: 28px; }
 .whyCard {
@@ -187,6 +198,12 @@
   .price { font-size: 21px; }
   .desc { font-size: 18px; }
 
+  .proposal {
+    margin: 72px auto 16px; max-width: 1000px; padding: 52px 56px;
+    border-width: 4px; border-radius: 28px; box-shadow: 0 9px 0 #000;
+  }
+  .proposal .sectionH { font-size: clamp(36px, 3.8vw, 54px); }
+  .proposal p { font-size: 20px; max-width: 760px; }
   .why { padding-top: 56px; padding-bottom: 110px; }
   .whyGrid { grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 44px; }
   .whyCard { padding: 32px 28px; }

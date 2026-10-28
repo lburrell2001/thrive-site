@@ -14,6 +14,7 @@
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
   font-size: clamp(34px, 11vw, 48px); line-height: .95; letter-spacing: -0.03em;
   text-transform: uppercase;
+  text-wrap: balance;
 }
 .lede {
   margin: 14px 0 0;
@@ -81,10 +82,51 @@
 .badgeB { bottom: 34px; left: -30px; transform: rotate(-12deg); }
 
 .aboutP { margin: 34px 0 0; font-size: 17px; line-height: 1.6; color: #222; }
+.aboutP p { margin: 0; }
+.aboutP p + p { margin-top: 16px; }
 .aboutP strong { font-weight: 700; background: linear-gradient(transparent 60%, #0cf574 60%); }
-.roots { display: block; margin-top: 16px; }
 .roots a { color: inherit; font-weight: 700; text-decoration: underline; text-decoration-color: #e50586; text-decoration-thickness: 3px; text-underline-offset: 3px; }
 .roots a:hover { color: #e50586; }
+
+/* ── WHAT WE BELIEVE: three big stickers ── */
+.beliefs { padding: 56px 20px 24px; }
+.beliefList { list-style: none; margin: 30px 0 0; padding: 0; display: flex; flex-direction: column; gap: 22px; }
+.belief {
+  background: var(--bg); color: var(--fg);
+  border: 2px solid #000; border-radius: 22px;
+  box-shadow: 0 6px 0 #000;
+  padding: 22px 20px 24px;
+}
+.belief:nth-child(1) { rotate: -1.5deg; }
+.belief:nth-child(2) { rotate: 1.2deg; }
+.belief:nth-child(3) { rotate: -.8deg; }
+.beliefLine {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(22px, 7.4vw, 34px); line-height: 1; letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+.beliefText { margin: 12px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
+
+/* ── NOT FOR EVERYONE: a black band ── */
+.notFor {
+  padding: 56px 20px;
+  background: #0a0a0a; color: #fff;
+  border-top: 3px solid #000; border-bottom: 3px solid #000;
+  text-align: center;
+}
+.notForH {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: clamp(36px, 11.5vw, 52px); line-height: .95; letter-spacing: -0.03em;
+  text-transform: uppercase;
+}
+.notForH span {
+  display: inline-block; padding: 0 .16em .04em;
+  background: #fd6100; color: #000;
+  border-radius: .14em; transform: rotate(-3deg);
+}
+.notForP { margin: 22px auto 0; max-width: 560px; font-size: 17px; line-height: 1.55; color: #ddd; text-wrap: balance; }
 
 /* ── SERVICES: cards that stack as you scroll ── */
 .services { padding: 24px 16px 48px; }
@@ -133,6 +175,22 @@
   border: 2px solid #000;
 }
 .toBlack .cardBtn { border-color: #fff; }
+
+/* ── WHY ONE STUDIO ── */
+.oneStudio { padding: 24px 20px 64px; }
+.oneGrid { margin-top: 28px; display: flex; flex-direction: column; gap: 18px; }
+.oneCard {
+  background: var(--bg); color: var(--fg);
+  border: 2px solid #000; border-radius: 22px;
+  box-shadow: 0 6px 0 #000;
+  padding: 22px 20px;
+}
+.oneCard h3 {
+  margin: 0;
+  font-family: var(--font-bungee), sans-serif; font-weight: 400;
+  font-size: 22px; line-height: 1.05; text-transform: uppercase;
+}
+.oneCard p { margin: 10px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
 
 /* ── PROCESS: a stitched timeline ── */
 .process { padding: 64px 20px 56px; }
@@ -231,13 +289,14 @@
   text-shadow: 3px 3px 0 #000;
 }
 .ctaBold {
+  display: inline-block;
   margin-top: 10px; padding: 4px 16px 6px;
   background: #0cf574; color: #000; text-shadow: none;
   border: 3px solid #000; border-radius: 14px;
   box-shadow: 0 5px 0 #000;
   transform: rotate(-3deg);
 }
-.ctaP { margin: 26px auto 0; max-width: 300px; font-size: 17px; line-height: 1.5; font-weight: 600; }
+.ctaP { margin: 26px auto 0; max-width: 300px; font-size: 17px; line-height: 1.5; font-weight: 600; text-wrap: balance; }
 .ctaBtn {
   display: block; margin-top: 26px;
   background: #000; color: #fff; text-decoration: none;
@@ -264,7 +323,7 @@
 /* ─────────────── TABLETS AND DESKTOPS ─────────────── */
 @media (min-width: 768px) {
   /* sections sit in a 1200px column */
-  .about, .services, .process, .cta { padding-left: max(48px, calc((100% - 1200px) / 2)); padding-right: max(48px, calc((100% - 1200px) / 2)); }
+  .about, .services, .process, .cta, .beliefs, .oneStudio, .notFor { padding-left: max(48px, calc((100% - 1200px) / 2)); padding-right: max(48px, calc((100% - 1200px) / 2)); }
   .sectionH { font-size: clamp(52px, 6vw, 84px); }
   .lede { font-size: 19px; max-width: 640px; }
 
@@ -273,6 +332,30 @@
   .tape { font-size: 24px; padding: 14px 0; }
   .tapeA { top: 24px; transform: rotate(-3deg); }
   .tapeB { top: 86px; transform: rotate(2deg); }
+
+  /* beliefs: one wide band each, the line left and the why right */
+  .beliefs { padding-top: 110px; padding-bottom: 40px; }
+  .beliefList { margin-top: 56px; gap: 30px; }
+  .belief {
+    display: grid; grid-template-columns: 1.5fr 1fr; align-items: center; gap: 48px;
+    padding: 36px 44px; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000;
+  }
+  .belief:nth-child(2) { margin-left: 6%; }
+  .belief:nth-child(3) { margin-right: 6%; }
+  .beliefLine { font-size: clamp(34px, 3.9vw, 58px); }
+  .beliefText { font-size: 19px; margin-top: 0; }
+
+  /* not for everyone */
+  .notFor { padding-top: 96px; padding-bottom: 96px; border-top-width: 4px; border-bottom-width: 4px; }
+  .notForH { font-size: clamp(56px, 7vw, 104px); }
+  .notForP { max-width: 680px; font-size: 20px; margin-top: 30px; }
+
+  /* why one studio */
+  .oneStudio { padding-top: 20px; padding-bottom: 120px; }
+  .oneGrid { margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+  .oneCard { padding: 30px 28px; border-width: 3px; border-radius: 28px; box-shadow: 0 8px 0 #000; }
+  .oneCard h3 { font-size: 26px; }
+  .oneCard p { font-size: 18px; }
 
   /* about: words left, photo right */
   .about {

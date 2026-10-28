@@ -24,16 +24,18 @@ const baiJamjuree = Bai_Jamjuree({
 });
 
 const WHY = [
-  { title: "Rooted in Representation", text: "We build brands that reflect the full richness of culture — not just what's easy or expected.", tone: s.pink },
-  { title: "Strategy First", text: "Every visual decision is backed by real brand strategy — no guessing, no generic templates.", tone: s.orange },
-  { title: "Full-Service Studio", text: "From logo to launch — branding, web, social, photography, all under one roof.", tone: s.green },
+  { title: "Color with a reason", text: "Bold, culturally rooted design that looks like you. Never a template, never beige.", tone: s.pink },
+  { title: "We design and build", text: "The team that designs your brand builds your site and runs your social, so it all fits together.", tone: s.orange },
+  { title: "Founder to founder", text: "We work with founder-led brands that still have a real person behind them. That's who we built this for.", tone: s.green },
 ];
 
-/** The first price list on each service page, minus add-ons: "Starter $750", … */
+/** The first price list on each service page, then its add-ons: "Starter $750", "+ Analytics reporting …" */
 function packagesFor(slug: keyof typeof SERVICE_PRICING) {
-  return (SERVICE_PRICING[slug].sections[0]?.cards ?? [])
-    .filter((c) => !c.name.startsWith("Add-on"))
-    .slice(0, 4);
+  const first = SERVICE_PRICING[slug].sections[0];
+  return [
+    ...(first?.cards ?? []).slice(0, 4),
+    ...(first?.addOns ?? []).map((a) => ({ ...a, name: `+ ${a.name.replace(/^Add-on:\s*/, "")}` })),
+  ];
 }
 
 export default function ServicesPage() {
@@ -45,11 +47,11 @@ export default function ServicesPage() {
         <section className={s.hero}>
           <div className={s.heroText}>
             <h1 className={s.h1}>
-              Everything your brand <span className={s.accent}>needs</span>
+              Everything your brand needs. <span className={s.accent}>None of it beige.</span>
             </h1>
             <p className={s.lede}>
-              From a quick-turnaround brand identity to the whole dream creative experience, we build work that&apos;s
-              bold, strategic, and fun to show off — and that gets you booked.
+              Branding, web development, social media, UX/UI design and photography for founder-led brands with a real
+              story. Designed bold, built by the same team, and priced up front.
             </p>
             <p className={s.where}>In person across DFW, remote across the US.</p>
             <a href="/contact" className={s.heroBtn}>Start a project →</a>
@@ -103,6 +105,15 @@ export default function ServicesPage() {
             </section>
           );
         })}
+
+        {/* ── PROPOSAL FIRST ── */}
+        <section className={s.proposal}>
+          <h2 className={s.sectionH}>Every project starts with a written proposal</h2>
+          <p>
+            Before any work begins, you get the scope, the timeline and the price in writing. No surprises, no
+            guessing what you&apos;re paying for — just a plan we both agree on.
+          </p>
+        </section>
 
         {/* ── WHY THRIVE ── */}
         <section className={s.why}>
