@@ -46,7 +46,9 @@ const nextConfig: NextConfig = {
         // Baseline security headers on every response. The CSP here only sets
         // the directives that can't break third-party scripts (GTM, Opinly,
         // Stripe, Vercel): no framing by other sites, no <base> hijacking, no
-        // plugins, and https for every subresource.
+        // plugins. No upgrade-insecure-requests: Safari applies it to
+        // http://localhost and the dev site loads without CSS; HSTS already
+        // keeps the live site on https.
         source: "/:path*",
         headers: [
           { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
@@ -54,7 +56,7 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), usb=(), browsing-topics=()" },
-          { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'self'; base-uri 'self'; object-src 'none'" },
         ],
       },
       {
