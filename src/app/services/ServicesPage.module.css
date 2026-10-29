@@ -3,8 +3,9 @@
 
 .page { background: #fff; color: #0a0a0a; font-family: var(--font-bai), sans-serif; overflow-x: clip; }
 
-/* service colours */
-.pink   { --bg: #e50586; --fg: #fff; }
+/* service colours (the pink is a shade deeper than the homepage's so white
+   body text on it passes contrast) */
+.pink   { --bg: #d22e84; --fg: #fff; }
 .green  { --bg: #0cf574; --fg: #000; }
 .orange { --bg: #fd6100; --fg: #000; }
 .blue   { --bg: #3b43af; --fg: #fff; }
@@ -73,27 +74,59 @@
 .spot3 { --rot: 7deg;  --scale: 1.04; left: 16%; top: 50%; animation-delay: .56s; }
 .spot4 { --rot: -9deg;                left: 52%; top: 55%; animation-delay: .68s; }
 
-/* ── SERVICE SECTIONS ── */
+/* ── SERVICE SECTIONS: each one a full block of its colour ── */
 .chapter {
-  position: relative;
+  position: relative; overflow: hidden;
   display: grid; gap: 39px;
   padding: 91px 20px;
   scroll-margin-top: 64px;
+  background: var(--bg); color: var(--fg);
+  border-top: 3px solid #000;
 }
+/* halftone dots fading out from one corner */
+.chapter::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(0,0,0,.22) 1.4px, transparent 1.9px);
+  background-size: 13px 13px;
+  -webkit-mask-image: linear-gradient(135deg, #000 0%, transparent 42%);
+  mask-image: linear-gradient(135deg, #000 0%, transparent 42%);
+}
+.flip::before {
+  -webkit-mask-image: linear-gradient(225deg, #000 0%, transparent 42%);
+  mask-image: linear-gradient(225deg, #000 0%, transparent 42%);
+}
+.black::before { background-image: radial-gradient(circle, rgba(255,255,255,.2) 1.4px, transparent 1.9px); }
 .ghostNum {
   position: absolute; top: 18px; right: 10px; z-index: 0;
   font-family: var(--font-bungee), sans-serif; font-size: 150px; line-height: 1;
-  color: var(--bg); opacity: .12;
+  color: var(--fg); opacity: .14;
   pointer-events: none; user-select: none;
 }
 .media {
   position: relative; z-index: 1; display: block;
   aspect-ratio: 4 / 3; border-radius: 22px; overflow: hidden;
   border: 3px solid #000; background: #111;
-  box-shadow: 8px 8px 0 var(--bg), 8px 8px 0 3px #000;
+  box-shadow: 8px 8px 0 #000;
   transform: rotate(-1.5deg);
+  transition: transform .3s cubic-bezier(.34,1.56,.64,1), box-shadow .3s ease;
 }
+.black .media { border-color: #fff; box-shadow: 8px 8px 0 #fff; }
 .flip .media { transform: rotate(1.5deg); }
+.media:hover, .flip .media:hover { transform: rotate(0deg) translateY(-6px); box-shadow: 12px 14px 0 #000; }
+.black .media:hover { box-shadow: 12px 14px 0 #fff; }
+.media img, .media video { transition: scale .5s ease; }
+.media:hover img, .media:hover video { scale: 1.04; }
+/* a star sticker on the photo's corner */
+.star {
+  position: absolute; right: 12px; bottom: 12px;
+  display: grid; place-items: center;
+  width: 54px; aspect-ratio: 1; border-radius: 50%;
+  background: #fff; color: var(--bg);
+  border: 2px solid #000; box-shadow: 0 3px 0 #000;
+  font-size: 28px; line-height: 1;
+  animation: spin 14s linear infinite;
+}
+.black .star { color: #000; }
 .media img, .media video { width: 100%; height: 100%; object-fit: cover; display: block; }
 .num {
   position: absolute; top: 12px; left: 12px;
@@ -104,7 +137,7 @@
   font-family: var(--font-bungee), sans-serif; font-size: 17px;
 }
 .body { position: relative; z-index: 1; }
-.sub { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #555; }
+.sub { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
 .name {
   margin: 8px 0 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
@@ -112,18 +145,20 @@
 }
 .price {
   display: inline-block; margin-top: 16px;
-  background: var(--bg); color: var(--fg);
+  background: #fff; color: #000;
   font-family: var(--font-bungee), sans-serif; font-size: 18px;
   padding: 8px 16px; border-radius: 12px;
   border: 3px solid #000; box-shadow: 0 4px 0 #000;
   transform: rotate(-3deg);
 }
-.desc { margin: 18px 0 0; font-size: 17px; line-height: 1.6; color: #222; }
+.desc { margin: 18px 0 0; font-size: 17px; line-height: 1.6; font-weight: 600; }
 .chips { list-style: none; margin: 18px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .chips li {
   border: 2px solid #000; border-radius: 999px;
-  padding: 7px 13px; font-size: 14px; font-weight: 600; background: #fff;
+  padding: 7px 13px; font-size: 14px; font-weight: 600; background: #fff; color: #000;
+  transition: transform .15s ease;
 }
+.chips li:hover { transform: translateY(-2px) rotate(-1deg); }
 .chips b { font-family: var(--font-bungee), sans-serif; font-weight: 400; margin-left: 4px; }
 .btn {
   display: inline-block; margin-top: 24px;
@@ -131,12 +166,12 @@
   font-family: var(--font-bungee), sans-serif; font-size: 15px;
   padding: 14px 22px; border-radius: 999px;
   border: 2px solid #000;
-  box-shadow: 0 5px 0 var(--bg), 0 5px 0 2px #000;
+  box-shadow: 0 5px 0 #fff, 0 5px 0 2px #000;
   transition: transform .12s ease, box-shadow .12s ease;
 }
-.black .btn { box-shadow: 0 5px 0 #e50586, 0 5px 0 2px #000; }
+.black .btn { background: #fff; color: #000; border-color: #fff; box-shadow: 0 5px 0 #d22e84; }
 .btn:hover  { transform: translateY(-2px); }
-.btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--bg), 0 1px 0 2px #000; }
+.btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #fff, 0 1px 0 2px #000; }
 
 /* ── WHY THRIVE ── */
 /* proposal first: a blue sticker band */
@@ -192,7 +227,9 @@
   /* the big number peeks out from behind the photo, away from the text */
   .ghostNum { font-size: 260px; top: 0; right: auto; left: max(8px, calc((100% - 1340px) / 2)); }
   .flip .ghostNum { left: auto; right: max(8px, calc((100% - 1340px) / 2)); }
-  .media { box-shadow: 12px 12px 0 var(--bg), 12px 12px 0 3px #000; }
+  .media { box-shadow: 12px 12px 0 #000; }
+  .black .media { box-shadow: 12px 12px 0 #fff; }
+  .star { width: 70px; font-size: 36px; right: 16px; bottom: 16px; }
   .num { width: 66px; font-size: 21px; top: 16px; left: 16px; }
   .name { font-size: clamp(35px, 3.68vw, 54px); }
   .price { font-size: 21px; }
@@ -218,6 +255,9 @@
   100% { opacity: 1; transform: rotate(var(--rot)) scale(var(--scale)); }
 }
 
+@keyframes spin { to { rotate: 360deg; } }
+
 @media (prefers-reduced-motion: reduce) {
-  .sticker { animation: none; }
+  .sticker, .star { animation: none; }
 }
+.black .price { box-shadow: 0 4px 0 #d22e84; }

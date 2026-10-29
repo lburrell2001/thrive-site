@@ -6,6 +6,7 @@ import { TapeStrip, ClosingCta } from "../newhomepage/HomeSections";
 import { SHOWCASE } from "@/lib/serviceShowcase";
 import { SERVICE_PRICING } from "@/lib/servicePricing";
 import { storageUrl } from "@/lib/storage";
+import ScrollReveal from "../components/ScrollReveal";
 import s from "./ServicesPage.module.css";
 
 const bungee = Bungee({
@@ -29,12 +30,14 @@ const WHY = [
   { title: "Founder to founder", text: "We work with founder-led brands that still have a real person behind them. That's who we built this for.", tone: s.green },
 ];
 
-/** The first price list on each service page, then its add-ons: "Starter $750", "+ Analytics reporting …" */
+/** The first price list on each service page, its add-ons and any care plans: "Starter $750", "+ Analytics reporting …" */
 function packagesFor(slug: keyof typeof SERVICE_PRICING) {
-  const first = SERVICE_PRICING[slug].sections[0];
+  const [first, ...rest] = SERVICE_PRICING[slug].sections;
+  const care = rest.find((sec) => sec.id === "care")?.cards[0];
   return [
     ...(first?.cards ?? []).slice(0, 4),
     ...(first?.addOns ?? []).map((a) => ({ ...a, name: `+ ${a.name.replace(/^Add-on:\s*/, "")}` })),
+    ...(care ? [{ name: "+ Care plans after launch", price: `from ${care.price}` }] : []),
   ];
 }
 
@@ -50,8 +53,7 @@ export default function ServicesPage() {
               Everything your brand needs. <span className={s.accent}>None of it beige.</span>
             </h1>
             <p className={s.lede}>
-              Branding, web development, social media, UX/UI design and photography for founder-led brands with a real
-              story. Designed bold, built by the same team, and priced up front.
+              We do everything it takes to make your brand look as good as the work behind it — all under one roof.
             </p>
             <p className={s.where}>In person across DFW, remote across the US.</p>
             <a href="/contact" className={s.heroBtn}>Start a project →</a>
@@ -69,7 +71,9 @@ export default function ServicesPage() {
 
         <TapeStrip />
 
-        {/* ── ONE SECTION PER SERVICE ── */}
+        <ScrollReveal />
+
+        {/* ── ONE SECTION PER SERVICE: each a full block of its colour ── */}
         {SHOWCASE.map((svc, i) => {
           const pricing = SERVICE_PRICING[svc.slug];
           const num = String(i + 1).padStart(2, "0");
@@ -77,7 +81,7 @@ export default function ServicesPage() {
             <section key={svc.slug} id={svc.slug} className={`${s.chapter} ${s[svc.tone]} ${i % 2 ? s.flip : ""}`}>
               <span className={s.ghostNum} aria-hidden>{num}</span>
 
-              <a href={svc.href} className={s.media} tabIndex={-1} aria-hidden>
+              <a href={svc.href} className={s.media} tabIndex={-1} aria-hidden data-reveal>
                 {svc.media.type === "video" ? (
                   <video autoPlay muted loop playsInline preload="metadata" poster={svc.media.poster}>
                     <source src={storageUrl(`videos/${svc.media.src}`)} type="video/mp4" />
@@ -87,9 +91,10 @@ export default function ServicesPage() {
                   <img src={svc.media.local ? svc.media.src : storageUrl(svc.media.src)} alt="" loading="lazy" />
                 )}
                 <span className={s.num}>{num}</span>
+                <span className={s.star} aria-hidden>✦</span>
               </a>
 
-              <div className={s.body}>
+              <div className={s.body} data-reveal style={{ "--reveal-delay": "120ms" } as React.CSSProperties}>
                 <h2 className={s.name}>{svc.name}</h2>
                 <span className={s.price}>{pricing.from}</span>
                 <p className={s.desc}>{svc.desc}</p>
@@ -107,11 +112,11 @@ export default function ServicesPage() {
         })}
 
         {/* ── PROPOSAL FIRST ── */}
-        <section className={s.proposal}>
-          <h2 className={s.sectionH}>Every project starts with a written proposal</h2>
+        <section className={s.proposal} data-reveal>
+          <h2 className={s.sectionH}>How we work</h2>
           <p>
-            Before any work begins, you get the scope, the timeline and the price in writing. No surprises, no
-            guessing what you&apos;re paying for — just a plan we both agree on.
+            Every project starts with a written proposal — scope, timeline and price up front. Nothing starts until
+            you&apos;ve agreed to it.
           </p>
         </section>
 
@@ -119,8 +124,8 @@ export default function ServicesPage() {
         <section className={s.why}>
           <h2 className={s.sectionH}>Why Thrive?</h2>
           <div className={s.whyGrid}>
-            {WHY.map((w) => (
-              <div key={w.title} className={`${s.whyCard} ${w.tone}`}>
+            {WHY.map((w, i) => (
+              <div key={w.title} className={`${s.whyCard} ${w.tone}`} data-reveal style={{ "--reveal-delay": `${i * 100}ms` } as React.CSSProperties}>
                 <h3>{w.title}</h3>
                 <p>{w.text}</p>
               </div>

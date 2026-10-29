@@ -2122,3 +2122,11 @@ body {
 .sticker-card:nth-child(5n + 5) { --card-accent: #861dc5; rotate: -.8deg; }
 /* forms and single panels stay straight */
 .sticker-card.flat { rotate: none; }
+
+/* Scroll reveals (components/ScrollReveal.tsx). Uses translate/scale, not
+   transform, so tilted elements keep their tilt. */
+.reveal-ready [data-reveal]:not([data-shown]) { opacity: 0; translate: 0 32px; }
+.reveal-ready [data-reveal] {
+  transition: opacity .6s ease, translate .7s cubic-bezier(.34, 1.56, .64, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}

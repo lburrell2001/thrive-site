@@ -1,245 +1,166 @@
 "use client";
 
-import { useState } from "react";
+// /portfolio: an editorial grid of every project (big and small tiles on a
+// black band), filter pills, a case study teaser and the closing ask. Real
+// projects only — tiles show a colour block until their cover loads.
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Bungee, Bai_Jamjuree } from "next/font/google";
 import PublicLayout from "../components/PublicLayout";
+import ScrollReveal from "../components/ScrollReveal";
 import { projectCoverThumb } from "@/lib/storage";
+import s from "./Portfolio.module.css";
 
 const bungee = Bungee({ weight: "400", subsets: ["latin"], variable: "--font-bungee", display: "swap" });
 const baiJamjuree = Bai_Jamjuree({ weight: ["400", "600", "700"], style: ["normal", "italic"], subsets: ["latin"], variable: "--font-bai", display: "swap" });
 
-type Project = {
-  id: string;
-  title: string;
-  slug: string;
-  category: string | null;
-  tagline: string | null;
-};
+type Project = { id: string; title: string; slug: string; category: string | null; tagline: string | null };
+type CaseStudy = { title: string; slug: string; category: string | null; problem: string; solution: string; results: string };
 
+// Filter tags as stored in projects.category. "Digital Design" there means
+// graphics work, not the web service — keep the label as it is.
 const CATEGORIES = ["All", "Brand Design", "Digital Design", "UX Design", "Social Media", "Photography"];
 
-function matchesFilter(category: string | null, filter: string): boolean {
-  if (!category) return false;
-  return category.split(',').map(s => s.trim()).includes(filter);
+// Palette for tiles and overlays; text colour picked for contrast on each.
+const PALETTE = [
+  { bg: "#d22e84", fg: "#fff" },
+  { bg: "#eb6b2c", fg: "#000" },
+  { bg: "#3b43b0", fg: "#fff" },
+  { bg: "#71f182", fg: "#000" },
+  { bg: "#871dc6", fg: "#fff" },
+];
+const PILL_COLORS: Record<string, string> = {
+  "Brand Design": "#3b43b0", "Digital Design": "#d22e84", "UX Design": "#eb6b2c", "Social Media": "#71f182", Photography: "#871dc6",
+};
+
+const parts = (category: string | null) => (category ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+/** The first part of the category reads as what we made: "Branding · Music". */
+const servicesLine = (category: string | null) => parts(category)[0] ?? "";
+const matches = (category: string | null, filter: string) => filter === "All" || parts(category).includes(filter);
+
+// Desktop layout, 6 columns: rows of [4+2 tall], [2+2+2], [3+3 tall], repeating.
+// A last row that isn't full shares the six columns evenly.
+const ROWS = [{ cols: [4, 2], tall: true }, { cols: [2, 2, 2], tall: false }, { cols: [3, 3], tall: true }];
+function layout(n: number) {
+  const out: { col: number; tall: boolean }[] = [];
+  let r = 0;
+  while (out.length < n) {
+    const row = ROWS[r % ROWS.length];
+    const left = n - out.length;
+    const cols = left >= row.cols.length ? row.cols : Array(left).fill(6 / left);
+    cols.forEach((col) => out.push({ col, tall: row.tall }));
+    r++;
+  }
+  return out;
 }
 
-export default function PortfolioClient({ projects }: { projects: Project[] }) {
-  const [activeFilter, setActiveFilter] = useState("All");
-
-  const filtered =
-    activeFilter === "All"
-      ? projects
-      : projects.filter((p) => matchesFilter(p.category, activeFilter));
+export default function PortfolioClient({ projects, caseStudy }: { projects: Project[]; caseStudy: CaseStudy | null }) {
+  const [filter, setFilter] = useState("All");
+  const shown = useMemo(() => projects.filter((p) => matches(p.category, filter)), [projects, filter]);
+  const spans = layout(shown.length);
 
   return (
     <PublicLayout>
-      <div className={`${bungee.variable} ${baiJamjuree.variable}`}>
-        <style>{`
-          .pf-page { background: #fff; color: #0a0a0a; }
-          .pf-hero {
-            position: relative;
-            padding: 130px 96px 78px;
-            box-sizing: border-box;
-            overflow: hidden;
-          }
-          .pf-ghost {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(100px, 14vw, 200px);
-            color: rgba(0,0,0,.05);
-            position: absolute;
-            top: 10px; left: 0; z-index: 0;
-            pointer-events: none;
-            line-height: 1;
-            white-space: nowrap;
-            user-select: none;
-          }
-          .pf-h1 {
-            position: relative; z-index: 1;
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(38px, 5.6vw, 70px);
-            letter-spacing: -0.04em;
-            line-height: 1;
-            margin: 0;
-          }
-          .pf-filters {
-            padding: 0 96px 78px;
-            display: flex; flex-wrap: wrap; gap: 10px;
-            box-sizing: border-box;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .pf-filters::-webkit-scrollbar { height: 0; }
-          .pf-pill {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 13px;
-            padding: 8px 18px;
-            border-radius: 20px;
-            border: none;
-            cursor: pointer;
-            background: #f1f0ee;
-            color: #808080;
-            white-space: nowrap;
-            transition: background .15s, color .15s, transform .12s;
-          }
-          .pf-pill:hover { transform: scale(1.04); }
-          .pf-pill-active { background: #0a0a0a; color: #fff; }
-          .pf-grid {
-            padding: 0 96px 130px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 31px;
-            box-sizing: border-box;
-          }
-          .pf-card {
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: transform .2s, box-shadow .2s;
-          }
-          .pf-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 32px rgba(0,0,0,0.1);
-          }
-          .pf-card-img {
-            height: 200px;
-            position: relative;
-            display: flex;
-            align-items: flex-end;
-            padding: 12px 16px;
-            box-sizing: border-box;
-          }
-          .pf-card-cat {
-            font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #fff;
-            position: relative; z-index: 1;
-          }
-          .pf-card-body { padding: 20px; }
-          .pf-card-name {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 20px;
-            letter-spacing: -0.02em;
-            margin: 0 0 6px;
-          }
-          .pf-card-sub {
-            font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-            font-size: 13px;
-            color: #808080;
-            margin: 0 0 16px;
-          }
-          .pf-view-btn {
-            display: inline-block;
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 12px;
-            background: #0a0a0a;
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-decoration: none;
-            transition: opacity .15s;
-          }
-          .pf-view-btn:hover { opacity: 0.8; }
-          .pf-empty {
-            padding: 130px 96px;
-            text-align: center;
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 20px;
-            color: #ccc;
-            grid-column: 1 / -1;
-          }
-          .pf-cta {
-            background: #0a0a0a;
-            padding: 65px 96px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-sizing: border-box;
-            flex-wrap: wrap;
-            gap: 31px;
-          }
-          .pf-cta-heading {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: clamp(20px, 2.5vw, 32px);
-            color: #fff;
-            letter-spacing: -0.02em;
-            margin: 0;
-          }
-          .pf-cta-btn {
-            font-family: var(--font-bungee, 'Bungee', sans-serif);
-            font-size: 14px;
-            background: #e50586;
-            color: #fff;
-            padding: 12px 28px;
-            border-radius: 8px;
-            text-decoration: none;
-            white-space: nowrap;
-            transition: opacity .15s, transform .12s;
-          }
-          .pf-cta-btn:hover { opacity: 0.88; transform: scale(1.04); }
-          @media (max-width: 960px) {
-            .pf-hero { padding: 98px 58px 32px; }
-            .pf-filters { padding: 0 58px 36px; }
-            .pf-grid { grid-template-columns: repeat(2, 1fr); padding: 0 58px 98px; }
-            .pf-cta { padding: 36px 58px; }
-          }
-          @media (max-width: 767px) {
-            .pf-hero { padding: 98px 24px 32px; }
-            .pf-ghost { display: none; }
-            .pf-filters { padding: 0 24px 36px; flex-wrap: nowrap; }
-            .pf-grid { grid-template-columns: 1fr; padding: 0 24px 98px; }
-            .pf-cta { padding: 36px 24px; }
-          }
-        `}</style>
+      <div className={`${bungee.variable} ${baiJamjuree.variable} ${s.page}`}>
+        <ScrollReveal />
 
-        <div className="pf-page">
-          <section className="pf-hero">
-            <span className="pf-ghost">WORK</span>
-            <h1 className="pf-h1">CREATIVITY WITHOUT LIMITS.</h1>
+        {/* ── HEADER ── */}
+        <section className={s.hero}>
+          <span className={s.ghost} aria-hidden>WORK</span>
+          <h1 className={s.h1}>
+            Work that refuses to <span className={s.beige}>blend in.</span>
+          </h1>
+          <p className={s.lede}>Brands, websites, apps and content we&apos;ve made — every one built to stand out, never to fit in.</p>
+
+          <div className={s.filters} role="group" aria-label="Filter projects">
+            {CATEGORIES.map((cat) => {
+              const on = filter === cat;
+              const color = PILL_COLORS[cat] ?? "#000";
+              const dark = color === "#71f182" || color === "#eb6b2c";
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  aria-pressed={on}
+                  className={`${s.pill} ${on ? s.pillOn : ""}`}
+                  style={on ? { background: color, color: cat === "All" ? "#fff" : dark ? "#000" : "#fff" } : undefined}
+                  onClick={() => setFilter(cat)}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── GRID ── */}
+        <section className={s.gridBand} aria-label="Projects">
+          {shown.length === 0 ? (
+            <p className={s.empty}>Nothing here yet.</p>
+          ) : (
+            <ul className={s.grid}>
+              {shown.map((p, i) => {
+                const tone = PALETTE[i % PALETTE.length];
+                const { col, tall } = spans[i];
+                return (
+                  <li
+                    key={p.id}
+                    className={s.cell}
+                    data-wide={col >= 4 || undefined}
+                    data-reveal
+                    style={{ "--col": col, "--rows": tall ? 2 : 1, "--reveal-delay": `${(i % 3) * 80}ms` } as React.CSSProperties}
+                  >
+                    <Link href={`/work/${p.slug}`} className={s.tile} style={{ "--tone": tone.bg, "--tone-fg": tone.fg } as React.CSSProperties}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={projectCoverThumb(p.slug, col >= 4 ? 1400 : 900)} alt={`${p.title} — ${servicesLine(p.category) || "project"}`} loading={i < 3 ? "eager" : "lazy"} />
+                      <span className={s.info}>
+                        <span className={s.tileName}>{p.title}</span>
+                        {servicesLine(p.category) && <span className={s.tileServices}>{servicesLine(p.category)}</span>}
+                      </span>
+                      <span className={s.overlay} aria-hidden>
+                        <span className={s.overlayName}>{p.title}</span>
+                        {p.tagline && <span className={s.overlayText}>{p.tagline}</span>}
+                        <span className={s.overlayCue}>View project →</span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* ── CASE STUDY TEASER ── */}
+        {caseStudy && (
+          <section className={s.case} data-reveal>
+            <Link href={`/work/${caseStudy.slug}`} className={s.caseMedia} aria-label={`${caseStudy.title} case study`}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={projectCoverThumb(caseStudy.slug, 1400)} alt="" loading="lazy" />
+              <span className={s.caseStar} aria-hidden>✦</span>
+            </Link>
+            <div className={s.caseBody}>
+              <h2 className={s.caseTitle}>{caseStudy.title}</h2>
+              {servicesLine(caseStudy.category) && <p className={s.caseServices}>{servicesLine(caseStudy.category)}</p>}
+              <ol className={s.steps}>
+                <li><h3>The problem</h3><p>{caseStudy.problem}</p></li>
+                <li><h3>What we made</h3><p>{caseStudy.solution}</p></li>
+                <li><h3>The result</h3><p>{caseStudy.results}</p></li>
+              </ol>
+              <Link href={`/work/${caseStudy.slug}`} className={s.caseBtn}>Read the case study →</Link>
+            </div>
           </section>
+        )}
 
-          <div className="pf-filters" role="group" aria-label="Filter projects">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                className={`pf-pill${activeFilter === cat ? " pf-pill-active" : ""}`}
-                onClick={() => setActiveFilter(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          <div className="pf-grid">
-            {filtered.length === 0 ? (
-              <p className="pf-empty">No projects yet.</p>
-            ) : filtered.map((project) => (
-              <div key={project.id} className="pf-card">
-                <div className="pf-card-img" style={{ background: "#0a0a0a", padding: 0, overflow: "hidden" }}>
-                  <img
-                    src={projectCoverThumb(project.slug, 900)}
-                    alt={project.title}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
-                  <span className="pf-card-cat" style={{ position: "absolute", bottom: 12, left: 16 }}>
-                    {project.category}
-                  </span>
-                </div>
-                <div className="pf-card-body">
-                  <h2 className="pf-card-name">{project.title}</h2>
-                  <p className="pf-card-sub">{project.tagline ?? project.category}</p>
-                  <a href={`/work/${project.slug}`} className="pf-view-btn">VIEW PROJECT →</a>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="pf-cta">
-            <h2 className="pf-cta-heading">READY TO START YOUR PROJECT?</h2>
-            <a href="/contact" className="pf-cta-btn">LET&apos;S TALK →</a>
-          </div>
-        </div>
+        {/* ── CTA ── */}
+        <section className={s.cta}>
+          <h2 className={s.ctaH} data-reveal>
+            Want your brand <span className={s.ctaChip}>in here?</span>
+          </h2>
+          <p className={s.ctaP} data-reveal>Tell us your story — we&apos;ll show you what it looks like in full color.</p>
+          <Link href="/contact" className={s.ctaBtn}>Start a project →</Link>
+          <a href="mailto:hello@thrivecreativestudios.org" className={s.ctaMail}>or email hello@thrivecreativestudios.org</a>
+        </section>
       </div>
     </PublicLayout>
   );
