@@ -111,12 +111,14 @@ export const createActivitySchema = z
       .nullish(),
     /** An Instagram or Facebook DM, sent or received. */
     dm: z.object({ platform: z.enum(DM_PLATFORMS), direction: z.enum(DM_DIRECTIONS) }).nullish(),
+    /** A text from Lauren's Google Voice number, sent or received. */
+    text: z.object({ direction: z.enum(DM_DIRECTIONS) }).nullish(),
     /** A follow-up task to add at the same time. */
     follow_up: z.object({ title: z.string().trim().min(1).max(200), due_date: isoDate.nullish() }).nullish(),
   })
   // A call that went unanswered needs no write-up; anything else does.
-  // A DM's text is optional too: it happened in the app.
-  .refine((a) => a.kind === 'call' || a.kind === 'dm' || a.body.length > 0, { message: 'Write something first', path: ['body'] })
+  // A DM's or text's words are optional too: it happened in the app.
+  .refine((a) => a.kind === 'call' || a.kind === 'dm' || (a.kind === 'text' && a.text) || a.body.length > 0, { message: 'Write something first', path: ['body'] })
   .refine((a) => a.kind !== 'call' || a.call, { message: 'Say how the call went', path: ['call'] })
   .refine((a) => a.kind !== 'dm' || a.dm, { message: 'Pick Instagram or Facebook', path: ['dm'] })
   .refine((a) => !a.at || Date.parse(a.at) <= Date.now() + 5 * 60_000, { message: 'That time is in the future', path: ['at'] });

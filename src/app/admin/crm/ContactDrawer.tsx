@@ -33,6 +33,7 @@ import { runContactAction } from './contactActions';
 import { isRetainer, retainerProgress } from '@/lib/retainer';
 import { LogCallForm } from './LogCallForm';
 import { LogDmForm } from './LogDmForm';
+import { LogTextForm } from './LogTextForm';
 import { facebookLabel, facebookUrl, instagramUrl } from '@/lib/social';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
@@ -108,7 +109,7 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
   const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'overview');
   // Bumped by the header's Log call button to open the call form.
   const [callRequest, setCallRequest] = useState(0);
-  const [logKind, setLogKind] = useState<'call' | 'dm'>('call');
+  const [logKind, setLogKind] = useState<'call' | 'dm' | 'text'>('call');
   const [busy, setBusy] = useState('');
 
   const reload = useCallback(async () => {
@@ -280,6 +281,11 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
                 <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setLogKind('call'); setCallRequest((n) => n + 1); }}>
                   ☏ Log call
                 </button>
+                {c.phone && (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setLogKind('text'); setCallRequest((n) => n + 1); }}>
+                    ✆ Text
+                  </button>
+                )}
                 {(c.instagram || c.facebook) && (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => { setTab('activity'); setLogKind('dm'); setCallRequest((n) => n + 1); }}>
                     💬 Log DM
@@ -373,6 +379,7 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
                     focusDealId={focusDealId ?? null}
                     instagram={c.instagram}
                     facebook={c.facebook}
+                    phone={c.phone}
                     prospect={c.prospect_status === 'prospect'}
                     initialKind={callRequest ? logKind : 'note'}
                     onLogged={async () => { await reload(); onChanged(); }}
@@ -1031,11 +1038,12 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   );
 }
 
-function LogForm({ contactId, contactName, instagram, facebook, prospect, deals, focusDealId, initialKind, onLogged, notify }: {
+function LogForm({ contactId, contactName, instagram, facebook, phone, prospect, deals, focusDealId, initialKind, onLogged, notify }: {
   contactId: string;
   contactName: string;
   instagram: string | null;
   facebook: string | null;
+  phone: string | null;
   prospect: boolean;
   deals: CrmDeal[];
   focusDealId: string | null;
@@ -1085,6 +1093,14 @@ function LogForm({ contactId, contactName, instagram, facebook, prospect, deals,
           defaultDealId={focusDealId}
           autoFocus={initialKind === 'call'}
           onLogged={async () => { notify('Call logged'); await onLogged(); }}
+        />
+      ) : kind === 'text' ? (
+        <LogTextForm
+          contactId={contactId}
+          contactName={contactName}
+          phone={phone}
+          autoFocus={initialKind === 'text'}
+          onLogged={async () => { notify('Text logged'); await onLogged(); }}
         />
       ) : kind === 'dm' ? (
         <LogDmForm

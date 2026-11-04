@@ -19,17 +19,17 @@ export async function loadProspects(db: SupabaseClient): Promise<ProspectRow[]> 
     .select('*')
     .eq('prospect_status', 'prospect')
     .order('prospected_at', { ascending: false, nullsFirst: false })
-    .returns<Omit<ProspectRow, 'emails_sent' | 'last_emailed_at' | 'last_subject' | 'dms_sent' | 'last_dm_at' | 'last_dm_platform'>[]>();
+    .returns<Omit<ProspectRow, 'emails_sent' | 'last_emailed_at' | 'last_subject' | 'dms_sent' | 'last_dm_at' | 'last_dm_platform' | 'texts_sent' | 'last_text_at'>[]>();
   if (error) throw new Error(error.message);
   const people = (rows ?? []).map((p) => ({ ...p, instagram: p.instagram ?? null, facebook: p.facebook ?? null, job_title: p.job_title ?? null }));
   const ids = (people ?? []).map((p) => p.id);
   if (!ids.length) return [];
 
-  // Both kinds of send: one-to-one and to an audience. DMs are logged by hand.
+  // Both kinds of send: one-to-one and to an audience. DMs and texts are logged by hand.
   const [direct, campaigns, dms] = await Promise.all([
     db.from('prospect_emails').select('contact_id, subject, sent_at').in('contact_id', ids).eq('status', 'sent'),
     db.from('newsletter_sends').select('contact_id, sent_at, newsletters ( subject )').in('contact_id', ids).eq('status', 'sent'),
-    db.from('crm_activities').select('contact_id, created_at, metadata').in('contact_id', ids).eq('kind', 'dm'),
+    db.from('crm_activities').select('contact_id, kind, created_at, metadata').in('contact_id', ids).in('kind', ['dm', 'text']),
   ]);
   const stats = new Map<string, { n: number; at: string | null; subject: string | null }>();
   const add = (id: string | null, at: string, subject: string | null) => {
@@ -43,7 +43,15 @@ export async function loadProspects(db: SupabaseClient): Promise<ProspectRow[]> 
   for (const e of campaigns.data ?? []) add(e.contact_id, e.sent_at, (e.newsletters as unknown as { subject: string } | null)?.subject ?? null);
 
   const dmStats = new Map<string, { n: number; at: string; platform: DmPlatform }>();
+  const textStats = new Map<string, { n: number; at: string }>();
   for (const a of dms.data ?? []) {
+    if (a.kind === 'text') {
+      if ((a.metadata as { direction?: string } | null)?.direction !== 'sent') continue;
+      const cur = textStats.get(a.contact_id);
+      if (!cur) textStats.set(a.contact_id, { n: 1, at: a.created_at });
+      else { cur.n += 1; if (a.created_at > cur.at) cur.at = a.created_at; }
+      continue;
+    }
     const dm = readDm(a.metadata);
     if (dm?.direction !== 'sent') continue;
     const cur = dmStats.get(a.contact_id);
@@ -60,6 +68,8 @@ export async function loadProspects(db: SupabaseClient): Promise<ProspectRow[]> 
     dms_sent: dmStats.get(p.id)?.n ?? 0,
     last_dm_at: dmStats.get(p.id)?.at ?? null,
     last_dm_platform: dmStats.get(p.id)?.platform ?? null,
+    texts_sent: textStats.get(p.id)?.n ?? 0,
+    last_text_at: textStats.get(p.id)?.at ?? null,
   }));
 }
 

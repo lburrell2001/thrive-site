@@ -264,14 +264,17 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
         call,
       });
     } else if (a.kind === 'text') {
-      // Google Voice texts come in by themselves; others Lauren logged by hand.
+      // Google Voice texts come in by themselves; sent ones are logged by the
+      // Text button; older ones were plain notes.
       const fromVoice = a.metadata?.source === 'google_voice';
+      const direction = a.metadata?.direction as string | undefined;
+      const phone = typeof a.metadata?.phone === 'string' ? formatPhone(a.metadata.phone) : null;
       timeline.push({
         key: `activity:${a.id}`,
         kind: 'text',
         at: a.created_at,
-        title: fromVoice ? 'Texted you · Google Voice' : 'Text (logged)',
-        meta: fromVoice && typeof a.metadata?.phone === 'string' ? `From ${formatPhone(a.metadata.phone)}` : null,
+        title: fromVoice ? 'Texted you · Google Voice' : direction === 'sent' ? 'You texted them' : direction === 'received' ? 'They texted you' : 'Text (logged)',
+        meta: phone ? `${direction === 'sent' ? 'To' : 'From'} ${phone}` : null,
         body: a.body || null,
         activityId: a.id,
         dealId: a.deal_id ?? null,

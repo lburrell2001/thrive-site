@@ -13,6 +13,7 @@ import { apiGet, apiSend } from '../../proposals/adminApi';
 import { useCrm } from '../CrmContext';
 import { EmailDialog } from '../EmailDialog';
 import { LogDmForm } from '../LogDmForm';
+import { LogTextForm } from '../LogTextForm';
 import { DM_PLATFORM_LABEL, facebookLabel, facebookUrl, instagramUrl } from '@/lib/social';
 import { runContactAction, type ContactAction } from '../contactActions';
 import { NewPrintCampaign } from '../campaigns/NewPrintCampaign';
@@ -24,7 +25,7 @@ import type { ProspectRow } from '@/types/crm';
 
 type Filter = 'all' | 'new' | 'contacted';
 
-const reachedOut = (r: ProspectRow) => r.emails_sent + r.dms_sent > 0;
+const reachedOut = (r: ProspectRow) => r.emails_sent + r.dms_sent + r.texts_sent > 0;
 const displayName = (r: ProspectRow) => r.name || r.company || r.email || (r.instagram ? `@${r.instagram}` : r.facebook ? facebookLabel(r.facebook) : r.phone ? formatPhone(r.phone) : 'Unnamed');
 
 const urlParam = (key: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(key));
@@ -42,6 +43,7 @@ export default function ProspectsPage() {
   const [adding, setAdding] = useState(() => urlParam('add') === '1');
   const [emailing, setEmailing] = useState<string | null>(null);
   const [dming, setDming] = useState<ProspectRow | null>(null);
+  const [texting, setTexting] = useState<ProspectRow | null>(null);
   const [toPrint, setToPrint] = useState(false);
 
   useEffect(() => {
@@ -162,6 +164,7 @@ export default function ProspectsPage() {
             </span>
             <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
               {r.email && <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={r.newsletter_status === 'unsubscribed'} onClick={(e) => { e.stopPropagation(); setEmailing(r.id); }}>✉ Email</button>}
+              {r.phone && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={(e) => { e.stopPropagation(); setTexting(r); }}>✆ Text</button>}
               {(r.instagram || r.facebook) && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={(e) => { e.stopPropagation(); setDming(r); }}>💬 DM</button>}
             </span>
           </div>
@@ -207,6 +210,23 @@ export default function ProspectsPage() {
           </div>
         </>
       )}
+      {texting && (
+        <>
+          <div className={w.paletteBack} style={{ zIndex: 60 }} onClick={() => setTexting(null)} />
+          <div className={w.dialog} role="dialog" aria-modal="true" aria-labelledby="text-title">
+            <h2 id="text-title" className={w.dialogTitle}>Text {displayName(texting)}</h2>
+            <p className={w.muted} style={{ fontSize: 13, margin: '4px 0 12px' }}>From your Google Voice number. Write it here, then paste and send it in Google Voice; it’s logged as reaching out.</p>
+            <LogTextForm
+              contactId={texting.id}
+              contactName={texting.name}
+              phone={texting.phone}
+              autoFocus
+              onCancel={() => setTexting(null)}
+              onLogged={() => { setTexting(null); notify('Text logged.'); refresh(); }}
+            />
+          </div>
+        </>
+      )}
       {emailing && (
         <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onDone={(message) => { setEmailing(null); notify(message); refresh(); }} />
       )}
@@ -217,11 +237,14 @@ export default function ProspectsPage() {
 /** The latest email or logged DM, whichever came last. */
 function LastReachedOut({ r }: { r: ProspectRow }) {
   if (!reachedOut(r)) return <span className={`${w.pill} ${w.pillProspect}`}>Not yet</span>;
-  const dmLast = r.last_dm_at && (!r.last_emailed_at || r.last_dm_at > r.last_emailed_at);
-  const at = dmLast ? r.last_dm_at : r.last_emailed_at;
-  const via = dmLast && r.last_dm_platform ? DM_PLATFORM_LABEL[r.last_dm_platform] : 'Email';
-  const total = r.emails_sent + r.dms_sent;
-  return <>{timeAgo(at)} · {via}{total > 1 ? ` · ${total}×` : ''}</>;
+  // The most recent of email, DM and text.
+  const latest = [
+    { at: r.last_emailed_at, via: 'Email' },
+    { at: r.last_dm_at, via: r.last_dm_platform ? DM_PLATFORM_LABEL[r.last_dm_platform] : 'DM' },
+    { at: r.last_text_at, via: 'Text' },
+  ].filter((x) => x.at).sort((a, b) => (b.at as string).localeCompare(a.at as string))[0];
+  const total = r.emails_sent + r.dms_sent + r.texts_sent;
+  return <>{timeAgo(latest?.at ?? null)} · {latest?.via}{total > 1 ? ` · ${total}×` : ''}</>;
 }
 
 interface Person { name: string; email: string; company?: string; job_title?: string; website?: string; instagram?: string; facebook?: string; phone?: string }

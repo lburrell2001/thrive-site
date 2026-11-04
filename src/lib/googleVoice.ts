@@ -83,3 +83,15 @@ export function parseVoiceAlert(email: { from: string; subject: string; body: st
 
   return { kind, phones, name, text: cleanBody(email.body).slice(0, 4000) };
 }
+
+/**
+ * Google Voice on the web, opened on a conversation with this number: the
+ * CRM's Text button. Google doesn't document this link, so the Text form also
+ * copies the message and shows the number to paste if it lands elsewhere.
+ */
+export function googleVoiceUrl(phone: string | null | undefined): string {
+  const e164 = normalizePhone(phone);
+  return e164
+    ? `https://voice.google.com/u/0/messages?itemId=t.${encodeURIComponent(e164)}`
+    : 'https://voice.google.com/u/0/messages';
+}

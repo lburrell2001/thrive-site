@@ -13,8 +13,9 @@ type Ctx = { params: Promise<{ id: string }> };
  * can add a follow-up task. A call where you talked moves New lead deals to
  * Contacted, as an email does.
  *
- * A DM (Instagram or Facebook) is logged the same way. Sending one moves New
- * lead deals to Contacted; a reply is treated like an email reply: a
+ * A DM (Instagram or Facebook) or a text (Google Voice, sent from the app
+ * after the Text button opened it) is logged the same way. Sending one moves
+ * New lead deals to Contacted; a reply is treated like an email reply: a
  * prospect with no open deal gets a New lead deal and leaves Prospects.
  */
 export async function POST(req: Request, { params }: Ctx) {
@@ -24,7 +25,11 @@ export async function POST(req: Request, { params }: Ctx) {
 
   const parsed = createActivitySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
-  const { kind, body, at, deal_id, call, dm, follow_up } = parsed.data;
+  const { kind, body, at, deal_id, call, dm, text, follow_up } = parsed.data;
+  // A text records the number it went to, as Google Voice alerts do.
+  const phone = kind === 'text' && text
+    ? (await auth.db.from('crm_contacts').select('phone').eq('id', id).maybeSingle()).data?.phone ?? null
+    : null;
 
   if (deal_id) {
     const { data: deal } = await auth.db.from('crm_deals').select('id').eq('id', deal_id).eq('contact_id', id).maybeSingle();
@@ -41,6 +46,7 @@ export async function POST(req: Request, { params }: Ctx) {
       metadata:
         kind === 'call' && call ? { direction: call.direction, outcome: call.outcome, minutes: call.minutes ?? null }
         : kind === 'dm' && dm ? { platform: dm.platform, direction: dm.direction }
+        : kind === 'text' && text ? { direction: text.direction, phone }
         : {},
       ...(at ? { created_at: new Date(at).toISOString() } : {}),
     })
@@ -52,7 +58,8 @@ export async function POST(req: Request, { params }: Ctx) {
     await auth.db.from('crm_tasks').insert({ contact_id: id, title: follow_up.title, due_date: follow_up.due_date ?? null });
   }
 
-  if (kind === 'dm' && dm?.direction === 'received') {
+  const reply = (kind === 'dm' && dm?.direction === 'received') || (kind === 'text' && text?.direction === 'received');
+  if (reply) {
     await auth.db.from('crm_contacts').update({ replied_at: new Date().toISOString() }).eq('id', id);
     const { data: contact } = await auth.db.from('crm_contacts').select('prospect_status').eq('id', id).maybeSingle();
     if (contact?.prospect_status === 'prospect' && !deal_id) {
@@ -60,15 +67,15 @@ export async function POST(req: Request, { params }: Ctx) {
       if (!open?.length) {
         await auth.db.from('crm_deals').insert({
           contact_id: id,
-          title: `Replied on ${DM_PLATFORM_LABEL[dm.platform]}`,
+          title: dm ? `Replied on ${DM_PLATFORM_LABEL[dm.platform]}` : 'Replied by text',
           stage: 'lead',
-          source: dm.platform,
+          source: dm ? dm.platform : 'phone',
         });
       }
     }
   }
 
-  if ((kind === 'call' && call?.outcome === 'connected') || (kind === 'dm' && dm?.direction === 'sent')) {
+  if ((kind === 'call' && call?.outcome === 'connected') || (kind === 'dm' && dm?.direction === 'sent') || (kind === 'text' && text?.direction === 'sent')) {
     const move = auth.db.from('crm_deals').update({ stage: 'contacted' }).eq('contact_id', id).eq('stage', 'lead');
     await (deal_id ? move.eq('id', deal_id) : move);
   }

@@ -222,6 +222,9 @@ export interface ProspectRow {
   dms_sent: number;
   last_dm_at: string | null;
   last_dm_platform: 'instagram' | 'facebook' | null;
+  /** Texts logged as sent from Google Voice (the Text button). */
+  texts_sent: number;
+  last_text_at: string | null;
 }
 
 /** The CRM's Today page: what needs Lauren now. */
