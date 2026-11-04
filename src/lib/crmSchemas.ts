@@ -41,6 +41,8 @@ export const facebookField = social(normalizeFacebook, 'Enter a Facebook page, e
 const contactFields = {
   name: z.string().trim().min(1, 'Add a name').max(160),
   company: optionalText(160),
+  /** Their role: "Owner", "Marketing manager" (migration 042). */
+  job_title: optionalText(120),
   email,
   phone: optionalText(40),
   source: z.string().trim().min(1).max(60),

@@ -24,7 +24,8 @@ export async function POST(req: Request) {
 
   const parsed = createContactSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
-  const { deal, ...fields } = parsed.data;
+  // job_title only when given, so adding a contact works before migration 042.
+  const { deal, job_title, ...fields } = parsed.data;
 
   const phone = normalizePhone(fields.phone);
   if (fields.phone && !phone) return badRequest('Enter a valid phone number, e.g. (555) 123-4567');
@@ -41,7 +42,7 @@ export async function POST(req: Request) {
 
   const { data: contact, error } = await auth.db
     .from('crm_contacts')
-    .insert({ ...fields, phone, ...(fields.prospect_status === 'prospect' && !deal ? { prospected_at: new Date().toISOString() } : { prospect_status: null }) })
+    .insert({ ...fields, ...(job_title ? { job_title } : {}), phone, ...(fields.prospect_status === 'prospect' && !deal ? { prospected_at: new Date().toISOString() } : { prospect_status: null }) })
     .select('*')
     .single();
   if (error) return badRequest(error.message);

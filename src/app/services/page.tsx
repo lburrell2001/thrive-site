@@ -30,7 +30,7 @@ const WHY = [
   { title: "Founder to founder", text: "We work with founder-led brands that still have a real person behind them. That's who we built this for.", tone: s.green },
 ];
 
-/** The first price list on each service page, its add-ons and any care plans: "Starter $750", "+ Analytics reporting …" */
+/** The first price list on each service page, its add-ons and any care plans: "Starter $1,250", "+ Analytics reporting …" */
 function packagesFor(slug: keyof typeof SERVICE_PRICING) {
   const [first, ...rest] = SERVICE_PRICING[slug].sections;
   const care = rest.find((sec) => sec.id === "care")?.cards[0];

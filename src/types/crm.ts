@@ -58,6 +58,8 @@ export interface CrmContact {
   id: string;
   name: string;
   company: string | null;
+  /** Their role: "Owner", "Marketing manager" (migration 042; undefined before it). */
+  job_title?: string | null;
   email: string | null;
   phone: string | null;
   source: string;
@@ -207,6 +209,7 @@ export interface ProspectRow {
   instagram: string | null;
   facebook: string | null;
   phone: string | null;
+  job_title?: string | null;
   tags: string[];
   prospected_at: string | null;
   created_at: string;

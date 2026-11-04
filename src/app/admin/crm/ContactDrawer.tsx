@@ -260,7 +260,7 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
                       {stage && <span className={`${w.pill} ${w[`pill${LIFECYCLE_LABEL[stage]}` as 'pillLead']}`} style={{ marginLeft: 10, verticalAlign: 'middle' }}><span className={w.pillDot} />{LIFECYCLE_LABEL[stage]}</span>}
                     </h2>
                     <p className={s.drawerSub}>
-                      {[c.company, c.email, c.phone && formatPhone(c.phone)].filter(Boolean).join(' · ') || 'No contact details yet'}
+                      {[c.job_title && c.company ? `${c.job_title} at ${c.company}` : c.job_title || c.company, c.email, c.phone && formatPhone(c.phone)].filter(Boolean).join(' · ') || 'No contact details yet'}
                       {c.website && <> · <a href={/^https?:/i.test(c.website) ? c.website : `https://${c.website}`} target="_blank" rel="noreferrer">{c.website.replace(/^https?:\/\//, '')}</a></>}
                       {c.instagram && <> · <a href={instagramUrl(c.instagram)} target="_blank" rel="noreferrer">@{c.instagram}</a></>}
                       {c.facebook && <> · <a href={facebookUrl(c.facebook)} target="_blank" rel="noreferrer">{c.facebook.startsWith('profile.php') ? facebookLabel(c.facebook) : `fb/${c.facebook}`}</a></>}
@@ -943,6 +943,7 @@ function TasksSection({ contactId, detail, onChange, notify }: {
 function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (patch: Partial<CrmContact>) => Promise<boolean> }) {
   const [name, setName] = useState(c.name);
   const [company, setCompany] = useState(c.company ?? '');
+  const [jobTitle, setJobTitle] = useState(c.job_title ?? '');
   const [email, setEmail] = useState(c.email ?? '');
   const [phone, setPhone] = useState(c.phone ? formatPhone(c.phone) : '');
   const [source, setSource] = useState(c.source);
@@ -954,14 +955,18 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
 
   const nextTags = tags.split(',').map((t) => t.trim()).filter(Boolean);
   const dirty =
-    name !== c.name || company !== (c.company ?? '') || email !== (c.email ?? '') ||
+    name !== c.name || company !== (c.company ?? '') || jobTitle !== (c.job_title ?? '') || email !== (c.email ?? '') ||
     phone !== (c.phone ? formatPhone(c.phone) : '') || source !== c.source || nextTags.join(',') !== c.tags.join(',') ||
     website !== (c.website ?? '') || instagram !== (c.instagram ? `@${c.instagram}` : '') || facebook !== (c.facebook ?? '');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    await onSave({ name, company, email, phone, website, instagram, facebook, source: source.trim() || 'manual', tags: nextTags } as Partial<CrmContact>);
+    await onSave({
+      name, company, email, phone, website, instagram, facebook, source: source.trim() || 'manual', tags: nextTags,
+      // Only when changed, so other details save before migration 042.
+      ...(jobTitle !== (c.job_title ?? '') ? { job_title: jobTitle } : {}),
+    } as Partial<CrmContact>);
     setSaving(false);
   }
 
@@ -977,6 +982,10 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
           <label>
             <span className={s.miniLabel}>Company</span>
             <input className={p.input} value={company} onChange={(e) => setCompany(e.target.value)} />
+          </label>
+          <label>
+            <span className={s.miniLabel}>Role</span>
+            <input className={p.input} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Owner, marketing manager…" />
           </label>
           <label>
             <span className={s.miniLabel}>Email</span>

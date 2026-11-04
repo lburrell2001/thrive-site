@@ -38,7 +38,7 @@ export type ServicePricing = {
 
 export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
   'digital-design': {
-    from: 'From $750',
+    from: 'From $1,250',
     sections: [
       {
         id: 'packages',
@@ -46,7 +46,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         cards: [
           {
             name: 'Starter',
-            price: '$750',
+            price: '$1,250',
             scope: '3 to 5 pages · Live in 2 to 3 weeks',
             items: [
               'Custom design in your colors and fonts, not a template',
@@ -60,7 +60,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
           {
             name: 'Medium',
-            price: '$950',
+            price: '$1,600',
             scope: '6 to 15 pages · Live in 3 to 4 weeks',
             items: [
               'Everything in Starter',
@@ -73,7 +73,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
           {
             name: 'Large',
-            price: '$1,150',
+            price: '$1,950',
             scope: '16 to 25 pages · Live in 4 to 6 weeks',
             items: [
               'Everything in Medium',
@@ -100,7 +100,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         addOns: [
           {
             name: 'Add-on: Prototype first',
-            price: '$200 ($300 on Large)',
+            price: '$325 ($500 on Large)',
             scope: 'See and click through the design before we build',
             items: [
               'Clickable prototype of the homepage and one inner page',
@@ -120,7 +120,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         cards: [
           {
             name: 'Basic care',
-            price: '$55/month',
+            price: '$100/month',
             scope: 'For Starter and Medium sites',
             items: [
               'We manage your hosting account for you (you pay the hosting company directly)',
@@ -133,7 +133,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
           {
             name: 'Plus care',
-            price: '$75/month',
+            price: '$125/month',
             scope: 'For Large sites with an admin area',
             items: [
               'Everything in Basic',
@@ -145,7 +145,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
           {
             name: 'Custom care',
-            price: 'From $200/month',
+            price: 'From $325/month',
             scope: 'For Custom builds',
             items: [
               'Everything in Plus',
@@ -165,7 +165,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
     ],
   },
   'brand-design': {
-    from: 'From $450',
+    from: 'From $750',
     sections: [
       {
         id: 'packages',
@@ -173,7 +173,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         cards: [
           {
             name: 'Logo and essentials',
-            price: '$450',
+            price: '$750',
             items: [
               'Two logo concepts, one refined to final',
               'Primary logo plus one alternate layout',
@@ -183,7 +183,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
           {
             name: 'Full identity',
-            price: '$800',
+            price: '$1,350',
             scope: 'Yours in 4 to 6 weeks',
             items: [
               'Everything in Logo and essentials',
@@ -198,7 +198,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
     ],
   },
   'social-media': {
-    from: 'From $450/month',
+    from: 'From $750/month',
     sections: [
       {
         id: 'packages',
@@ -206,7 +206,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         cards: [
           {
             name: 'Social media management',
-            price: '$450 to $800/month',
+            price: '$750 to $1,350/month',
             scope: 'Price depends on posts per week and number of accounts',
             items: [
               'Monthly content calendar',
@@ -231,15 +231,15 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
     ],
   },
   'ux-design': {
-    from: 'From $375',
+    from: 'From $625',
     sections: [
       {
         id: 'packages',
         heading: 'Pricing',
         intro: 'App and website prototypes, designed and ready to hand to your developer.',
         cards: [
-          { name: 'Prototype, up to 5 screens', price: '$375' },
-          { name: 'Prototype, up to 10 screens', price: '$600' },
+          { name: 'Prototype, up to 5 screens', price: '$625' },
+          { name: 'Prototype, up to 10 screens', price: '$1,000' },
           { name: 'More than 10 screens', price: 'Contact for pricing', cta: { label: 'Contact us', href: '/contact' } },
         ],
         includes: {
@@ -255,7 +255,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
     ],
   },
   photography: {
-    from: 'From $150',
+    from: 'From $250',
     sections: [
       {
         id: 'packages',
@@ -263,13 +263,13 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         cards: [
           {
             name: 'Brand session',
-            price: '$150',
+            price: '$250',
             scope: 'Up to 3 hours on location',
             items: ['About 15 edited photos, delivered in an online gallery'],
           },
           {
             name: 'Full day',
-            price: '$350',
+            price: '$575',
             scope: 'Up to 6 hours',
             items: ['About 40 edited photos, multiple setups or locations'],
           },

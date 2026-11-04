@@ -47,7 +47,7 @@ export default function ContactsPage() {
   const visible = withStage.filter((c) =>
     (filter === 'all' || c.stage === filter)
     && (!tag || c.tags.includes(tag))
-    && (!query || [c.name, c.company, c.email, c.phone, c.source, c.website, ...c.tags].some((v) => v?.toLowerCase().includes(query))),
+    && (!query || [c.name, c.company, c.job_title, c.email, c.phone, c.source, c.website, ...c.tags].some((v) => v?.toLowerCase().includes(query))),
   );
 
   // Only what's on screen can be acted on, so a hidden tick never surprises.
@@ -111,7 +111,7 @@ export default function ContactsPage() {
             <span className={w.who}>
               <span className={w.avatar} style={{ background: avatarColor(c.id) }}>{initials(c.name, c.email)}</span>
               <span className={w.whoText}>
-                <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{c.name || c.email || 'Unnamed'}{c.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {c.company}</span> : null}</span>
+                <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{c.name || c.email || 'Unnamed'}{c.job_title || c.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {[c.job_title, c.company].filter(Boolean).join(', ')}</span> : null}</span>
                 <span className={`${w.truncate} ${w.muted}`} style={{ display: 'block', fontSize: 12.5 }}>{c.email || 'No email'}</span>
               </span>
             </span>

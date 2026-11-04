@@ -12,19 +12,16 @@ import { readDm, type DmPlatform } from '@/lib/social';
 import { normalizePhone } from '@/lib/phone';
 
 export async function loadProspects(db: SupabaseClient): Promise<ProspectRow[]> {
-  const list = (social: boolean) => db
+  // Every column, so ones added later (social handles, job title) come back
+  // once their migration is in, without breaking the list before.
+  const { data: rows, error } = await db
     .from('crm_contacts')
-    .select(`id, name, company, email, phone, website, ${social ? 'instagram, facebook, ' : ''}tags, prospected_at, created_at, newsletter_status`)
+    .select('*')
     .eq('prospect_status', 'prospect')
     .order('prospected_at', { ascending: false, nullsFirst: false })
     .returns<Omit<ProspectRow, 'emails_sent' | 'last_emailed_at' | 'last_subject' | 'dms_sent' | 'last_dm_at' | 'last_dm_platform'>[]>();
-  let { data: people, error } = await list(true);
-  // Before migration 037 there are no Instagram / Facebook columns.
-  if (error?.code === '42703') {
-    ({ data: people, error } = await list(false));
-    people = (people ?? []).map((p) => ({ ...p, instagram: null, facebook: null }));
-  }
   if (error) throw new Error(error.message);
+  const people = (rows ?? []).map((p) => ({ ...p, instagram: p.instagram ?? null, facebook: p.facebook ?? null, job_title: p.job_title ?? null }));
   const ids = (people ?? []).map((p) => p.id);
   if (!ids.length) return [];
 
@@ -77,6 +74,7 @@ const prospectInput = z
       .transform((v) => v || null)
       .refine((v) => v === null || z.email().safeParse(v).success, 'Enter a valid email'),
     company: z.string().trim().max(160).optional().transform((v) => v || null),
+    job_title: z.string().trim().max(120).optional().transform((v) => v || null),
     website: z.string().trim().max(300).optional().transform((v) => v || null),
     instagram: instagramField,
     facebook: facebookField,
@@ -105,7 +103,7 @@ function whoOf(p: { email: string | null; instagram: string | null; facebook: st
 }
 
 type Found = {
-  id: string; name: string; email: string | null; instagram: string | null; facebook: string | null; phone: string | null;
+  id: string; name: string; email: string | null; instagram: string | null; facebook: string | null; phone: string | null; job_title?: string | null;
   prospect_status: string | null; newsletter_status: string | null; tags: string[] | null;
 };
 
@@ -170,6 +168,7 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
         instagram: p.instagram,
         facebook: p.facebook,
         phone: p.phone,
+        ...(p.job_title ? { job_title: p.job_title } : {}),
         tags: input.tags,
         source: 'prospecting',
         prospect_status: 'prospect',
@@ -185,6 +184,7 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
     if (!c.instagram && p.instagram) fill.instagram = p.instagram;
     if (!c.facebook && p.facebook) fill.facebook = p.facebook;
     if (!c.phone && p.phone) fill.phone = p.phone;
+    if (!c.job_title && p.job_title) fill.job_title = p.job_title;
     if (input.tags.some((t) => !(c.tags ?? []).includes(t))) fill.tags = [...new Set([...(c.tags ?? []), ...input.tags])];
 
     let why: string;

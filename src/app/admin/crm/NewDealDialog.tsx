@@ -23,6 +23,7 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
 
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [source, setSource] = useState('referral');
@@ -69,7 +70,7 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
         onCreated(contactId, created.id);
       } else {
         const created = await apiSend<{ contact: CrmContact; deal_id: string | null }>('/api/crm/contacts', 'POST', {
-          name, company, email, phone, source: source.trim() || 'manual', deal,
+          name, company, job_title: jobTitle.trim() || undefined, email, phone, source: source.trim() || 'manual', deal,
         });
         onCreated(created.contact.id, created.deal_id);
       }
@@ -127,6 +128,10 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
               <label>
                 <span className={s.miniLabel}>Company</span>
                 <input className={p.input} value={company} onChange={(e) => setCompany(e.target.value)} />
+              </label>
+              <label>
+                <span className={s.miniLabel}>Role</span>
+                <input className={p.input} value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Owner" />
               </label>
               <label>
                 <span className={s.miniLabel}>Source</span>

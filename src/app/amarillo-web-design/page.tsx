@@ -18,7 +18,7 @@ import s from "./amarillo.module.css";
 const PATH = "/amarillo-web-design";
 const TITLE = "Amarillo Web Development, Branding & Social Media | Thrive Creative Studios";
 const DESCRIPTION =
-  "Web development, graphic design, and social media marketing for Amarillo small businesses. Starter websites from $750. Founded by an Amarillo native.";
+  "Web development, graphic design, and social media marketing for Amarillo small businesses. Starter websites from $1,250. Founded by an Amarillo native.";
 
 const base = buildPageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 export const metadata: Metadata = {

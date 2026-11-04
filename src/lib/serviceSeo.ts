@@ -42,7 +42,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Brand identity design',
     title: 'Branding & Logo Design in Dallas, TX',
     description:
-      'Branding for Dallas small businesses from $450: a logo, colors and fonts, or a full identity with brand guidelines in 4 to 6 weeks. Remote across the US.',
+      'Branding for Dallas small businesses from $750: a logo, colors and fonts, or a full identity with brand guidelines in 4 to 6 weeks. Remote across the US.',
     remote: true,
     about: {
       heading: 'BRANDING THAT MAKES YOU RECOGNIZABLE',
@@ -77,11 +77,11 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'Is branding with Thrive affordable for a small business?',
-        a: 'Thrive works with small businesses. Logo and essentials is $450, and a full identity is $800. You get a clear written proposal after the discovery call, before any work starts.',
+        a: 'Thrive works with small businesses. Logo and essentials is $750, and a full identity is $1,350. You get a clear written proposal after the discovery call, before any work starts.',
       },
       {
         q: 'How much does branding cost?',
-        a: 'Logo and essentials is $450. A full identity, with brand guidelines, social media profile and cover images and a business card design, is $800. Every project gets a clear written proposal before any work starts.',
+        a: 'Logo and essentials is $750. A full identity, with brand guidelines, social media profile and cover images and a business card design, is $1,350. Every project gets a clear written proposal before any work starts.',
       },
     ],
   },
@@ -92,7 +92,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Custom website development',
     title: 'Custom Website Development in Dallas, TX',
     description:
-      'Custom websites for Dallas small businesses from $750, with Starter, Medium and Large packages and monthly care plans to keep your site secure and up to date.',
+      'Custom websites for Dallas small businesses from $1,250, with Starter, Medium and Large packages and monthly care plans to keep your site secure and up to date.',
     remote: true,
     about: {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
@@ -127,7 +127,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       },
       {
         q: 'Is a website with Thrive affordable for a small business?',
-        a: 'Website packages are $750 for Starter (3 to 5 pages), $950 for Medium (6 to 15 pages) and $1,150 for Large (16 to 25 pages). Sites that need more than pages are quoted. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
+        a: 'Website packages are $1,250 for Starter (3 to 5 pages), $1,600 for Medium (6 to 15 pages) and $1,950 for Large (16 to 25 pages). Sites that need more than pages are quoted. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
       },
       {
         q: 'Do you work with businesses outside Dallas?',
@@ -142,12 +142,12 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'User experience design',
     title: 'UX Design for Apps & Websites in Dallas, TX',
     description:
-      'Clickable app and website prototypes from $375, designed and ready to hand to your developer. UX design from a Dallas studio, available remotely.',
+      'Clickable app and website prototypes from $625, designed and ready to hand to your developer. UX design from a Dallas studio, available remotely.',
     remote: true,
     faqs: [
       {
         q: 'What does UX design include?',
-        a: 'Every prototype includes screen-by-screen layouts for your app or site, a clickable prototype you can tap through on a phone or computer, two rounds of revisions, and design files handed off, ready for your developer. Up to 5 screens is $375 and up to 10 screens is $600.',
+        a: 'Every prototype includes screen-by-screen layouts for your app or site, a clickable prototype you can tap through on a phone or computer, two rounds of revisions, and design files handed off, ready for your developer. Up to 5 screens is $625 and up to 10 screens is $1,000.',
       },
       {
         q: 'Do I need UX design or just a new look?',
@@ -166,7 +166,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Social media management',
     title: 'Social Media Management in Dallas, TX',
     description:
-      'Social media management for Dallas small businesses from $450/month: a monthly content calendar, designed posts and edited video, captions, scheduling and posting.',
+      'Social media management for Dallas small businesses from $750/month: a monthly content calendar, designed posts and edited video, captions, scheduling and posting.',
     remote: true,
     about: {
       heading: 'SOCIAL MEDIA, HANDLED',
@@ -208,7 +208,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
     serviceType: 'Brand and commercial photography',
     title: 'Brand Photography & Headshots in Dallas, TX',
     description:
-      'Brand photography in Dallas–Fort Worth from $150: on-location brand sessions and full-day shoots, with edited photos delivered in an online gallery.',
+      'Brand photography in Dallas–Fort Worth from $250: on-location brand sessions and full-day shoots, with edited photos delivered in an online gallery.',
     remote: false,
     faqs: [
       {

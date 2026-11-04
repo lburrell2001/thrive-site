@@ -58,7 +58,7 @@ export default function ProspectsPage() {
     if (filter === 'new' && reachedOut(r)) return false;
     if (filter === 'contacted' && !reachedOut(r)) return false;
     if (tag && !r.tags.includes(tag)) return false;
-    return !query || [r.name, r.company, r.email, r.website, r.instagram, r.facebook, r.phone, formatPhone(r.phone), ...r.tags].some((v) => v?.toLowerCase().includes(query.replace(/^@/, '')));
+    return !query || [r.name, r.company, r.job_title, r.email, r.website, r.instagram, r.facebook, r.phone, formatPhone(r.phone), ...r.tags].some((v) => v?.toLowerCase().includes(query.replace(/^@/, '')));
   }), [rows, filter, tag, query]);
 
   const allPicked = visible.length > 0 && visible.every((r) => picked.has(r.id));
@@ -145,7 +145,7 @@ export default function ProspectsPage() {
             <span className={w.who}>
               <span className={w.avatar} style={{ background: avatarColor(r.id) }}>{initials(r.name, r.email)}</span>
               <span className={w.whoText}>
-                <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{displayName(r)}{r.company && r.company !== displayName(r) ? <span className={w.muted} style={{ fontWeight: 500 }}> · {r.company}</span> : null}</span>
+                <span className={w.truncate} style={{ display: 'block', fontWeight: 600 }}>{displayName(r)}{(r.job_title || (r.company && r.company !== displayName(r))) ? <span className={w.muted} style={{ fontWeight: 500 }}> · {[r.job_title, r.company !== displayName(r) && r.company].filter(Boolean).join(', ')}</span> : null}</span>
                 <span className={`${w.truncate} ${w.muted}`} style={{ display: 'block', fontSize: 12.5 }}>
                   {[
                     r.email && <span key="e">{r.email}{r.newsletter_status === 'unsubscribed' ? ' (unsubscribed)' : ''}</span>,
@@ -224,7 +224,7 @@ function LastReachedOut({ r }: { r: ProspectRow }) {
   return <>{timeAgo(at)} · {via}{total > 1 ? ` · ${total}×` : ''}</>;
 }
 
-interface Person { name: string; email: string; company?: string; website?: string; instagram?: string; facebook?: string; phone?: string }
+interface Person { name: string; email: string; company?: string; job_title?: string; website?: string; instagram?: string; facebook?: string; phone?: string }
 
 // The tags used last time, kept for the next card from the same event.
 const LAST_TAGS_KEY = 'thrive-prospect-tags';
@@ -271,7 +271,7 @@ function parsePeople(text: string): { people: Person[]; skipped: number } {
 function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void; onAdded: () => void; existingTags: string[] }) {
   const { notify } = useCrm();
   const [mode, setMode] = useState<'one' | 'paste'>('one');
-  const blank: Person = { name: '', email: '', company: '', website: '', instagram: '', facebook: '', phone: '' };
+  const blank: Person = { name: '', email: '', company: '', job_title: '', website: '', instagram: '', facebook: '', phone: '' };
   const [one, setOne] = useState<Person>(blank);
   const [paste, setPaste] = useState('');
   // Where they came from: kept from the last time, so a stack of cards from
@@ -301,6 +301,7 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
           name: x.name,
           email: x.email.trim() || undefined,
           company: x.company || undefined,
+          job_title: x.job_title?.trim() || undefined,
           website: x.website || undefined,
           instagram: x.instagram?.trim() || undefined,
           facebook: x.facebook?.trim() || undefined,
@@ -359,6 +360,7 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <label><span className={p.label}>Name</span><input id="prospect-name" className={p.input} value={one.name} onChange={(e) => setOne({ ...one, name: e.target.value })} placeholder="Maya Lin" autoFocus /></label>
                 <label><span className={p.label}>Company</span><input className={p.input} value={one.company} onChange={(e) => setOne({ ...one, company: e.target.value })} placeholder="Bloom Bakery" /></label>
+                <label><span className={p.label}>Role</span><input className={p.input} value={one.job_title} onChange={(e) => setOne({ ...one, job_title: e.target.value })} placeholder="Owner" /></label>
                 <label><span className={p.label}>Email</span><input className={p.input} type="email" value={one.email} onChange={(e) => setOne({ ...one, email: e.target.value })} placeholder="maya@bloombakery.com" /></label>
                 <label><span className={p.label}>Phone</span><input className={p.input} type="tel" value={one.phone} onChange={(e) => setOne({ ...one, phone: e.target.value })} placeholder="(214) 555-0123" /></label>
                 <label><span className={p.label}>Website</span><input className={p.input} value={one.website} onChange={(e) => setOne({ ...one, website: e.target.value })} placeholder="bloombakery.com" /></label>

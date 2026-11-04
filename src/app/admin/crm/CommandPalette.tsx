@@ -45,7 +45,7 @@ export function CommandPalette({ contacts, onClose, onOpenContact }: {
 
   const query = q.trim().toLowerCase();
   const people = useMemo(() => (query
-    ? contacts.filter((c) => [c.name, c.company, c.email, c.phone, ...c.tags].some((v) => v?.toLowerCase().includes(query)))
+    ? contacts.filter((c) => [c.name, c.company, c.job_title, c.email, c.phone, ...c.tags].some((v) => v?.toLowerCase().includes(query)))
     : [...contacts].sort((a, b) => b.last_touch_at.localeCompare(a.last_touch_at))
   ).slice(0, 8), [contacts, query]);
   const actions = useMemo(() => ACTIONS.filter((a) => !query || a.label.toLowerCase().includes(query)), [query]);
