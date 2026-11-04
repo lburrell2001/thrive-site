@@ -28,6 +28,7 @@ import { LIFECYCLE_LABEL, STAGE_COLOR, avatarColor, initials, lifecycleOf, parse
 import w from './workspace.module.css';
 import { ReviewRequestDialog } from './ReviewRequestDialog';
 import { EmailDialog } from './EmailDialog';
+import { ClientPortal } from '../clients/ClientPortal';
 import { runContactAction } from './contactActions';
 import { isRetainer, retainerProgress } from '@/lib/retainer';
 import { LogCallForm } from './LogCallForm';
@@ -85,8 +86,12 @@ function dollars(cents: number | null) {
   return cents == null ? '' : String(cents / 100);
 }
 
-export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, notify }: {
+export type DrawerTab = 'overview' | 'activity' | 'details' | 'client';
+
+export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged, onDeleted, notify }: {
   id: string;
+  /** Open on this tab; 'client' is their portal work (only for portal clients). */
+  initialTab?: DrawerTab | null;
   /** The deal whose card was clicked: highlighted and scrolled to. */
   focusDealId?: string | null;
   onClose: () => void;
@@ -100,7 +105,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   const [loadError, setLoadError] = useState('');
   const [messaging, setMessaging] = useState(false);
   const [prospecting, setProspecting] = useState(false);
-  const [tab, setTab] = useState<'overview' | 'activity' | 'details'>('overview');
+  const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'overview');
   // Bumped by the header's Log call button to open the call form.
   const [callRequest, setCallRequest] = useState(0);
   const [logKind, setLogKind] = useState<'call' | 'dm'>('call');
@@ -235,7 +240,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   return (
     <>
       <div className={s.backdrop} onClick={onClose} />
-      <aside className={`${s.drawer} ${s.panel}`} role="dialog" aria-modal="true" aria-labelledby="crm-drawer-title">
+      <aside className={`${s.drawer} ${s.panel} ${tab === 'client' && detail?.portal ? s.drawerWide : ''}`} role="dialog" aria-modal="true" aria-labelledby="crm-drawer-title">
         {!detail ? (
           <div className={s.drawerHead}>
             <div className={s.drawerTitleRow}>
@@ -284,7 +289,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                   New proposal
                 </button>
                 {detail.portal ? (
-                  <Link href={`/admin/clients?client=${detail.portal.id}`} className={`${p.btn} ${p.btnSmall}`}>Client page</Link>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setTab('client')}>Projects &amp; invoices</button>
                 ) : stage === 'prospect' ? (
                   <>
                     <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => moveTo('lead')} disabled={busy === 'move'}>Move to Leads</button>
@@ -319,9 +324,9 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
               </div>
 
               <div className={w.tabs} role="tablist" aria-label="Contact" style={{ margin: '14px 0 0' }}>
-                {(['overview', 'activity', 'details'] as const).map((t) => (
+                {(detail.portal ? ['overview', 'client', 'activity', 'details'] as const : ['overview', 'activity', 'details'] as const).map((t) => (
                   <button key={t} type="button" role="tab" aria-selected={tab === t} className={`${w.tab} ${tab === t ? w.tabOn : ''}`} onClick={() => setTab(t)}>
-                    {t === 'overview' ? 'Overview' : t === 'activity' ? `Activity${detail.timeline.length ? ` · ${detail.timeline.length}` : ''}` : 'Details'}
+                    {t === 'overview' ? 'Overview' : t === 'client' ? 'Client' : t === 'activity' ? `Activity${detail.timeline.length ? ` · ${detail.timeline.length}` : ''}` : 'Details'}
                   </button>
                 ))}
               </div>
@@ -349,6 +354,7 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                     detail={detail}
                     focusDealId={focusDealId ?? null}
                     onStartProposal={(dealId) => startProposal(dealId)}
+                    onOpenClient={() => setTab('client')}
                     startingProposal={busy === 'proposal'}
                     onSave={saveDeal}
                     onChange={async () => { await reload(); onChanged(); }}
@@ -381,6 +387,14 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
                     }
                   }} />
                 </section>
+              )}
+
+              {tab === 'client' && detail.portal && (
+                <ClientPortal
+                  key={detail.portal.id}
+                  clientId={detail.portal.id}
+                  onDeleted={async () => { setTab('overview'); await reload(); onChanged(); notify('Portal login deleted.'); }}
+                />
               )}
 
               {tab === 'details' && (
@@ -431,11 +445,13 @@ export function ContactDrawer({ id, focusDealId, onClose, onChanged, onDeleted, 
   );
 }
 
-function DealsSection({ contactId, detail, focusDealId, onStartProposal, startingProposal, onSave, onChange, notify }: {
+function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenClient, startingProposal, onSave, onChange, notify }: {
   contactId: string;
   detail: CrmContactDetail;
   focusDealId: string | null;
   onStartProposal: (dealId: string) => void;
+  /** Their portal work: the Client tab. */
+  onOpenClient: () => void;
   startingProposal: boolean;
   onSave: (dealId: string, patch: Partial<CrmDeal>, okMessage?: string) => Promise<boolean>;
   onChange: () => Promise<void>;
@@ -534,7 +550,7 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, startin
               <ul className={s.dealProposals}>
                 {clientWork.map((item) => (
                   <li key={item.key} className={s.task}>
-                    <Link href={`/admin/clients?client=${detail.portal?.id ?? ''}`} className={s.taskTitle} style={{ color: '#111' }}>{item.title}</Link>
+                    <button type="button" className={s.taskTitle} style={{ all: 'unset', cursor: 'pointer', color: '#111', fontWeight: 600 }} onClick={onOpenClient}>{item.title}</button>
                     {item.meta && <span className={s.taskDue}>{item.meta}</span>}
                   </li>
                 ))}

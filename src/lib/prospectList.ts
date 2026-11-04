@@ -9,11 +9,12 @@ import { z } from 'zod';
 import type { ProspectRow } from '@/types/crm';
 import { facebookField, instagramField } from '@/lib/crmSchemas';
 import { readDm, type DmPlatform } from '@/lib/social';
+import { normalizePhone } from '@/lib/phone';
 
 export async function loadProspects(db: SupabaseClient): Promise<ProspectRow[]> {
   const list = (social: boolean) => db
     .from('crm_contacts')
-    .select(`id, name, company, email, website, ${social ? 'instagram, facebook, ' : ''}tags, prospected_at, created_at, newsletter_status`)
+    .select(`id, name, company, email, phone, website, ${social ? 'instagram, facebook, ' : ''}tags, prospected_at, created_at, newsletter_status`)
     .eq('prospect_status', 'prospect')
     .order('prospected_at', { ascending: false, nullsFirst: false })
     .returns<Omit<ProspectRow, 'emails_sent' | 'last_emailed_at' | 'last_subject' | 'dms_sent' | 'last_dm_at' | 'last_dm_platform'>[]>();
@@ -79,12 +80,15 @@ const prospectInput = z
     website: z.string().trim().max(300).optional().transform((v) => v || null),
     instagram: instagramField,
     facebook: facebookField,
+    // Stored as +1… so it matches however it was typed; a number that can't be read is dropped.
+    phone: z.string().trim().max(40).optional().transform((v) => normalizePhone(v)),
   })
-  .refine((p) => p.email || p.instagram || p.facebook, 'Add an email, Instagram or Facebook');
+  .refine((p) => p.email || p.instagram || p.facebook || p.phone, 'Add an email, phone, Instagram or Facebook');
 
 export const addProspectsSchema = z.object({
   people: z.array(prospectInput).min(1, 'Add at least one person').max(500),
-  tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
+  // Where they came from ("Small Business Expo Nov 2026") and anything else.
+  tags: z.array(z.string().trim().min(1).max(60)).max(10).default([]),
 });
 
 type ProspectInput = z.infer<typeof prospectInput>;
@@ -95,28 +99,29 @@ export interface AddResult {
   existing: { who: string; name: string; why: string }[];
 }
 
-/** How a person is named in the results: their email, else their handle. */
-function whoOf(p: { email: string | null; instagram: string | null; facebook: string | null }): string {
-  return p.email ?? (p.instagram ? `@${p.instagram}` : `facebook.com/${p.facebook}`);
+/** How a person is named in the results: their email, else their handle or phone. */
+function whoOf(p: { email: string | null; instagram: string | null; facebook: string | null; phone: string | null }): string {
+  return p.email ?? (p.instagram ? `@${p.instagram}` : p.facebook ? `facebook.com/${p.facebook}` : p.phone ?? '');
 }
 
 type Found = {
-  id: string; name: string; email: string | null; instagram: string | null; facebook: string | null;
+  id: string; name: string; email: string | null; instagram: string | null; facebook: string | null; phone: string | null;
   prospect_status: string | null; newsletter_status: string | null; tags: string[] | null;
 };
 
 /**
  * Add prospects, by hand or pasted in bulk. Someone already in the CRM —
- * matched on email, Instagram or Facebook — is never duplicated: a contact
- * with no deals becomes a prospect; one with deals (a lead or client) is
- * left as they are. Either way a handle they didn't have yet is saved.
+ * matched on email, phone, Instagram or Facebook — is never duplicated: a
+ * contact with no deals becomes a prospect; one with deals (a lead or client)
+ * keeps their stage. Either way, details they didn't have yet are saved and
+ * the tags are added, so "met at the expo" lands on everyone met there.
  */
 export async function addProspects(db: SupabaseClient, input: z.infer<typeof addProspectsSchema>): Promise<AddResult> {
   // One entry per person, even if the same one is pasted twice.
   const people: ProspectInput[] = [];
   const seen = new Set<string>();
   for (const p of input.people) {
-    const keys = [p.email && `e:${p.email}`, p.instagram && `i:${p.instagram}`, p.facebook && `f:${p.facebook}`].filter(Boolean) as string[];
+    const keys = [p.email && `e:${p.email}`, p.instagram && `i:${p.instagram}`, p.facebook && `f:${p.facebook}`, p.phone && `p:${p.phone}`].filter(Boolean) as string[];
     if (keys.some((k) => seen.has(k))) continue;
     keys.forEach((k) => seen.add(k));
     people.push(p);
@@ -125,14 +130,22 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
   const emails = people.map((p) => p.email).filter((v): v is string => Boolean(v));
   const igs = people.map((p) => p.instagram).filter((v): v is string => Boolean(v));
   const fbs = people.map((p) => p.facebook).filter((v): v is string => Boolean(v));
-  const cols = 'id, name, email, instagram, facebook, prospect_status, newsletter_status, tags';
+  const phones = new Set(people.map((p) => p.phone).filter((v): v is string => Boolean(v)));
+  const cols = 'id, name, email, instagram, facebook, phone, prospect_status, newsletter_status, tags';
   const lookups = await Promise.all([
     emails.length ? db.from('crm_contacts').select(cols).in('email', emails) : null,
     igs.length ? db.from('crm_contacts').select(cols).in('instagram', igs) : null,
     fbs.length ? db.from('crm_contacts').select(cols).in('facebook', fbs) : null,
+    // Stored phones aren't all in one format, so compare them normalised.
+    phones.size ? db.from('crm_contacts').select(cols).not('phone', 'is', null).limit(5000) : null,
   ]);
   const found = new Map<string, Found>();
-  for (const r of lookups) for (const c of (r?.data ?? []) as Found[]) found.set(c.id, c);
+  for (const r of lookups) {
+    for (const c of (r?.data ?? []) as Found[]) {
+      if (r === lookups[3] && !phones.has(normalizePhone(c.phone) ?? '')) continue;
+      found.set(c.id, c);
+    }
+  }
   const all = [...found.values()];
 
   const existingIds = all.map((c) => c.id);
@@ -146,7 +159,8 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
   const rows = [];
   for (const p of people) {
     const c = all.find((x) =>
-      (p.email && x.email === p.email) || (p.instagram && x.instagram === p.instagram) || (p.facebook && x.facebook === p.facebook));
+      (p.email && x.email === p.email) || (p.instagram && x.instagram === p.instagram) || (p.facebook && x.facebook === p.facebook)
+      || (p.phone && normalizePhone(x.phone) === p.phone));
     if (!c) {
       rows.push({
         name: p.name || '',
@@ -155,6 +169,7 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
         website: p.website,
         instagram: p.instagram,
         facebook: p.facebook,
+        phone: p.phone,
         tags: input.tags,
         source: 'prospecting',
         prospect_status: 'prospect',
@@ -169,14 +184,17 @@ export async function addProspects(db: SupabaseClient, input: z.infer<typeof add
     if (!c.email && p.email) fill.email = p.email;
     if (!c.instagram && p.instagram) fill.instagram = p.instagram;
     if (!c.facebook && p.facebook) fill.facebook = p.facebook;
+    if (!c.phone && p.phone) fill.phone = p.phone;
+    if (input.tags.some((t) => !(c.tags ?? []).includes(t))) fill.tags = [...new Set([...(c.tags ?? []), ...input.tags])];
 
     let why: string;
     if (withDeals.has(c.id)) why = 'already a lead or client';
     else if (c.prospect_status === 'prospect') why = 'already a prospect';
     else {
-      Object.assign(fill, { prospect_status: 'prospect', prospected_at: now, tags: [...new Set([...(c.tags ?? []), ...input.tags])] });
+      Object.assign(fill, { prospect_status: 'prospect', prospected_at: now });
       why = c.newsletter_status === 'unsubscribed' ? 'added, but unsubscribed — won’t be emailed' : 'was in the CRM; now a prospect';
     }
+    if (fill.tags && withDeals.has(c.id) || fill.tags && c.prospect_status === 'prospect') why += ', tagged';
     if (Object.keys(fill).length) await db.from('crm_contacts').update(fill).eq('id', c.id);
     result.existing.push({ who: whoOf(p), name, why });
   }

@@ -19,12 +19,13 @@ import { NewPrintCampaign } from '../campaigns/NewPrintCampaign';
 import { PIECE_LABEL } from '../campaigns/shared';
 import type { CampaignRow } from '@/lib/marketing';
 import { avatarColor, initials, timeAgo } from '../shared';
+import { formatPhone, normalizePhone } from '@/lib/phone';
 import type { ProspectRow } from '@/types/crm';
 
 type Filter = 'all' | 'new' | 'contacted';
 
 const reachedOut = (r: ProspectRow) => r.emails_sent + r.dms_sent > 0;
-const displayName = (r: ProspectRow) => r.name || r.company || r.email || (r.instagram ? `@${r.instagram}` : r.facebook ? facebookLabel(r.facebook) : 'Unnamed');
+const displayName = (r: ProspectRow) => r.name || r.company || r.email || (r.instagram ? `@${r.instagram}` : r.facebook ? facebookLabel(r.facebook) : r.phone ? formatPhone(r.phone) : 'Unnamed');
 
 const urlParam = (key: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(key));
 
@@ -57,7 +58,7 @@ export default function ProspectsPage() {
     if (filter === 'new' && reachedOut(r)) return false;
     if (filter === 'contacted' && !reachedOut(r)) return false;
     if (tag && !r.tags.includes(tag)) return false;
-    return !query || [r.name, r.company, r.email, r.website, r.instagram, r.facebook, ...r.tags].some((v) => v?.toLowerCase().includes(query.replace(/^@/, '')));
+    return !query || [r.name, r.company, r.email, r.website, r.instagram, r.facebook, r.phone, formatPhone(r.phone), ...r.tags].some((v) => v?.toLowerCase().includes(query.replace(/^@/, '')));
   }), [rows, filter, tag, query]);
 
   const allPicked = visible.length > 0 && visible.every((r) => picked.has(r.id));
@@ -150,6 +151,7 @@ export default function ProspectsPage() {
                     r.email && <span key="e">{r.email}{r.newsletter_status === 'unsubscribed' ? ' (unsubscribed)' : ''}</span>,
                     r.instagram && <a key="i" href={instagramUrl(r.instagram)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>@{r.instagram}</a>,
                     r.facebook && <a key="f" href={facebookUrl(r.facebook)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Facebook</a>,
+                    r.phone && <a key="p" href={`tel:${r.phone}`} onClick={(e) => e.stopPropagation()}>{formatPhone(r.phone)}</a>,
                   ].filter(Boolean).flatMap((el, i) => (i ? [' · ', el] : [el]))}
                 </span>
               </span>
@@ -222,7 +224,12 @@ function LastReachedOut({ r }: { r: ProspectRow }) {
   return <>{timeAgo(at)} · {via}{total > 1 ? ` · ${total}×` : ''}</>;
 }
 
-interface Person { name: string; email: string; company?: string; website?: string; instagram?: string; facebook?: string }
+interface Person { name: string; email: string; company?: string; website?: string; instagram?: string; facebook?: string; phone?: string }
+
+// The tags used last time, kept for the next card from the same event.
+const LAST_TAGS_KEY = 'thrive-prospect-tags';
+
+const splitTags = (v: string) => [...new Set(v.split(',').map((t) => t.trim()).filter(Boolean))];
 
 const EMAIL = /[^\s@,;<>"']+@[^\s@,;<>"']+\.[a-z]{2,}/i;
 const IG = /instagram\.com\/|^@[\w.]+$/i;
@@ -244,17 +251,19 @@ function parsePeople(text: string): { people: Person[]; skipped: number } {
     let instagram: string | undefined;
     let facebook: string | undefined;
     let website: string | undefined;
+    let phone: string | undefined;
     const rest: string[] = [];
     for (const raw of line.split(/\t|,|;/)) {
       const c = raw.trim().replace(/^"|"$/g, '');
       if (!c || (email && c.includes(email))) continue;
       if (IG.test(c)) { instagram ??= c; continue; }
       if (FB.test(c)) { facebook ??= c; continue; }
+      if (!phone && /^[+()\d][\d\s().-]{6,}$/.test(c) && normalizePhone(c)) { phone = c; continue; }
       if (!website && /^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(c)) { website = c; continue; }
       if (!c.includes('@')) rest.push(c);
     }
-    if (!email && !instagram && !facebook) { skipped += 1; continue; }
-    people.push({ email: email?.toLowerCase() ?? '', name: rest[0] ?? '', company: rest[1], website, instagram, facebook });
+    if (!email && !instagram && !facebook && !phone) { skipped += 1; continue; }
+    people.push({ email: email?.toLowerCase() ?? '', name: rest[0] ?? '', company: rest[1], website, instagram, facebook, phone });
   }
   return { people, skipped };
 }
@@ -262,19 +271,30 @@ function parsePeople(text: string): { people: Person[]; skipped: number } {
 function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void; onAdded: () => void; existingTags: string[] }) {
   const { notify } = useCrm();
   const [mode, setMode] = useState<'one' | 'paste'>('one');
-  const [one, setOne] = useState<Person>({ name: '', email: '', company: '', website: '', instagram: '', facebook: '' });
+  const blank: Person = { name: '', email: '', company: '', website: '', instagram: '', facebook: '', phone: '' };
+  const [one, setOne] = useState<Person>(blank);
   const [paste, setPaste] = useState('');
-  const [tags, setTags] = useState('');
+  // Where they came from: kept from the last time, so a stack of cards from
+  // one event all get the same tag without retyping it.
+  const [tags, setTags] = useState(() => (typeof window === 'undefined' ? '' : localStorage.getItem(LAST_TAGS_KEY) ?? ''));
+  // People added so far without closing ("Add & next").
+  const [addedSoFar, setAddedSoFar] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<{ added: number; existing: { who: string; name: string; why: string }[] } | null>(null);
 
   const parsed = useMemo(() => parsePeople(paste), [paste]);
-  const people = mode === 'one' ? (one.email.trim() || one.instagram?.trim() || one.facebook?.trim() ? [one] : []) : parsed.people;
+  const people = mode === 'one' ? (one.email.trim() || one.instagram?.trim() || one.facebook?.trim() || normalizePhone(one.phone) ? [one] : []) : parsed.people;
+  const tagList = splitTags(tags);
 
-  async function submit(e: React.FormEvent) {
+  function toggleTag(t: string) {
+    setTags((tagList.includes(t) ? tagList.filter((x) => x !== t) : [...tagList, t]).join(', '));
+  }
+
+  async function submit(e: React.FormEvent, next = false) {
     e.preventDefault();
     setBusy(true); setError('');
+    localStorage.setItem(LAST_TAGS_KEY, tagList.join(', '));
     try {
       const r = await apiSend<{ added: number; existing: { who: string; name: string; why: string }[] }>('/api/prospects', 'POST', {
         people: people.map((x) => ({
@@ -284,11 +304,20 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
           website: x.website || undefined,
           instagram: x.instagram?.trim() || undefined,
           facebook: x.facebook?.trim() || undefined,
+          phone: x.phone?.trim() || undefined,
         })),
-        tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+        tags: tagList,
       });
-      if (r.existing.length) { setResult(r); setBusy(false); notify(`${r.added} added.`); }
-      else { notify(`${r.added} ${r.added === 1 ? 'prospect' : 'prospects'} added.`); onAdded(); }
+      const where = tagList.length ? ` · ${tagList.join(', ')}` : '';
+      if (next) {
+        // Ready for the next card: same tags, empty fields.
+        setAddedSoFar((n) => n + r.added + r.existing.length);
+        setOne(blank);
+        setBusy(false);
+        notify(r.existing.length ? `${r.existing[0].name}: ${r.existing[0].why}${where}` : `Added${where}.`);
+        document.getElementById('prospect-name')?.focus();
+      } else if (r.existing.length) { setResult(r); setBusy(false); notify(`${r.added} added.`); }
+      else { notify(`${r.added} ${r.added === 1 ? 'prospect' : 'prospects'} added${where}.`); onAdded(); }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add');
       setBusy(false);
@@ -297,9 +326,9 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
 
   return (
     <>
-      <div className={w.paletteBack} style={{ zIndex: 60 }} onClick={() => !busy && (result ? onAdded() : onClose())} />
+      <div className={w.paletteBack} style={{ zIndex: 60 }} onClick={() => !busy && (result || addedSoFar ? onAdded() : onClose())} />
       <form className={w.dialog} role="dialog" aria-modal="true" aria-labelledby="add-prospects-title" onSubmit={submit}>
-        <h2 id="add-prospects-title" className={w.dialogTitle}>Add prospects</h2>
+        <h2 id="add-prospects-title" className={w.dialogTitle}>Add prospects{addedSoFar ? <span className={w.muted} style={{ fontSize: 13, fontWeight: 600 }}> · {addedSoFar} added so far</span> : null}</h2>
         {result ? (
           <>
             <p style={{ fontSize: 14 }}>{result.added} added. {result.existing.length} already in the CRM:</p>
@@ -310,41 +339,55 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
           </>
         ) : (
           <>
-            <div className={w.tabs} role="tablist" style={{ marginTop: 12 }}>
+            <label style={{ display: 'block', marginTop: 10 }}>
+              <span className={p.label}>Where did you meet them? <span className={w.muted} style={{ fontWeight: 500 }}>Tags, comma separated, added to everyone below</span></span>
+              <input className={p.input} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Small Business Expo Nov 2026" />
+            </label>
+            {existingTags.length > 0 && (
+              <div className={w.chips} style={{ marginTop: 8 }} role="group" aria-label="Your tags">
+                {existingTags.slice(0, 12).map((t) => (
+                  <button key={t} type="button" className={`${w.chip} ${tagList.includes(t) ? w.chipOn : ''}`} aria-pressed={tagList.includes(t)} onClick={() => toggleTag(t)}>{t}</button>
+                ))}
+              </div>
+            )}
+
+            <div className={w.tabs} role="tablist" style={{ marginTop: 14 }}>
               <button type="button" role="tab" aria-selected={mode === 'one'} className={`${w.tab} ${mode === 'one' ? w.tabOn : ''}`} onClick={() => setMode('one')}>One person</button>
               <button type="button" role="tab" aria-selected={mode === 'paste'} className={`${w.tab} ${mode === 'paste' ? w.tabOn : ''}`} onClick={() => setMode('paste')}>Paste a list</button>
             </div>
             {mode === 'one' ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                <label><span className={p.label}>Name</span><input className={p.input} value={one.name} onChange={(e) => setOne({ ...one, name: e.target.value })} placeholder="Maya Lin" autoFocus /></label>
+                <label><span className={p.label}>Name</span><input id="prospect-name" className={p.input} value={one.name} onChange={(e) => setOne({ ...one, name: e.target.value })} placeholder="Maya Lin" autoFocus /></label>
                 <label><span className={p.label}>Company</span><input className={p.input} value={one.company} onChange={(e) => setOne({ ...one, company: e.target.value })} placeholder="Bloom Bakery" /></label>
                 <label><span className={p.label}>Email</span><input className={p.input} type="email" value={one.email} onChange={(e) => setOne({ ...one, email: e.target.value })} placeholder="maya@bloombakery.com" /></label>
+                <label><span className={p.label}>Phone</span><input className={p.input} type="tel" value={one.phone} onChange={(e) => setOne({ ...one, phone: e.target.value })} placeholder="(214) 555-0123" /></label>
                 <label><span className={p.label}>Website</span><input className={p.input} value={one.website} onChange={(e) => setOne({ ...one, website: e.target.value })} placeholder="bloombakery.com" /></label>
                 <label><span className={p.label}>Instagram</span><input className={p.input} value={one.instagram} onChange={(e) => setOne({ ...one, instagram: e.target.value })} placeholder="@bloombakery" /></label>
                 <label><span className={p.label}>Facebook</span><input className={p.input} value={one.facebook} onChange={(e) => setOne({ ...one, facebook: e.target.value })} placeholder="facebook.com/bloombakery" /></label>
-                <p className={w.muted} style={{ gridColumn: '1 / -1', fontSize: 12.5, margin: 0 }}>An email, Instagram or Facebook — whichever you’ll reach them on.</p>
+                <p className={w.muted} style={{ gridColumn: '1 / -1', fontSize: 12.5, margin: 0 }}>An email, phone, Instagram or Facebook: whichever you’ll reach them on.</p>
               </div>
             ) : (
               <>
                 <textarea className={p.textarea} style={{ minHeight: 170, fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5 }} value={paste} onChange={(e) => setPaste(e.target.value)}
                   placeholder={'Paste rows from a spreadsheet, or one per line:\nMaya Lin, maya@bloombakery.com, Bloom Bakery, bloombakery.com\nSam Ortiz\tsam@ortizroofing.com\tOrtiz Roofing\nJo Park, Glow Studio, @glowstudiodallas\nAna Ruiz, Ruiz Tacos, facebook.com/ruiztacos'} autoFocus />
                 <p className={w.muted} style={{ fontSize: 12.5, margin: '6px 0 0' }}>
-                  {paste.trim() ? `${parsed.people.length} ${parsed.people.length === 1 ? 'person' : 'people'} found${parsed.skipped ? ` · ${parsed.skipped} line${parsed.skipped === 1 ? '' : 's'} without an email, @handle or Facebook link skipped` : ''}.` : 'Each row needs an email, an @handle, or an Instagram or Facebook link; name, company and website are picked up around it.'}
+                  {paste.trim() ? `${parsed.people.length} ${parsed.people.length === 1 ? 'person' : 'people'} found${parsed.skipped ? ` · ${parsed.skipped} line${parsed.skipped === 1 ? '' : 's'} without an email, phone, @handle or Facebook link skipped` : ''}.` : 'Each row needs an email, a phone number, an @handle, or an Instagram or Facebook link; name, company and website are picked up around it.'}
                 </p>
               </>
             )}
-            <label style={{ display: 'block', marginTop: 12 }}>
-              <span className={p.label}>Tags (optional, comma separated)</span>
-              <input className={p.input} value={tags} onChange={(e) => setTags(e.target.value)} placeholder={existingTags.slice(0, 2).join(', ') || 'restaurants, dallas'} />
-            </label>
             <p className={w.muted} style={{ fontSize: 12, lineHeight: 1.5, margin: '10px 0 0' }}>
               Add people at businesses you’ve a real reason to contact. Every email includes an unsubscribe link, and anyone who uses it is never emailed again. People added with only a handle are skipped by email sends.
             </p>
             {error && <p style={{ color: '#b00020', fontSize: 13 }}>{error}</p>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button type="button" className={p.btn} onClick={onClose} disabled={busy}>Cancel</button>
+              <button type="button" className={p.btn} onClick={addedSoFar ? onAdded : onClose} disabled={busy}>{addedSoFar ? 'Done' : 'Cancel'}</button>
+              {mode === 'one' && (
+                <button type="button" className={p.btn} disabled={busy || people.length === 0} onClick={(e) => void submit(e, true)} title="Add them and clear the form for the next card">
+                  Add &amp; next
+                </button>
+              )}
               <button type="submit" className={`${p.btn} ${p.btnPrimary}`} disabled={busy || people.length === 0}>
-                {busy ? 'Adding…' : people.length > 1 ? `Add ${people.length}` : 'Add'}
+                {busy ? 'Adding…' : people.length > 1 ? `Add ${people.length}` : addedSoFar ? 'Add & finish' : 'Add'}
               </button>
             </div>
           </>

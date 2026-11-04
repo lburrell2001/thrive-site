@@ -29,6 +29,8 @@ export default function ContactsPage() {
   const { contacts, openContact, notify, refresh } = useCrm();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Lifecycle | 'all'>('all');
+  // A tag, such as where they were met ("Small Business Expo Nov 2026").
+  const [tag, setTag] = useState('');
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -39,9 +41,12 @@ export default function ContactsPage() {
     return m;
   }, [withStage]);
 
+  const tags = useMemo(() => [...new Set(withStage.flatMap((c) => c.tags))].sort((a, b) => a.localeCompare(b)), [withStage]);
+
   const query = q.trim().toLowerCase();
   const visible = withStage.filter((c) =>
     (filter === 'all' || c.stage === filter)
+    && (!tag || c.tags.includes(tag))
     && (!query || [c.name, c.company, c.email, c.phone, c.source, c.website, ...c.tags].some((v) => v?.toLowerCase().includes(query))),
   );
 
@@ -83,6 +88,12 @@ export default function ContactsPage() {
             </button>
           ))}
         </div>
+        {tags.length > 0 && (
+          <select className={p.select} style={{ width: 'auto' }} value={tag} onChange={(e) => setTag(e.target.value)} aria-label="Tag">
+            <option value="">All tags</option>
+            {tags.map((t) => <option key={t} value={t}>{t} ({withStage.filter((c) => c.tags.includes(t)).length})</option>)}
+          </select>
+        )}
       </div>
 
       <div className={w.table}>
@@ -92,7 +103,7 @@ export default function ContactsPage() {
           <span>Person</span><span>Status</span><span className={w.hideSmall}>Deals</span><span className={w.hideSmall}>Newsletter</span><span className={w.hideSmall}>Last touch</span>
         </div>
         {contacts === null && <p className={w.empty}>Loading…</p>}
-        {contacts && visible.length === 0 && <p className={w.empty}>{query || filter !== 'all' ? 'No matches.' : 'No contacts yet.'}</p>}
+        {contacts && visible.length === 0 && <p className={w.empty}>{query || tag || filter !== 'all' ? 'No matches.' : 'No contacts yet.'}</p>}
         {visible.map((c) => (
           <div key={c.id} role="button" tabIndex={0} className={`${w.row} ${w.rowClick} ${picked.has(c.id) ? w.rowOn : ''}`} style={{ gridTemplateColumns: COLUMNS }}
             onClick={() => openContact(c.id)} onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) openContact(c.id); }}>

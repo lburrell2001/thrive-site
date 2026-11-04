@@ -329,6 +329,7 @@
   bottom: 0;
   z-index: 41;
   width: min(560px, 100vw);
+  transition: width 0.18s ease;
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -336,6 +337,8 @@
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   color: #111;
 }
+
+.drawerWide { width: min(1040px, 100vw); }
 
 .drawerHead {
   padding: 20px 22px 16px;

@@ -8,8 +8,8 @@ import { createContext, useContext } from 'react';
 import type { CrmContactRow } from '@/types/crm';
 
 export interface CrmWorkspace {
-  /** Open someone in the contact panel (and put them in the URL). */
-  openContact: (contactId: string, dealId?: string | null) => void;
+  /** Open someone in the contact panel (and put them in the URL); 'client' opens on their portal work. */
+  openContact: (contactId: string, dealId?: string | null, panel?: 'client' | null) => void;
   /** Bumps whenever data changed; pages refetch when it does. */
   version: number;
   refresh: () => void;

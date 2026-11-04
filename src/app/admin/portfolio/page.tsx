@@ -1,11 +1,15 @@
 'use client';
 
+// Portfolio: the projects behind /work — details, case study copy, cover
+// and gallery images. The list sits beside the editor; on phones they stack.
+
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ui from '../proposals/proposals.module.css';
+import w from '../crm/workspace.module.css';
 import { adminHeaders } from '@/lib/adminSession';
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
-  inter: `var(--font-inter), 'Inter', sans-serif`,
+  inter: 'var(--a-font)',
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,16 +74,15 @@ function slugify(str: string) {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: '#1a1a1a', border: '1.5px solid #2a2a2a',
-  borderRadius: 6, padding: '9px 12px',
-  fontFamily: F.inter, fontSize: 13, color: '#e8e8e8',
+  background: '#fff', border: '1px solid var(--a-border-strong)',
+  borderRadius: 10, padding: '9px 11px',
+  fontFamily: F.inter, fontSize: 13.5, color: 'var(--a-text)',
   outline: 'none', transition: 'border-color .15s',
 };
 
 const labelStyle: React.CSSProperties = {
-  fontFamily: F.inter, fontSize: 11, fontWeight: 600,
-  color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em',
-  display: 'block', marginBottom: 5,
+  fontFamily: F.inter, fontSize: 12, fontWeight: 600,
+  color: '#555', display: 'block', marginBottom: 6,
 };
 
 const textareaStyle: React.CSSProperties = {
@@ -97,14 +100,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      fontFamily: F.inter, fontSize: 10, fontWeight: 700, letterSpacing: '0.12em',
-      textTransform: 'uppercase', color: '#e50586',
-      borderBottom: '1px solid #2a2a2a', paddingBottom: 8, marginBottom: 16, marginTop: 24,
+    <h3 style={{
+      fontFamily: F.inter, fontSize: 15, fontWeight: 700, color: 'var(--a-text)',
+      borderTop: '1px solid var(--a-border)', paddingTop: 20, margin: '24px 0 14px',
     }}>
       {children}
-    </div>
+    </h3>
   );
+}
+
+function Hint({ children }: { children: React.ReactNode }) {
+  return <p style={{ fontFamily: F.inter, fontSize: 12, color: 'var(--a-faint)', margin: '4px 0 0' }}>{children}</p>;
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -117,7 +123,6 @@ export default function PortfolioAdminPage() {
   const [saving,            setSaving]            = useState(false);
   const [deleting,          setDeleting]          = useState(false);
   const [msg,               setMsg]               = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Cover image state
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -160,7 +165,6 @@ export default function PortfolioAdminPage() {
   function selectProject(p: PortfolioProject) {
     setSelected(p);
     setIsNew(false);
-    setMobileSidebarOpen(false);
     setForm({
       title: p.title ?? '',
       slug: p.slug ?? '',
@@ -306,149 +310,71 @@ export default function PortfolioAdminPage() {
   const showEditor = isNew || selected !== null;
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: '#0f0f0f' }}>
+    <div className={w.page}>
       <style>{`
-        .port-sidebar {
-          width: 260px; flex-shrink: 0; display: flex; flex-direction: column;
-          border-right: 1px solid #1f1f1f; overflow: hidden;
-        }
-        .port-mobile-bar { display: none; }
-        @media (max-width: 640px) {
-          .port-sidebar {
-            position: fixed; top: 0; left: 0; bottom: 0; z-index: 50;
-            width: 280px !important;
-            transform: translateX(-100%); transition: transform .22s ease;
-            box-shadow: 4px 0 24px rgba(0,0,0,.4);
-          }
-          .port-sidebar.mobile-open { transform: translateX(0); }
-          .port-mobile-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #161616; border-bottom: 1px solid #1f1f1f; flex-shrink: 0; }
-          .port-editor { padding: 16px 16px 40px !important; }
+        .port-grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 18px; align-items: start; }
+        .port-list { position: sticky; top: 16px; max-height: calc(100dvh - 48px); overflow-y: auto; }
+        @media (max-width: 900px) {
+          .port-grid { grid-template-columns: minmax(0, 1fr); }
+          .port-list { position: static; max-height: 320px; }
         }
       `}</style>
-
-      {/* Mobile overlay */}
-      {mobileSidebarOpen && (
-        <div onClick={() => setMobileSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 }} />
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside className={`port-sidebar${mobileSidebarOpen ? ' mobile-open' : ''}`}>
-        <div style={{ padding: '16px 16px 12px', borderBottom: '1px solid #1f1f1f' }}>
-          <button
-            onClick={startNew}
-            style={{
-              width: '100%', background: '#e50586', color: '#fff', border: 'none',
-              borderRadius: 8, padding: '10px 0', fontFamily: F.inter, fontSize: 13,
-              fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em',
-            }}
-          >
-            + New Project
-          </button>
+      <div className={w.head}>
+        <div>
+          <h1 className={w.title}>Portfolio</h1>
+          <p className={w.sub}>The projects on /work: details, case study copy, cover and gallery images.</p>
         </div>
+        <div className={w.headActions}>
+          <button type="button" className={`${ui.btn} ${ui.btnPrimary}`} onClick={startNew}>New project</button>
+        </div>
+      </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-          {projects.length === 0 && (
-            <p style={{ fontFamily: F.inter, fontSize: 12, color: '#444', padding: '16px', textAlign: 'center' }}>
-              No projects yet.
-            </p>
-          )}
+      <div className="port-grid">
+        <section className={`${w.card} port-list`}>
+          {projects.length === 0 && <p className={w.empty}>No projects yet.</p>}
           {projects.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => selectProject(p)}
-              style={{
-                width: '100%', textAlign: 'left', background: selected?.id === p.id ? '#1a1a1a' : 'transparent',
-                border: 'none', borderLeft: selected?.id === p.id ? '3px solid #e50586' : '3px solid transparent',
-                padding: '10px 16px', cursor: 'pointer',
-                transition: 'background .12s',
-              }}
-            >
-              <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: selected?.id === p.id ? '#fff' : '#ccc', marginBottom: 2 }}>
-                {p.title}
-              </div>
-              {p.category && (
-                <div style={{ fontFamily: F.inter, fontSize: 11, color: '#555' }}>{p.category}</div>
-              )}
+            <button key={p.id} type="button" className={w.item} onClick={() => selectProject(p)}
+              style={selected?.id === p.id ? { background: 'var(--a-accent-soft)' } : undefined} aria-current={selected?.id === p.id ? 'true' : undefined}>
+              <span className={w.itemMain}>
+                <span className={w.itemTitle}>{p.title}{p.featured ? <span className={w.muted} style={{ fontWeight: 500 }}> · featured</span> : null}</span>
+                {p.category && <span className={w.itemSub}>{p.category}</span>}
+              </span>
             </button>
           ))}
-        </div>
-      </aside>
+        </section>
 
-      {/* ── Editor ── */}
-      {showEditor ? (
-        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-
-          {/* Mobile project selector bar */}
-          <div className="port-mobile-bar">
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: '#ccc', cursor: 'pointer', flex: 1 }}
-            >
-              {selected ? selected.title : 'New Project'}
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 'auto' }}>
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-
-          <div className="port-editor" style={{ padding: '28px 36px 60px', flex: 1 }}>
-
-          {/* Header row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
-            <div>
-              <h1 style={{ fontFamily: F.bungee, fontSize: 22, color: '#fff', margin: 0, letterSpacing: '-0.02em' }}>
-                {isNew ? 'NEW PROJECT' : form.title.toUpperCase() || 'EDIT PROJECT'}
-              </h1>
-              {!isNew && selected && (
-                <p style={{ fontFamily: F.inter, fontSize: 12, color: '#555', margin: '4px 0 0' }}>
-                  ID: {selected.id}
-                </p>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {!isNew && selected && (
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  style={{
-                    background: 'transparent', border: '1px solid #3a1a1a', color: '#cc4444',
-                    borderRadius: 6, padding: '8px 16px', fontFamily: F.inter, fontSize: 12,
-                    fontWeight: 600, cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.5 : 1,
-                  }}
-                >
-                  {deleting ? 'Deleting…' : 'Delete Project'}
+        {showEditor ? (
+          <section className={w.card} style={{ padding: '20px 24px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{isNew ? 'New project' : form.title || 'Edit project'}</h2>
+                {!isNew && selected && <p className={w.muted} style={{ margin: '4px 0 0', fontSize: 12 }}>/work/{selected.slug}</p>}
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!isNew && selected && (
+                  <a href={`/work/${selected.slug}`} target="_blank" rel="noreferrer" className={ui.btn}>View</a>
+                )}
+                <button type="button" className={`${ui.btn} ${ui.btnPrimary}`} onClick={handleSave} disabled={saving}>
+                  {saving ? 'Saving…' : isNew ? 'Create project' : 'Save changes'}
                 </button>
-              )}
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                style={{
-                  background: saving ? '#444' : '#e50586', color: '#fff', border: 'none',
-                  borderRadius: 6, padding: '8px 22px', fontFamily: F.inter, fontSize: 13,
-                  fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-                }}
-              >
-                {saving ? 'Saving…' : isNew ? 'Create Project' : 'Save Changes'}
-              </button>
+              </div>
             </div>
-          </div>
 
           {/* Status message */}
           {msg && (
             <div style={{
-              padding: '10px 14px', borderRadius: 6, marginBottom: 20,
-              background: msg.type === 'ok' ? 'rgba(12,245,116,0.1)' : 'rgba(229,5,134,0.12)',
-              border: `1px solid ${msg.type === 'ok' ? 'rgba(12,245,116,0.3)' : 'rgba(229,5,134,0.3)'}`,
-              fontFamily: F.inter, fontSize: 13,
-              color: msg.type === 'ok' ? '#0cf574' : '#e50586',
+              padding: '10px 14px', borderRadius: 10, marginBottom: 20,
+              background: msg.type === 'ok' ? '#e6f6ec' : 'var(--a-accent-soft)',
+              fontSize: 13, fontWeight: 600,
+              color: msg.type === 'ok' ? '#13703a' : 'var(--a-accent-hover)',
             }}>
               {msg.text}
             </div>
           )}
 
           {/* ── Basic Info ── */}
-          <SectionLabel>Basic Info</SectionLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+          <SectionLabel>Basics</SectionLabel>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0 20px' }}>
             <Field label="Title *">
               <input
                 style={inputStyle}
@@ -472,9 +398,7 @@ export default function PortfolioAdminPage() {
                 onChange={(e) => handleField('category_label', e.target.value)}
                 placeholder="e.g. Branding · Visual System"
               />
-              <div style={{ fontFamily: F.inter, fontSize: 11, color: '#555', marginTop: 4 }}>
-                Shown as the pink label on the project hero page
-              </div>
+              <Hint>Shown as the pink label on the project hero page</Hint>
             </Field>
             <Field label="Project Tagline">
               <input
@@ -483,9 +407,7 @@ export default function PortfolioAdminPage() {
                 onChange={(e) => handleField('tagline', e.target.value)}
                 placeholder="e.g. A fresh, confident identity made to feel like self-care."
               />
-              <div style={{ fontFamily: F.inter, fontSize: 11, color: '#555', marginTop: 4 }}>
-                Short description shown on portfolio cards
-              </div>
+              <Hint>Short description shown on portfolio cards</Hint>
             </Field>
             <Field label="Category">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -493,7 +415,7 @@ export default function PortfolioAdminPage() {
                   const selected = (form.category ?? '').split(',').map(s => s.trim()).filter(Boolean);
                   const checked = selected.includes(cat);
                   return (
-                    <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: F.inter, fontSize: 13, color: '#e8e8e8' }}>
+                    <label key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontFamily: F.inter, fontSize: 13.5, color: 'var(--a-text)' }}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -503,7 +425,7 @@ export default function PortfolioAdminPage() {
                             : [...selected, cat];
                           handleField('category', next.join(', '));
                         }}
-                        style={{ accentColor: '#e50586', width: 14, height: 14, cursor: 'pointer' }}
+                        style={{ accentColor: 'var(--a-accent)', width: 15, height: 15, cursor: 'pointer' }}
                       />
                       {cat}
                     </label>
@@ -542,7 +464,7 @@ export default function PortfolioAdminPage() {
               id="featured"
               checked={form.featured}
               onChange={(e) => handleField('featured', e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: '#e50586', cursor: 'pointer' }}
+              style={{ width: 16, height: 16, accentColor: 'var(--a-accent)', cursor: 'pointer' }}
             />
             <label htmlFor="featured" style={{ ...labelStyle, margin: 0, cursor: 'pointer' }}>
               Featured project
@@ -583,7 +505,7 @@ export default function PortfolioAdminPage() {
               placeholder="Measurable outcomes…"
             />
           </Field>
-          <Field label="Project Notes (internal)">
+          <Field label="Project notes (internal)">
             <textarea
               style={{ ...textareaStyle, minHeight: 72 }}
               value={form.project_notes ?? ''}
@@ -593,17 +515,12 @@ export default function PortfolioAdminPage() {
           </Field>
 
           {/* ── Cover Image ── */}
-          <SectionLabel>Cover Image</SectionLabel>
+          <SectionLabel>Cover image</SectionLabel>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-            <p style={{ fontFamily: F.inter, fontSize: 12, color: '#555', margin: 0 }}>
-              Stored at <code style={{ color: '#888' }}>course-media/work/{form.slug || '[slug]'}-cover.jpg</code>
+            <p style={{ fontFamily: F.inter, fontSize: 12, color: 'var(--a-faint)', margin: 0 }}>
+              Stored at <code style={{ color: 'var(--a-muted)' }}>course-media/work/{form.slug || '[slug]'}-cover.jpg</code>
             </p>
-            <span style={{
-              fontFamily: F.inter, fontSize: 11, fontWeight: 600,
-              background: '#1a1a1a', border: '1px solid #2a2a2a',
-              borderRadius: 4, padding: '3px 8px', color: '#888',
-              letterSpacing: '0.04em', whiteSpace: 'nowrap',
-            }}>
+            <span className={w.pill} style={{ background: 'var(--a-bg)', color: 'var(--a-muted)' }}>
               Recommended: 1600 × 1000px · Max 5 MB · JPG / PNG / WebP
             </span>
           </div>
@@ -613,7 +530,7 @@ export default function PortfolioAdminPage() {
                 <img
                   src={coverUrl}
                   alt="Cover"
-                  style={{ width: 200, height: 130, objectFit: 'cover', borderRadius: 8, border: '1px solid #2a2a2a', display: 'block' }}
+                  style={{ width: 200, height: 130, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--a-border)', display: 'block' }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
@@ -629,40 +546,29 @@ export default function PortfolioAdminPage() {
               <button
                 onClick={() => coverInputRef.current?.click()}
                 disabled={coverUploading || !form.slug}
-                style={{
-                  background: coverUploading ? '#2a2a2a' : '#1a1a1a',
-                  border: '1.5px dashed #3a3a3a', color: coverUploading ? '#555' : '#aaa',
-                  borderRadius: 8, padding: '10px 20px',
-                  fontFamily: F.inter, fontSize: 12, fontWeight: 600,
-                  cursor: coverUploading || !form.slug ? 'default' : 'pointer',
-                }}
+                className={ui.btn}
               >
-                {coverUploading ? 'Uploading…' : coverUrl ? 'Replace Cover Image' : 'Upload Cover Image'}
+                {coverUploading ? 'Uploading…' : coverUrl ? 'Replace cover image' : 'Upload cover image'}
               </button>
               {!form.slug && (
-                <p style={{ fontFamily: F.inter, fontSize: 11, color: '#555', marginTop: 6 }}>Set a slug first</p>
+                <Hint>Set a slug first</Hint>
               )}
             </div>
           </div>
 
           {/* ── Gallery ── */}
-          <SectionLabel>Gallery Images</SectionLabel>
+          <SectionLabel>Gallery images</SectionLabel>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
-            <p style={{ fontFamily: F.inter, fontSize: 12, color: '#555', margin: 0 }}>
-              Stored at <code style={{ color: '#888' }}>course-media/projects/{form.slug || '[slug]'}/gallery/</code>
+            <p style={{ fontFamily: F.inter, fontSize: 12, color: 'var(--a-faint)', margin: 0 }}>
+              Stored at <code style={{ color: 'var(--a-muted)' }}>course-media/projects/{form.slug || '[slug]'}/gallery/</code>
             </p>
-            <span style={{
-              fontFamily: F.inter, fontSize: 11, fontWeight: 600,
-              background: '#1a1a1a', border: '1px solid #2a2a2a',
-              borderRadius: 4, padding: '3px 8px', color: '#888',
-              letterSpacing: '0.04em', whiteSpace: 'nowrap',
-            }}>
+            <span className={w.pill} style={{ background: 'var(--a-bg)', color: 'var(--a-muted)' }}>
               Recommended: 1200 × 800px · Max 5 MB each · JPG / PNG / WebP
             </span>
           </div>
 
           {galleryLoading ? (
-            <p style={{ fontFamily: F.inter, fontSize: 12, color: '#555' }}>Loading gallery…</p>
+            <Hint>Loading gallery…</Hint>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
               {gallery.map((img) => (
@@ -670,7 +576,7 @@ export default function PortfolioAdminPage() {
                   <img
                     src={img.url}
                     alt={img.name}
-                    style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 6, display: 'block', border: '1px solid #2a2a2a' }}
+                    style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 6, display: 'block', border: '1px solid var(--a-border)' }}
                   />
                   <button
                     onClick={() => handleDeleteGalleryImage(img)}
@@ -686,13 +592,13 @@ export default function PortfolioAdminPage() {
                   >
                     ×
                   </button>
-                  <p style={{ fontFamily: F.inter, fontSize: 10, color: '#555', marginTop: 4, width: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <p style={{ fontFamily: F.inter, fontSize: 11, color: 'var(--a-faint)', marginTop: 4, width: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {img.name}
                   </p>
                 </div>
               ))}
               {gallery.length === 0 && !galleryLoading && (
-                <p style={{ fontFamily: F.inter, fontSize: 12, color: '#444' }}>No gallery images yet.</p>
+                <Hint>No gallery images yet.</Hint>
               )}
             </div>
           )}
@@ -708,74 +614,31 @@ export default function PortfolioAdminPage() {
           <button
             onClick={() => galleryInputRef.current?.click()}
             disabled={galleryUploading || !form.slug}
-            style={{
-              background: galleryUploading ? '#2a2a2a' : '#1a1a1a',
-              border: '1.5px dashed #3a3a3a', color: galleryUploading ? '#555' : '#aaa',
-              borderRadius: 8, padding: '10px 20px',
-              fontFamily: F.inter, fontSize: 12, fontWeight: 600,
-              cursor: galleryUploading || !form.slug ? 'default' : 'pointer',
-            }}
+            className={ui.btn}
           >
-            {galleryUploading ? 'Uploading…' : '+ Upload Gallery Images'}
+            {galleryUploading ? 'Uploading…' : '+ Upload gallery images'}
           </button>
           {!form.slug && (
-            <p style={{ fontFamily: F.inter, fontSize: 11, color: '#555', marginTop: 6 }}>Set a slug first</p>
+            <Hint>Set a slug first</Hint>
           )}
 
-          {/* Bottom save bar */}
-          <div style={{ marginTop: 40, paddingTop: 20, borderTop: '1px solid #1f1f1f', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-            {!isNew && selected && (
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                style={{
-                  background: 'transparent', border: '1px solid #3a1a1a', color: '#cc4444',
-                  borderRadius: 6, padding: '10px 20px', fontFamily: F.inter, fontSize: 13,
-                  fontWeight: 600, cursor: deleting ? 'default' : 'pointer', opacity: deleting ? 0.5 : 1,
-                }}
-              >
-                {deleting ? 'Deleting…' : 'Delete Project'}
+          <div style={{ marginTop: 32, paddingTop: 18, borderTop: '1px solid var(--a-border)', display: 'flex', gap: 10, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            {!isNew && selected ? (
+              <button type="button" className={`${ui.btn} ${ui.btnDanger}`} onClick={handleDelete} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete project'}
               </button>
-            )}
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              style={{
-                background: saving ? '#444' : '#e50586', color: '#fff', border: 'none',
-                borderRadius: 6, padding: '10px 28px', fontFamily: F.inter, fontSize: 13,
-                fontWeight: 700, cursor: saving ? 'default' : 'pointer',
-              }}
-            >
-              {saving ? 'Saving…' : isNew ? 'Create Project' : 'Save Changes'}
+            ) : <span />}
+            <button type="button" className={`${ui.btn} ${ui.btnPrimary}`} onClick={handleSave} disabled={saving}>
+              {saving ? 'Saving…' : isNew ? 'Create project' : 'Save changes'}
             </button>
           </div>
-
-          </div>
-        </div>
-      ) : (
-        /* Empty state */
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div className="port-mobile-bar">
-            <button
-              onClick={() => setMobileSidebarOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, padding: '8px 14px', fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: '#ccc', cursor: 'pointer', flex: 1 }}
-            >
-              Select Project
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 'auto' }}>
-                <path d="M3 4.5L6 7.5L9 4.5" stroke="#666" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-            <div style={{ fontFamily: F.bungee, fontSize: 18, color: '#2a2a2a', letterSpacing: '-0.02em' }}>
-              SELECT A PROJECT
-            </div>
-            <p style={{ fontFamily: F.inter, fontSize: 13, color: '#444', textAlign: 'center', maxWidth: 280 }}>
-              Choose a project from the sidebar to edit it, or click &ldquo;New Project&rdquo; to create one.
-            </p>
-          </div>
-        </div>
-      )}
+          </section>
+        ) : (
+          <section className={w.card}>
+            <p className={w.empty}>Pick a project to edit it, or start a new one.</p>
+          </section>
+        )}
+      </div>
     </div>
   );
 }

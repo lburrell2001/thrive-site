@@ -76,7 +76,7 @@ export default function AdminHome() {
   const portalContact = (clientId: string | null) => (clientId ? contacts?.find((c) => c.portal_client_id === clientId) ?? null : null);
   function openClient(clientId: string | null) {
     const contact = portalContact(clientId);
-    if (contact) openContact(contact.id);
+    if (contact) openContact(contact.id, null, 'client');
     else if (clientId) window.location.assign(`/admin/clients?client=${clientId}`);
   }
 

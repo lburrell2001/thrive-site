@@ -57,10 +57,10 @@ const FULL_SCREEN = /^\/admin\/crm\/proposals\/[^/]+\/(edit|preview|tune)/;
 
 const urlParam = (key: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(key));
 
-function setUrl(contact: string | null, deal: string | null) {
+function setUrl(contact: string | null, deal: string | null, panel: string | null) {
   const url = new URL(window.location.href);
   url.searchParams.delete('portal');
-  for (const [key, value] of [['contact', contact], ['deal', deal]] as const) {
+  for (const [key, value] of [['contact', contact], ['deal', deal], ['panel', panel]] as const) {
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
   }
@@ -73,9 +73,9 @@ const isActive = (pathname: string, href: string) =>
 export function AdminWorkspace({ children, onSignOut }: { children: React.ReactNode; onSignOut: () => void }) {
   const pathname = usePathname() ?? '';
   // Whoever the URL names opens straight away.
-  const [open, setOpen] = useState<{ contact: string; deal: string | null } | null>(() => {
+  const [open, setOpen] = useState<{ contact: string; deal: string | null; panel: 'client' | null } | null>(() => {
     const contact = urlParam('contact');
-    return contact ? { contact, deal: urlParam('deal') } : null;
+    return contact ? { contact, deal: urlParam('deal'), panel: urlParam('panel') === 'client' ? 'client' : null } : null;
   });
   const [version, setVersion] = useState(0);
   const [contacts, setContacts] = useState<CrmContactRow[] | null>(null);
@@ -88,9 +88,9 @@ export function AdminWorkspace({ children, onSignOut }: { children: React.ReactN
 
   const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
-  const openContact = useCallback((contact: string | null, deal: string | null = null) => {
-    setOpen(contact ? { contact, deal } : null);
-    setUrl(contact, deal);
+  const openContact = useCallback((contact: string | null, deal: string | null = null, panel: 'client' | null = null) => {
+    setOpen(contact ? { contact, deal, panel } : null);
+    setUrl(contact, deal, panel);
   }, []);
 
   // Contacts (for search) and the sidebar counts, again after any change.
@@ -101,17 +101,20 @@ export function AdminWorkspace({ children, onSignOut }: { children: React.ReactN
     return () => { cancelled = true; };
   }, [version]);
 
-  // ?portal=<id> from a client's page: find their contact.
+  // ?portal=<portal client id> (or the old /admin/clients?client=<id>): open
+  // their contact on the Client tab.
   useEffect(() => {
-    const portal = urlParam('portal');
+    const portal = urlParam('portal') ?? (pathname === '/admin/clients' ? urlParam('client') : null);
     if (!portal || urlParam('contact')) return;
     apiGet<CrmContactRow[]>('/api/crm/contacts')
       .then((list) => {
         const found = list.find((c) => c.portal_client_id === portal);
-        if (found) openContact(found.id);
+        if (found) openContact(found.id, null, 'client');
         else show('That client has no CRM contact yet', 'error');
       })
       .catch(() => {});
+    // Only on arrival: the URL names who to open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openContact, show]);
 
   useEffect(() => {
@@ -126,7 +129,7 @@ export function AdminWorkspace({ children, onSignOut }: { children: React.ReactN
   }, []);
 
   const ctx = useMemo<CrmWorkspace>(() => ({
-    openContact: (id, deal = null) => openContact(id, deal),
+    openContact: (id, deal = null, panel = null) => openContact(id, deal, panel),
     version,
     refresh,
     contacts,
@@ -199,9 +202,10 @@ export function AdminWorkspace({ children, onSignOut }: { children: React.ReactN
 
       {open && (
         <ContactDrawer
-          key={open.contact}
+          key={`${open.contact}:${open.panel ?? ''}`}
           id={open.contact}
           focusDealId={open.deal}
+          initialTab={open.panel}
           onClose={() => openContact(null)}
           onChanged={refresh}
           onDeleted={() => { openContact(null); refresh(); }}

@@ -206,6 +206,7 @@ export interface ProspectRow {
   website: string | null;
   instagram: string | null;
   facebook: string | null;
+  phone: string | null;
   tags: string[];
   prospected_at: string | null;
   created_at: string;
