@@ -372,6 +372,7 @@ const NAV: NavEntry[] = [
     label: 'Clients',
     items: [
       { href: '/admin/clients', label: 'Clients', color: '#555', desc: 'Portal logins, invoices, onboarding' },
+      { href: '/admin/invoices', label: 'Invoices', color: '#1e3add', desc: 'Estimates and invoices from a typed list' },
       { href: '/admin/crm/proposals', label: 'Proposals', color: '#5b2d8e', desc: 'Build, send and track' },
       { href: '/admin/calls', label: 'Calls', color: '#0f766e', desc: 'Bookings and booking hours' },
       { href: '/admin/reviews', label: 'Reviews', color: '#b45309', desc: 'Approve client reviews' },

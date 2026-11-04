@@ -1,0 +1,235 @@
+/* Invoice and estimate builder. The chrome comes from proposals.module.css;
+   this file is the two-column layout and the paper preview. */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.modes {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: #ece9e6;
+  margin-bottom: 16px;
+}
+
+.mode {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 18px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #555;
+  cursor: pointer;
+}
+
+.modeOn { background: #0a0a0a; color: #fff; }
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.items {
+  min-height: 260px;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.help {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #777;
+}
+
+.help code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ece9e6;
+  font-size: 11.5px;
+  color: #333;
+}
+
+.problems {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff0f8;
+  color: #a1035e;
+  font-size: 12.5px;
+  list-style: none;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* ── Paper preview ── */
+
+.paper {
+  position: sticky;
+  top: 16px;
+  background: #fff;
+  border: 1px solid #e4e1de;
+  border-radius: 12px;
+  padding: 32px 30px 26px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+.paper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  background: #e40586;
+}
+
+.paperHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #e40586;
+}
+
+.paperLogo { height: 26px; width: auto; }
+
+.paperKind {
+  margin: 0;
+  font-family: var(--font-bungee), 'Bungee', sans-serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.paperMeta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  margin: 16px 0 18px;
+  font-size: 13px;
+}
+
+.paperLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #888;
+}
+
+.paperMetaRight { text-align: right; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  padding: 8px 10px;
+  background: #f6f5f4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #888;
+  text-align: left;
+}
+
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.num { text-align: right !important; white-space: nowrap; }
+
+.lineName { font-weight: 700; }
+
+.lineDesc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #666;
+  white-space: pre-line;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.totalLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #888; }
+
+.totalValue {
+  font-family: var(--font-bungee), 'Bungee', sans-serif;
+  font-size: 22px;
+}
+
+.paperNotes {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #333;
+  white-space: pre-line;
+}
+
+.paperEmpty {
+  padding: 26px 10px;
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+}
+
+/* ── Saved lists ── */
+
+.list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.listRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0eeec;
+}
+
+.listMain { flex: 1; min-width: 220px; }
+
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}

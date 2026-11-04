@@ -90,6 +90,10 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - Every read/write goes through a server route with the service role key: `POST /api/portal/credentials` (client, Supabase bearer token; actions `list` / `reveal` / `create` / `update` / `delete`) and the `save_credential` / `reveal_credential` / `delete_credential` actions on `/api/admin` (passcode). `save_credential` is for logins a client gave Lauren another way (text, call); they show in the client's vault too, and a blank password or notes on an edit keeps the stored one.
 - List responses carry metadata only (`has_secret`, `has_notes`) — a secret leaves the server only in response to an explicit `reveal`. Admin reveals stamp `last_viewed_at` / `last_viewed_by`, which the client sees in their vault.
 
+### Invoices and estimates
+
+`/admin/invoices` (migration `039`) builds both from a typed list, one item per line, parsed by `src/lib/lineItems.ts` (pure; `Item | description | $price`, optional hours, `3h @ $100` multiplies, `-` lines extend the description above, `Included`, negative discounts, tab-separated paste). Invoices go into `portal_invoices` through the `add_invoice` action on `/api/admin`, which now takes `line_items` + `notes` and sets `amount_cents` from the lines, so the portal, Stripe, reminders and CRM deal triggers are unchanged; only portal clients can be invoiced (anyone can get a PDF). Estimates live in `estimates` (RLS on, no policies; `EST-001…`; `GET/POST /api/estimates`, `PATCH/DELETE /api/estimates/[id]`) and "Turn into invoice" marks them `invoiced`. `src/lib/invoicePDF.ts` prints the lines (older invoices print as one line), notes, and an ESTIMATE variant.
+
 ### Reminders and text messages
 
 - Admin sends reminders from the Remind buttons on unpaid invoices, unsigned proposals (uploaded and builder), unfinished onboarding, and "Message Client" on the profile. The logic is in `src/lib/reminders.ts`; routes are the `reminder_preview` / `send_reminder` actions on `/api/admin` and `GET`/`POST /api/proposals/[id]/remind`.
