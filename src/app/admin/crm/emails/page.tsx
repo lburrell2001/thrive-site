@@ -16,6 +16,7 @@ import { useCrm } from '../CrmContext';
 import type { EmailStyle, EmailTemplate } from '@/lib/emailContent';
 import { formatWhen } from '@/lib/scheduleTime';
 import { EmailDialog } from '../EmailDialog';
+import { Connections, type OutlookStatus } from './Connections';
 
 interface Row {
   id: string;
@@ -77,6 +78,7 @@ export default function EmailsPage() {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [address, setAddress] = useState('');
+  const [outlook, setOutlook] = useState<OutlookStatus | null>(null);
   // From the Prospects page: "Email them" arrives with ?new=1&contacts=…
   const [starting, setStarting] = useState<{ ids: string[] } | null>(() =>
     urlParam('new') === '1' ? { ids: (urlParam('contacts') ?? '').split(',').filter(Boolean) } : null);
@@ -98,6 +100,28 @@ export default function EmailsPage() {
       .catch((e) => { if (!cancelled) { show(e instanceof Error ? e.message : 'Could not load emails', 'error'); setRows([]); } });
     return () => { cancelled = true; };
   }, [load, show, version]);
+
+  const loadOutlook = useCallback(async () => {
+    setOutlook(await apiGet<OutlookStatus>('/api/outlook').catch(() => null));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<OutlookStatus>('/api/outlook')
+      .then((o) => { if (!cancelled) setOutlook(o); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [version]);
+
+  // Back from the Microsoft sign-in.
+  useEffect(() => {
+    const ok = urlParam('outlook');
+    const failed = urlParam('outlook_error');
+    if (!ok && !failed) return;
+    if (ok) show('Outlook connected. Mail with your contacts will show up within 5 minutes.');
+    else show(`Outlook didn’t connect: ${failed}`, 'error');
+    window.history.replaceState(null, '', '/admin/crm/emails?tab=settings');
+  }, [show]);
 
   async function reload() {
     try {
@@ -133,7 +157,9 @@ export default function EmailsPage() {
   const sent = rows?.filter((r) => r.status === 'sent') ?? [];
   const singleScheduled = singles.filter((o) => o.status === 'scheduled' || o.status === 'sending');
   const singleDrafts = singles.filter((o) => o.status === 'draft' || o.status === 'failed');
-  const inboundOn = Boolean(settings?.inbound.domain && settings.inbound.webhook);
+  const outlookOn = Boolean(outlook?.connection && !outlook.connection.last_error?.startsWith('Reconnect'));
+  // Replies are caught by Resend's inbound webhook or by reading the Outlook inbox.
+  const inboundOn = outlookOn || Boolean(settings?.inbound.domain && settings.inbound.webhook);
 
   return (
     <div className={w.page}>
@@ -270,7 +296,11 @@ export default function EmailsPage() {
               <span className={`${w.pill} ${inboundOn ? w.pillClient : w.pillMuted}`} style={{ marginLeft: 'auto' }}>{inboundOn ? 'On' : 'Off'}</span>
             </div>
             <div style={{ padding: 18, fontSize: 13.5, lineHeight: 1.6 }}>
-              {inboundOn ? (
+              {outlookOn ? (
+                <p style={{ margin: 0 }}>
+                  Through Outlook: emails you send from the CRM come from {outlook?.connection?.send_from ?? outlook?.connection?.account_email}, so replies land in your inbox, and the CRM picks them up from there. Newsletters still go through Resend.
+                </p>
+              ) : inboundOn ? (
                 <p style={{ margin: 0 }}>
                   Replies go to <code>reply-…@{settings.inbound.domain}</code>. Each one is logged on the person, forwarded to your inbox (hit reply there to answer them), and a prospect who replies becomes a New lead.
                 </p>
@@ -287,6 +317,7 @@ export default function EmailsPage() {
           </section>
         </div>
       )}
+      {tab === 'settings' && <Connections status={outlook} onChange={loadOutlook} notify={show} />}
 
       {emailing && (
         <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onDone={(message) => { setEmailing(null); show(message); void reload(); }} />

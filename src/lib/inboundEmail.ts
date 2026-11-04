@@ -63,6 +63,67 @@ function htmlToText(html: string) {
 
 const cleanSubject = (s: string) => s.replace(/^\s*((re|fwd?|aw):\s*)+/i, '').trim();
 
+type ReplyContact = { id: string; name: string | null; email: string | null; prospect_status: string | null };
+
+/**
+ * Store one email from a contact (or a stranger) in email_replies, so it shows
+ * on Today and the timeline. With `act`, a prospect becomes a New lead and a
+ * "Reply to …" task is added, as for any reply. The Outlook sync calls this
+ * without `act` for history it pulls in on first connect.
+ */
+export async function logReply(db: SupabaseClient, r: {
+  sourceId: string;
+  contact: ReplyContact | null;
+  fromEmail: string;
+  fromName: string | null;
+  subject: string;
+  text: string;
+  receivedAt?: string;
+  forwarded?: boolean;
+  act: boolean;
+}): Promise<{ id: string } | { skipped: string }> {
+  const { data: reply, error } = await db.from('email_replies').insert({
+    resend_email_id: r.sourceId,
+    contact_id: r.contact?.id ?? null,
+    from_email: r.fromEmail,
+    from_name: r.fromName,
+    subject: r.subject,
+    text: r.text.slice(0, 20_000),
+    forwarded: r.forwarded ?? false,
+    ...(r.receivedAt ? { received_at: r.receivedAt } : {}),
+  }).select('id').single();
+  if (error) return { skipped: error.code === '23505' ? 'already handled' : error.message };
+
+  const contact = r.contact;
+  if (contact) {
+    await db.from('crm_contacts').update({ replied_at: r.receivedAt ?? new Date().toISOString() }).eq('id', contact.id);
+    if (r.act) {
+      await openLeadForProspect(db, contact, cleanSubject(r.subject) ? `Replied: ${cleanSubject(r.subject)}` : 'Replied to an email', 'email reply');
+      await addTaskOnce(db, contact.id, `Reply to ${contact.name || r.fromName || r.fromEmail}`);
+    }
+  }
+  return { id: reply.id };
+}
+
+/** A prospect getting in touch becomes a lead, unless something already opened a deal. */
+export async function openLeadForProspect(db: SupabaseClient, contact: { id: string; prospect_status: string | null }, title: string, source: string) {
+  if (contact.prospect_status !== 'prospect') return;
+  const { data: open } = await db.from('crm_deals').select('id').eq('contact_id', contact.id).in('stage', ['lead', 'contacted', 'proposal']).limit(1);
+  if (open?.length) return;
+  await db.from('crm_deals').insert({ contact_id: contact.id, title: title.slice(0, 160), stage: 'lead', source });
+}
+
+/** A task due today, unless the same one is already open. */
+export async function addTaskOnce(db: SupabaseClient, contactId: string, title: string) {
+  const { data: open } = await db.from('crm_tasks').select('id').eq('contact_id', contactId).eq('title', title).is('completed_at', null).limit(1);
+  if (open?.length) return;
+  await db.from('crm_tasks').insert({
+    contact_id: contactId,
+    title,
+    due_date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }),
+  });
+}
+
 export async function handleInbound(db: SupabaseClient, event: ReceivedEvent) {
   if (event.type !== 'email.received') return { skipped: 'not a received email' };
   const key = process.env.RESEND_API_KEY;
@@ -96,39 +157,18 @@ export async function handleInbound(db: SupabaseClient, event: ReceivedEvent) {
   const body = stripQuoted(full.text ?? (full.html ? htmlToText(full.html) : ''));
   const subject = full.subject ?? '';
 
-  const { data: reply, error: insertError } = await db.from('email_replies').insert({
-    resend_email_id: full.id,
-    contact_id: contact?.id ?? null,
-    from_email: sender.email,
-    from_name: sender.name,
+  const logged = await logReply(db, {
+    sourceId: full.id,
+    contact,
+    fromEmail: sender.email,
+    fromName: sender.name,
     subject,
-    text: body.slice(0, 20_000),
-  }).select('id').single();
+    text: body,
+    act: true,
+  });
   // A concurrent delivery of the same webhook got there first.
-  if (insertError) return { skipped: insertError.code === '23505' ? 'already handled' : insertError.message };
-
-  if (contact) {
-    const now = new Date().toISOString();
-    await db.from('crm_contacts').update({ replied_at: now }).eq('id', contact.id);
-
-    // A prospect writing back becomes a lead, unless something already opened a deal.
-    if (contact.prospect_status === 'prospect') {
-      const { data: open } = await db.from('crm_deals').select('id').eq('contact_id', contact.id).in('stage', ['lead', 'contacted', 'proposal']).limit(1);
-      if (!open?.length) {
-        await db.from('crm_deals').insert({
-          contact_id: contact.id,
-          title: cleanSubject(subject) ? `Replied: ${cleanSubject(subject)}`.slice(0, 160) : 'Replied to an email',
-          stage: 'lead',
-          source: 'email reply',
-        });
-      }
-    }
-    await db.from('crm_tasks').insert({
-      contact_id: contact.id,
-      title: `Reply to ${contact.name || sender.name || sender.email}`,
-      due_date: new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' }),
-    });
-  }
+  if ('skipped' in logged) return logged;
+  const reply = logged;
 
   // Forward to Lauren. Reply-To is the sender, so answering goes to them.
   const lauren = process.env.CONTACT_NOTIFY_TO;

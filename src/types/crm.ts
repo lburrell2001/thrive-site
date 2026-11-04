@@ -11,7 +11,7 @@ export const STAGE_LABEL: Record<CrmStage, string> = {
   lost: 'Lost',
 };
 
-export const ACTIVITY_KINDS = ['note', 'call', 'dm', 'meeting', 'email'] as const;
+export const ACTIVITY_KINDS = ['note', 'call', 'text', 'dm', 'meeting', 'email'] as const;
 export type CrmActivityKind = (typeof ACTIVITY_KINDS)[number];
 
 /** A logged call keeps these in crm_activities.metadata. */
@@ -137,7 +137,7 @@ export interface CrmTask {
 }
 
 export type TimelineKind =
-  | 'note' | 'call' | 'dm' | 'meeting' | 'email' | 'stage'
+  | 'note' | 'call' | 'text' | 'dm' | 'meeting' | 'email' | 'stage'
   | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print' | 'visit';
 
 export interface TimelineItem {

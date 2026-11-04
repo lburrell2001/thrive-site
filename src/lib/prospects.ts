@@ -4,9 +4,10 @@
 // Each email carries the same unsubscribe link as every Thrive email (it
 // sets the contact's newsletter_status to 'unsubscribed'), one-click
 // List-Unsubscribe headers, and the mailing address, as CAN-SPAM requires
-// of any commercial email, cold or not. The Reply-To is the contact's
-// signed reply address, so a reply is logged against them (inboundEmail.ts)
-// and forwarded to Lauren.
+// of any commercial email, cold or not. With Outlook connected (outlook.ts)
+// it goes from Lauren's own mailbox and the Outlook sync logs the reply;
+// otherwise it goes through Resend with the contact's signed Reply-To, so a
+// reply is logged against them (inboundEmail.ts) and forwarded to Lauren.
 //
 // What was sent is recorded in prospect_emails, which the contact's
 // timeline reads. Sending also moves a deal still at "New lead" to
@@ -19,6 +20,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { outlookReady, sendFromOutlook } from './outlook';
 import { z } from 'zod';
 import { postalAddress } from '@/lib/newsletter';
 import { blockImages, blocksSchema, designSchema, normalizeBlocks } from '@/lib/newsletterBlocks';
@@ -189,17 +191,23 @@ async function prepare(db: SupabaseClient, input: SendInput, site: string) {
 }
 
 export async function sendProspect(db: SupabaseClient, input: SendInput, site: string) {
+  // With Outlook connected it goes from Lauren's own mailbox: it's in her Sent
+  // folder and the reply comes straight to her inbox (the sync logs it).
+  const viaOutlook = await outlookReady(db);
   const key = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_NOTIFY_FROM;
-  if (!key || !from) throw new ProspectError('Email is not set up (RESEND_API_KEY and CONTACT_NOTIFY_FROM)');
+  if (!viaOutlook && (!key || !from)) throw new ProspectError('Email is not set up (RESEND_API_KEY and CONTACT_NOTIFY_FROM)');
   const lauren = process.env.CONTACT_NOTIFY_TO;
 
   const { contact, content, token, subject, html, text } = await prepare(db, input, site);
-  const client = new Resend(key);
   if (input.test) {
     if (!lauren) throw new ProspectError('No test address — set CONTACT_NOTIFY_TO');
-    const { error } = await client.emails.send({ from, to: lauren, subject: `[Test] ${subject}`, html, text });
-    if (error) throw new ProspectError(error.message);
+    if (viaOutlook) {
+      await sendFromOutlook(db, { to: lauren, subject: `[Test] ${subject}`, html }).catch((e) => { throw new ProspectError(e.message); });
+    } else {
+      const { error } = await new Resend(key).emails.send({ from: from!, to: lauren, subject: `[Test] ${subject}`, html, text });
+      if (error) throw new ProspectError(error.message);
+    }
     return { to: lauren, test: true };
   }
 
@@ -212,20 +220,32 @@ export async function sendProspect(db: SupabaseClient, input: SendInput, site: s
     .limit(1);
   if (recent?.length) throw new ProspectError('You just emailed them — wait a couple of minutes before sending another.');
 
-  const oneClick = `${site}/api/newsletter/unsubscribe?t=${encodeURIComponent(token)}`;
-  const replyTo = replyAddress(contact.id, lauren);
-  const { data, error } = await client.emails.send({
-    from,
-    to: contact.email as string,
-    ...(replyTo ? { replyTo } : {}),
-    subject,
-    html,
-    text,
-    headers: {
-      'List-Unsubscribe': `<${oneClick}>`,
-      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-    },
-  });
+  let data: { id: string } | null = null;
+  let error: { message: string } | null = null;
+  if (viaOutlook) {
+    // The unsubscribe link and mailing address are in the body; Graph can't set
+    // List-Unsubscribe, which only bulk senders need.
+    try {
+      await sendFromOutlook(db, { to: contact.email as string, subject, html });
+    } catch (e) {
+      error = { message: e instanceof Error ? e.message : 'Outlook could not send it' };
+    }
+  } else {
+    const oneClick = `${site}/api/newsletter/unsubscribe?t=${encodeURIComponent(token)}`;
+    const replyTo = replyAddress(contact.id, lauren);
+    ({ data, error } = await new Resend(key).emails.send({
+      from: from!,
+      to: contact.email as string,
+      ...(replyTo ? { replyTo } : {}),
+      subject,
+      html,
+      text,
+      headers: {
+        'List-Unsubscribe': `<${oneClick}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    }));
+  }
 
   await db.from('prospect_emails').insert({
     contact_id: contact.id,
@@ -237,6 +257,9 @@ export async function sendProspect(db: SupabaseClient, input: SendInput, site: s
     status: error ? 'failed' : 'sent',
     error: error?.message ?? null,
     resend_id: data?.id ?? null,
+    // Only Outlook sends say so: the column comes with migration 040, which
+    // Outlook needs anyway, so a Resend send never depends on it.
+    ...(viaOutlook ? { sent_via: 'outlook' } : {}),
   });
   if (error) throw new ProspectError(error.message);
 

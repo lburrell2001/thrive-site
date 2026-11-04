@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <main className={s.page}>
         <div className={s.inner}>
           <h1 className={s.title}>Privacy Policy</h1>
-          <p className={s.updated}>Effective October 22, 2026</p>
+          <p className={s.updated}>Effective November 4, 2026</p>
 
           <p>
             Thrive Creative Studios (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is a creative studio based in Dallas,
@@ -39,6 +39,10 @@ export default function PrivacyPage() {
               <strong>Project information.</strong> Proposals, signatures, invoices, files, requests, and
               anything else exchanged while we work together, including the name, email, and IP address
               recorded when a proposal is signed or declined.
+            </li>
+            <li>
+              <strong>Messages with us.</strong> Emails, texts, and voicemails you send us, and our replies, are
+              kept with your contact record so we can follow up.
             </li>
             <li>
               <strong>Account logins you share with us.</strong> Credentials you save in the portal vault (for
@@ -92,7 +96,7 @@ export default function PrivacyPage() {
           <p>
             We use a small number of service providers who process data only to provide their service to us:
             Supabase (database, file storage, and portal login), Vercel (hosting and analytics), Stripe
-            (payments), Resend (email), Twilio (text messages), and Opinly (blog and marketing analytics). We may also disclose information if the law
+            (payments), Resend and Microsoft 365 (email), Twilio and Google Voice (calls and text messages), and Opinly (blog and marketing analytics). We may also disclose information if the law
             requires it.
           </p>
 

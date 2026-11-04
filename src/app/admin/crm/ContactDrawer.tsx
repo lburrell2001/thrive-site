@@ -37,6 +37,7 @@ import { facebookLabel, facebookUrl, instagramUrl } from '@/lib/social';
 const KIND_LABEL: Record<CrmActivityKind, string> = {
   note: 'Note',
   call: 'Call',
+  text: 'Text',
   dm: 'DM',
   meeting: 'Meeting',
   email: 'Email',
@@ -45,6 +46,7 @@ const KIND_LABEL: Record<CrmActivityKind, string> = {
 const EVENT_COLOR: Record<TimelineKind, string> = {
   note: '#808080',
   call: '#1e3add',
+  text: '#0f766e',
   dm: '#d62976',
   meeting: '#1e3add',
   email: '#1e3add',
@@ -72,6 +74,7 @@ const DEAL_SOURCE: Record<string, string> = {
   print: 'a print campaign',
   instagram: 'a reply to your Instagram DM',
   facebook: 'a reply to your Facebook DM',
+  phone: 'a text or call to your Google Voice number',
 };
 
 function when(iso: string) {

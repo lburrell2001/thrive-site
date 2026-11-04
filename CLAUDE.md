@@ -40,6 +40,10 @@ RESEND_INBOUND_DOMAIN=           # Optional: Resend receiving domain (e.g. mail.
 RESEND_WEBHOOK_SECRET=           # Signing secret of the Resend webhook for `email.received` → POST /api/email/inbound
 OPINLY_API_KEY=                  # Opinly secret key (sk-…): /blog content and server-side conversion events. Never commit it
 OPINLY_WEBHOOK_SIGNING_SECRET=   # Svix signing secret of the Opinly webhook (content.routes-changed → POST /api/opinly)
+MS_TENANT_ID=                    # Outlook (optional): Microsoft Entra app registration in Lauren's tenant —
+MS_CLIENT_ID=                    #   redirect URI https://thrivecreativestudios.org/api/outlook/callback,
+MS_CLIENT_SECRET=                #   delegated Mail.Read, Mail.Send, Mail.Read.Shared, Mail.Send.Shared, offline_access, User.Read
+GOOGLE_VOICE_NUMBER=             # Optional: Lauren's Google Voice number, so it's never read as the caller
 ```
 
 `PORTAL_CREDENTIALS_KEY` must never change once clients have saved credentials — rotating it makes existing entries undecryptable.
@@ -131,6 +135,12 @@ Clients submit website host / CMS / registrar logins at `/portal/vault` instead 
 - One renderer, `src/components/proposal/ProposalRenderer.tsx`, for the builder, `/p/[slug]`, print and PDF. The look follows the printed Social Reserve proposal (Sept 2026): black pages, two-line headings (line 2 in the accent; a line 2 starting `& ` gets an oversized ampersand), kickers in the accent's partner colour (`--accent-2`) on a rule to the page edge, purple scope panels, and the total + signature as one panel when the signature block follows pricing.
 - Proposal markdown (`src/lib/miniMarkdown.tsx`) adds `### ` subheadings (magenta → orange → green in turn) and `> ` callouts; `> **Label** text` puts the label in the bar's colour.
 - New proposals have no cover unless "Include a cover page" is ticked; copied/templated covers are kept hidden. "Cover: on/off" in the builder's top bar toggles it. "Thrive layout" (`src/lib/proposalStarter.ts`) seeds the Social Reserve structure with empty prose.
+
+### Outlook and Google Voice
+
+Migration `040`. Lauren signs in to Microsoft 365 from Emails → Settings (`src/lib/outlook.ts`: delegated Graph sign-in, signed state, refresh token encrypted with `PORTAL_CREDENTIALS_KEY` in `mail_connection`). hello@ is a separate mailbox she has Full Access to: it's added under "Add mailbox" (`shared_mailboxes`, read via `/users/<address>`; the `.Shared` scopes) and each mailbox keeps its own read position (`cursors`). Once connected, one-to-one emails (`sendProspect`) and reminders / quick messages (`deliver(..., { fromInbox: true })`) send from the mailbox chosen as `send_from` (default: the signed-in account; another mailbox needs Exchange "Send as"); newsletters and system notifications stay on Resend. `src/lib/outlookSync.ts` runs every 5 minutes (`GET /api/cron/outlook-sync`, and "Sync now" → `POST /api/outlook`): Inbox mail from a contact goes through `logReply()` in `inboundEmail.ts` (same as Resend replies: Today, timeline, prospect → New lead, one open "Reply to …" task), Sent Items to a contact go to `outlook_sent` unless the CRM sent it (matched on contact + subject within 15 minutes) and close their "Reply to" tasks. Mail not involving a contact is never stored. Mail from before the connection is logged without tasks or leads.
+
+Google Voice has no API: its email alerts (texts, voicemails, missed calls) are forwarded from Gmail to the Outlook inbox and parsed by `src/lib/googleVoice.ts` (pure). Each becomes a `voice_events` row and, when the number (or Google contact name) matches a contact, a `crm_activities` row — kind `text`, or kind `call` with `{ direction: 'inbound', outcome: 'voicemail' | 'no_answer', source: 'google_voice' }` so it shows on the Calls page — plus a call/text-back task. Unmatched alerts list in Emails → Settings and attach once a contact has the number. Outgoing calls/texts and answered calls are never emailed by Google; `text` is also a manual activity kind for those.
 
 ### Prospects and replies
 

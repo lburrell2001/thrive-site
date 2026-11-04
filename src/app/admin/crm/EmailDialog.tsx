@@ -260,7 +260,7 @@ export function EmailDialog({ contactId, onClose, onDone }: {
                 </p>
               )}
               <p className={s.eventMeta} style={{ margin: 0 }}>
-                Goes to {info.contact.email ?? '—'}. Their reply is logged here and forwarded to your inbox. Includes an unsubscribe link and your mailing address.
+                Goes to {info.contact.email ?? '—'}. Their reply comes to your inbox and is logged here. Includes an unsubscribe link and your mailing address.
                 {template && <> <Link href={`/admin/crm/emails/templates/${template.id}`}>Edit the template</Link> to change it for everyone.</>}
               </p>
               {later && (

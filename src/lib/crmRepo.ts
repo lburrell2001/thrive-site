@@ -154,6 +154,7 @@ export async function loadContactList(db: SupabaseClient): Promise<CrmContactRow
 const ACTIVITY_TITLE: Record<string, string> = {
   note: 'Note',
   call: 'Call',
+  text: 'Text (logged)',
   dm: 'DM',
   meeting: 'Meeting',
   email: 'Email (logged)',
@@ -203,7 +204,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings, outlookSent] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -229,6 +230,8 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     db.from('email_replies').select('id, subject, text, from_email, received_at').eq('contact_id', id).order('received_at', { ascending: false }).limit(100),
     db.from('marketing_recipients').select('id, outcome, note, created_at, marketing_campaigns ( id, name, piece, sent_on )').eq('contact_id', id),
     db.from('bookings').select('id, starts_at, ends_at, status, notes, crm_deal_id').eq('crm_contact_id', id).order('starts_at', { ascending: false }).limit(50),
+    // Mail Lauren sent them from Outlook herself (migration 040).
+    db.from('outlook_sent').select('id, subject, preview, web_link, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -254,10 +257,24 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
         kind: 'call',
         at: a.created_at,
         title: call ? `Call · ${callSummary(call)}` : 'Call',
+        meta: a.metadata?.source === 'google_voice' ? 'Google Voice' : null,
         body: a.body || null,
         activityId: a.id,
         dealId: a.deal_id ?? null,
         call,
+      });
+    } else if (a.kind === 'text') {
+      // Google Voice texts come in by themselves; others Lauren logged by hand.
+      const fromVoice = a.metadata?.source === 'google_voice';
+      timeline.push({
+        key: `activity:${a.id}`,
+        kind: 'text',
+        at: a.created_at,
+        title: fromVoice ? 'Texted you · Google Voice' : 'Text (logged)',
+        meta: fromVoice && typeof a.metadata?.phone === 'string' ? `From ${formatPhone(a.metadata.phone)}` : null,
+        body: a.body || null,
+        activityId: a.id,
+        dealId: a.deal_id ?? null,
       });
     } else if (a.kind === 'dm') {
       timeline.push({
@@ -430,6 +447,18 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       title: `They replied · ${r.subject || '(no subject)'}`,
       body: r.text ? r.text.slice(0, 1200) : null,
       meta: `From ${r.from_email}`,
+    });
+  }
+
+  for (const e of outlookSent.data ?? []) {
+    timeline.push({
+      key: `outlook:${e.id}`,
+      kind: 'email',
+      at: e.sent_at,
+      title: `You emailed them · ${e.subject || '(no subject)'}`,
+      body: e.preview || null,
+      meta: 'From Outlook',
+      href: e.web_link,
     });
   }
 

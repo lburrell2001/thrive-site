@@ -343,7 +343,7 @@ export async function sendReminder(
       ? { ...prepared.message, headline: note ?? '', note: null, sms: note }
       : { ...prepared.message, note };
 
-  const report = await deliver(db, prepared.contact, message, input.channels);
+  const report = await deliver(db, prepared.contact, message, input.channels, { fromInbox: true });
 
   const { data: reminder, error } = await db
     .from('client_reminders')

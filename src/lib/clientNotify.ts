@@ -11,6 +11,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendSms, smsConfigured } from '@/lib/sms';
+import { outlookReady, sendFromOutlook } from '@/lib/outlook';
 import { brandEmail, button, greeting, note as noteBlock, panel, paragraph, signoff } from '@/lib/emailLayout';
 
 export interface Contact {
@@ -210,10 +211,20 @@ export async function deliver(
   contact: Contact,
   message: ClientMessage,
   channels: { email: boolean; sms: boolean },
+  /** Reminders and quick messages Lauren sends go from her Outlook when it's connected. */
+  opts: { fromInbox?: boolean } = {},
 ): Promise<DeliveryReport> {
   const emailTask = async (): Promise<ChannelReport> => {
     if (!channels.email) return SKIPPED;
     if (!contact.email) return { status: 'skipped', to: null, error: 'No email address on file' };
+    if (opts.fromInbox && await outlookReady(db)) {
+      try {
+        await sendFromOutlook(db, { to: contact.email, subject: message.subject, html: emailHtml(contact, message) });
+        return { status: 'sent', to: contact.email, error: null };
+      } catch (error) {
+        return { status: 'failed', to: contact.email, error: error instanceof Error ? error.message : 'Outlook could not send it' };
+      }
+    }
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.CONTACT_NOTIFY_FROM;
     if (!apiKey || !from) {
