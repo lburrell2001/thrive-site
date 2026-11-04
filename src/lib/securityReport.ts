@@ -1,4 +1,4 @@
-// The Security dashboard in admin (/admin/security): live checks of how well
+// The Security dashboard in admin (/admin/settings?tab=security): live checks of how well
 // the site protects the personal data it holds. Everything here only reads.
 //
 // - Exposure checks query the database and storage with the PUBLIC anon key —

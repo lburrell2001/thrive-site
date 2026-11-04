@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   try {
     return NextResponse.json(await syncOutlook(serviceClient()));
   } catch (error) {
-    // Recorded on the connection; Emails → Settings shows it.
+    // Recorded on the connection; Settings → Email shows it.
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Sync failed' }, { status: 500 });
   }
 }

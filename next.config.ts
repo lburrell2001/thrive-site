@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
       // The proposal builder moved into the CRM.
       { source: "/admin/proposals", destination: "/admin/crm/proposals", permanent: false },
       { source: "/admin/proposals/:path*", destination: "/admin/crm/proposals/:path*", permanent: false },
+      // One admin (2026-11-04): CRM Today merged into Home, the two Calls pages
+      // into one, Visitors into Analytics, and every setting into Settings.
+      // The query string carries over, so ?contact=… links still open the panel.
+      { source: "/admin/crm", destination: "/admin", permanent: false },
+      { source: "/admin/calls", destination: "/admin/crm/calls", permanent: false },
+      { source: "/admin/crm/visitors", destination: "/admin/analytics?tab=visitors", permanent: false },
+      { source: "/admin/security", destination: "/admin/settings?tab=security", permanent: false },
     ];
   },
   async headers() {

@@ -65,7 +65,6 @@ export default function ContactsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Contacts</h1>
           <p className={w.sub}>Everyone you’ve dealt with or reached out to. One record per person, however they arrived.</p>
         </div>

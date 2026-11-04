@@ -1,6 +1,6 @@
 'use client';
 
-// Emails → Settings: the Outlook connection (outlook.ts, outlookSync.ts) and
+// Settings → Email: the Outlook connection (outlook.ts, outlookSync.ts) and
 // how Google Voice alerts reach the CRM (googleVoice.ts).
 
 import { useState } from 'react';

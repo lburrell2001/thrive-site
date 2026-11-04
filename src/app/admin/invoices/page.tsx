@@ -176,7 +176,7 @@ export default function InvoiceBuilder() {
       number: est.estimate_number, issueDate: est.issue_date, dueDate: est.valid_until ?? '',
       text: lineItemsToText(est.line_items), notes: est.notes ?? '',
     });
-    document.querySelector(`.${p.screen}`)?.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function invoiceFromEstimate(est: Estimate) {
@@ -190,7 +190,7 @@ export default function InvoiceBuilder() {
     });
     void fillInvoiceNumber(client);
     if (!portalIdOf(client)) show('Pick a client with a portal login to add this invoice to their portal.', 'error');
-    document.querySelector(`.${p.screen}`)?.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector("main")?.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function estimateBody() {

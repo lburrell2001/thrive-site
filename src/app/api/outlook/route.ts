@@ -10,7 +10,7 @@ import {
 import { syncOutlook } from '@/lib/outlookSync';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 
-/** Connection status for Emails → Settings, and Google Voice alerts from numbers not in the CRM. */
+/** Connection status for Settings → Email, and Google Voice alerts from numbers not in the CRM. */
 export async function GET(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;

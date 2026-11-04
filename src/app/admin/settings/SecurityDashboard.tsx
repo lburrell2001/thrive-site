@@ -1,6 +1,6 @@
 'use client';
 
-// The live security dashboard at the top of /admin/security. The checks run
+// The live security dashboard at the top of Settings → Security. The checks run
 // on the server each time the page loads (src/lib/securityReport.ts).
 
 import { useCallback, useEffect, useState } from 'react';

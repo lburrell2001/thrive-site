@@ -176,7 +176,7 @@ export async function handleInbound(db: SupabaseClient, event: ReceivedEvent) {
   let forwardError: string | null = null;
   if (lauren && from) {
     const who = sender.name ? `${sender.name} <${sender.email}>` : sender.email;
-    const crmLink = contact ? `${SITE_URL}/admin/crm?contact=${contact.id}` : null;
+    const crmLink = contact ? `${SITE_URL}/admin?contact=${contact.id}` : null;
     const banner = `<div style="font:13px/1.5 -apple-system,Segoe UI,Arial,sans-serif;color:#444;background:#f5f4f1;border-radius:8px;padding:10px 14px;margin:0 0 18px;">
 Reply from <strong>${esc(who)}</strong>${contact ? '' : ' — not in the CRM yet'}.
 ${contact?.prospect_status === 'prospect' ? ' They were a prospect; they’re now a <strong>New lead</strong>.' : ''}

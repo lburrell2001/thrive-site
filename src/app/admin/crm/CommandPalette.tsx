@@ -10,15 +10,25 @@ import { LIFECYCLE_LABEL, avatarColor, initials, lifecycleOf } from './shared';
 import type { CrmContactRow } from '@/types/crm';
 
 const ACTIONS = [
-  { label: 'Today', hint: 'Replies, follow-ups, inquiries', href: '/admin/crm' },
+  { label: 'Home', hint: 'Replies, follow-ups, inquiries, money waiting', href: '/admin' },
   { label: 'Pipeline', hint: 'The deal board', href: '/admin/crm/pipeline' },
+  { label: 'New deal', hint: 'Open a deal with someone', href: '/admin/crm/pipeline?new=1' },
   { label: 'Prospects', hint: 'People to reach out to', href: '/admin/crm/prospects' },
   { label: 'Add prospects', hint: 'One, or paste a list', href: '/admin/crm/prospects?add=1' },
   { label: 'Contacts', hint: 'Everyone', href: '/admin/crm/contacts' },
+  { label: 'Proposals', hint: 'Build, send and track', href: '/admin/crm/proposals' },
+  { label: 'New proposal', hint: 'Start from the Thrive layout or a template', href: '/admin/crm/proposals/new' },
+  { label: 'Estimates & invoices', hint: 'Type a list, get a PDF or a portal invoice', href: '/admin/invoices' },
+  { label: 'Clients', hint: 'Portal logins, projects, files', href: '/admin/clients' },
   { label: 'Emails', hint: 'Newsletters, outreach, templates', href: '/admin/crm/emails' },
-  { label: 'New deal', hint: 'Open a deal with someone', href: '/admin/crm/pipeline?new=1' },
   { label: 'Campaigns', hint: 'Print and email, and what came of them', href: '/admin/crm/campaigns' },
   { label: 'Log a print campaign', hint: 'Postcard, flyer, mailer…', href: '/admin/crm/campaigns?new=1' },
+  { label: 'Calls', hint: 'Logged and booked calls', href: '/admin/crm/calls' },
+  { label: 'Analytics', hint: 'Traffic, sources, visitors', href: '/admin/analytics' },
+  { label: 'Journal', hint: 'Articles', href: '/admin/journal' },
+  { label: 'Portfolio', hint: 'Projects and case studies', href: '/admin/portfolio' },
+  { label: 'Reviews', hint: 'Approve client reviews', href: '/admin/reviews' },
+  { label: 'Settings', hint: 'Email, Outlook, booking hours, security', href: '/admin/settings' },
 ];
 
 export function CommandPalette({ contacts, onClose, onOpenContact }: {

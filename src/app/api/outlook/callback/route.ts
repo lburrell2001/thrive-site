@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const site = resolveSiteOrigin(req);
   const url = new URL(req.url);
   const back = (params: Record<string, string>) =>
-    NextResponse.redirect(`${site}/admin/crm/emails?${new URLSearchParams({ tab: 'settings', ...params })}`);
+    NextResponse.redirect(`${site}/admin/settings?${new URLSearchParams({ tab: 'email', ...params })}`);
 
   const failure = url.searchParams.get('error_description') || url.searchParams.get('error');
   if (failure) return back({ outlook_error: failure.split('\r\n')[0].slice(0, 200) });

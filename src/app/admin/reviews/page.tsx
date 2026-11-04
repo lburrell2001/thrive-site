@@ -109,7 +109,7 @@ export default function ReviewsAdmin() {
                 </div>
                 <span className={p.rowMeta}>
                   {r.status === 'requested' ? `Asked ${formatDate(r.requested_at)}` : r.submitted_at ? `Received ${formatDate(r.submitted_at)}` : ''}
-                  {r.crm_contact_id && <> · <Link href={`/admin/crm?contact=${r.crm_contact_id}${r.crm_deal_id ? `&deal=${r.crm_deal_id}` : ''}`}>{r.deal_title ?? r.contact_name ?? 'CRM'}</Link></>}
+                  {r.crm_contact_id && <> · <Link href={`/admin?contact=${r.crm_contact_id}${r.crm_deal_id ? `&deal=${r.crm_deal_id}` : ''}`}>{r.deal_title ?? r.contact_name ?? 'CRM'}</Link></>}
                 </span>
               </div>
 

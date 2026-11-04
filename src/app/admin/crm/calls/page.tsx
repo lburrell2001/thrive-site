@@ -74,6 +74,18 @@ export default function CallsPage() {
     && (!query || [c.contact_name, c.company, c.deal_title, c.body].some((v) => v?.toLowerCase().includes(query))),
   );
 
+  // A booked call: they get an email asking them to pick another time.
+  async function cancelBooking(c: CrmCallRow) {
+    if (!c.booking_id || !window.confirm(`Cancel the call with ${c.contact_name}? They'll get an email asking them to pick another time.`)) return;
+    try {
+      await apiSend(`/api/bookings/${c.booking_id}/cancel`, 'POST');
+      notify('Cancelled and emailed.');
+      refresh();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Could not cancel', 'error');
+    }
+  }
+
   async function remove(c: CrmCallRow) {
     if (!c.activity_id || !window.confirm(`Delete this call with ${c.contact_name}?`)) return;
     try {
@@ -88,12 +100,11 @@ export default function CallsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Calls</h1>
           <p className={w.sub}>Calls you’ve made and taken, and calls booked through the website. Log one here or from anyone’s panel.</p>
         </div>
         <div className={w.headActions}>
-          <Link href="/admin/calls" className={p.btn}>Booking hours</Link>
+          <Link href="/admin/settings?tab=booking" className={p.btn}>Booking hours</Link>
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => setLogging(true)} disabled={!contacts?.length}>☏ Log a call</button>
         </div>
       </div>
@@ -122,7 +133,12 @@ export default function CallsPage() {
                 <p className={w.itemSub}>{[c.phone && formatPhone(c.phone), c.deal_title].filter(Boolean).join(' · ') || 'Booked through the website'}</p>
                 {c.body && <p className={w.itemQuote}>{c.body}</p>}
               </div>
-              <span className={w.itemWhen}>{when(c.at)}</span>
+              <span style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                <span className={w.itemWhen}>{when(c.at)}</span>
+                {c.booking_id && (
+                  <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={(e) => { e.stopPropagation(); void cancelBooking(c); }}>Cancel</button>
+                )}
+              </span>
             </div>
           ))}
         </section>

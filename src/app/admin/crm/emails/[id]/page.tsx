@@ -148,7 +148,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
     return renderEmail({ ...draft, html: n?.html ?? null }, {
       site: window.location.origin,
       unsubscribeUrl: '#',
-      postalAddress: address ?? '[Your mailing address — add it in Emails → Settings]',
+      postalAddress: address ?? '[Your mailing address — add it in Settings → Email]',
       firstName: 'Maya',
       company: 'Bloom Bakery',
       reason,
@@ -378,7 +378,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
 
       {!address && n.status !== 'sent' && (
         <p className={p.card} style={{ color: '#92400e', background: '#fffbeb', marginBottom: 14 }}>
-          Add your mailing address in <Link href="/admin/crm/emails?tab=settings">Emails → Settings</Link> before sending — it’s required in every marketing email.
+          Add your mailing address in <Link href="/admin/settings?tab=email">Settings → Email</Link> before sending — it’s required in every marketing email.
         </p>
       )}
 
@@ -395,7 +395,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
           notify={show}
           subject={draft.subject}
           preheader={draft.preheader}
-          postalAddress={address ?? '[Your mailing address — add it in Emails → Settings]'}
+          postalAddress={address ?? '[Your mailing address — add it in Settings → Email]'}
           reason={reason}
         />
       ) : (

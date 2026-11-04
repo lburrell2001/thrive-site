@@ -89,7 +89,6 @@ export default function ProspectsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Prospects</h1>
           <p className={w.sub}>
             People you’d like to work with. Email them here, or DM them on Instagram or Facebook and log it. When someone replies they move to the pipeline as a New lead — email replies on their own, DMs when you log the reply.

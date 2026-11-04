@@ -272,7 +272,7 @@ export async function createBooking(
             `When: ${studioTime}`,
             service ? `About: ${service.name}` : '',
             input.notes ? `Notes: ${input.notes}` : '',
-          ].filter(Boolean), inq?.crm_contact_id ? { href: `${site}/admin/crm?contact=${inq.crm_contact_id}`, label: 'Open in CRM' } : undefined),
+          ].filter(Boolean), inq?.crm_contact_id ? { href: `${site}/admin?contact=${inq.crm_contact_id}`, label: 'Open in CRM' } : undefined),
           `New call booked: ${input.name} (${input.email}) — ${studioTime}${input.notes ? `\n\n${input.notes}` : ''}`,
           ics(booking, `Call: ${input.name}${input.company ? ` (${input.company})` : ''}`, `${input.email}${input.phone ? ` · ${input.phone}` : ''}\n${input.notes ?? ''}`, settings.meeting_link),
         )

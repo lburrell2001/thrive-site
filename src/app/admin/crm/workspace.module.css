@@ -1,53 +1,5 @@
-/* The CRM workspace: sidebar, page frame, lists, Today cards, palette. */
-
-.shell {
-  height: 100%;
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  background: #f5f4f1;
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  color: #141414;
-}
-
-/* ------------------------------------------------------------- sidebar */
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 16px 12px;
-  border-right: 1px solid #e9e7e3;
-  background: #fbfaf9;
-  overflow-y: auto;
-}
-
-.searchButton {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 14px;
-  padding: 8px 10px;
-  border: 1px solid #e4e1dc;
-  border-radius: 10px;
-  background: #fff;
-  font: inherit;
-  font-size: 13px;
-  color: #8a8782;
-  cursor: pointer;
-  text-align: left;
-}
-
-.searchButton:hover { border-color: #c9c5bf; }
-
-.kbd {
-  margin-left: auto;
-  padding: 1px 6px;
-  border: 1px solid #e4e1dc;
-  border-radius: 5px;
-  background: #f7f6f4;
-  font-size: 11px;
-  color: #8a8782;
-}
+/* Admin pages: page frame, stats, cards, lists, tables, pills, tabs and the
+   ⌘K palette. The sidebar is in ../admin.module.css. */
 
 .navLabel {
   margin: 14px 10px 6px;
@@ -58,69 +10,16 @@
   color: #a19d97;
 }
 
-.navItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 9px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #4a4844;
-  text-decoration: none;
-  transition: background 0.12s, color 0.12s;
-}
-
-.navItem:hover { background: #f0eeea; color: #141414; }
-
-.navOn,
-.navOn:hover {
-  background: #141414;
-  color: #fff;
-}
-
-.navIcon {
-  width: 18px;
-  display: inline-grid;
-  place-items: center;
-  font-size: 15px;
-  line-height: 1;
-}
-
-.navCount {
-  margin-left: auto;
-  min-width: 20px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: #e50586;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.navCountQuiet { background: #e9e7e3; color: #5d5a55; }
-.navOn .navCountQuiet { background: rgba(255, 255, 255, 0.18); color: #fff; }
-
-.sideFoot {
-  margin-top: auto;
-  padding: 12px 10px 0;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: #a19d97;
-}
-
 /* ---------------------------------------------------------------- page */
-
-.main {
-  min-width: 0;
-  overflow-y: auto;
-}
 
 .page {
   max-width: 1240px;
   margin: 0 auto;
   padding: 28px 32px 60px;
+}
+
+@media (max-width: 640px) {
+  .page { padding: 20px 16px 48px; }
 }
 
 .pageWide { max-width: none; }

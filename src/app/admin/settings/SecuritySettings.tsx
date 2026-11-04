@@ -1,6 +1,6 @@
 'use client';
 
-// Security: replace the shared admin passcode with an admin account (email,
+// Settings → Security: replace the shared admin passcode with an admin account (email,
 // password and an authenticator-app code). The order is enforced so it can't
 // lock Lauren out: make the account, sign in with it once (which pairs the
 // authenticator), and only then can the passcode be turned off.
@@ -27,7 +27,7 @@ async function adminAction<T>(action: string, params: Record<string, unknown> = 
   return body.data as T;
 }
 
-export default function SecurityPage() {
+export function SecuritySettings() {
   const [status, setStatus] = useState<Status | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -80,16 +80,11 @@ export default function SecurityPage() {
   const hasAccount = (status?.accounts.length ?? 0) > 0;
 
   return (
-    <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: 980 }}>
-        <div className={p.pageHead}>
-          <div>
-            <h1 className={p.pageTitle}>Security</h1>
-            <p className={p.pageSub}>
-              How well the site protects your clients’ personal data, checked live, plus what only you can confirm.
-            </p>
-          </div>
-        </div>
+    <div style={{ maxWidth: 980 }}>
+      <div>
+        <p className={p.pageSub} style={{ margin: '0 0 16px' }}>
+          How well the site protects your clients’ personal data, checked live, plus what only you can confirm.
+        </p>
 
         <SecurityDashboard version={version} />
 

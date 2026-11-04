@@ -1,6 +1,6 @@
 // Reads new mail from the connected Outlook mailboxes — Lauren's own and any
 // she has Full Access to, such as hello@ (Vercel Cron, every 5 minutes, and
-// "Sync now" in Emails → Settings). Only mail involving a CRM contact is kept,
+// "Sync now" in Settings → Email). Only mail involving a CRM contact is kept,
 // plus forwarded Google Voice alerts:
 //
 //   Inbox, from a contact      → email_replies (logReply: Today, timeline, leads, tasks)

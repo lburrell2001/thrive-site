@@ -16,7 +16,7 @@ import { useCrm } from '../CrmContext';
 import type { EmailStyle, EmailTemplate } from '@/lib/emailContent';
 import { formatWhen } from '@/lib/scheduleTime';
 import { EmailDialog } from '../EmailDialog';
-import { Connections, type OutlookStatus } from './Connections';
+import type { OutlookStatus } from './Connections';
 
 interface Row {
   id: string;
@@ -54,7 +54,7 @@ interface Settings {
   inbound: { domain: string | null; webhook: boolean };
 }
 
-type Tab = 'emails' | 'templates' | 'settings';
+type Tab = 'emails' | 'templates';
 
 const urlParam = (key: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(key));
 
@@ -71,13 +71,12 @@ const ROW_COLUMNS = 'minmax(0,1fr) 170px 90px 150px';
 export default function EmailsPage() {
   const router = useRouter();
   const { notify: show, version } = useCrm();
-  const [tab, setTab] = useState<Tab>(() => { const t = urlParam('tab'); return t === 'templates' || t === 'settings' ? t : 'emails'; });
+  const [tab, setTab] = useState<Tab>(() => (urlParam('tab') === 'templates' ? 'templates' : 'emails'));
   const [rows, setRows] = useState<Row[] | null>(null);
   const [singles, setSingles] = useState<OneToOne[]>([]);
   const [emailing, setEmailing] = useState<string | null>(null);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [address, setAddress] = useState('');
   const [outlook, setOutlook] = useState<OutlookStatus | null>(null);
   // From the Prospects page: "Email them" arrives with ?new=1&contacts=…
   const [starting, setStarting] = useState<{ ids: string[] } | null>(() =>
@@ -96,14 +95,15 @@ export default function EmailsPage() {
   useEffect(() => {
     let cancelled = false;
     load()
-      .then(({ r, t, st, o }) => { if (!cancelled) { setRows(r); setTemplates(t); setSettings(st); setSingles(o); setAddress(st.address ?? ''); } })
+      .then(({ r, t, st, o }) => { if (!cancelled) { setRows(r); setTemplates(t); setSettings(st); setSingles(o); } })
       .catch((e) => { if (!cancelled) { show(e instanceof Error ? e.message : 'Could not load emails', 'error'); setRows([]); } });
     return () => { cancelled = true; };
   }, [load, show, version]);
 
-  const loadOutlook = useCallback(async () => {
-    setOutlook(await apiGet<OutlookStatus>('/api/outlook').catch(() => null));
-  }, []);
+  // Settings moved to their own page; old links land there.
+  useEffect(() => {
+    if (urlParam('tab') === 'settings') router.replace('/admin/settings?tab=email');
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,32 +113,11 @@ export default function EmailsPage() {
     return () => { cancelled = true; };
   }, [version]);
 
-  // Back from the Microsoft sign-in.
-  useEffect(() => {
-    const ok = urlParam('outlook');
-    const failed = urlParam('outlook_error');
-    if (!ok && !failed) return;
-    if (ok) show('Outlook connected. Mail with your contacts will show up within 5 minutes.');
-    else show(`Outlook didn’t connect: ${failed}`, 'error');
-    window.history.replaceState(null, '', '/admin/crm/emails?tab=settings');
-  }, [show]);
-
   async function reload() {
     try {
       const { r, t, st, o } = await load();
       setRows(r); setTemplates(t); setSettings(st); setSingles(o);
     } catch { /* the toast from the first load is enough */ }
-  }
-
-  async function saveAddress(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      await apiSend('/api/newsletters/settings', 'PATCH', { address });
-      show('Mailing address saved.');
-      await reload();
-    } catch (err) {
-      show(err instanceof Error ? err.message : 'Could not save', 'error');
-    }
   }
 
   async function newTemplate(body: { style: EmailStyle } | { starters: true }) {
@@ -165,7 +144,6 @@ export default function EmailsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Emails</h1>
           <p className={w.sub}>Newsletters and outreach are the same thing here: design an email once, then choose who gets it. To email one person, open them and click Email.</p>
         </div>
@@ -176,12 +154,12 @@ export default function EmailsPage() {
 
       {settings && !settings.address && (
         <p className={p.card} style={{ color: '#92400e', background: '#fffbeb', marginBottom: 14 }}>
-          Add your mailing address in <button type="button" className={w.cardLink} style={{ color: 'inherit', textDecoration: 'underline' }} onClick={() => setTab('settings')}>Settings</button> — every marketing email has to include one, so sending is off until it’s there.
+          Add your mailing address in <button type="button" className={w.cardLink} style={{ color: 'inherit', textDecoration: 'underline' }} onClick={() => router.push('/admin/settings?tab=email')}>Settings</button> — every marketing email has to include one, so sending is off until it’s there.
         </p>
       )}
       {settings && !inboundOn && (
         <p className={p.card} style={{ color: '#1e3a8a', background: '#eff6ff', marginBottom: 14 }}>
-          Replies aren’t being caught yet, so a prospect who writes back won’t move to the pipeline on their own. <button type="button" className={w.cardLink} style={{ color: 'inherit', textDecoration: 'underline' }} onClick={() => setTab('settings')}>See setup</button>.
+          Replies aren’t being caught yet, so a prospect who writes back won’t move to the pipeline on their own. <button type="button" className={w.cardLink} style={{ color: 'inherit', textDecoration: 'underline' }} onClick={() => router.push('/admin/settings?tab=email')}>See setup</button>.
         </p>
       )}
 
@@ -195,9 +173,9 @@ export default function EmailsPage() {
       )}
 
       <div className={w.tabs} role="tablist" aria-label="Emails">
-        {(['emails', 'templates', 'settings'] as const).map((t) => (
+        {(['emails', 'templates'] as const).map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={`${w.tab} ${tab === t ? w.tabOn : ''}`} onClick={() => setTab(t)}>
-            {t === 'emails' ? 'Emails' : t === 'templates' ? `Templates${templates.length ? ` · ${templates.length}` : ''}` : 'Settings'}
+            {t === 'emails' ? 'Emails' : `Templates${templates.length ? ` · ${templates.length}` : ''}`}
           </button>
         ))}
       </div>
@@ -275,49 +253,6 @@ export default function EmailsPage() {
           </div>
         </>
       )}
-
-      {tab === 'settings' && settings && (
-        <div className={w.grid2}>
-          <form className={w.card} onSubmit={saveAddress}>
-            <div className={w.cardHead}><h2 className={w.cardTitle}>Mailing address</h2></div>
-            <div style={{ padding: 18 }}>
-              <p className={w.muted} style={{ margin: '0 0 12px', fontSize: 13.5, lineHeight: 1.55 }}>
-                US law (CAN-SPAM) requires a physical address in every marketing email — newsletters and cold outreach alike. A PO box or registered mailbox is fine.
-              </p>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <input className={p.input} style={{ flex: '1 1 220px' }} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="PO Box 123, Dallas, TX 75201" aria-label="Mailing address" />
-                <button type="submit" className={p.btn} disabled={!address.trim() || address.trim() === (settings.address ?? '')}>Save</button>
-              </div>
-            </div>
-          </form>
-          <section className={w.card}>
-            <div className={w.cardHead}>
-              <h2 className={w.cardTitle}>Catching replies</h2>
-              <span className={`${w.pill} ${inboundOn ? w.pillClient : w.pillMuted}`} style={{ marginLeft: 'auto' }}>{inboundOn ? 'On' : 'Off'}</span>
-            </div>
-            <div style={{ padding: 18, fontSize: 13.5, lineHeight: 1.6 }}>
-              {outlookOn ? (
-                <p style={{ margin: 0 }}>
-                  Through Outlook: emails you send from the CRM come from {outlook?.connection?.send_from ?? outlook?.connection?.account_email}, so replies land in your inbox, and the CRM picks them up from there. Newsletters still go through Resend.
-                </p>
-              ) : inboundOn ? (
-                <p style={{ margin: 0 }}>
-                  Replies go to <code>reply-…@{settings.inbound.domain}</code>. Each one is logged on the person, forwarded to your inbox (hit reply there to answer them), and a prospect who replies becomes a New lead.
-                </p>
-              ) : (
-                <ol style={{ margin: 0, paddingLeft: 18 }}>
-                  <li>In Resend → Domains, add a receiving domain such as <code>mail.thrivecreativestudios.org</code> and add the MX record it shows at your DNS provider.</li>
-                  <li>In Resend → Webhooks, add <code>https://thrivecreativestudios.org/api/email/inbound</code> for the <code>email.received</code> event and copy its signing secret.</li>
-                  <li>In Vercel, set <code>RESEND_INBOUND_DOMAIN</code> (the domain from step 1) and <code>RESEND_WEBHOOK_SECRET</code>, then redeploy.</li>
-                </ol>
-              )}
-              {!settings.inbound.domain && settings.inbound.webhook && <p style={{ color: '#b45309' }}>The webhook secret is set but RESEND_INBOUND_DOMAIN isn’t.</p>}
-              {settings.inbound.domain && !settings.inbound.webhook && <p style={{ color: '#b45309' }}>RESEND_INBOUND_DOMAIN is set but RESEND_WEBHOOK_SECRET isn’t — replies would be refused.</p>}
-            </div>
-          </section>
-        </div>
-      )}
-      {tab === 'settings' && <Connections status={outlook} onChange={loadOutlook} notify={show} />}
 
       {emailing && (
         <EmailDialog contactId={emailing} onClose={() => setEmailing(null)} onDone={(message) => { setEmailing(null); show(message); void reload(); }} />

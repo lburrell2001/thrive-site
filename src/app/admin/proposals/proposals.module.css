@@ -1,21 +1,25 @@
 /* ======================================================================
-   PROPOSAL ADMIN
-   Interface chrome, not the proposal design. Sentence case throughout,
-   no all-caps labels — the shouting belongs in the document, not here.
+   ADMIN BASICS — page frame, buttons, inputs, cards and lists shared by
+   most admin pages (it began as the proposal admin's, hence the name).
+   Colours and radii come from the tokens in ../admin.module.css, so these
+   pages match the CRM's. Sentence case throughout.
    ====================================================================== */
 
 .screen {
-  height: 100%;
-  overflow-y: auto;
-  background: #f6f5f4;
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  color: #111;
+  min-height: 100%;
+  background: var(--a-bg, #f5f4f1);
+  font-family: var(--a-font, var(--font-inter), ui-sans-serif, system-ui, sans-serif);
+  color: var(--a-text, #141414);
 }
 
 .wrap {
-  max-width: 1120px;
+  max-width: 1240px;
   margin: 0 auto;
-  padding: 28px 24px 80px;
+  padding: 28px 32px 60px;
+}
+
+@media (max-width: 640px) {
+  .wrap { padding: 20px 16px 48px; }
 }
 
 .pageHead {
@@ -29,15 +33,19 @@
 
 .pageTitle {
   margin: 0;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--a-display, var(--font-bungee), 'Bungee', sans-serif);
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
 }
 
 .pageSub {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: #6b6b6b;
+  margin: 8px 0 0;
+  max-width: 640px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--a-muted, #6b6863);
 }
 
 /* ---------------------------------------------------------- buttons */
@@ -45,35 +53,38 @@
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  border: 1px solid #d8d5d2;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--a-border-strong, #d9d5cf);
+  border-radius: var(--a-radius, 10px);
+  background: var(--a-surface, #fff);
   padding: 8px 14px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
-  color: #111;
+  color: var(--a-text, #141414);
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow: var(--a-shadow);
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
 }
 
-.btn:hover { border-color: #999; }
+.btn:hover { border-color: #a9a49d; background: var(--a-surface-2, #faf9f7); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
 .btnPrimary {
-  background: #e40586;
-  border-color: #e40586;
+  background: var(--a-accent, #e50586);
+  border-color: var(--a-accent, #e50586);
   color: #fff;
 }
 
-.btnPrimary:hover { background: #c40473; border-color: #c40473; }
+.btnPrimary:hover { background: var(--a-accent-hover, #c40473); border-color: var(--a-accent-hover, #c40473); }
 
-.btnDanger { color: #b00020; }
-.btnDanger:hover { border-color: #b00020; }
+.btnDanger { color: var(--a-danger, #b91c1c); }
+.btnDanger:hover { border-color: var(--a-danger, #b91c1c); background: #fef2f2; }
 
-.btnSmall { padding: 5px 10px; font-size: 12px; }
+.btnSmall { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
 
 .btn:focus-visible,
 .filterChip:focus-visible,
@@ -93,29 +104,32 @@
 }
 
 .filterChip {
-  border: 1px solid #d8d5d2;
+  border: 1px solid var(--a-border-strong, #d9d5cf);
   border-radius: 999px;
-  background: #fff;
-  padding: 6px 14px;
+  background: var(--a-surface, #fff);
+  padding: 6px 12px;
   font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #555;
+  color: #4a4844;
   cursor: pointer;
 }
 
-.filterChipOn {
-  background: #111;
-  border-color: #111;
+.filterChip:hover { border-color: #a9a49d; }
+
+.filterChipOn,
+.filterChipOn:hover {
+  background: var(--a-text, #141414);
+  border-color: var(--a-text, #141414);
   color: #fff;
 }
 
 /* ------------------------------------------------------------ table */
 
 .list {
-  border: 1px solid #e4e1de;
-  border-radius: 12px;
-  background: #fff;
+  border: 1px solid var(--a-border, #ebe9e5);
+  border-radius: var(--a-radius-lg, 16px);
+  background: var(--a-surface, #fff);
   overflow: hidden;
 }
 
@@ -215,13 +229,22 @@
 .select {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d8d5d2;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--a-border-strong, #d9d5cf);
+  border-radius: var(--a-radius, 10px);
+  background: var(--a-surface, #fff);
   padding: 9px 11px;
   font: inherit;
-  font-size: 13px;
-  color: #111;
+  font-size: 13.5px;
+  color: var(--a-text, #141414);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--a-text, #141414);
+  box-shadow: 0 0 0 3px rgba(20, 20, 20, 0.06);
 }
 
 .textarea {
@@ -231,10 +254,10 @@
 }
 
 .card {
-  border: 1px solid #e4e1de;
-  border-radius: 12px;
-  background: #fff;
-  padding: 20px;
+  border: 1px solid var(--a-border, #ebe9e5);
+  border-radius: var(--a-radius-lg, 16px);
+  background: var(--a-surface, #fff);
+  padding: 20px 22px;
 }
 
 .cardTitle {

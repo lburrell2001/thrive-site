@@ -101,7 +101,6 @@ export default function PipelinePage() {
     <div className={`${w.page} ${w.pageWide}`} style={{ paddingBottom: 24 }}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Pipeline</h1>
           <p className={w.sub}>Each card is a piece of work. Drag it to change its stage; click it to open the person.</p>
         </div>

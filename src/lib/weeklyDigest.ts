@@ -45,7 +45,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
       title: `Follow-ups (${due.length} due now${upcoming.length ? `, ${upcoming.length} later this week` : ''})`,
       lines: [...due, ...upcoming].slice(0, 10).map((t) => ({
         text: `${t.title} — ${t.contact_name} · ${t.overdue ? `overdue since ${shortDate(t.due_date)}` : t.due_date === d.today ? 'today' : shortDate(t.due_date)}`,
-        href: `${site}/admin/crm?contact=${t.contact_id}`,
+        href: `${site}/admin?contact=${t.contact_id}`,
         tone: t.overdue ? 'late' : undefined,
       })),
     });
@@ -56,7 +56,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
       title: `Calls this week (${d.upcomingCalls.length})`,
       lines: d.upcomingCalls.map((c) => ({
         text: `${new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — ${c.name}${c.company ? `, ${c.company}` : ''}`,
-        href: c.contact_id ? `${site}/admin/crm?contact=${c.contact_id}` : `${site}/admin/calls`,
+        href: c.contact_id ? `${site}/admin?contact=${c.contact_id}` : `${site}/admin/crm/calls`,
       })),
     });
   }
@@ -66,7 +66,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
       title: `New inquiries (${d.newInquiries.length})`,
       lines: d.newInquiries.slice(0, 10).map((i) => ({
         text: [i.name, i.project_type, i.budget && `budget ${i.budget}`, i.source && `via ${i.source}`].filter(Boolean).join(' · '),
-        href: i.contact_id ? `${site}/admin/crm?contact=${i.contact_id}${i.deal_id ? `&deal=${i.deal_id}` : ''}` : `${site}/admin/crm`,
+        href: i.contact_id ? `${site}/admin?contact=${i.contact_id}${i.deal_id ? `&deal=${i.deal_id}` : ''}` : `${site}/admin/crm`,
       })),
     });
   }
@@ -110,7 +110,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
         })),
         ...d.reviewCandidates.map((c) => ({
           text: `Ask ${c.contact_name} for a review — ${c.deal_title}, won ${shortDate(c.won_at)}`,
-          href: `${site}/admin/crm?contact=${c.contact_id}&deal=${c.deal_id}`,
+          href: `${site}/admin?contact=${c.contact_id}&deal=${c.deal_id}`,
         })),
       ],
     });
@@ -122,7 +122,7 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
     lines: [
       { text: `${money(d.pipeline.open_value_cents)} open across ${st.lead.count + st.contacted.count + st.proposal.count} deals — ${(['lead', 'contacted', 'proposal'] as const).map((k) => `${st[k].count} ${STAGE_LABEL[k].toLowerCase()}`).join(', ')}` },
       { text: `${money(d.pipeline.won_this_month_cents)} won so far this month` },
-    ].map((l) => ({ ...l, href: `${site}/admin/crm` })),
+    ].map((l) => ({ ...l, href: `${site}/admin` })),
   });
 
   if (d.traffic) {

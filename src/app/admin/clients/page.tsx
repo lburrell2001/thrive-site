@@ -504,7 +504,7 @@ export default function AdminPage() {
                         <div style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', marginTop: 2 }}>{label}</div>
                       </div>
                     ))}
-                    <a href={`/admin/crm?portal=${selectedId}`} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
+                    <a href={`/admin?portal=${selectedId}`} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>
                       View in CRM →
                     </a>
                     <Btn variant="danger" onClick={async () => {

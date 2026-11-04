@@ -1,15 +1,13 @@
 'use client';
 
-// Calls: the booking page's settings (hours, length, notice), days off,
-// and the calls people have booked.
+// Settings → Booking: the /book page's hours, call length, notice and days
+// off. The calls people book are on the Calls page (crm/calls).
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
 import { apiGet, apiSend } from '../proposals/adminApi';
-import { Toast, useToast } from '../proposals/Toast';
-import { describeTime, type BookingSettings, type HoursWindow, type Weekday } from '@/lib/bookingTime';
-import { SERVICE_SEO, type ServiceSlug } from '@/lib/serviceSeo';
+import { useCrm } from '../crm/CrmContext';
+import type { BookingSettings, HoursWindow, Weekday } from '@/lib/bookingTime';
 
 interface BookingRow {
   id: string;
@@ -19,7 +17,7 @@ interface BookingRow {
   email: string;
   company: string | null;
   phone: string | null;
-  service_slug: ServiceSlug | null;
+  service_slug: string | null;
   notes: string | null;
   crm_contact_id: string | null;
   crm_deal_id: string | null;
@@ -33,14 +31,12 @@ interface CallsData { settings: BookingSettings; blackouts: Blackout[]; bookings
 const DAY_NAME: Record<Weekday, string> = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
-export default function CallsAdmin() {
+export function BookingSettingsPanel() {
   const [data, setData] = useState<CallsData | null>(null);
   const [settings, setSettings] = useState<BookingSettings | null>(null);
   const [failed, setFailed] = useState('');
   const [saving, setSaving] = useState(false);
-  // When the page opened, for splitting upcoming from past.
-  const [now] = useState(() => Date.now());
-  const { toast, show } = useToast();
+  const { notify: show } = useCrm();
 
   const load = useCallback(async () => {
     try {
@@ -61,7 +57,7 @@ export default function CallsAdmin() {
   }, []);
 
   if (!data || !settings) {
-    return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>{failed || 'Loading…'}</p></div></div>;
+    return <p className={p.empty}>{failed || 'Loading…'}</p>;
   }
 
   const dirty = JSON.stringify(settings) !== JSON.stringify(data.settings);
@@ -81,56 +77,18 @@ export default function CallsAdmin() {
     setSaving(false);
   }
 
-  async function cancel(b: BookingRow) {
-    if (!window.confirm(`Cancel the call with ${b.name}? They'll get an email asking them to pick another time.`)) return;
-    try {
-      await apiSend(`/api/bookings/${b.id}/cancel`, 'POST');
-      show('Cancelled and emailed.');
-      await load();
-    } catch (e) {
-      show(e instanceof Error ? e.message : 'Could not cancel', 'error');
-    }
-  }
-
-  const upcoming = data.bookings.filter((b) => b.status === 'confirmed' && Date.parse(b.starts_at) >= now - 30 * 60_000);
-  const past = data.bookings.filter((b) => !upcoming.includes(b)).reverse();
-
   return (
-    <div className={p.screen}>
-      <div className={p.wrap}>
-        <div className={p.pageHead}>
-          <div>
-            <h1 className={p.pageTitle}>Calls</h1>
-            <p className={p.pageSub}>
-              People book at <a href="/book" target="_blank" rel="noreferrer">/book</a>. Each booking lands in the CRM as an inquiry with a follow-up task, and both of you get a calendar invite.
-            </p>
-          </div>
+    <div style={{ maxWidth: 980 }}>
+      <div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', margin: '0 0 16px' }}>
+          <p className={p.pageSub} style={{ margin: 0 }}>
+            People book at <a href="/book" target="_blank" rel="noreferrer">/book</a>. Each booking lands in the CRM as an inquiry with a follow-up task, and both of you get a calendar invite. Booked calls are on the Calls page.
+          </p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
-            <input type="checkbox" checked={settings.enabled} onChange={(e) => save({ enabled: e.target.checked })} disabled={saving} style={{ width: 18, height: 18, accentColor: '#e40586' }} />
+            <input type="checkbox" checked={settings.enabled} onChange={(e) => save({ enabled: e.target.checked })} disabled={saving} style={{ width: 18, height: 18, accentColor: 'var(--a-accent)' }} />
             {settings.enabled ? 'Booking is open' : 'Booking is closed'}
           </label>
         </div>
-
-        <section className={p.card} style={{ marginBottom: 16 }}>
-          <h2 className={p.cardTitle}>Upcoming calls</h2>
-          {upcoming.length === 0 ? <p className={p.rowMeta}>No calls booked.</p> : (
-            <ul style={{ listStyle: 'none', margin: '10px 0 0', padding: 0 }}>
-              {upcoming.map((b) => (
-                <li key={b.id} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0eeec' }}>
-                  <div style={{ flex: 1, minWidth: 220 }}>
-                    <strong style={{ fontSize: 14 }}>{describeTime(b.starts_at, settings.timezone)}</strong>
-                    <p className={p.rowMeta}>
-                      {[b.name, b.company, b.email, b.phone, b.service_slug && SERVICE_SEO[b.service_slug]?.name].filter(Boolean).join(' · ')}
-                    </p>
-                    {b.notes && <p className={p.rowMeta} style={{ color: '#333' }}>“{b.notes}”</p>}
-                  </div>
-                  {b.crm_contact_id && <Link href={`/admin/crm?contact=${b.crm_contact_id}${b.crm_deal_id ? `&deal=${b.crm_deal_id}` : ''}`} className={`${p.btn} ${p.btnSmall}`}>CRM</Link>}
-                  <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => cancel(b)}>Cancel</button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
 
         <section className={p.card} style={{ marginBottom: 16 }}>
           <h2 className={p.cardTitle}>Weekly hours <span className={p.rowMeta} style={{ display: 'inline' }}>({settings.timezone})</span></h2>
@@ -173,21 +131,7 @@ export default function CallsAdmin() {
 
         <Blackouts items={data.blackouts} onChange={load} notify={show} />
 
-        {past.length > 0 && (
-          <section className={p.card}>
-            <h2 className={p.cardTitle}>Past and cancelled (last 30 days)</h2>
-            <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
-              {past.map((b) => (
-                <li key={b.id} className={p.rowMeta} style={{ padding: '6px 0' }}>
-                  {describeTime(b.starts_at, settings.timezone)} · {b.name}
-                  {b.status === 'cancelled' ? ` · cancelled by ${b.cancelled_by === 'admin' ? 'you' : 'them'}` : ''}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </div>
-      <Toast toast={toast} />
     </div>
   );
 }

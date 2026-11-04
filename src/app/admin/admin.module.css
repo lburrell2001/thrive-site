@@ -1,0 +1,223 @@
+/* ======================================================================
+   ADMIN SHELL — one sidebar for every admin page, and the design tokens
+   every admin stylesheet reads (proposals.module.css, workspace.module.css
+   and the rest use var(--a-…) so the whole admin looks like one product).
+   Black sidebar, warm light work area, Bai Jamjuree for the interface,
+   Bungee only for page titles, pink for the main action.
+   ====================================================================== */
+
+.app {
+  --a-bg: #f5f4f1;
+  --a-surface: #fff;
+  --a-surface-2: #faf9f7;
+  --a-border: #ebe9e5;
+  --a-border-strong: #d9d5cf;
+  --a-text: #141414;
+  --a-muted: #6b6863;
+  --a-faint: #8a8782;
+  --a-accent: #e50586;
+  --a-accent-hover: #c40473;
+  --a-accent-soft: #fde7f3;
+  --a-danger: #b91c1c;
+  --a-radius: 10px;
+  --a-radius-lg: 16px;
+  --a-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+  --a-shadow-lg: 0 18px 50px rgba(20, 20, 20, 0.16);
+  --a-font: var(--font-inter), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+  --a-display: var(--font-bungee), 'Bungee', sans-serif;
+
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--a-bg);
+  font-family: var(--a-font);
+  color: var(--a-text);
+}
+
+.appFull { grid-template-columns: minmax(0, 1fr); }
+
+/* ------------------------------------------------------------- sidebar */
+
+.side {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #0a0a0a;
+  color: #cfcac4;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 14px;
+  text-decoration: none;
+}
+
+.brand img { height: 22px; width: auto; }
+
+.brandTag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #8f6bc2;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 8px 10px;
+  border: 1px solid #262626;
+  border-radius: var(--a-radius);
+  background: #141414;
+  font: inherit;
+  font-size: 13px;
+  color: #8a8580;
+  cursor: pointer;
+  text-align: left;
+}
+
+.search:hover { border-color: #3a3a3a; color: #cfcac4; }
+
+.kbd {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid #2e2e2e;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #77726c;
+}
+
+.nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 10px 12px;
+}
+
+.group {
+  margin: 16px 10px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5f5a55;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #b9b3ac;
+  text-decoration: none;
+  transition: background 0.12s, color 0.12s;
+}
+
+.link:hover { background: #171717; color: #fff; }
+.link:focus-visible { outline: 2px solid var(--a-accent); outline-offset: 1px; }
+
+.linkOn,
+.linkOn:hover {
+  background: #fff;
+  color: #0a0a0a;
+}
+
+.icon { width: 17px; height: 17px; flex-shrink: 0; opacity: 0.85; }
+.linkOn .icon { opacity: 1; color: var(--a-accent); }
+
+.count {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--a-accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.countQuiet { background: #262626; color: #b9b3ac; }
+.linkOn .countQuiet { background: #ece9e5; color: #4a4844; }
+
+.foot {
+  display: grid;
+  gap: 2px;
+  padding: 10px 10px 14px;
+  border-top: 1px solid #1c1c1c;
+}
+
+.signOut {
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+
+/* ---------------------------------------------------------------- main */
+
+.main {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The phone top bar, hidden on wider screens. */
+.bar { display: none; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+  /* Full-screen tools have no top bar, so the page gets the whole height. */
+  .appFull { grid-template-rows: minmax(0, 1fr); }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #0a0a0a;
+  }
+
+  .bar img { height: 20px; width: auto; }
+
+  .menuButton {
+    margin-left: auto;
+    padding: 6px 12px;
+    border: 1px solid #2e2e2e;
+    border-radius: 8px;
+    background: none;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .side {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    width: min(280px, 86vw);
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--a-shadow-lg);
+  }
+
+  .sideOpen { transform: none; }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.4);
+  }
+}

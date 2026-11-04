@@ -56,7 +56,6 @@ export default function CampaignsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Campaigns</h1>
           <p className={w.sub}>
             Everything you’ve sent — print and email — with who it reached and what came of it. Replies, leads and wins within {60} days of a send count towards it.

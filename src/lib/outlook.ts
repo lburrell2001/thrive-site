@@ -1,6 +1,6 @@
 // Lauren's Microsoft 365 mailbox, through Microsoft Graph (migration 040).
 //
-// She connects it once from Emails → Settings: a Microsoft sign-in with
+// She connects it once from Settings → Email: a Microsoft sign-in with
 // delegated permissions (Mail.Read, Mail.Send, their .Shared versions,
 // offline_access, User.Read), so the app reaches her own mailbox plus any
 // mailbox she has Full Access to (hello@), and nothing else. The refresh
@@ -95,7 +95,7 @@ async function tokenRequest(params: Record<string, string>): Promise<TokenRespon
 
 /** The callback: swap the code for tokens and store the connection. */
 export async function completeSignIn(db: SupabaseClient, code: string, state: string, site: string): Promise<string> {
-  if (!stateValid(state)) throw new OutlookError('That sign-in link expired. Start again from Emails → Settings.');
+  if (!stateValid(state)) throw new OutlookError('That sign-in link expired. Start again from Settings → Email.');
   const tokens = await tokenRequest({ grant_type: 'authorization_code', code, redirect_uri: redirectUri(site) });
   if (!tokens.refresh_token) throw new OutlookError('Microsoft did not return a refresh token (offline_access).');
 
@@ -208,7 +208,7 @@ export async function graph<T>(db: SupabaseClient, path: string, init: RequestIn
 // ------------------------------------------------------------ sending
 
 /**
- * Send from the chosen mailbox (Emails → Settings; the signed-in account by
+ * Send from the chosen mailbox (Settings → Email; the signed-in account by
  * default). It lands in that mailbox's Sent Items and replies come back to it.
  * Another mailbox needs "Send as" for Lauren in Exchange.
  */

@@ -36,7 +36,7 @@ export async function sendDueEmails(db: SupabaseClient, site: string) {
     try {
       if (await sendProspectDraft(db, d.id, site)) sent += 1;
     } catch (e) {
-      failures.push({ what: `“${d.subject || 'Untitled email'}” to one contact`, error: e instanceof Error ? e.message : 'Could not send', href: `${site}/admin/crm?contact=${d.contact_id}` });
+      failures.push({ what: `“${d.subject || 'Untitled email'}” to one contact`, error: e instanceof Error ? e.message : 'Could not send', href: `${site}/admin?contact=${d.contact_id}` });
     }
   }
 

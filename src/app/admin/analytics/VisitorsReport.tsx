@@ -7,11 +7,11 @@
 // what they read.
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import p from '../../proposals/proposals.module.css';
-import w from '../workspace.module.css';
-import { apiGet } from '../../proposals/adminApi';
-import { useCrm } from '../CrmContext';
-import { avatarColor, initials, timeAgo } from '../shared';
+import p from '../proposals/proposals.module.css';
+import w from '../crm/workspace.module.css';
+import { apiGet } from '../proposals/adminApi';
+import { useCrm } from '../crm/CrmContext';
+import { avatarColor, initials, timeAgo } from '../crm/shared';
 import type { SiteVisitor, VisitorReport } from '@/types/visitors';
 
 type Filter = 'all' | 'now' | 'returning' | 'interested' | 'known';
@@ -43,7 +43,8 @@ function nameOf(v: SiteVisitor) {
   return v.place ? `Visitor in ${v.place}` : 'Visitor';
 }
 
-export default function VisitorsPage() {
+/** Analytics → Visitors. */
+export function VisitorsReport({ tabs }: { tabs: React.ReactNode }) {
   const { openContact, notify } = useCrm();
   const [report, setReport] = useState<VisitorReport | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
@@ -93,7 +94,6 @@ export default function VisitorsPage() {
     <div className={w.page}>
       <div className={w.head}>
         <div>
-          <p className={w.eyebrow}>CRM</p>
           <h1 className={w.title}>Visitors</h1>
           <p className={w.sub}>
             Everyone who browsed the site in the last 30 days. A browser that comes back counts as the same visitor. Names appear once a visitor
@@ -101,6 +101,7 @@ export default function VisitorsPage() {
           </p>
         </div>
       </div>
+      {tabs}
 
       <div className={w.statRow}>
         <div className={w.stat}><p className={w.statLabel}>On the site now</p><p className={w.statValue} style={{ color: stats.now ? '#0a8f4f' : undefined }}>{stats.now}</p><p className={w.statNote}>Active in the last 5 minutes</p></div>
