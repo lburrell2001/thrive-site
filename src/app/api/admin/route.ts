@@ -375,8 +375,9 @@ export async function POST(req: NextRequest) {
       }
 
       case 'update_invoice': {
-        const { id, status, invoice_number, project_name, amount_cents, due_date } = params as Record<string, unknown>;
+        const { id, status, invoice_number, project_name, amount_cents, due_date, subscription_id } = params as Record<string, unknown>;
         const update: Record<string, unknown> = {};
+        if (subscription_id !== undefined) update.subscription_id = subscription_id || null;
         if (status         !== undefined) update.status         = status;
         if (invoice_number !== undefined) update.invoice_number = invoice_number;
         if (project_name   !== undefined) update.project_name   = project_name;

@@ -91,6 +91,11 @@ const FREQUENCY_PRESETS = [
   { key: 'semiannual',  label: 'Every 6 months', count: 6, unit: 'month' as IntervalUnit },
   { key: 'yearly',      label: 'Yearly',         count: 1, unit: 'year'  as IntervalUnit },
 ];
+function intervalLabel(count: number, unit: IntervalUnit): string {
+  const preset = FREQUENCY_PRESETS.find(p => p.count === count && p.unit === unit);
+  if (preset) return preset.label;
+  return `Every ${count} ${unit}${count === 1 ? '' : 's'}`;
+}
 function extractPrefix(invoiceNumber: string): string {
   const m = invoiceNumber.match(/^([A-Za-z][A-Za-z0-9]*)-\d+$/);
   return m ? m[1] : 'INV';
@@ -1044,6 +1049,8 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       <SectionHead title="Projects" action={<Btn onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Project'}</Btn>} />
 
+      <SubscriptionsList data={data} api={api} onRefresh={onRefresh} />
+
       {showForm && (
         <div style={{ background: 'var(--a-surface-2)', borderRadius: 10, border: '1px solid var(--a-border)', padding: 20, marginBottom: 20 }}>
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1596,7 +1603,10 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
     const baseDate = inv.due_date || inv.invoice_date || todayIso();
     const next = addIntervalClient(baseDate, preset.count, preset.unit);
     const dayOfMonth = parseInt(next.slice(8, 10), 10);
-    await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit });
+    const sub = await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(inv.invoice_number), amount_cents: inv.amount_cents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
+    if (sub.error) { alert(sub.error); return; }
+    // Link this invoice to the schedule so the button goes away (no duplicate schedules).
+    if (sub.data?.id) await api({ action: 'update_invoice', id: inv.id, subscription_id: sub.data.id });
     onRefresh();
   }
 
@@ -1787,6 +1797,58 @@ function ProjectSubRequests({ project, requests, projects = [], clientId, api, o
 }
 
 // ── Recurring Invoices list (subscriptions) ────────────────────────────────────
+// Pause stops new invoices until resumed; Stop ends the schedule for good
+// (status 'cancelled', kept so past invoices still show ↻ Recurring).
+function SubscriptionsList({ data, api, onRefresh }: { data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
+  const subs = (data.subscriptions ?? []).filter(s => s.status !== 'cancelled');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  if (subs.length === 0) return null;
+
+  async function run(s: Subscription, status: 'active' | 'paused' | 'cancelled') {
+    setBusy(s.id); setError('');
+    const body: Record<string, unknown> = { action: 'update_subscription', id: s.id, status };
+    // Resuming: skip the periods that passed while paused instead of billing them all.
+    if (status === 'active') {
+      let next = s.next_due_date;
+      const today = todayIso();
+      for (let i = 0; next < today && i < 600; i++) next = addIntervalClient(next, s.interval_count || 1, s.interval_unit || 'month');
+      if (next !== s.next_due_date) body.next_due_date = next;
+    }
+    const r = await api(body) as { error?: string };
+    setBusy(null);
+    if (r.error) { setError(r.error); return; }
+    onRefresh();
+  }
+  function stop(s: Subscription) {
+    if (!confirm(`Stop repeating ${fmtAmount(s.amount_cents)} ${intervalLabel(s.interval_count || 1, s.interval_unit || 'month').toLowerCase()}? No more invoices will be created. Invoices already sent stay as they are.`)) return;
+    run(s, 'cancelled');
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid var(--a-border)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: '0 0 10px' }}>Recurring invoices</h3>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {subs.map((s) => {
+          const isPaused = s.status === 'paused';
+          return (
+            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid var(--a-border)', borderRadius: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK }}>{fmtAmount(s.amount_cents)} · {intervalLabel(s.interval_count || 1, s.interval_unit || 'month')}</span>
+              <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{s.project_name || '—'}</span>
+              {!isPaused && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Next: {fmtDate(s.next_due_date)}</span>}
+              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isPaused ? '#808080' : '#1a8a4a', background: isPaused ? '#f1f0ef' : '#edfff6', padding: '2px 8px', borderRadius: 999 }}>{isPaused ? 'Paused' : 'Active'}</span>
+              <div style={{ flex: 1 }} />
+              <Btn variant="ghost" disabled={busy === s.id} onClick={() => run(s, isPaused ? 'active' : 'paused')} style={{ padding: '4px 10px', fontSize: 11 }}>{isPaused ? 'Resume' : 'Pause'}</Btn>
+              <Btn variant="danger" disabled={busy === s.id} onClick={() => stop(s)} style={{ padding: '4px 10px', fontSize: 11 }}>Stop repeating</Btn>
+            </div>
+          );
+        })}
+      </div>
+      <ErrorMsg msg={error} />
+    </div>
+  );
+}
+
 // ── Onboarding Tab ─────────────────────────────────────────────────────────────
 function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
   const [stepNum, setStepNum] = useState(data.onboarding.length + 1);
