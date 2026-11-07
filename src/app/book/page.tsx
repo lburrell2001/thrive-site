@@ -5,8 +5,7 @@
 // again when the booking is made.
 
 import { useEffect, useMemo, useState } from 'react';
-import PublicLayout from '../components/PublicLayout';
-import WorkReel from '../components/WorkReel';
+import Shell from '../_site/Shell';
 import FounderNote from '../components/FounderNote';
 import PhotoStrip from '../components/PhotoStrip';
 import { mixedPhotos } from '@/lib/workPhotos';
@@ -116,10 +115,10 @@ export default function BookPage() {
   }
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <div className={s.head}>
-          <h1 className={s.title}>LET&apos;S TALK IT<br />THROUGH</h1>
+          <h1 className={s.title}>Let&apos;s Talk It<br />Through</h1>
           <p className={s.lede}>
             {avail ? `A ${avail.duration_minutes}-minute call` : 'A short call'} to talk about what you need, answer questions, and see if we&apos;re a fit. No cost, no pressure.
           </p>
@@ -131,7 +130,7 @@ export default function BookPage() {
 
         {booked ? (
           <div className={s.panel} role="status">
-            <p className={s.doneTitle}>YOU&apos;RE BOOKED!</p>
+            <p className={s.doneTitle}>You&apos;re booked!</p>
             <p className={s.lede}><strong>{booked.visitorTime}</strong></p>
             <p className={s.lede}>{booked.where}</p>
             <p className={s.lede}>A confirmation with a calendar invite is on its way to {form.email}. See you then!</p>
@@ -150,7 +149,7 @@ export default function BookPage() {
         ) : (
           <div className={s.layout}>
             <section className={s.panel} aria-labelledby="pick-time">
-              <h2 id="pick-time" className={s.step}>1. PICK A TIME</h2>
+              <h2 id="pick-time" className={s.step}>1. Pick a time</h2>
               <div className={s.days} role="listbox" aria-label="Day">
                 {avail.days.map((d) => {
                   const l = dayLabel(d.date);
@@ -194,7 +193,7 @@ export default function BookPage() {
             </section>
 
             <section className={s.panel} aria-labelledby="your-details">
-              <h2 id="your-details" className={s.step}>2. YOUR DETAILS</h2>
+              <h2 id="your-details" className={s.step}>2. Your details</h2>
               {slot ? (
                 <form onSubmit={submit} className={s.form}>
                   <p className={s.chosen}>{dayLabel(date!).long} at {timeLabel(slot, tz)}</p>
@@ -215,7 +214,7 @@ export default function BookPage() {
                   {/* Honeypot for bots; hidden from people and screen readers. */}
                   <input className={s.hp} tabIndex={-1} autoComplete="off" aria-hidden="true" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
                   {error && <p className={s.error} role="alert">{error}</p>}
-                  <button type="submit" className={s.submit} disabled={sending}>{sending ? 'BOOKING…' : 'BOOK THE CALL →'}</button>
+                  <button type="submit" className={s.submit} disabled={sending}>{sending ? 'Booking…' : 'Book the call'}</button>
                   <p className={s.tzNote}>{avail.meeting_note}</p>
                 </form>
               ) : (
@@ -225,7 +224,6 @@ export default function BookPage() {
           </div>
         )}
       </div>
-      <WorkReel title="A look at the work" />
-    </PublicLayout>
+    </Shell>
   );
 }

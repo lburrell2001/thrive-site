@@ -1,0 +1,55 @@
+/* The About page. Shared tokens and classes come from ../redesign.module.css. */
+
+.hero { display: grid; grid-template-columns: 1.25fr 1fr; gap: clamp(24px, 4vw, 64px); align-items: end; padding: clamp(110px, 12vw, 170px) var(--gutter) 0; }
+.title { font-size: clamp(2.8rem, 6.4vw, 7rem); line-height: 0.9; }
+.mission { margin: 0; border-radius: var(--radius); padding: clamp(24px, 3vw, 44px); font-size: clamp(1.02rem, 1.3vw, 1.25rem); line-height: 1.55; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(10px, 1.2vw, 16px); padding: clamp(28px, 3.6vw, 52px) var(--gutter) 0; }
+.stat { border-radius: 18px; padding: clamp(20px, 2.2vw, 32px); display: grid; gap: 6px; }
+.statNum { font-weight: 800; letter-spacing: var(--track); font-size: clamp(2.6rem, 4.6vw, 4.8rem); line-height: 0.9; }
+.statLabel { font-weight: 600; font-size: 0.95rem; }
+
+.founder { display: grid; grid-template-columns: 1fr 1.2fr; gap: clamp(28px, 5vw, 80px); align-items: center; padding: clamp(70px, 9vw, 130px) var(--gutter) 0; }
+.portrait { position: relative; border-radius: var(--radius); overflow: visible; }
+.portrait > img { display: block; width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); }
+.sticker {
+  position: absolute;
+  right: calc(-1 * clamp(14px, 2vw, 30px));
+  top: calc(-1 * clamp(14px, 2vw, 30px));
+  width: clamp(92px, 9vw, 132px);
+  height: clamp(92px, 9vw, 132px);
+  border-radius: 50%;
+  background: #9409ce;
+  display: grid;
+  place-items: center;
+  transform: rotate(8deg);
+}
+.sticker img { width: 34%; height: auto; display: block; }
+.name { font-size: clamp(3rem, 6.6vw, 7rem); line-height: 0.9; }
+.role { margin: 10px 0 0; font-weight: 700; letter-spacing: var(--track-sm); color: #e50586; font-size: clamp(1.1rem, 1.5vw, 1.45rem); }
+.bio { margin: clamp(16px, 2vw, 26px) 0 clamp(22px, 2.6vw, 34px); font-size: clamp(1.05rem, 1.3vw, 1.25rem); line-height: 1.55; max-width: 56ch; }
+
+.block { padding: clamp(70px, 9vw, 130px) var(--gutter) 0; }
+.sectionTitle { font-size: clamp(2.6rem, 7vw, 7rem); padding-bottom: 0.12em; }
+.strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 1vw, 14px); margin-top: clamp(20px, 2.6vw, 36px); }
+.stripPhoto { position: relative; display: block; border-radius: clamp(12px, 1.3vw, 18px); overflow: hidden; aspect-ratio: 4 / 5; background: #141414; }
+.stripPhoto img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.stripPhoto:hover img { transform: scale(1.05); }
+.tag { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 4px 10px; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 600; font-size: 0.78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.values { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(12px, 1.4vw, 20px); margin-top: clamp(20px, 2.6vw, 36px); }
+.value { border-radius: 18px; padding: clamp(22px, 2.2vw, 32px); }
+.valueIcon { width: clamp(40px, 3.4vw, 50px); height: auto; display: block; margin-bottom: clamp(24px, 3vw, 44px); }
+.valueTitle { margin: 0 0 10px; font-weight: 700; letter-spacing: var(--track-sm); font-size: clamp(1.3rem, 1.8vw, 1.8rem); line-height: 1; }
+.value p { margin: 0; line-height: 1.5; font-size: 0.96rem; }
+.spacer { height: clamp(70px, 9vw, 130px); }
+
+@media (max-width: 1000px) {
+  .hero, .founder { grid-template-columns: 1fr; }
+  .stats, .values { grid-template-columns: 1fr 1fr; }
+  .strip { grid-template-columns: repeat(3, 1fr); }
+  .stripPhoto:nth-child(n + 4) { display: none; }
+}
+@media (max-width: 560px) {
+  .stats, .values { grid-template-columns: 1fr; }
+}

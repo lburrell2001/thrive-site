@@ -59,19 +59,30 @@ export default function Shell({ children, legacy = false }: { children: React.Re
         <button type="button" className={s.pill} aria-expanded={menuOpen} aria-controls="rd-menu" onClick={() => setMenuOpen(true)}>Menu</button>
       </header>
 
+      {/* ── Menu: the pages as brand-colour cards, like the rest of the site ── */}
       <div id="rd-menu" className={`${s.menu} ${menuOpen ? s.menuOpen : ''}`} role="dialog" aria-modal="true" aria-label="Menu" aria-hidden={!menuOpen}>
         <div className={s.menuTop}>
           <Link href={rd('/contact')} className={s.pill} onClick={() => setMenuOpen(false)}>Let’s Start a Project</Link>
+          <Link href={rd('/')} className={s.menuLogo} aria-label="Thrive Creative Studios home" onClick={() => setMenuOpen(false)}>
+            <img src="/new-thrive/logo.svg" alt="" />
+          </Link>
           <button type="button" className={s.pill} onClick={() => setMenuOpen(false)}>Close</button>
         </div>
-        <img src="/new-thrive/logo.svg" alt="" className={s.menuWord} />
-        <nav className={s.menuPanels} aria-label="Site">
+        <nav className={s.menuGrid} aria-label="Site">
           {MENU.map((m, i) => (
-            <Link key={m.href} href={rd(m.href)} className={`${s.menuPanel} ${m.tone}`} style={{ '--i': i } as React.CSSProperties} onClick={() => setMenuOpen(false)}>
-              <span>{m.n}, {m.label}</span>
+            <Link key={m.href} href={rd(m.href)} className={`${s.menuCard} ${m.tone}`} style={{ '--i': i } as React.CSSProperties} onClick={() => setMenuOpen(false)}>
+              <span className={s.menuNum} aria-hidden>{m.n}</span>
+              <span className={s.menuLabel}>{m.label}</span>
+              <span className={s.menuArrow} aria-hidden>→</span>
             </Link>
           ))}
         </nav>
+        <div className={s.menuFoot}>
+          <a href="mailto:hello@thrivecreativestudios.org">hello@thrivecreativestudios.org</a>
+          <a href="https://www.instagram.com/thrivecreativestudio_/" target="_blank" rel="noopener">Instagram</a>
+          <Link href="/book" onClick={() => setMenuOpen(false)}>Book a call</Link>
+          <Link href="/portal/login" onClick={() => setMenuOpen(false)}>Client portal</Link>
+        </div>
       </div>
 
       {legacy ? <main className={s.legacyBody}>{children}</main> : <main>{children}</main>}
@@ -81,13 +92,17 @@ export default function Shell({ children, legacy = false }: { children: React.Re
         <div className={s.footerCols}>
           <nav aria-label="Footer">
             {MENU.map((m) => <Link key={m.href} href={rd(m.href)}>{m.label}</Link>)}
+            <Link href="/portal/login">Client portal</Link>
           </nav>
           <div className={s.footerNews}>
             <p className={s.smallHead}>Join our community</p>
             <NewsletterSignup className={s.newsForm} />
           </div>
         </div>
-        <p className={s.footerSmall}>© {year} Thrive Creative Studios · Dallas, TX · <Link href="/privacy">Privacy</Link></p>
+        <div className={s.footerBottom}>
+          <p className={s.footerSmall}>© {year} Thrive Creative Studios · Black-owned · Black-led · Dallas, TX · <Link href="/privacy">Privacy</Link></p>
+          <a href="/admin" className={s.adminBtn}>Admin</a>
+        </div>
       </footer>
     </div>
   );

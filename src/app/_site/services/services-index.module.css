@@ -1,0 +1,56 @@
+/* The Services overview. Shared tokens and classes come from ../redesign.module.css. */
+
+.hero { padding: clamp(110px, 12vw, 170px) var(--gutter) clamp(30px, 4vw, 56px); }
+.title { font-size: clamp(3rem, 7.6vw, 8.4rem); line-height: 0.9; max-width: 14ch; }
+.accent { color: #e50586; }
+.lede { max-width: 58ch; margin-top: clamp(16px, 2vw, 26px); font-size: clamp(1.1rem, 1.6vw, 1.5rem); }
+.jumps { display: flex; flex-wrap: wrap; gap: 8px; margin-top: clamp(22px, 3vw, 38px); }
+.jump { gap: 8px; font-size: 0.95rem; }
+.jump:hover { filter: brightness(0.92); }
+.jumpIcon { width: 20px; height: 20px; }
+
+/* One panel per service, in its colour; the photo swaps sides each time. */
+.panels { display: grid; gap: clamp(14px, 1.6vw, 22px); padding: 0 var(--gutter); }
+.panel {
+  scroll-margin-top: 100px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(20px, 3vw, 48px);
+  align-items: center;
+  border-radius: var(--radius);
+  padding: clamp(16px, 1.8vw, 26px);
+}
+.flip .media { order: 2; }
+.media { display: block; border-radius: clamp(14px, 1.6vw, 22px); overflow: hidden; aspect-ratio: 4 / 3; background: #141414; }
+.media img, .media video { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.media:hover img, .media:hover video { transform: scale(1.04); }
+.body { padding: clamp(8px, 1.6vw, 26px); }
+.bodyTop { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.icon { width: clamp(52px, 4.4vw, 64px); height: clamp(52px, 4.4vw, 64px); border-radius: 16px; display: grid; place-items: center; box-shadow: inset 0 0 0 2px currentColor; }
+.icon svg { width: 58%; height: auto; }
+.from { border-radius: 999px; padding: 8px 16px; background: #fff; color: var(--ink); font-weight: 700; letter-spacing: var(--track-sm); font-size: 0.95rem; }
+.name { font-size: clamp(2.4rem, 4.6vw, 4.8rem); margin-top: clamp(16px, 2vw, 26px); }
+.desc { margin: clamp(12px, 1.4vw, 18px) 0 0; font-size: clamp(1rem, 1.2vw, 1.15rem); line-height: 1.5; max-width: 52ch; }
+.packages { list-style: none; margin: clamp(16px, 2vw, 24px) 0 0; padding: 0; border-top: 2px solid currentColor; }
+.packages li { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid currentColor; font-size: 0.95rem; }
+.packages li strong { white-space: nowrap; }
+.more { margin-top: clamp(18px, 2vw, 26px); }
+/* The button reads on every panel colour. */
+.panel .more { background: var(--ink); color: #fff; }
+.panel .more:hover { background: #fff; color: var(--ink); }
+
+.block { padding: clamp(70px, 9vw, 130px) var(--gutter) 0; }
+.sectionTitle { font-size: clamp(2.6rem, 7vw, 7rem); padding-bottom: 0.12em; }
+.how { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(20px, 4vw, 64px); align-items: end; border-top: 2px solid var(--ink); padding-top: clamp(24px, 3vw, 40px); }
+.howText { margin: 0; font-size: clamp(1.15rem, 1.8vw, 1.7rem); }
+.why { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.4vw, 20px); margin-top: clamp(20px, 2.6vw, 36px); }
+.whyCard { border-radius: 18px; padding: clamp(22px, 2.2vw, 32px); }
+.whyTitle { margin: 0 0 10px; font-weight: 700; letter-spacing: var(--track-sm); font-size: clamp(1.3rem, 1.8vw, 1.8rem); line-height: 1.05; }
+.whyCard p { margin: 0; line-height: 1.5; }
+.spacer { height: clamp(70px, 9vw, 130px); }
+
+@media (max-width: 900px) {
+  .panel { grid-template-columns: 1fr; }
+  .flip .media { order: 0; }
+  .how, .why { grid-template-columns: 1fr; }
+}

@@ -102,7 +102,7 @@ export default function ReviewForm({ token, defaultName, googleReviewUrl }: {
       </label>
 
       {error && <p className={s.error} role="alert">{error}</p>}
-      <button type="submit" className={s.submit} disabled={sending}>{sending ? 'SENDING…' : 'SEND REVIEW →'}</button>
+      <button type="submit" className={s.submit} disabled={sending}>{sending ? 'Sending…' : 'Send review'}</button>
     </form>
   );
 }

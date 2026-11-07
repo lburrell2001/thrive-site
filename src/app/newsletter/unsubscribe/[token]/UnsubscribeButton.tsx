@@ -26,7 +26,7 @@ export default function UnsubscribeButton({ token }: { token: string }) {
       <p className={s.text}>Stop receiving newsletters and marketing emails from Thrive Creative Studios? Emails about a project you&apos;re working on with us aren&apos;t affected.</p>
       {error && <p className={s.error} role="alert">{error}</p>}
       <button type="button" className={s.button} onClick={go} disabled={state === 'working'}>
-        {state === 'working' ? 'ONE MOMENT…' : 'UNSUBSCRIBE'}
+        {state === 'working' ? 'One moment…' : 'Unsubscribe'}
       </button>
     </>
   );

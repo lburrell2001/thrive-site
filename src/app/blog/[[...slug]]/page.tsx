@@ -19,7 +19,7 @@ import {
   type SeoResolved,
 } from '@opinly/shared';
 import type { Post } from '@opinly/backend';
-import PublicLayout from '../../components/PublicLayout';
+import Shell from '../../_site/Shell';
 import { opinly } from '@/lib/opinly';
 import { jsonLd } from '@/lib/seo';
 import s from '../../journal/journal.module.css';
@@ -121,9 +121,9 @@ export default async function BlogPage(props: BlogPageProps) {
   }
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>{body}</div>
-    </PublicLayout>
+    </Shell>
   );
 }
 
@@ -144,10 +144,10 @@ function PostCard({ post, as: Heading = 'h2' }: { post: Post; as?: 'h2' | 'h3' }
         )}
       </div>
       <div className={s.cardBody}>
+        <Heading className={s.cardTitle}>{post.title}</Heading>
         <p className={s.cardMeta}>
           {formatDate(post.firstPublishedAt)}{post.category ? ` · ${post.category.name}` : ''}
         </p>
-        <Heading className={s.cardTitle}>{post.title}</Heading>
         {post.description && <p className={s.cardExcerpt}>{post.description}</p>}
       </div>
     </Link>
@@ -166,7 +166,7 @@ function PostGrid({ posts }: { posts: Post[] }) {
 function BlogIndex({ posts, categories }: { posts: Post[]; categories: { slug: string; title: string }[] }) {
   return (
     <>
-      <h1 className={s.pageTitle}>THE THRIVE<br />BLOG</h1>
+      <h1 className={s.pageTitle}>The Thrive<br />Blog</h1>
       <p className={s.lede}>
         Websites, branding, social media and marketing for small businesses — what works, what it costs, and what to ask before you hire anyone.
       </p>
@@ -183,8 +183,8 @@ function BlogIndex({ posts, categories }: { posts: Post[]; categories: { slug: s
 function Archive({ kicker, title, description, posts }: { kicker: string; title: string; description?: string | null; posts: Post[] }) {
   return (
     <>
-      <Link href={config.blogPrefix} className={s.back}>← BLOG</Link>
-      <h1 className={s.pageTitle}>{title.toUpperCase()}</h1>
+      <Link href={config.blogPrefix} className={s.back}>← Blog</Link>
+      <h1 className={s.pageTitle}>{title}</h1>
       <p className={s.lede}>{description || `${kicker}: every article on ${title}.`}</p>
       <PostGrid posts={posts} />
     </>
@@ -194,8 +194,8 @@ function Archive({ kicker, title, description, posts }: { kicker: string; title:
 function AuthorsView({ authors }: { authors: { name: string; slug: string; bio: string | null; posts: Post[] }[] }) {
   return (
     <>
-      <Link href={config.blogPrefix} className={s.back}>← BLOG</Link>
-      <h1 className={s.pageTitle}>AUTHORS</h1>
+      <Link href={config.blogPrefix} className={s.back}>← Blog</Link>
+      <h1 className={s.pageTitle}>Authors</h1>
       <div className={b.authors}>
         {authors.map((a) => (
           <Link key={a.slug} href={authorPath(config, a.slug)} className={b.author}>
@@ -225,7 +225,7 @@ async function BlogPost({ post }: { post: FullPost }) {
       ) : null}
 
       <article className={s.article}>
-        <Link href={config.blogPrefix} className={s.back}>← BLOG</Link>
+        <Link href={config.blogPrefix} className={s.back}>← Blog</Link>
         <h1 className={s.articleTitle}>{post.title}</h1>
         <p className={s.articleMeta}>
           {post.author && <>By <Link href={authorPath(config, post.author.slug)} className={b.metaLink}>{post.author.name}</Link> · </>}
@@ -262,21 +262,21 @@ async function BlogPost({ post }: { post: FullPost }) {
           </nav>
         )}
 
-        <aside className={s.cta} style={{ background: '#0a0a0a' }}>
-          <p className={s.ctaTitle}>READY TO START YOUR PROJECT?</p>
+        <aside className={s.cta}>
+          <p className={s.ctaTitle}>Ready to start your project?</p>
           <p className={s.ctaText}>
             Thrive Creative Studios is a Dallas creative studio working with businesses across DFW and remotely across the US.
           </p>
           <div className={s.ctaActions}>
-            <Link href="/contact" className={s.ctaButton} style={{ background: '#e40586', color: '#fff' }}>START A PROJECT →</Link>
-            <Link href="/book" className={s.ctaButton} style={{ background: '#fff', color: '#0a0a0a' }}>BOOK A FREE CALL</Link>
+            <Link href="/contact" className={s.ctaButton}>Let’s Start a Project</Link>
+            <Link href="/book" className={`${s.ctaButton} ${s.ctaButtonAlt}`}>Book a free call</Link>
           </div>
         </aside>
       </article>
 
       {related.length > 0 && (
         <section className={s.more} aria-labelledby="more-articles">
-          <h2 id="more-articles" className={s.moreTitle}>MORE ON {post.category!.name.toUpperCase()}</h2>
+          <h2 id="more-articles" className={s.moreTitle}>More on {post.category!.name}</h2>
           <div className={s.grid}>
             {related.map((p) => <PostCard key={p.slug} post={p} as="h3" />)}
           </div>

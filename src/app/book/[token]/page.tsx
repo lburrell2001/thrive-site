@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import PublicLayout from '../../components/PublicLayout';
+import Shell from '../../_site/Shell';
 import { serviceClient } from '@/lib/adminAuth';
 import { describeTime } from '@/lib/bookingTime';
 import CancelButton from './CancelButton';
@@ -32,10 +32,10 @@ export default async function ManageBooking({ params }: Props) {
   const past = hasPassed(booking.starts_at);
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <div className={s.head}>
-          <h1 className={s.title}>{booking.status === 'cancelled' ? 'CANCELLED' : past ? 'THANKS FOR TALKING' : 'SEE YOU SOON'}</h1>
+          <h1 className={s.title}>{booking.status === 'cancelled' ? 'Cancelled' : past ? 'Thanks for talking' : 'See you soon'}</h1>
         </div>
         <div className={s.panel} style={{ maxWidth: 560 }}>
           <p className={s.lede}><strong>{when}</strong></p>
@@ -51,6 +51,6 @@ export default async function ManageBooking({ params }: Props) {
           )}
         </div>
       </div>
-    </PublicLayout>
+    </Shell>
   );
 }

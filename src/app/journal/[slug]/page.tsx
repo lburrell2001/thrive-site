@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import PublicLayout from '../../components/PublicLayout';
+import Shell from '../../_site/Shell';
 import { Article, readingMinutes } from '@/lib/articleMarkdown';
 import { formatPostDate, publishedPost, publishedPosts } from '@/lib/journalRepo';
 import { BUSINESS_ID, SITE_NAME, SITE_URL, absoluteUrl, buildPageMetadata, jsonLd } from '@/lib/seo';
@@ -79,11 +79,11 @@ export default async function JournalArticle({ params }: Props) {
   };
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(data) }} />
         <article className={s.article}>
-          <Link href="/journal" className={s.back}>← JOURNAL</Link>
+          <Link href="/journal" className={s.back}>← Journal</Link>
           <h1 className={s.articleTitle}>{post.title}</h1>
           <p className={s.articleMeta}>
             By Lauren Burrell · <time dateTime={post.published_at ?? undefined}>{formatPostDate(post.published_at)}</time> · {readingMinutes(post.body)} min read
@@ -96,16 +96,16 @@ export default async function JournalArticle({ params }: Props) {
           )}
           <Article source={post.body} className={s.prose} />
 
-          <aside className={s.cta} style={{ background: '#0a0a0a' }}>
-            <p className={s.ctaTitle}>{service ? `NEED HELP WITH ${service.name.toUpperCase()}?` : 'READY TO START YOUR PROJECT?'}</p>
+          <aside className={s.cta}>
+            <p className={s.ctaTitle}>{service ? `Need help with ${service.name.toLowerCase()}?` : 'Ready to start your project?'}</p>
             <p className={s.ctaText}>
               Thrive Creative Studios is a Dallas creative studio working with businesses across DFW and remotely across the US.
             </p>
             <div className={s.ctaActions}>
-              <a href="/contact" className={s.ctaButton} style={{ background: '#e40586', color: '#fff' }}>START A PROJECT →</a>
+              <a href="/contact" className={s.ctaButton}>Let’s Start a Project</a>
               {service && (
-                <a href={service.path} className={s.ctaButton} style={{ background: '#fff', color: '#0a0a0a' }}>
-                  SEE {service.name.toUpperCase()}
+                <a href={service.path} className={`${s.ctaButton} ${s.ctaButtonAlt}`}>
+                  See {service.name}
                 </a>
               )}
             </div>
@@ -114,7 +114,7 @@ export default async function JournalArticle({ params }: Props) {
 
         {more.length > 0 && (
           <section className={s.more} aria-labelledby="more-articles">
-            <h2 id="more-articles" className={s.moreTitle}>MORE FROM THE JOURNAL</h2>
+            <h2 id="more-articles" className={s.moreTitle}>More from the Journal</h2>
             <div className={s.grid}>
               {more.map((p) => (
                 <a key={p.id} href={`/journal/${p.slug}`} className={s.card}>
@@ -125,8 +125,8 @@ export default async function JournalArticle({ params }: Props) {
                     )}
                   </div>
                   <div className={s.cardBody}>
-                    <p className={s.cardMeta}>{formatPostDate(p.published_at)} · {p.reading_minutes} min read</p>
                     <h3 className={s.cardTitle}>{p.title}</h3>
+                    <p className={s.cardMeta}>{formatPostDate(p.published_at)} · {p.reading_minutes} min read</p>
                   </div>
                 </a>
               ))}
@@ -134,6 +134,6 @@ export default async function JournalArticle({ params }: Props) {
           </section>
         )}
       </div>
-    </PublicLayout>
+    </Shell>
   );
 }

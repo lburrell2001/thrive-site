@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import PublicLayout from '../../../components/PublicLayout';
+import Shell from '../../../_site/Shell';
 import UnsubscribeButton from './UnsubscribeButton';
 import s from '../../newsletter.module.css';
 
@@ -12,13 +12,13 @@ type Props = { params: Promise<{ token: string }> };
 export default async function UnsubscribePage({ params }: Props) {
   const { token } = await params;
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <div className={s.card}>
-          <h1 className={s.title}>UNSUBSCRIBE</h1>
+          <h1 className={s.title}>Unsubscribe</h1>
           <UnsubscribeButton token={token} />
         </div>
       </div>
-    </PublicLayout>
+    </Shell>
   );
 }

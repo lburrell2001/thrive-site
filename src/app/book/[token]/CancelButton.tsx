@@ -28,7 +28,7 @@ export default function CancelButton({ token }: { token: string }) {
       {error && <p className={s.error} role="alert">{error}</p>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
         <button type="button" className={s.submit} onClick={cancel} disabled={state === 'working'}>
-          {state === 'working' ? 'CANCELLING…' : 'CANCEL THIS CALL'}
+          {state === 'working' ? 'Cancelling…' : 'Cancel this call'}
         </button>
       </div>
     </div>

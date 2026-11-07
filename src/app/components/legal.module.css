@@ -1,9 +1,7 @@
 /* Shared layout for the plain-text legal pages (/privacy, /sms). */
 
 .page {
-  background: #fff;
-  color: #0a0a0a;
-  padding: 130px 24px 156px;
+  padding: clamp(110px, 12vw, 170px) var(--gutter, 24px) clamp(70px, 9vw, 130px);
 }
 
 .inner {
@@ -12,30 +10,37 @@
 }
 
 .title {
-  font-family: var(--font-bungee), system-ui, sans-serif;
-  font-size: clamp(26px, 4.8vw, 42px);
-  line-height: 1.05;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+  font-weight: 700;
+  letter-spacing: var(--track);
+  word-spacing: var(--word);
+  font-size: clamp(2.8rem, 7vw, 6rem);
+  line-height: 0.9;
 }
 
 .updated {
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.55);
-  margin: 0 0 65px;
+  margin: 0 0 clamp(40px, 5vw, 64px);
+  color: #6b6b6b;
+  font-size: 0.92rem;
 }
 
 .page h2 {
-  font-family: var(--font-bungee), system-ui, sans-serif;
-  font-size: 20px;
-  line-height: 1.2;
-  margin: 65px 0 12px;
+  margin: clamp(40px, 5vw, 60px) 0 12px;
+  font-weight: 700;
+  letter-spacing: var(--track-sm);
+  word-spacing: var(--word);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  line-height: 1.05;
 }
 
+/* Legal text at a comfortable reading size and gentle tracking. */
 .page p,
 .page li {
-  font-size: 16px;
+  font-size: 1.04rem;
   line-height: 1.7;
-  color: #333;
+  letter-spacing: -0.02em;
+  word-spacing: normal;
+  color: #222;
 }
 
 .page ul {
@@ -43,14 +48,22 @@
   margin: 0 0 16px;
 }
 
+.page li::marker { color: #e50586; }
+
 .page a {
-  color: #e50586;
+  color: var(--ink, #141414);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: #e50586;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .callout {
-  border-left: 4px solid #e50586;
-  background: #fff4fa;
-  padding: 14px 18px;
+  border-radius: 16px;
+  background: #0cf574;
+  color: #141414 !important;
+  padding: 16px 20px;
   margin: 16px 0;
   font-weight: 600;
 }
@@ -120,15 +133,17 @@
 
 .caption {
   font-size: 13px !important;
-  color: rgba(0, 0, 0, 0.55) !important;
+  color: #6b6b6b !important;
   margin: 0 0 16px;
 }
 
 .sample {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 14px;
-  background: #f6f5f4;
-  border-radius: 10px;
+  letter-spacing: normal;
+  word-spacing: normal;
+  background: #f3f3f3;
+  border-radius: 14px;
   padding: 14px 16px;
   white-space: pre-wrap;
   margin: 8px 0 16px;

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import PublicLayout from '../components/PublicLayout';
+import Shell from '../_site/Shell';
 import s from '../components/legal.module.css';
 import { buildPageMetadata } from '@/lib/seo';
 import { SMS_SUPPORT_EMAIL } from '@/lib/smsConsent';
@@ -13,7 +13,7 @@ export const metadata: Metadata = buildPageMetadata({
 
 export default function PrivacyPage() {
   return (
-    <PublicLayout>
+    <Shell>
       <main className={s.page}>
         <div className={s.inner}>
           <h1 className={s.title}>Privacy Policy</h1>
@@ -127,6 +127,6 @@ export default function PrivacyPage() {
           </p>
         </div>
       </main>
-    </PublicLayout>
+    </Shell>
   );
 }

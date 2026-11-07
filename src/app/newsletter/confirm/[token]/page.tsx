@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import PublicLayout from '../../../components/PublicLayout';
+import Shell from '../../../_site/Shell';
 import { serviceClient } from '@/lib/adminAuth';
 import { confirmSubscription } from '@/lib/newsletter';
 import s from '../../newsletter.module.css';
@@ -15,13 +15,13 @@ export default async function ConfirmPage({ params }: Props) {
   const result = await confirmSubscription(serviceClient(), token);
 
   const copy = {
-    confirmed: { title: "YOU'RE IN!", text: 'Thanks for subscribing. Expect the occasional email with new work, practical advice, and studio news — never spam.' },
-    unsubscribed: { title: 'YOU UNSUBSCRIBED', text: 'You unsubscribed after this link was sent, so we left it that way. Sign up again from the footer any time.' },
-    invalid: { title: 'LINK NOT VALID', text: 'This confirmation link is not valid. Try signing up again from the footer of any page.' },
+    confirmed: { title: "You’re in!", text: 'Thanks for subscribing. Expect the occasional email with new work, practical advice, and studio news — never spam.' },
+    unsubscribed: { title: 'You unsubscribed', text: 'You unsubscribed after this link was sent, so we left it that way. Sign up again from the footer any time.' },
+    invalid: { title: 'Link not valid', text: 'This confirmation link is not valid. Try signing up again from the footer of any page.' },
   }[result];
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <div className={s.card}>
           <h1 className={s.title}>{copy.title}</h1>
@@ -29,6 +29,6 @@ export default async function ConfirmPage({ params }: Props) {
           <p className={s.text}><Link href="/journal">Read the journal →</Link></p>
         </div>
       </div>
-    </PublicLayout>
+    </Shell>
   );
 }

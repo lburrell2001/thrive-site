@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
-import PublicLayout from '../components/PublicLayout';
+import Shell from '../_site/Shell';
+import CtaBand from '../_site/CtaBand';
 import { buildPageMetadata } from '@/lib/seo';
 import { formatPostDate, publishedPosts } from '@/lib/journalRepo';
 import { storageUrl } from '@/lib/storage';
-import { loadReelProjects } from '@/lib/workReel';
-import WorkReel from '../components/WorkReel';
 import s from './journal.module.css';
 
 // Cached, and refreshed on demand whenever an article is published or edited.
@@ -18,12 +17,12 @@ export const metadata: Metadata = buildPageMetadata({
 });
 
 export default async function JournalIndex() {
-  const [posts, reel] = await Promise.all([publishedPosts(), loadReelProjects()]);
+  const posts = await publishedPosts();
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
-        <h1 className={s.pageTitle}>NOTES FROM<br />THE STUDIO</h1>
+        <h1 className={s.pageTitle}>Notes from<br />the Studio</h1>
         <p className={s.lede}>
           Straight answers on branding, websites, social media and photography — the questions clients ask us most.
         </p>
@@ -41,8 +40,8 @@ export default async function JournalIndex() {
                   )}
                 </div>
                 <div className={s.cardBody}>
-                  <p className={s.cardMeta}>{formatPostDate(post.published_at)} · {post.reading_minutes} min read</p>
                   <h2 className={s.cardTitle}>{post.title}</h2>
+                  <p className={s.cardMeta}>{formatPostDate(post.published_at)} · {post.reading_minutes} min read</p>
                   {post.excerpt && <p className={s.cardExcerpt}>{post.excerpt}</p>}
                 </div>
               </a>
@@ -50,7 +49,7 @@ export default async function JournalIndex() {
           </div>
         )}
       </div>
-      <WorkReel projects={reel} title="Work worth reading about" tone="dark" />
-    </PublicLayout>
+      <CtaBand />
+    </Shell>
   );
 }

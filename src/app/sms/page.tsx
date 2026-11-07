@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import PublicLayout from '../components/PublicLayout';
+import Shell from '../_site/Shell';
 import s from '../components/legal.module.css';
 import { buildPageMetadata } from '@/lib/seo';
 import SmsOptInLabel from '../components/SmsOptInLabel';
@@ -16,7 +16,7 @@ export const metadata: Metadata = buildPageMetadata({
 // see the opt-in without a portal login.
 export default function SmsTermsPage() {
   return (
-    <PublicLayout>
+    <Shell>
       <main className={s.page}>
         <div className={s.inner}>
           <h1 className={s.title}>Text Message Terms</h1>
@@ -116,6 +116,6 @@ export default function SmsTermsPage() {
           </p>
         </div>
       </main>
-    </PublicLayout>
+    </Shell>
   );
 }

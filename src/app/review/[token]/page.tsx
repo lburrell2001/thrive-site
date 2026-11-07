@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import PublicLayout from '../../components/PublicLayout';
+import Shell from '../../_site/Shell';
 import { serviceClient } from '@/lib/adminAuth';
 import { SERVICE_SEO, type ServiceSlug } from '@/lib/serviceSeo';
 import ReviewForm from './ReviewForm';
@@ -31,12 +31,12 @@ export default async function ReviewPage({ params }: Props) {
   const googleReviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || null;
 
   return (
-    <PublicLayout>
+    <Shell>
       <div className={s.page}>
         <div className={s.card}>
           {review.status === 'requested' ? (
             <>
-              <h1 className={s.title}>HOW DID WE DO?</h1>
+              <h1 className={s.title}>How did we do?</h1>
               <p className={s.lede}>
                 {service ? `A few words about your ${service.toLowerCase()} project` : 'A few words about working together'} help other
                 businesses decide whether we are the right fit. It takes two minutes.
@@ -45,7 +45,7 @@ export default async function ReviewPage({ params }: Props) {
             </>
           ) : (
             <>
-              <h1 className={s.title}>THANK YOU!</h1>
+              <h1 className={s.title}>Thank you!</h1>
               <p className={s.lede}>Your review has already been sent. It means a lot.</p>
               {googleReviewUrl && (
                 <a href={googleReviewUrl} className={s.google} target="_blank" rel="noreferrer">Also leave it on Google →</a>
@@ -54,6 +54,6 @@ export default async function ReviewPage({ params }: Props) {
           )}
         </div>
       </div>
-    </PublicLayout>
+    </Shell>
   );
 }

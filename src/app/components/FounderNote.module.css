@@ -1,45 +1,21 @@
+/* Lauren's portrait and a line about her, in the site's design system. */
 .note {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px 20px 16px 16px;
+  padding: 12px 22px 12px 12px;
   border-radius: 999px;
   background: #fff;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08), 0 0 0 1px #eee;
-  max-width: 520px;
+  box-shadow: inset 0 0 0 2px #141414;
+  max-width: 540px;
   box-sizing: border-box;
 }
-
-.dark { background: #161616; box-shadow: 0 0 0 1px #2a2a2a; color: #fff; }
-
-.note img {
-  flex: 0 0 auto;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  object-fit: cover;
-  object-position: 50% 30%;
-  border: 3px solid #e50586;
-}
-
-.name {
-  margin: 0 0 2px;
-  font-family: var(--font-bungee, 'Bungee', sans-serif);
-  font-size: 13px;
-  text-transform: uppercase;
-}
-
-.text {
-  margin: 0;
-  font-family: var(--font-bai, 'Bai Jamjuree', sans-serif);
-  font-size: 14px;
-  line-height: 1.5;
-  color: #555;
-}
-
-.dark .text { color: #aaa; }
-
+.dark { background: #141414; box-shadow: none; color: #fff; }
+.note img { flex: 0 0 auto; width: 68px; height: 68px; border-radius: 50%; object-fit: cover; object-position: 50% 30%; }
+.name { margin: 0 0 2px; font-weight: 700; letter-spacing: -0.085em; word-spacing: 0.12em; font-size: 1.05rem; }
+.text { margin: 0; font-size: 0.92rem; line-height: 1.45; color: #4a4a4a; }
+.dark .text { color: rgba(255, 255, 255, 0.75); }
 @media (max-width: 480px) {
   .note { border-radius: 20px; align-items: flex-start; }
-  .note img { width: 56px; height: 56px; }
+  .note img { width: 54px; height: 54px; }
 }

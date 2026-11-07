@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import PublicLayout from "../components/PublicLayout";
-import { ClosingCta } from "../newhomepage/HomeSections";
+import Shell from "../_site/Shell";
+import CtaBand from "../_site/CtaBand";
 import { SERVICE_PRICING } from "@/lib/servicePricing";
 import { WORK_PHOTOS, type WorkPhoto } from "@/lib/workPhotos";
 import HometownStory from "./HometownStory";
@@ -139,7 +139,7 @@ export default function AmarilloPage() {
   };
 
   return (
-    <PublicLayout>
+    <Shell>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(data) }} />
       <div className={s.page}>
         {/* ── HERO ── */}
@@ -153,7 +153,7 @@ export default function AmarilloPage() {
               with Amarillo businesses and nonprofits.
             </p>
             <div className={s.actions}>
-              <Link href="/contact" className={s.btnPrimary}>Start a project →</Link>
+              <Link href="/contact" className={s.btnPrimary}>Let’s Start a Project</Link>
               <Link href="/book" className={s.btnGhost}>Book a free call</Link>
             </div>
           </div>
@@ -235,7 +235,7 @@ export default function AmarilloPage() {
           <h2 id="pricing-heading" className={s.h2}>Pricing</h2>
           <div className={s.priceGrid}>
             {PRICES.map((g) => (
-              <div key={g.group} className={`sticker-card flat ${s.priceCard}`}>
+              <div key={g.group} className={s.priceCard}>
                 <h3 className={s.priceGroup}>{g.group}</h3>
                 <ul className={s.priceRows}>
                   {g.rows.map((r) => (
@@ -269,7 +269,7 @@ export default function AmarilloPage() {
                 join, give, and show up.
               </p>
               <div className={s.actions}>
-                <Link href={CLASSIC_ROLLERS.href} className={s.btnPrimary}>Read the case study →</Link>
+                <Link href={CLASSIC_ROLLERS.href} className={s.btnPrimary}>Read the case study</Link>
                 <a href="https://classicrollersamatx.org" target="_blank" rel="noopener" className={s.btnGhostLight}>Visit the site ↗</a>
               </div>
             </div>
@@ -299,8 +299,8 @@ export default function AmarilloPage() {
           </div>
         </section>
 
-        <ClosingCta />
       </div>
-    </PublicLayout>
+      <CtaBand />
+    </Shell>
   );
 }

@@ -55,7 +55,7 @@ export default function NewsletterSignup({ className }: { className?: string }) 
         onChange={(e) => setWebsite(e.target.value)}
         style={{ position: 'absolute', left: -10000, width: 1, height: 1, opacity: 0 }}
       />
-      <button type="submit" disabled={state === 'sending'}>{state === 'sending' ? 'SENDING…' : 'SUBSCRIBE →'}</button>
+      <button type="submit" disabled={state === 'sending'}>{state === 'sending' ? 'Sending…' : 'Subscribe'}</button>
       {error && <p role="alert" style={{ flexBasis: '100%', margin: '6px 0 0', fontSize: 13, color: '#b00020' }}>{error}</p>}
     </form>
   );

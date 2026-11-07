@@ -156,42 +156,47 @@
   padding: clamp(14px, 2vw, 28px) var(--gutter) var(--gutter);
   display: flex;
   flex-direction: column;
+  gap: clamp(18px, 3vh, 36px);
   opacity: 0;
   visibility: hidden; /* out of the tab order while closed */
   transition: opacity 0.3s, visibility 0s linear 0.3s;
   overflow-y: auto;
 }
 .menuOpen { opacity: 1; visibility: visible; transition: opacity 0.3s, visibility 0s; }
-.menuTop { display: flex; justify-content: space-between; position: relative; z-index: 2; }
-.menuWord {
-  display: block;
-  width: min(62%, 900px);
-  height: auto;
-  margin: clamp(16px, 4vh, 48px) 0 0 auto; /* the Thrive logo, right-aligned behind the panels */
-}
-.menuPanels {
-  position: relative;
+.menuTop { display: flex; justify-content: space-between; align-items: center; position: relative; }
+.menuLogo { position: absolute; left: 50%; transform: translateX(-50%); }
+.menuLogo img { height: clamp(26px, 2.6vw, 36px); width: auto; display: block; }
+/* Six rounded cards in the brand colours, three by two: number up top, page below. */
+.menuGrid {
+  flex: 1;
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: clamp(8px, 1.2vw, 18px);
-  margin-top: clamp(-12rem, -10vw, -3rem);
-  align-items: start;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(clamp(130px, 22vh, 260px), 1fr);
+  gap: clamp(10px, 1.2vw, 16px);
 }
-.menuPanel {
-  display: block;
-  min-height: clamp(150px, 22vh, 260px);
-  padding: 18px 20px;
+.menuCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: var(--radius);
+  padding: clamp(18px, 2vw, 30px);
   text-decoration: none;
-  font-size: clamp(1rem, 1.5vw, 1.4rem);
-  font-weight: 500;
-  transform: translateY(calc(var(--i) * clamp(18px, 3vw, 46px) + 40px));
+  transform: translateY(16px);
   opacity: 0;
-  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s, filter 0.2s;
-  transition-delay: calc(var(--i) * 50ms);
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s;
+  transition-delay: calc(var(--i) * 45ms);
 }
-.menuOpen .menuPanel { transform: translateY(calc(var(--i) * clamp(18px, 3vw, 46px))); opacity: 1; }
-.menuPanel:hover, .menuPanel:focus-visible { filter: brightness(0.95); outline: none; }
-.menuPanel:hover span, .menuPanel:focus-visible span { text-decoration: underline; text-underline-offset: 4px; }
+.menuOpen .menuCard { transform: none; opacity: 1; }
+.menuCard:hover, .menuCard:focus-visible { transform: translateY(-4px); outline: none; }
+.menuCard:focus-visible { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--ink); }
+.menuNum { font-weight: 800; letter-spacing: var(--track); font-size: clamp(2.4rem, 4vw, 4.4rem); line-height: 0.8; }
+.menuLabel { font-weight: 700; letter-spacing: var(--track); word-spacing: var(--word); font-size: clamp(2rem, 4.2vw, 4.4rem); line-height: 0.9; }
+.menuArrow { position: absolute; right: clamp(18px, 2vw, 30px); bottom: clamp(16px, 1.8vw, 28px); font-weight: 700; font-size: clamp(1.6rem, 2.6vw, 2.6rem); line-height: 1; transition: transform 0.25s; }
+.menuCard:hover .menuArrow { transform: translateX(6px); }
+.menuFoot { display: flex; flex-wrap: wrap; gap: 8px 26px; font-weight: 600; }
+.menuFoot a { color: var(--ink); text-decoration: none; }
+.menuFoot a:hover { text-decoration: underline; text-underline-offset: 4px; }
 
 /* ── Hero ───────────────────────────────────────────────── */
 .hero {
@@ -506,7 +511,10 @@
 .newsForm input[type="email"] { flex: 1 1 200px; padding: 0.85em 1.2em; border-radius: 999px; border: 1px solid rgba(255,255,255,0.3); background: transparent; color: #fff; font: inherit; }
 .newsForm button { padding: 0.85em 1.4em; border-radius: 999px; border: 0; background: #fff; color: var(--ink); font: 600 0.9rem var(--rd-sans), sans-serif; cursor: pointer; }
 .newsForm button:hover { background: #e50586; color: #fff; }
-.footerSmall { margin: clamp(30px, 4vw, 50px) 0 0; font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+.footerBottom { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: clamp(30px, 4vw, 50px); }
+.footerSmall { margin: 0; font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+.adminBtn { padding: 6px 14px; border-radius: 999px; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.35); color: rgba(255,255,255,0.6); font-size: 0.78rem; font-weight: 600; text-decoration: none; }
+.adminBtn:hover { color: #fff; box-shadow: inset 0 0 0 1.5px #fff; }
 
 /* ── Smaller screens ────────────────────────────────────── */
 @media (max-width: 1100px) {
@@ -515,9 +523,6 @@
   .step { margin-bottom: 0; }
   .numbers { grid-template-columns: 1fr; }
   .numbersLine { text-align: left; }
-  .menuPanels { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
-  .menuPanel { transform: translateY(calc(var(--i) * 0px + 30px)); }
-  .menuOpen .menuPanel { transform: none; }
 }
 @media (max-width: 720px) {
   .cards, .quoteRow, .workGrid { grid-template-columns: 1fr; }
@@ -527,8 +532,8 @@
   .stepTitle { margin-top: 24px; }
   .figures { grid-template-columns: 1fr; gap: 24px; }
   .figures > div { border-left: 0; padding: 0; }
-  .menuPanels { grid-template-columns: 1fr 1fr; }
-  .menuPanel { min-height: 120px; }
+  .menuGrid { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(110px, 1fr); }
+  .menuLogo { display: none; }
   .collage {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: repeat(4, 34vw);
@@ -549,6 +554,6 @@
   .cursor, .sticker { animation: none; }
   .tile { animation: none; opacity: 1; transform: none; }
   .rise { opacity: 1; transform: rotate(var(--tilt, 0deg)); transition: none; }
-  .menuPanel { transition: none; }
+  .menuCard { transition: none; }
   .fill span { color: var(--ink); }
 }
