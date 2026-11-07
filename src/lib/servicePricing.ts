@@ -52,7 +52,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
               'Custom design in your colors and fonts, not a template',
               'Works on phones, tablets, and desktops',
               'Click-to-call, email, and contact buttons',
-              'Secure (lock icon) and launched on your domain',
+              'Secure and launched on your domain',
               'Page titles and descriptions set up for Google',
               'One round of revisions',
               'You provide the text and photos',

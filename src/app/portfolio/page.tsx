@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabaseServer";
 import { buildPageMetadata } from "@/lib/seo";
-import PortfolioClient from "./PortfolioClient";
+import Shell from "../_site/Shell";
+import WorkIndex, { type WorkCaseStudy } from "../_site/work/WorkIndex";
 
 // Always read fresh project data from Supabase so admin-added projects appear immediately.
 export const dynamic = "force-dynamic";
@@ -36,12 +37,14 @@ export default async function PortfolioPage() {
   const caseStudy = complete.find((p) => p.featured) ?? complete[0] ?? null;
 
   return (
-    <PortfolioClient
-      projects={projects.map(({ id, title, slug, category, tagline }) => ({ id, title, slug, category, tagline }))}
-      caseStudy={caseStudy && {
-        title: caseStudy.title, slug: caseStudy.slug, category: caseStudy.category,
-        problem: caseStudy.problem!, solution: caseStudy.solution!, results: caseStudy.results!,
-      }}
-    />
+    <Shell>
+      <WorkIndex
+        projects={projects.map(({ id, title, slug, category, tagline }) => ({ id, title, slug, category, tagline }))}
+        caseStudy={caseStudy && ({
+          title: caseStudy.title, slug: caseStudy.slug, category: caseStudy.category,
+          problem: caseStudy.problem!, solution: caseStudy.solution!, results: caseStudy.results!,
+        } satisfies WorkCaseStudy)}
+      />
+    </Shell>
   );
 }

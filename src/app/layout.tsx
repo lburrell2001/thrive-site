@@ -1,6 +1,6 @@
 // app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Bungee, Bai_Jamjuree } from "next/font/google";
+import { Geist, Geist_Mono, Bungee, Bai_Jamjuree, Poppins } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import Script from "next/script";
 import { SiteTracker } from "./components/SiteTracker";
@@ -11,6 +11,16 @@ import { DFW_AREAS, SERVICE_SEO } from "@/lib/serviceSeo";
 
 const GOOGLE_ADS_ID = "AW-18142291257";
 const GTM_ID = "GTM-M3WHLQR6";
+
+// The site's type since the Nov 2026 redesign (src/app/_site): Poppins Bold for
+// headings, Medium for text. Bungee and Bai Jamjuree stay for admin and the
+// pages not redesigned yet.
+const poppins = Poppins({
+  weight: ["400", "500", "600", "700", "800"],
+  subsets: ["latin"],
+  variable: "--rd-sans",
+  display: "swap",
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -181,7 +191,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bungee.variable} ${baiJamjuree.variable}`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${bungee.variable} ${baiJamjuree.variable} ${poppins.variable}`}>
       <head>
         <Script id="google-tag-manager" strategy="afterInteractive">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

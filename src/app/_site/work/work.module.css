@@ -1,0 +1,89 @@
+/* The redesigned portfolio. Shared tokens and classes come from ../redesign.module.css. */
+
+.hero { padding: clamp(110px, 13vw, 190px) var(--gutter) clamp(30px, 4vw, 56px); }
+.title { font-size: clamp(4rem, 15vw, 16rem); line-height: 0.82; }
+.count {
+  font-size: 0.22em;
+  letter-spacing: -0.06em;
+  vertical-align: top;
+  margin-left: 0.12em;
+  position: relative;
+  top: 0.35em;
+  color: #e50586;
+}
+.lede { max-width: 640px; margin-top: clamp(16px, 2vw, 28px); font-size: clamp(1.15rem, 1.8vw, 1.7rem); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: clamp(22px, 3vw, 40px); }
+.filter { font-size: 0.92rem; }
+.filterOff { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.filterOff:hover { background: var(--ink); color: #fff; }
+
+.gridWrap { padding: 0 var(--gutter) clamp(70px, 9vw, 140px); }
+/* The mosaic: equal rows, tiles spanning columns and rows (see mosaic() in WorkIndex). */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: clamp(140px, 14vw, 220px);
+  gap: clamp(8px, 1vw, 14px);
+}
+.cell { grid-column: span var(--c); grid-row: span var(--r); }
+.tile { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; border-radius: clamp(12px, 1.3vw, 18px); background: #141414; text-decoration: none; color: inherit; }
+.tile img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.tile:hover img { transform: scale(1.05); }
+/* The project's name, on the photo. */
+.label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  max-width: calc(100% - 20px);
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 700;
+  letter-spacing: var(--track-sm);
+  font-size: clamp(0.8rem, 0.95vw, 0.95rem);
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.25s;
+}
+/* On hover the tile floods with a brand colour: name, what it was, its line. */
+.hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: clamp(14px, 1.6vw, 24px);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.tile:hover .hover, .tile:focus-visible .hover { opacity: 0.97; }
+.tile:hover .label, .tile:focus-visible .label { opacity: 0; }
+.hoverName { font-weight: 700; letter-spacing: var(--track-sm); font-size: clamp(1.05rem, 1.5vw, 1.5rem); line-height: 1.05; }
+.hoverKind { font-size: 0.85rem; font-weight: 600; opacity: 0.85; }
+.hoverText { font-size: 0.92rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hoverCue { font-size: 0.85rem; font-weight: 700; margin-top: 4px; }
+.tile:focus-visible { outline: 3px solid #e50586; outline-offset: 3px; }
+.empty { color: #6b6b6b; }
+
+/* The case study band */
+.study { padding: 0 var(--gutter) clamp(80px, 10vw, 150px); }
+.studyHead { display: flex; align-items: end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.studyTitle { font-size: clamp(2.6rem, 7vw, 7rem); max-width: 14ch; }
+.studyCols { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.4vw, 20px); margin-top: clamp(26px, 3vw, 44px); }
+.studyCard { border-radius: 18px; padding: clamp(22px, 2.2vw, 34px); }
+.studyLabel { font-weight: 700; letter-spacing: var(--track-sm); font-size: clamp(1.3rem, 1.8vw, 1.8rem); margin: 0 0 12px; }
+.studyText { margin: 0; line-height: 1.5; font-size: 0.98rem; white-space: pre-line; }
+
+@media (max-width: 900px) {
+  /* Tablet and phone: two even columns, every few tiles one runs full width. */
+  .grid { grid-template-columns: 1fr 1fr; grid-auto-rows: clamp(150px, 34vw, 240px); }
+  .cell { grid-column: span 1; grid-row: span 1; }
+  .cell:nth-child(5n + 1) { grid-column: span 2; }
+  .studyCols { grid-template-columns: 1fr; }
+}

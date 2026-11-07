@@ -8,7 +8,8 @@ import { SITE_NAME, absoluteUrl, jsonLd } from "@/lib/seo";
 import { loadReelProjects } from "@/lib/workReel";
 import WorkReel from "../../components/WorkReel";
 import ProjectGallery from "./ProjectGallery";
-import CaseStudy from "./CaseStudy";
+import Shell from "../../_site/Shell";
+import ProjectView from "../../_site/work/ProjectView";
 import { CASE_STUDIES } from "../caseStudies";
 
 // Always read fresh project data from Supabase so admin-added projects appear immediately.
@@ -390,15 +391,17 @@ export default async function ProjectSlugPage({
     </div>
   );
 
+  // Every project with a case study uses the redesigned page (src/app/_site/work/ProjectView.tsx).
   if (caseStudy) {
     return (
-      <PublicLayout>
+      <Shell>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd({ ...projectJsonLd, description: caseStudy.lede }) }} />
-        <style>{NEXT_CSS}</style>
-        <CaseStudy cs={caseStudy} title={title} category={categoryLabel} />
-        {nextBlock}
-        <WorkReel projects={reel} exclude={slug} title="More work" tone="dark" />
-      </PublicLayout>
+        <ProjectView
+          cs={caseStudy}
+          title={title}
+          next={nextProject && { slug: nextProject.slug, title: nextProject.title, category: nextProject.category }}
+        />
+      </Shell>
     );
   }
 

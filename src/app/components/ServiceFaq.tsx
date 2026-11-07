@@ -8,7 +8,8 @@ import { BUSINESS_ID, SITE_URL, absoluteUrl, jsonLd } from '@/lib/seo';
 import { DFW_AREAS, SERVICE_SEO, type ServiceSlug } from '@/lib/serviceSeo';
 import s from './ServiceFaq.module.css';
 
-export default function ServiceFaq({ slug, accent }: { slug: ServiceSlug; accent: string }) {
+/** The page's structured data: the service, its FAQs and its breadcrumb trail. */
+export function serviceJsonLd(slug: ServiceSlug) {
   const service = SERVICE_SEO[slug];
   const url = absoluteUrl(service.path);
 
@@ -49,6 +50,12 @@ export default function ServiceFaq({ slug, accent }: { slug: ServiceSlug; accent
       },
     ],
   };
+  return data;
+}
+
+export default function ServiceFaq({ slug, accent }: { slug: ServiceSlug; accent: string }) {
+  const service = SERVICE_SEO[slug];
+  const data = serviceJsonLd(slug);
 
   return (
     <section className={s.faq} aria-labelledby={`faq-${slug}`}>

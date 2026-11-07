@@ -25,9 +25,14 @@ const nextConfig: NextConfig = {
       },
       // Project pages live under /work; /portfolio is only the index.
       { source: "/portfolio/:slug", destination: "/work/:slug", permanent: true },
-      // The homepage is served from app/newhomepage; keep its old address
-      // from being indexed as a second copy of the homepage.
+      // The old homepage address, and the Nov 2026 redesign's preview pages
+      // (it's live now), go to the real pages.
       { source: "/newhomepage", destination: "/", permanent: true },
+      { source: "/redesign", destination: "/", permanent: true },
+      { source: "/redesign/work", destination: "/portfolio", permanent: true },
+      { source: "/redesign/work/:slug", destination: "/work/:slug", permanent: true },
+      { source: "/redesign/services/:slug", destination: "/services/:slug", permanent: true },
+      { source: "/redesign/contact", destination: "/contact", permanent: true },
       // The agency's own site was taken out of the portfolio (2026-10-11).
       { source: "/work/thrive-site", destination: "/portfolio", permanent: true },
       // Newsletters and prospect emails became one Emails area in the CRM.

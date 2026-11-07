@@ -54,6 +54,15 @@ GOOGLE_VOICE_NUMBER=             # Optional: Lauren's Google Voice number, so it
 
 **Routing:** All pages live under `src/app/` using the App Router file convention. Service sub-pages are static (`/services/branding`, `/services/web-ux`, etc.). Work pages are dynamic (`/work/[slug]`), fetched server-side from Supabase.
 
+### Front end (Nov 2026 redesign)
+
+The public site's design lives in `src/app/_site/` (a private folder, not a route), after the TURNSTUDIO reference. Rules from Lauren: **only brand colours** (magenta `#e50586`, orange `#fd6100`, blue `#3943b7`, green `#0cf574`, purple `#9409ce`, black, white — no pastels, cream or sky blue); **Poppins only** (Bold −100 tracking for big headings, −85 for smaller ones, Medium −75 for all regular text, word-spacing added back; loaded in the root layout as `--rd-sans`); the real logo / logo mark, never the name typed out; straight layouts rather than tilted cards in sections like How We Work; no small labels above headings.
+
+- `Shell.tsx` is the frame on every public page: pill buttons and logo up top, a full-screen menu of brand-colour panels, footer with the newsletter signup ("Join our community"). Redesigned pages render `<Shell>` directly; everything else goes through `PublicLayout`, which is now `<Shell legacy>` — the new frame with the page's old type kept inside (`.legacyBody`).
+- Redesigned so far: home (`Home.tsx`; `/`), portfolio (`work/WorkIndex.tsx`; `/portfolio` — a packed mosaic built from 6×2 blocks, see `mosaic()`), project pages (`work/ProjectView.tsx`; `/work/[slug]` for every project with a case study — projects without one still get the old layout), the five service pages (`services/ServicePage.tsx` + `ServiceView.tsx`, per-service copy in `services/configs.ts`, taken from the old pages' wording) and contact (`contact/ContactView.tsx`, same `/api/contact` payload). Not yet: About, the Services overview, Journal, Blog, Amarillo, Book, Privacy and the small pages — they show inside the new frame with their old look.
+- Shared pieces: `redesign.module.css` (tokens, brand-colour classes `bMagenta`…, `display`, pills, `rise` fade-ins via `useReveal`), `CtaBand.tsx` (the magenta closing band), `ThriveIcons.tsx` (line icons; Brand is the logo mark). `links.ts` `rd()` is identity now (it kept links inside the `/redesign` preview while staged; `/redesign/*` redirects to the real pages).
+- The homepage hero collage is chosen in admin, Website → Homepage (`/admin/homepage`, `src/lib/homeCollage.ts`, `admin_config` key `home_collage`; only case-study images can be picked; saving revalidates `/`).
+
 ### Supabase — two clients
 
 | File | Key used | When to use |
@@ -186,10 +195,10 @@ Migration `030`. Prospects are people Lauren reaches out to before they've shown
 ### Service page SEO
 
 - `src/lib/serviceSeo.ts` holds each service page's `<title>`, meta description and FAQs. FAQ answers only restate what the pages already say — keep them true; Google and AI assistants quote them.
-- Titles lead with the service and the place ("Custom Website Development in Dallas, TX"; the layout template adds " | Thrive Creative Studios"). Web, branding and social pages also render `ServiceAbout` (the `about` copy in `serviceSeo.ts`: what's included, who it's for). `/services/digital-design` is shown as "Web Development" (custom-coded sites) but keeps its URL.
-- Prices live in `src/lib/servicePricing.ts` (packages, add-ons, care plans, small print) and render through `ServicePricing` on each service page; the "From" line on `/services` reads it too. Meta descriptions in `serviceSeo.ts` mention the starting price — update both together. Never show an hourly rate anywhere on the site.
+- Titles lead with the service and the place ("Custom Website Development in Dallas, TX"; the layout template adds " | Thrive Creative Studios"). The service pages render the `about` copy in `serviceSeo.ts` (what's included, who it's for) through `ServiceView`. `/services/digital-design` is shown as "Web Development" (custom-coded sites) but keeps its URL.
+- Prices live in `src/lib/servicePricing.ts` (packages, add-ons, care plans, small print) and render on each service page (`ServiceView`, the price sticker reads `from`); the "From" line on `/services` reads it too. Meta descriptions in `serviceSeo.ts` mention the starting price — update both together. Never show an hourly rate anywhere on the site.
 - `/amarillo-web-design` targets Amarillo (Lauren's hometown; remote, in person when she's in town). Her story goes in `HOMETOWN_STORY` in that page. Amarillo is also in the root `areaServed`.
-- `ServiceFaq` renders the FAQ plus `Service`, `FAQPage` and `BreadcrumbList` JSON-LD; the root layout's `ProfessionalService` (`@id` = `BUSINESS_ID`) lists the services and DFW cities. Always serialize JSON-LD with `jsonLd()` from `src/lib/seo.ts`.
+- Each service page carries `Service`, `FAQPage` and `BreadcrumbList` JSON-LD from `serviceJsonLd()` in `ServiceFaq.tsx` (rendered by `_site/services/ServicePage.tsx`); the root layout's `ProfessionalService` (`@id` = `BUSINESS_ID`) lists the services and DFW cities. Always serialize JSON-LD with `jsonLd()` from `src/lib/seo.ts`.
 - The canonical host is `thrivecreativestudios.org` (Vercel 308-redirects www to it). `robots.txt` disallows only `/api/`; `/admin`, `/portal` (noindex from their layouts plus an `X-Robots-Tag` header), `/p/` and `/review/` stay crawlable so Google can see their `noindex`. `/portfolio/:slug` redirects to `/work/:slug`.
 
 ### Journal
