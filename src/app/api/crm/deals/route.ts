@@ -5,12 +5,15 @@ import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { loadDealBoard } from '@/lib/crmRepo';
 import { createDealSchema } from '@/lib/crmSchemas';
+import { closeEndedRetainers } from '@/lib/dealClose';
 
 /** Every deal, with its contact and flags, for the pipeline board. */
 export async function GET(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   try {
+    // Retainers that ran out since the daily run leave the board right away.
+    await closeEndedRetainers(auth.db).catch(() => 0);
     return NextResponse.json({ ok: true, data: await loadDealBoard(auth.db) });
   } catch (error) {
     return badRequest(error instanceof Error ? error.message : 'Could not load deals', 500);

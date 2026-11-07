@@ -74,6 +74,8 @@ export default function PipelinePage() {
   const q = search.trim().toLowerCase();
 
   const visibleDeals = useMemo(() => (deals ?? []).filter((d) => {
+    // Finished work (closed in the panel, or a retainer whose contract ran out) isn't pipeline.
+    if (d.closed_at) return false;
     if (dueOnly && !(d.next_task_due && d.next_task_due <= today)) return false;
     if (!q) return true;
     return [d.title, d.contact.name, d.contact.company, d.contact.email, d.source, ...d.contact.tags]

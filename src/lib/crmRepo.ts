@@ -240,6 +240,19 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   const timeline: TimelineItem[] = [];
 
   for (const a of activities.data ?? []) {
+    if (a.kind === 'stage' && (a.metadata?.closed || a.metadata?.reopened)) {
+      const deal = (a.metadata?.deal as string | undefined) ?? 'Deal';
+      timeline.push({
+        key: `activity:${a.id}`,
+        kind: 'stage',
+        at: a.created_at,
+        title: a.metadata?.closed ? `${deal} closed` : `${deal} reopened`,
+        meta: a.metadata?.closed ? (a.metadata?.reason === 'retainer_ended' ? 'Contract over · off the pipeline' : 'Off the pipeline') : 'Back on the pipeline',
+        body: a.body || null,
+        dealId: a.deal_id ?? null,
+      });
+      continue;
+    }
     if (a.kind === 'stage') {
       const to = a.metadata?.to as CrmStage | undefined;
       const from = a.metadata?.from as CrmStage | undefined;

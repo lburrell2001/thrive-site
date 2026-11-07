@@ -123,6 +123,9 @@ export interface CrmDeal {
   /** YYYY-MM-DD; blank means it starts the day it's won. */
   starts_on: string | null;
   lost_reason: string | null;
+  /** Won work that's over: off the pipeline (migration 045; undefined before it). */
+  closed_at?: string | null;
+  closed_reason?: string | null;
   source: string;
   created_at: string;
   updated_at: string;

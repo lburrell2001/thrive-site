@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateDueInvoices } from '@/lib/invoiceHelpers';
+import { closeEndedRetainers } from '@/lib/dealClose';
 import { cronAuthorized } from '@/lib/safeEquals';
 
 function getAdminClient() {
@@ -29,7 +30,10 @@ async function isPortalAdmin(req: NextRequest): Promise<boolean> {
 // GET — used by Vercel Cron (sends Authorization: Bearer ${CRON_SECRET}).
 export async function GET(req: NextRequest) {
   if (!cronAuthorized(req)) return unauthorized();
-  const result = await generateDueInvoices(getAdminClient());
+  const db = getAdminClient();
+  // First: retainers whose contract is over close, which stops their recurring invoices.
+  const closedRetainers = await closeEndedRetainers(db).catch(() => 0);
+  const result = { ...(await generateDueInvoices(db)), closedRetainers };
   return NextResponse.json(result);
 }
 
@@ -37,6 +41,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const ok = (await isPortalAdmin(req)) || cronAuthorized(req);
   if (!ok) return unauthorized();
-  const result = await generateDueInvoices(getAdminClient());
+  const db = getAdminClient();
+  // First: retainers whose contract is over close, which stops their recurring invoices.
+  const closedRetainers = await closeEndedRetainers(db).catch(() => 0);
+  const result = { ...(await generateDueInvoices(db)), closedRetainers };
   return NextResponse.json(result);
 }

@@ -9,6 +9,8 @@ export interface RetainerFields {
   monthly_cents: number | null;
   term_months: number | null;
   starts_on: string | null;
+  /** Closed early or at the end (migration 045): no longer running. */
+  closed_at?: string | null;
 }
 
 export const isRetainer = (d: Pick<RetainerFields, 'monthly_cents'>) => d.monthly_cents != null;
@@ -49,7 +51,7 @@ export function retainerProgress(d: RetainerFields, today: string): RetainerProg
 
 /** Monthly income from won retainers that are running today. */
 export function activeRetainers(deals: RetainerFields[], today: string) {
-  const running = deals.filter((d) => retainerProgress(d, today)?.status === 'active');
+  const running = deals.filter((d) => !d.closed_at && retainerProgress(d, today)?.status === 'active');
   return { count: running.length, monthlyCents: running.reduce((s, d) => s + (d.monthly_cents ?? 0), 0) };
 }
 

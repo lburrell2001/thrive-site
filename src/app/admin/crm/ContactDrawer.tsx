@@ -489,6 +489,17 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
     setAdding(false);
   }
 
+  async function closeOrReopen(deal: CrmDeal, close: boolean) {
+    if (close && !window.confirm(`Close "${deal.title}"? It stays Won, but comes off the pipeline, its portal project is archived and any recurring invoices for it stop.`)) return;
+    try {
+      await apiSend(`/api/crm/deals/${deal.id}`, 'PATCH', { closed: close });
+      notify(close ? `${deal.title} closed.` : `${deal.title} reopened.`);
+      await onChange();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not save', 'error');
+    }
+  }
+
   async function remove(deal: CrmDeal) {
     if (!window.confirm(`Delete the deal "${deal.title}"? Its proposals and inquiries stay on this contact.`)) return;
     try {
@@ -576,6 +587,22 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
               </button>
             )}
             {deal.stage === 'won' && <ReviewLine deal={deal} reviews={detail.reviews} onAsk={() => setAskingReview(deal)} />}
+            {deal.stage === 'won' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                {deal.closed_at ? (
+                  <>
+                    <span className={w.pill}>Closed {formatDate(deal.closed_at)}</span>
+                    <span className={s.eventMeta}>{deal.closed_reason === 'retainer_ended' ? 'Contract ran out' : 'Work finished'} · off the pipeline</span>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} style={{ marginLeft: 'auto' }} onClick={() => void closeOrReopen(deal, false)}>Reopen</button>
+                  </>
+                ) : (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => void closeOrReopen(deal, true)}
+                    title="The work is over: take it off the pipeline, archive its portal project and stop its recurring invoices. It stays Won.">
+                    Close — work is finished
+                  </button>
+                )}
+              </div>
+            )}
             <p className={s.eventMeta} style={{ marginTop: 8 }}>
               Opened {formatDate(deal.created_at)}{DEAL_SOURCE[deal.source] ? ` from ${DEAL_SOURCE[deal.source]}` : ''}
               {' · '}{STAGE_LABEL[deal.stage]} since {formatDate(deal.stage_changed_at)}
