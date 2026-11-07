@@ -44,6 +44,7 @@ const NAV: { group: string | null; items: NavItem[] }[] = [
     group: 'Website',
     items: [
       { href: '/admin/analytics', label: 'Analytics', icon: 'analytics' },
+      { href: '/admin/homepage', label: 'Homepage', icon: 'homepage' },
       { href: '/admin/journal', label: 'Journal', icon: 'journal' },
       { href: '/admin/portfolio', label: 'Portfolio', icon: 'portfolio' },
       { href: '/admin/services', label: 'Services', icon: 'services' },

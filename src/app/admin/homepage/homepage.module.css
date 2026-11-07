@@ -1,0 +1,63 @@
+/* The collage preview uses the same bento as the homepage hero. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(3, clamp(80px, 9vw, 140px));
+  grid-template-areas: "a a b b c c" "a a d e c c" "f f d e g g";
+  gap: 8px;
+}
+.tile {
+  position: relative;
+  border: 0;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--a-surface-2, #f3f1ef);
+  cursor: pointer;
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.15s;
+}
+.tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tileOn { outline-color: var(--a-accent, #e50586); }
+.tileLabel {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  right: 34px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: fit-content;
+  max-width: calc(100% - 46px);
+}
+.reset {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+}
+.projectTitle { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+.library { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.thumb { position: relative; border: 0; padding: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; background: #f3f1ef; cursor: pointer; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
+.thumb:hover img { transform: scale(1.05); }
+.thumb:focus-visible { outline: 3px solid var(--a-accent, #e50586); outline-offset: 2px; }
+.thumbUsed { box-shadow: inset 0 0 0 3px var(--a-accent, #e50586); }
+.thumbUsed img { opacity: 0.7; }
+.usedTag { position: absolute; top: 6px; left: 6px; background: var(--a-accent, #e50586); color: #fff; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 110px); grid-template-areas: "a b" "a c" "d e" "f g"; }
+}
