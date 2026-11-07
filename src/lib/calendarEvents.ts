@@ -66,3 +66,23 @@ export async function contactMeetings(db: SupabaseClient, contactId: string): Pr
   if (error) return [];
   return ((data ?? []) as unknown as Row[]).map(toMeeting);
 }
+
+export type CalendarBusy = { starts_at: string; ends_at: string; is_all_day: boolean };
+
+/**
+ * Busy times on the calendar overlapping [from, to), for /book. Events marked
+ * free or "working elsewhere" in Outlook leave the time open; rows synced
+ * before migration 044 (no show_as yet) count as busy.
+ */
+export async function calendarBusy(db: SupabaseClient, from: string, to: string): Promise<CalendarBusy[]> {
+  const read = (columns: string) => db.from('calendar_events').select(columns).gt('ends_at', from).lt('starts_at', to).limit(2000);
+  const full = await read('starts_at, ends_at, is_all_day, show_as');
+  if (!full.error) {
+    return ((full.data ?? []) as unknown as (CalendarBusy & { show_as: string | null })[])
+      .filter((e) => e.show_as !== 'free' && e.show_as !== 'workingElsewhere')
+      .map(({ starts_at, ends_at, is_all_day }) => ({ starts_at, ends_at, is_all_day }));
+  }
+  // Before migration 044; [] before 043.
+  const { data, error } = await read('starts_at, ends_at, is_all_day');
+  return error ? [] : (data ?? []) as unknown as CalendarBusy[];
+}

@@ -4,6 +4,10 @@
 // triggers attach it to a contact and deal exactly as they do for the
 // contact form, and analytics counts it as an inquiry with its source.
 // Both sides get an email with a calendar invite (.ics).
+//
+// Times that are busy on Lauren's Outlook calendar are never offered: the
+// slot list reads the calendar mirror (calendar_events, synced every 5
+// minutes), and taking a booking re-checks that one slot live in Outlook.
 
 import 'server-only';
 import { randomBytes } from 'node:crypto';
@@ -14,12 +18,17 @@ import { z } from 'zod';
 import { attributionFor, type AttributionInput } from '@/lib/inquiryAttribution';
 import { SERVICE_SEO, type ServiceSlug } from '@/lib/serviceSeo';
 import { textAgency } from '@/lib/sms';
+import { calendarBusy, type CalendarBusy } from '@/lib/calendarEvents';
+import { liveBusy } from '@/lib/outlookCalendar';
+import { loadConnection, outlookConfigured } from '@/lib/outlook';
 import {
   WEEKDAYS,
   describeTime,
   localDate,
   openSlots,
+  zonedToUtc,
   type Blackout,
+  type Busy,
   type BookingSettings,
   type DaySlots,
 } from '@/lib/bookingTime';
@@ -65,17 +74,47 @@ export async function loadSettings(db: SupabaseClient): Promise<BookingSettings>
   return data as BookingSettings;
 }
 
+/**
+ * Calendar events as blocks on the studio clock. An all-day event (out of
+ * office, a trip) blocks its whole days in the studio's time zone, whatever
+ * zone Outlook reported it in.
+ */
+function calendarBlocks(events: CalendarBusy[], timeZone: string): Busy[] {
+  return events.map((e) => e.is_all_day
+    ? {
+        starts_at: new Date(zonedToUtc(e.starts_at.slice(0, 10), '00:00', timeZone)).toISOString(),
+        ends_at: new Date(zonedToUtc(e.ends_at.slice(0, 10), '00:00', timeZone)).toISOString(),
+      }
+    : { starts_at: e.starts_at, ends_at: e.ends_at });
+}
+
 export async function availability(db: SupabaseClient): Promise<{ settings: BookingSettings; days: DaySlots[] }> {
   const settings = await loadSettings(db);
   if (!settings.enabled) return { settings, days: [] };
-  const [blackouts, busy] = await Promise.all([
-    db.from('booking_blackouts').select('starts_on, ends_on').gte('ends_on', localDate(Date.now(), settings.timezone)),
-    db.from('bookings').select('starts_at, ends_at').eq('status', 'confirmed').gte('ends_at', new Date().toISOString()),
+  const now = Date.now();
+  const [blackouts, busy, calendar] = await Promise.all([
+    db.from('booking_blackouts').select('starts_on, ends_on').gte('ends_on', localDate(now, settings.timezone)),
+    db.from('bookings').select('starts_at, ends_at').eq('status', 'confirmed').gte('ends_at', new Date(now).toISOString()),
+    // Busy on the Outlook calendar (migrations 043/044; [] without them).
+    calendarBusy(db, new Date(now - 86_400_000).toISOString(), new Date(now + (settings.max_days_ahead + 2) * 86_400_000).toISOString()),
   ]);
   return {
     settings,
-    days: openSlots(settings, (blackouts.data ?? []) as Blackout[], busy.data ?? []),
+    days: openSlots(settings, (blackouts.data ?? []) as Blackout[], [...(busy.data ?? []), ...calendarBlocks(calendar, settings.timezone)], now),
   };
+}
+
+/** True when the slot clashes with something on the Outlook calendar right now (read live). */
+async function clashesWithCalendarNow(db: SupabaseClient, settings: BookingSettings, startsAt: string, endsAt: string): Promise<boolean> {
+  if (!outlookConfigured()) return false;
+  const conn = await loadConnection(db).catch(() => null);
+  const buffer = settings.buffer_minutes * 60_000;
+  const start = Date.parse(startsAt) - buffer;
+  const end = Date.parse(endsAt) + buffer;
+  // A day either side, so all-day events are caught.
+  const events = await liveBusy(db, conn, new Date(start - 86_400_000).toISOString(), new Date(end + 86_400_000).toISOString());
+  if (!events) return false; // can't read it live; the slot list already used the mirror
+  return calendarBlocks(events, settings.timezone).some((b) => start < Date.parse(b.ends_at) && end > Date.parse(b.starts_at));
 }
 
 function validZone(tz: string | undefined) {
@@ -176,6 +215,9 @@ export async function createBooking(
     throw new BookingError('That time is no longer available. Please pick another.');
   }
   const endsAt = new Date(Date.parse(startsAt) + settings.duration_minutes * 60_000).toISOString();
+  if (await clashesWithCalendarNow(db, settings, startsAt, endsAt)) {
+    throw new BookingError('That time was just taken. Please pick another.');
+  }
   const visitorTz = validZone(input.visitor_tz) ?? settings.timezone;
   const service = input.service_slug ? SERVICE_SEO[input.service_slug] : null;
   const token = randomBytes(24).toString('base64url');

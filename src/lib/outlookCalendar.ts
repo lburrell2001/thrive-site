@@ -1,7 +1,7 @@
 // Lauren's Outlook calendar → calendar_events (migration 043). Runs with the
 // mail sync (outlookSync.ts: Vercel Cron every 5 minutes, and "Sync now").
 //
-// Each run reads her own calendar from a week back to 60 days ahead, with
+// Each run reads her own calendar from a week back to 92 days ahead, with
 // repeating meetings expanded into their occurrences (calendarView), and
 // mirrors that window: new and changed events are upserted, events deleted or
 // cancelled in Outlook are removed. Each event is linked to a CRM contact by
@@ -17,7 +17,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { graph, hasCalendarScope, type Connection } from './outlook';
 
 const BACK_DAYS = 7;
-const AHEAD_DAYS = 60;
+// /book can offer up to 90 days out; the mirror covers that.
+const AHEAD_DAYS = 92;
 const MAX_PAGES = 10;
 
 type GraphAddress = { emailAddress?: { address?: string; name?: string } };
@@ -40,6 +41,9 @@ type Page = { value: GraphEvent[]; '@odata.nextLink'?: string };
 type ContactLite = { id: string; name: string | null; email: string | null };
 
 export type CalendarSyncResult = { events: number; removed: number } | { skipped: string };
+
+/** Outlook's showAs values that leave the time open for /book. */
+const OPEN = new Set(['free', 'workingElsewhere']);
 
 const SELECT = 'id,subject,start,end,isAllDay,isCancelled,showAs,location,onlineMeeting,webLink,organizer,attendees';
 
@@ -163,12 +167,22 @@ export async function syncCalendar(db: SupabaseClient, conn: Connection, own: Se
       contact_id,
       matched_by,
       contact_locked: Boolean(lock),
+      // Busy / free, for /book (migration 044).
+      show_as: e.showAs ?? null,
       synced_at: new Date().toISOString(),
     };
   });
 
+  const withoutShowAs = (list: typeof rows) => list.map((r) => { const copy: Partial<typeof r> = { ...r }; delete copy.show_as; return copy; });
+  let withShowAs = true;
   for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await db.from('calendar_events').upsert(rows.slice(i, i + 200), { onConflict: 'graph_id' });
+    const chunk = rows.slice(i, i + 200);
+    let { error } = await db.from('calendar_events').upsert(withShowAs ? chunk : withoutShowAs(chunk), { onConflict: 'graph_id' });
+    if (error && withShowAs && /show_as/.test(error.message)) {
+      // Before migration 044.
+      withShowAs = false;
+      ({ error } = await db.from('calendar_events').upsert(withoutShowAs(chunk), { onConflict: 'graph_id' }));
+    }
     if (error) throw new Error(`Calendar: ${error.message}`);
   }
 
@@ -188,4 +202,24 @@ export async function syncCalendar(db: SupabaseClient, conn: Connection, own: Se
 
   await db.from('mail_connection').update({ calendar_synced_at: new Date().toISOString() }).eq('id', 1);
   return { events: rows.length, removed };
+}
+
+// ------------------------------------------------------------ live check for /book
+
+/**
+ * Busy blocks on Lauren's calendar between two times, read live from Outlook
+ * — used when someone books, so a meeting added in the last few minutes
+ * still counts. Null when the calendar can't be read (not connected, no
+ * Calendars.Read, Outlook down): the caller falls back to the mirror.
+ */
+export async function liveBusy(db: SupabaseClient, conn: Connection | null, from: string, to: string): Promise<{ starts_at: string; ends_at: string; is_all_day: boolean }[] | null> {
+  if (!conn || !hasCalendarScope(conn.granted_scopes)) return null;
+  try {
+    const events = await readWindow(db, from, to);
+    return events
+      .filter((e) => !e.isCancelled && !OPEN.has(e.showAs ?? ''))
+      .map((e) => ({ starts_at: utc(e.start.dateTime), ends_at: utc(e.end.dateTime), is_all_day: Boolean(e.isAllDay) }));
+  } catch {
+    return null;
+  }
 }

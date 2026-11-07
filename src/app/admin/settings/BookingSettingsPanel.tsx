@@ -82,7 +82,7 @@ export function BookingSettingsPanel() {
       <div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', margin: '0 0 16px' }}>
           <p className={p.pageSub} style={{ margin: 0 }}>
-            People book at <a href="/book" target="_blank" rel="noreferrer">/book</a>. Each booking lands in the CRM as an inquiry with a follow-up task, and both of you get a calendar invite. Booked calls are on the Calls page.
+            People book at <a href="/book" target="_blank" rel="noreferrer">/book</a>. Each booking lands in the CRM as an inquiry with a follow-up task, and both of you get a calendar invite. Booked calls are on the Calls page. Times that are busy on your Outlook calendar aren&apos;t offered (once it&apos;s connected with calendar access in the Email tab); entries marked Free or Working elsewhere leave the time open.
           </p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
             <input type="checkbox" checked={settings.enabled} onChange={(e) => save({ enabled: e.target.checked })} disabled={saving} style={{ width: 18, height: 18, accentColor: 'var(--a-accent)' }} />
@@ -165,7 +165,7 @@ function Blackouts({ items, onChange, notify }: { items: Blackout[]; onChange: (
   return (
     <section className={p.card} style={{ marginBottom: 16 }}>
       <h2 className={p.cardTitle}>Days off</h2>
-      <p className={p.rowMeta}>No calls can be booked on these days. Bookings don&apos;t check your calendar, so block anything that isn&apos;t in your weekly hours.</p>
+      <p className={p.rowMeta}>No calls can be booked on these days. Busy times and all-day out-of-office events on your Outlook calendar are already blocked; use this for anything that isn&apos;t on it.</p>
       {items.map((b) => (
         <div key={b.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 0', fontSize: 13 }}>
           <span style={{ flex: 1 }}>{b.starts_on === b.ends_on ? b.starts_on : `${b.starts_on} → ${b.ends_on}`}{b.note ? ` · ${b.note}` : ''}</span>
