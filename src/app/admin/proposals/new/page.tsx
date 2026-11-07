@@ -69,6 +69,9 @@ export default function NewProposalPage() {
       }
       // ?deal=<id> when started from a deal in a contact's panel.
       setDealId(params.get('deal'));
+      // ?title= when started from a client's project.
+      const requestedTitle = params.get('title');
+      if (requestedTitle) setTitle((t) => t || requestedTitle.slice(0, 200));
       // An explicit ?template=<id> beats the default, which beats the Thrive layout.
       const requested = params.get('template');
       const available = t.status === 'fulfilled' ? t.value ?? [] : [];

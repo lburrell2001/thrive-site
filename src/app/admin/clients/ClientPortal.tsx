@@ -6,6 +6,8 @@
 // and the tokens in ../admin.module.css, through the small parts below.
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
@@ -51,7 +53,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; }
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
-interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; }
+interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
@@ -1336,9 +1338,22 @@ type SubProps = { project: Project; clientId: string; api: (b: Record<string, un
 
 function ProjectSubProposals({ project, proposals, clientId, reminders, api, onRefresh }: SubProps & { proposals: Proposal[]; reminders?: ReminderLog[] }) {
   const { remind, dialog } = usePortalReminder(api, onRefresh);
+  const router = useRouter();
+  const [starting,          setStarting]          = useState(false);
   const [uploading,         setUploading]         = useState(false);
   const [uploadingSignedId, setUploadingSignedId] = useState<string | null>(null);
   const [error,             setError]             = useState('');
+
+  // Opens the proposal builder with this client chosen, the project's name as
+  // the title, and the project's deal attached.
+  async function startProposal() {
+    setStarting(true); setError('');
+    const r = await api({ action: 'proposal_recipient', clientId }) as { error?: string; data?: { id?: string } };
+    if (r.error || !r.data?.id) { setError(r.error ?? 'Could not start a proposal'); setStarting(false); return; }
+    const q = new URLSearchParams({ client: r.data.id, title: project.name });
+    if (project.crm_deal_id) q.set('deal', project.crm_deal_id);
+    router.push(`/admin/crm/proposals/new?${q}`);
+  }
   const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
 
   async function handleFile(file: File) {
@@ -1378,7 +1393,8 @@ function ProjectSubProposals({ project, proposals, clientId, reminders, api, onR
 
   return (
     <div style={{ padding: 16, background: 'var(--a-surface-2)', borderBottom: '1px solid var(--a-border)' }}>
-      <SubSectionHead title="Proposal" />
+      <SubSectionHead title="Proposal" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} disabled={starting} onClick={startProposal}>{starting ? 'Opening…' : '+ New proposal'}</Btn>} />
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', margin: '0 0 8px' }}>Or upload a PDF made somewhere else:</p>
       <DropZone onFile={handleFile} accept=".pdf,.doc,.docx" uploading={uploading} />
       <ErrorMsg msg={error} />
       {dialog}
@@ -1559,31 +1575,10 @@ function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: Sub
 // ── Per-project: Invoices ─────────────────────────────────────────────────────
 function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; data: ClientData }) {
   const { remind, dialog } = usePortalReminder(api, onRefresh);
-  const [showForm, setShowForm] = useState(false);
-  const [invNum,    setInvNum]    = useState('');
-  const [amountDol, setAmountDol] = useState('');
-  const [invDate,   setInvDate]   = useState('');
-  const [dueDate,   setDueDate]   = useState('');
-  const [invStatus, setInvStatus] = useState('due');
-  const [repeat, setRepeat] = useState(false);
-  const [frequencyKey, setFrequencyKey] = useState('monthly');
   const [editId,    setEditId]    = useState<string | null>(null);
   const [editVals,  setEditVals]  = useState<Partial<Invoice>>({});
   const [saving,    setSaving]    = useState(false);
-  const [addErr,    setAddErr]    = useState('');
-  const [adding,    setAdding]    = useState(false);
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
-
-  // When opening the form, auto-populate the next sequential invoice number for this client.
-  useEffect(() => {
-    if (!showForm || invNum) return;
-    let active = true;
-    (async () => {
-      const r = await api({ action: 'next_invoice_number', clientId }) as { data?: { invoice_number?: string } };
-      if (active && r.data?.invoice_number) setInvNum(r.data.invoice_number);
-    })();
-    return () => { active = false; };
-  }, [showForm, invNum, clientId, api]);
 
   async function handleMarkPaid(inv: Invoice) {
     setMarkingPaid(inv.id);
@@ -1610,30 +1605,6 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
     onRefresh();
   }
 
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (!invNum || !amountDol) { setAddErr('Invoice # and amount required'); return; }
-    setAdding(true); setAddErr('');
-    const amountCents = Math.round(parseFloat(amountDol) * 100);
-
-    let subscriptionId: string | undefined;
-    if (repeat) {
-      const preset = FREQUENCY_PRESETS.find(p => p.key === frequencyKey) ?? FREQUENCY_PRESETS.find(p => p.key === 'monthly')!;
-      const baseDate = invDate || todayIso();
-      const next = addIntervalClient(baseDate, preset.count, preset.unit);
-      const dayOfMonth = parseInt(next.slice(8, 10), 10);
-      const subRes = await api({ action: 'add_subscription', clientId, project_name: project.name, invoice_prefix: extractPrefix(invNum), amount_cents: amountCents, day_of_month: dayOfMonth, next_due_date: next, interval_count: preset.count, interval_unit: preset.unit }) as { error?: string; data?: { id?: string } };
-      if (subRes.error) { setAddErr(subRes.error); setAdding(false); return; }
-      subscriptionId = subRes.data?.id;
-    }
-
-    const r = await api({ action: 'add_invoice', clientId, invoice_number: invNum, project_name: project.name, amount_cents: amountCents, invoice_date: invDate, due_date: dueDate, status: invStatus, subscription_id: subscriptionId }) as { error?: string };
-    if (r.error) { setAddErr(r.error); setAdding(false); return; }
-
-    setInvNum(''); setAmountDol(''); setInvDate(''); setDueDate(''); setInvStatus('due'); setRepeat(false); setFrequencyKey('monthly'); setShowForm(false);
-    setAdding(false); onRefresh();
-  }
-
   async function handleEditSave(inv: Invoice) {
     setSaving(true);
     await api({ action: 'update_invoice', id: inv.id, invoice_number: editVals.invoice_number ?? inv.invoice_number, project_name: project.name, amount_cents: editVals.amount_cents !== undefined ? Number(editVals.amount_cents) : inv.amount_cents, due_date: editVals.due_date ?? inv.due_date, status: editVals.status ?? inv.status });
@@ -1648,30 +1619,12 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
   return (
     <div style={{ padding: 16, background: 'var(--a-surface-2)', borderBottom: '1px solid var(--a-border)' }}>
       {dialog}
-      <SubSectionHead title="Invoices" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
-      {showForm && (
-        <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--a-border)', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <FormGrid>
-            <FormRow label="Invoice # *"><input style={INPUT} value={invNum} onChange={e => setInvNum(e.target.value)} placeholder="INV-001" /></FormRow>
-            <FormRow label="Amount (USD) *"><input style={INPUT} type="number" step="0.01" value={amountDol} onChange={e => setAmountDol(e.target.value)} placeholder="1200.00" /></FormRow>
-            <FormRow label="Invoice Date"><input style={INPUT} type="date" value={invDate} onChange={e => setInvDate(e.target.value)} /></FormRow>
-            <FormRow label="Due Date"><input style={INPUT} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></FormRow>
-            <FormRow label="Status"><select style={SELECT} value={invStatus} onChange={e => setInvStatus(e.target.value)}><option value="due">Due</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></FormRow>
-          </FormGrid>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, background: repeat ? '#edfff6' : '#f6f5f4', border: `1.5px solid ${repeat ? '#0cf574' : '#e5e5e5'}`, borderRadius: 8, padding: '10px 14px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, cursor: 'pointer' }}>
-              <input type="checkbox" checked={repeat} onChange={e => setRepeat(e.target.checked)} style={{ width: 16, height: 16, accentColor: '#0cf574' }} />
-              <span>Repeat <span style={{ fontWeight: 500, color: '#808080' }}>— auto-generate a new invoice on a schedule until paused</span></span>
-            </label>
-            {repeat && (
-              <select value={frequencyKey} onChange={e => setFrequencyKey(e.target.value)} style={{ ...SELECT, width: 'auto', minWidth: 160, marginLeft: 'auto' }}>
-                {FREQUENCY_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-              </select>
-            )}
-          </div>
-          <div><Btn type="submit" disabled={adding} style={{ padding: '5px 12px', fontSize: 12 }}>{adding ? 'Adding…' : (repeat ? 'Add + Schedule' : 'Add Invoice')}</Btn><ErrorMsg msg={addErr} /></div>
-        </form>
-      )}
+      <SubSectionHead title="Invoices" action={
+        <span style={{ display: 'flex', gap: 6 }}>
+          <Link href={`/admin/invoices?mode=estimate&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }}>+ Estimate</Link>
+          <Link href={`/admin/invoices?mode=invoice&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={`${p.btn} ${p.btnPrimary}`} style={{ padding: '3px 8px', fontSize: 11 }}>+ Invoice</Link>
+        </span>
+      } />
       {invoices.length === 0 ? (
         <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No invoices yet.</p>
       ) : (

@@ -91,6 +91,8 @@ export default function InvoiceBuilder() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fromEstimateId, setFromEstimateId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
+  const [returnClient, setReturnClient] = useState<string | null>(null);
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
@@ -104,7 +106,33 @@ export default function InvoiceBuilder() {
   useEffect(() => {
     let cancelled = false;
     apiGet<BillingData>('/api/estimates')
-      .then((d) => { if (!cancelled) setData(d); })
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        // ?mode=invoice|estimate&client=<portal client id>&project=<name>, from a client's project.
+        const params = new URLSearchParams(window.location.search);
+        const portal = params.get('client');
+        const client = portal ? d.clients.find((c) => c.id === portal) : undefined;
+        if (!client) return;
+        setReturnClient(client.id);
+        const mode: Mode = params.get('mode') === 'estimate' ? 'estimate' : 'invoice';
+        const project = (params.get('project') ?? '').slice(0, 200);
+        const key = `p:${client.id}`;
+        const current = storedDraft();
+        const sameJob = current.client === key && current.title === project && current.mode === mode;
+        if (!sameJob && current.text.trim() && !window.confirm(`Start a new ${mode} for ${clientLabel(client)}? The draft you had open will be replaced.`)) return;
+        if (!sameJob) {
+          setEditingId(null);
+          setFromEstimateId(null);
+          setDraft({ ...blankDraft(mode), client: key, clientName: clientLabel(client), title: project });
+        }
+        if (mode === 'invoice' && !(sameJob && current.number)) {
+          apiSend<{ invoice_number: string }>('/api/admin', 'POST', { action: 'next_invoice_number', clientId: client.id })
+            .then((r) => setDraft((dr) => (dr.client === key && !dr.number ? { ...dr, number: r.invoice_number } : dr)))
+            .catch(() => { /* the number can be typed */ });
+        }
+        window.history.replaceState(null, '', window.location.pathname);
+      })
       .catch((e) => { if (!cancelled) setFailed(e instanceof Error ? e.message : 'Could not load'); });
     return () => { cancelled = true; };
   }, []);
@@ -297,7 +325,10 @@ export default function InvoiceBuilder() {
             <h1 className={p.pageTitle}>Invoices and estimates</h1>
             <p className={p.pageSub}>Type one item per line. The preview updates as you go.</p>
           </div>
-          <button type="button" className={p.btn} onClick={startNew}>New</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {returnClient && <Link href={`/admin/clients?client=${returnClient}`} className={p.btn}>← Back to client</Link>}
+            <button type="button" className={p.btn} onClick={startNew}>New</button>
+          </div>
         </div>
 
         {!data.ready && (
