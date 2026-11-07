@@ -2,8 +2,9 @@
 //
 // She connects it once from Settings → Email: a Microsoft sign-in with
 // delegated permissions (Mail.Read, Mail.Send, their .Shared versions,
-// offline_access, User.Read), so the app reaches her own mailbox plus any
-// mailbox she has Full Access to (hello@), and nothing else. The refresh
+// Calendars.Read, offline_access, User.Read), so the app reaches her own
+// mailbox and calendar plus any mailbox she has Full Access to (hello@), and
+// nothing else. The refresh
 // token is stored encrypted; every use refreshes an access token.
 //
 // Needs an app registration in her Microsoft Entra tenant:
@@ -16,7 +17,28 @@ import { decryptSecret, encryptSecret, vaultKeyReady } from './credentialCrypto'
 
 export class OutlookError extends Error {}
 
-const SCOPES = 'offline_access User.Read Mail.Read Mail.Send Mail.Read.Shared Mail.Send.Shared';
+const MAIL_SCOPES = 'offline_access User.Read Mail.Read Mail.Send Mail.Read.Shared Mail.Send.Shared';
+// Added 2026-11 (migration 043). Sign-ins from before it don't hold it.
+export const CALENDAR_SCOPE = 'Calendars.Read';
+const SCOPES = `${MAIL_SCOPES} ${CALENDAR_SCOPE}`;
+
+/** Microsoft returns Graph scopes as bare names or full URLs; keep bare names. */
+function normalizeScopes(scope: string | undefined): string | null {
+  if (!scope) return null;
+  const names = scope.split(/\s+/).filter(Boolean).map((s) => s.replace(/^https:\/\/graph\.microsoft\.com\//i, ''));
+  return names.length ? [...new Set(names)].join(' ') : null;
+}
+
+/** Ask a refresh for exactly what the sign-in was granted — asking for more fails. */
+function refreshScopes(granted: string | null | undefined): string {
+  if (!granted) return MAIL_SCOPES;
+  const wanted = new Set(SCOPES.split(' '));
+  const have = granted.split(' ').filter((s) => wanted.has(s));
+  return [...new Set(['offline_access', ...have])].join(' ');
+}
+
+export const hasCalendarScope = (granted: string | null | undefined) =>
+  Boolean(granted?.split(' ').some((s) => s.toLowerCase() === CALENDAR_SCOPE.toLowerCase()));
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 // History pulled in on first connect, so timelines aren't empty.
 const BACKFILL_DAYS = 14;
@@ -75,15 +97,15 @@ export function authorizeUrl(site: string): string {
   return `https://login.microsoftonline.com/${c.tenant}/oauth2/v2.0/authorize?${q}`;
 }
 
-type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; error?: string; error_description?: string };
+type TokenResponse = { access_token: string; refresh_token?: string; expires_in: number; scope?: string; error?: string; error_description?: string };
 
-async function tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
+async function tokenRequest(params: Record<string, string>, scope = SCOPES): Promise<TokenResponse> {
   const c = config();
   if (!c) throw new OutlookError('Outlook is not configured');
   const res = await fetch(`https://login.microsoftonline.com/${c.tenant}/oauth2/v2.0/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: c.clientId, client_secret: c.secret, scope: SCOPES, ...params }),
+    body: new URLSearchParams({ client_id: c.clientId, client_secret: c.secret, scope, ...params }),
     cache: 'no-store',
   });
   const body = (await res.json().catch(() => ({}))) as TokenResponse;
@@ -120,6 +142,10 @@ export async function completeSignIn(db: SupabaseClient, code: string, state: st
     last_error: null,
     updated_at: new Date().toISOString(),
   });
+  if (!error) {
+    // Separate so a sign-in still works before migration 043.
+    await db.from('mail_connection').update({ granted_scopes: normalizeScopes(tokens.scope) ?? SCOPES }).eq('id', 1);
+  }
   if (error) throw new OutlookError(/mail_connection/.test(error.message) ? 'Run migration 040 in Supabase first.' : error.message);
   cached = { token: tokens.access_token, expires: Date.now() + (tokens.expires_in - 120) * 1000 };
   return account;
@@ -139,6 +165,9 @@ export type Connection = {
   cursors: Record<string, Partial<Record<Folder, string>>>;
   last_sync_at: string | null;
   last_error: string | null;
+  /** Migration 043; undefined before it. */
+  granted_scopes?: string | null;
+  calendar_synced_at?: string | null;
 };
 
 const CONNECTION_COLUMNS = 'account_email, connected_at, shared_mailboxes, send_from, cursors, last_sync_at, last_error';
@@ -155,6 +184,9 @@ export function mailboxPath(c: Pick<Connection, 'account_email'>, mailbox: strin
 }
 
 export async function loadConnection(db: SupabaseClient): Promise<Connection | null> {
+  const full = await db.from('mail_connection').select(`${CONNECTION_COLUMNS}, granted_scopes, calendar_synced_at`).eq('id', 1).maybeSingle();
+  if (!full.error) return (full.data as Connection | null) ?? null;
+  // Before migration 043.
   const { data } = await db.from('mail_connection').select(CONNECTION_COLUMNS).eq('id', 1).maybeSingle();
   return (data as Connection | null) ?? null;
 }
@@ -168,10 +200,16 @@ export async function outlookReady(db: SupabaseClient): Promise<boolean> {
 
 async function accessToken(db: SupabaseClient): Promise<string> {
   if (cached && cached.expires > Date.now()) return cached.token;
-  const { data } = await db.from('mail_connection').select('refresh_token').eq('id', 1).maybeSingle();
+  let row = await db.from('mail_connection').select('refresh_token, granted_scopes').eq('id', 1).maybeSingle();
+  // Before migration 043.
+  if (row.error) row = await db.from('mail_connection').select('refresh_token').eq('id', 1).maybeSingle() as typeof row;
+  const data = row.data as { refresh_token: string; granted_scopes?: string | null } | null;
   if (!data) throw new OutlookError('Outlook is not connected');
   try {
-    const tokens = await tokenRequest({ grant_type: 'refresh_token', refresh_token: decryptSecret(data.refresh_token) });
+    const tokens = await tokenRequest(
+      { grant_type: 'refresh_token', refresh_token: decryptSecret(data.refresh_token) },
+      refreshScopes(data.granted_scopes),
+    );
     cached = { token: tokens.access_token, expires: Date.now() + (tokens.expires_in - 120) * 1000 };
     // Microsoft rotates refresh tokens; keep the newest.
     if (tokens.refresh_token) {

@@ -14,6 +14,7 @@ import w from './crm/workspace.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from './proposals/adminApi';
 import { useCrm } from './crm/CrmContext';
 import { ReminderDialog } from './ReminderDialog';
+import { MeetingLink } from './crm/MeetingLink';
 import { STAGE_COLOR, avatarColor, initials, timeAgo } from './crm/shared';
 import type { ReminderPreview, ReminderResult, ReminderTarget } from '@/lib/reminders';
 import type { AdminSummary } from '@/types/adminSummary';
@@ -171,17 +172,39 @@ export default function AdminHome() {
               ))}
             </Card>
 
-            <Card id="calls" title="Upcoming calls" count={d.upcomingCalls.length} link={{ href: '/admin/crm/calls', label: 'Calls' }} empty={d.upcomingCalls.length ? null : 'No calls booked this week.'}>
-              {d.upcomingCalls.map((c) => (
-                <button key={c.id} type="button" className={w.item} onClick={() => c.contact_id && openContact(c.contact_id)}>
-                  <span className={w.avatar} style={{ background: avatarColor(c.contact_id ?? c.id) }}>{initials(c.name)}</span>
-                  <span className={w.itemMain}>
-                    <span className={w.itemTitle}>{c.name}{c.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {c.company}</span> : null}</span>
-                    {c.notes && <span className={w.itemSub}>“{c.notes.length > 100 ? `${c.notes.slice(0, 100)}…` : c.notes}”</span>}
-                  </span>
-                  <span className={w.itemWhen}>{new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit' })}</span>
-                </button>
-              ))}
+            <Card id="calls" title="Calls & meetings" count={d.upcomingCalls.length} link={{ href: '/admin/crm/calls', label: 'Calls' }} empty={d.upcomingCalls.length ? null : 'Nothing booked or on your calendar this week.'}>
+              {d.upcomingCalls.map((c) => {
+                const time = new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+                if (c.kind !== 'meeting') return (
+                  <button key={c.id} type="button" className={w.item} onClick={() => c.contact_id && openContact(c.contact_id)}>
+                    <span className={w.avatar} style={{ background: avatarColor(c.contact_id ?? c.id) }}>{initials(c.name)}</span>
+                    <span className={w.itemMain}>
+                      <span className={w.itemTitle}>{c.name}{c.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {c.company}</span> : null}</span>
+                      <span className={w.itemSub}>{c.notes ? `Booked call · “${c.notes.length > 100 ? `${c.notes.slice(0, 100)}…` : c.notes}”` : 'Booked call'}</span>
+                    </span>
+                    <span className={w.itemWhen}>{time}</span>
+                  </button>
+                );
+                const open = () => { if (c.contact_id) openContact(c.contact_id); };
+                return (
+                  <div key={c.id} className={w.item} role={c.contact_id ? 'button' : undefined} tabIndex={c.contact_id ? 0 : undefined}
+                    style={{ cursor: c.contact_id ? 'pointer' : 'default' }} onClick={open}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}>
+                    <span className={w.avatar} style={{ background: c.contact_id ? avatarColor(c.contact_id) : '#9a958f' }}>{c.contact_id ? initials(c.name) : '◷'}</span>
+                    <span className={w.itemMain}>
+                      <span className={w.itemTitle}>{c.name}{c.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {c.company}</span> : null}</span>
+                      <span className={w.itemSub}>
+                        {[c.contact_id ? c.subject : null, 'Outlook calendar', c.matched_by === 'name' && 'matched by name'].filter(Boolean).join(' · ')}
+                        {c.join_url && <> · <a href={c.join_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Join</a></>}
+                      </span>
+                    </span>
+                    <span style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
+                      <span className={w.itemWhen}>{time}</span>
+                      {c.event_id && <MeetingLink eventId={c.event_id} contactId={c.contact_id} matchedBy={c.matched_by} onDone={refresh} />}
+                    </span>
+                  </div>
+                );
+              })}
             </Card>
 
             <Card id="signatures" title="Waiting on a signature" count={d.proposalsAwaiting.length} link={{ href: '/admin/crm/proposals', label: 'Proposals' }} empty={d.proposalsAwaiting.length ? null : 'Nothing out for signature.'}>

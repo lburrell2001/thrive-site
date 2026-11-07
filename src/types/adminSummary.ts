@@ -70,13 +70,24 @@ export interface ReviewCandidate {
   won_at: string;
 }
 
+/** A /book call or a meeting from the Outlook calendar. */
 export interface UpcomingCall {
   id: string;
   starts_at: string;
+  /** The contact, or the meeting's title when it has no contact. */
   name: string;
   company: string | null;
   notes: string | null;
   contact_id: string | null;
+  /** Undefined on older summaries = booking. */
+  kind?: 'booking' | 'meeting';
+  /** Outlook meetings: calendar_events id, title and links. */
+  event_id?: string;
+  subject?: string;
+  ends_at?: string;
+  join_url?: string | null;
+  web_link?: string | null;
+  matched_by?: 'email' | 'name' | 'manual' | null;
 }
 
 export interface AdminSummary {

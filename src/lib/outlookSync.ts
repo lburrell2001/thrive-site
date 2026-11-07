@@ -8,6 +8,8 @@
 //   Sent Items, to a contact   → outlook_sent, unless the CRM sent it (already logged);
 //                                answering closes their open "Reply to …" task
 //
+// The calendar (outlookCalendar.ts) is read in the same run.
+//
 // Each mailbox's folders are read from where the last sync stopped (minus a
 // little overlap); unique keys make re-reading harmless, including the same
 // email arriving in both mailboxes.
@@ -18,6 +20,7 @@ import { backfillFrom, graph, loadConnection, mailboxesOf, mailboxPath, outlookC
 import { addTaskOnce, logReply, openLeadForProspect, stripQuoted } from './inboundEmail';
 import { parseVoiceAlert, type VoiceAlert } from './googleVoice';
 import { formatPhone, normalizePhone } from './phone';
+import { syncCalendar } from './outlookCalendar';
 
 type Address = { emailAddress?: { address?: string; name?: string } };
 type GraphMessage = {
@@ -162,7 +165,7 @@ async function sentByCrm(db: SupabaseClient, contactId: string, to: string, subj
   return Boolean(a.data?.length || b.data?.length);
 }
 
-export type SyncResult = { replies: number; sent: number; voice: number };
+export type SyncResult = { replies: number; sent: number; voice: number; meetings?: number; calendar?: string };
 
 export async function syncOutlook(db: SupabaseClient): Promise<SyncResult | { skipped: string }> {
   if (!outlookConfigured()) return { skipped: 'Outlook is not configured' };
@@ -197,6 +200,15 @@ export async function syncOutlook(db: SupabaseClient): Promise<SyncResult | { sk
       if (e instanceof OutlookError && e.message.startsWith('Reconnect')) throw e;
       errors.push(`${mailbox}: ${e instanceof Error ? e.message : 'could not be read'}`);
     }
+  }
+
+  try {
+    const cal = await syncCalendar(db, conn, own);
+    if ('skipped' in cal) result.calendar = cal.skipped;
+    else result.meetings = cal.events;
+  } catch (e) {
+    if (e instanceof OutlookError && e.message.startsWith('Reconnect')) throw e;
+    errors.push(`Calendar: ${e instanceof Error ? e.message : 'could not be read'}`);
   }
 
   await rematchVoice(db, await contactsByPhone(db));

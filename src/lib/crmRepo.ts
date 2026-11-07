@@ -28,6 +28,7 @@ import { formatPhone } from '@/lib/phone';
 import { callSummary, readCall } from '@/lib/calls';
 import { dmSummary, readDm } from '@/lib/social';
 import { visitsForContact } from '@/lib/siteVisitors';
+import { contactMeetings, loadMeetings } from '@/lib/calendarEvents';
 
 const PROJECT_STATUS: Record<string, string> = {
   kickoff: 'Kickoff',
@@ -204,7 +205,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings, outlookSent] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings, outlookSent, meetings] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -232,6 +233,8 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     db.from('bookings').select('id, starts_at, ends_at, status, notes, crm_deal_id').eq('crm_contact_id', id).order('starts_at', { ascending: false }).limit(50),
     // Mail Lauren sent them from Outlook herself (migration 040).
     db.from('outlook_sent').select('id, subject, preview, web_link, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
+    // Meetings on Lauren's Outlook calendar (migration 043).
+    contactMeetings(db, id),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -328,6 +331,23 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       meta: `${minutes} min, booked through the website`,
       body: b.notes || null,
       dealId: b.crm_deal_id,
+    });
+  }
+
+  const bookedStarts = (bookings.data ?? []).filter((b) => b.status === 'confirmed').map((b) => Date.parse(b.starts_at));
+  for (const m of meetings) {
+    // A booked call she also put in Outlook is already above.
+    if (bookedStarts.some((t) => Math.abs(Date.parse(m.starts_at) - t) < 5 * 60_000)) continue;
+    const minutes = Math.round((Date.parse(m.ends_at) - Date.parse(m.starts_at)) / 60_000);
+    const upcoming = Date.parse(m.starts_at) > Date.now();
+    timeline.push({
+      key: `meeting:${m.id}`,
+      kind: 'meeting',
+      at: m.starts_at,
+      title: `${upcoming ? 'Meeting coming up' : 'Meeting'} · ${m.subject}`,
+      meta: [`${minutes} min`, m.location, 'from your Outlook calendar', m.matched_by === 'name' && 'matched by name'].filter(Boolean).join(' · '),
+      body: m.attendees.length ? `With ${m.attendees.join(', ')}` : null,
+      href: m.join_url || m.web_link,
     });
   }
 
@@ -640,6 +660,30 @@ export async function loadCallLog(db: SupabaseClient): Promise<CrmCallLog> {
     };
     if (Date.parse(b.starts_at) > now) upcoming.push(row);
     else calls.push(row);
+  }
+
+  // Meetings on the Outlook calendar, next 60 days (migration 043).
+  const meetings = await loadMeetings(db, {
+    from: new Date(now).toISOString(),
+    to: new Date(now + 60 * 86_400_000).toISOString(),
+    skipStarts: upcoming.map((u) => u.at),
+  });
+  for (const m of meetings) {
+    upcoming.push({
+      key: `meeting:${m.id}`,
+      activity_id: null,
+      booking_id: null,
+      contact_id: m.contact_id,
+      contact_name: m.contact_name || m.subject,
+      company: m.company,
+      phone: m.phone,
+      deal_id: null,
+      deal_title: null,
+      at: m.starts_at,
+      call: null,
+      body: null,
+      meeting: m,
+    });
   }
 
   calls.sort((a, b) => b.at.localeCompare(a.at));

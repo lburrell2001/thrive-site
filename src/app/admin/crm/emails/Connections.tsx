@@ -20,6 +20,9 @@ export interface OutlookStatus {
     connected_at: string;
     last_sync_at: string | null;
     last_error: string | null;
+    /** Migration 043; undefined before it. */
+    granted_scopes?: string | null;
+    calendar_synced_at?: string | null;
   } | null;
   voiceNumber: boolean;
   unmatchedVoice: { id: string; kind: 'text' | 'voicemail' | 'missed_call'; phone: string | null; caller_name: string | null; body: string; occurred_at: string }[];
@@ -58,9 +61,10 @@ export function Connections({ status, onChange, notify }: {
         window.location.assign(url);
         return;
       }
-      const r = await apiSend<{ replies: number; sent: number; voice: number } | { skipped: string } | null>('/api/outlook', 'POST', { action });
+      const r = await apiSend<{ replies: number; sent: number; voice: number; meetings?: number; calendar?: string } | { skipped: string } | null>('/api/outlook', 'POST', { action });
       if (action === 'sync' && r && 'replies' in r) {
-        notify(`Synced: ${r.replies} from contacts, ${r.sent} you sent, ${r.voice} Google Voice.`);
+        const cal = r.meetings !== undefined ? `, ${r.meetings} calendar event${r.meetings === 1 ? '' : 's'}` : '';
+        notify(`Synced: ${r.replies} from contacts, ${r.sent} you sent, ${r.voice} Google Voice${cal}.`);
       } else if (action === 'disconnect') {
         notify('Outlook disconnected.');
       }
@@ -73,6 +77,7 @@ export function Connections({ status, onChange, notify }: {
 
   const conn = status?.connection ?? null;
   const broken = Boolean(conn?.last_error);
+  const calendarOn = Boolean(conn?.granted_scopes?.split(' ').some((x) => x.toLowerCase() === 'calendars.read'));
 
   return (
     <div className={w.grid2} style={{ marginTop: 16 }}>
@@ -114,6 +119,22 @@ export function Connections({ status, onChange, notify }: {
                 </select>
                 {conn.send_from && <span className={w.muted} style={{ display: 'block', marginTop: 4 }}>Sending as {conn.send_from} needs “Send as” for {conn.account_email} on that mailbox in Exchange.</span>}
               </label>
+              <div style={{ margin: '0 0 12px', padding: '10px 12px', background: '#f6f5f4', borderRadius: 8 }}>
+                <strong>Calendar</strong>{' '}
+                {conn.granted_scopes === undefined ? (
+                  <span className={w.muted}>— run migration 043 in Supabase, then reconnect Outlook.</span>
+                ) : calendarOn ? (
+                  <span className={w.muted}>
+                    — on. Meetings on your calendar for the next 60 days show on Home, Calls and the contact&apos;s timeline (matched by an invitee&apos;s email, or a contact&apos;s name in the title).
+                    {conn.calendar_synced_at && ` Last read ${formatWhen(conn.calendar_synced_at)}.`}
+                  </span>
+                ) : (
+                  <>
+                    <span className={w.muted}>— off. Reconnect once to let the CRM read your calendar too.</span>{' '}
+                    <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} disabled={busy !== null} onClick={() => run('connect')}>Reconnect with calendar</button>
+                  </>
+                )}
+              </div>
               <p className={w.muted} style={{ margin: '0 0 12px' }}>
                 {conn.last_sync_at ? `Last checked ${formatWhen(conn.last_sync_at)}.` : 'Not checked yet.'}
               </p>

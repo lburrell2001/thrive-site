@@ -53,9 +53,9 @@ function sectionsOf(d: AdminSummary, site: string): Section[] {
 
   if (d.upcomingCalls.length) {
     sections.push({
-      title: `Calls this week (${d.upcomingCalls.length})`,
+      title: `Calls and meetings this week (${d.upcomingCalls.length})`,
       lines: d.upcomingCalls.map((c) => ({
-        text: `${new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — ${c.name}${c.company ? `, ${c.company}` : ''}`,
+        text: `${new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} — ${c.name}${c.company ? `, ${c.company}` : ''}${c.kind === 'meeting' && c.contact_id && c.subject ? ` (${c.subject})` : ''}`,
         href: c.contact_id ? `${site}/admin?contact=${c.contact_id}` : `${site}/admin/crm/calls`,
       })),
     });

@@ -11,6 +11,7 @@ import w from '../workspace.module.css';
 import { apiGet, apiSend } from '../../proposals/adminApi';
 import { useCrm } from '../CrmContext';
 import { LogCallForm } from '../LogCallForm';
+import { MeetingLink } from '../MeetingLink';
 import { avatarColor, initials } from '../shared';
 import { callSummary } from '@/lib/calls';
 import { formatPhone } from '@/lib/phone';
@@ -117,7 +118,7 @@ export default function CallsPage() {
           <p className={w.statNote}>{stats.week ? `${Math.round((stats.talked / stats.week) * 100)}% of calls` : 'No calls yet'}</p>
         </div>
         <div className={w.stat}><p className={w.statLabel}>Minutes, last 30 days</p><p className={w.statValue}>{stats.minutes}</p><p className={w.statNote}>Logged calls only</p></div>
-        <div className={w.stat}><p className={w.statLabel}>Booked, coming up</p><p className={w.statValue}>{stats.upcoming}</p></div>
+        <div className={w.stat}><p className={w.statLabel}>Coming up</p><p className={w.statValue}>{stats.upcoming}</p></div>
       </div>
 
       {log && log.upcoming.length > 0 && (
@@ -130,7 +131,14 @@ export default function CallsPage() {
               <span className={w.avatar} style={{ background: avatarColor(c.contact_id ?? c.key) }}>{initials(c.contact_name)}</span>
               <div className={w.itemMain}>
                 <p className={w.itemTitle}>{c.contact_name}{c.company ? <span className={w.muted}> · {c.company}</span> : null}</p>
-                <p className={w.itemSub}>{[c.phone && formatPhone(c.phone), c.deal_title].filter(Boolean).join(' · ') || 'Booked through the website'}</p>
+                {c.meeting ? (
+                  <p className={w.itemSub}>
+                    {[c.contact_id ? c.meeting.subject : null, c.meeting.location, 'Outlook calendar', c.meeting.matched_by === 'name' && 'matched by name'].filter(Boolean).join(' · ')}
+                    {c.meeting.join_url && <> · <a href={c.meeting.join_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>Join</a></>}
+                  </p>
+                ) : (
+                  <p className={w.itemSub}>{[c.phone && formatPhone(c.phone), c.deal_title].filter(Boolean).join(' · ') || 'Booked through the website'}</p>
+                )}
                 {c.body && <p className={w.itemQuote}>{c.body}</p>}
               </div>
               <span style={{ display: 'grid', gap: 6, justifyItems: 'end' }}>
@@ -138,6 +146,7 @@ export default function CallsPage() {
                 {c.booking_id && (
                   <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={(e) => { e.stopPropagation(); void cancelBooking(c); }}>Cancel</button>
                 )}
+                {c.meeting && <MeetingLink eventId={c.meeting.id} contactId={c.contact_id} matchedBy={c.meeting.matched_by} onDone={refresh} />}
               </span>
             </div>
           ))}

@@ -30,6 +30,26 @@ export interface CallDetails {
 }
 
 /** One call on the Calls page: logged by hand, or booked through /book. */
+/** A meeting from Lauren's Outlook calendar (calendar_events, migration 043). */
+export interface CalendarMeeting {
+  id: string;
+  subject: string;
+  starts_at: string;
+  ends_at: string;
+  is_all_day: boolean;
+  location: string | null;
+  join_url: string | null;
+  web_link: string | null;
+  contact_id: string | null;
+  contact_name: string | null;
+  company: string | null;
+  phone: string | null;
+  /** How the contact was found: an attendee's email, their name in the title, or by hand. */
+  matched_by: 'email' | 'name' | 'manual' | null;
+  /** Other people invited, by name or email. */
+  attendees: string[];
+}
+
 export interface CrmCallRow {
   key: string;
   /** Set on logged calls (deletable). */
@@ -44,10 +64,12 @@ export interface CrmCallRow {
   at: string;
   call: CallDetails | null;
   body: string | null;
+  /** Set on meetings from the Outlook calendar. */
+  meeting?: CalendarMeeting | null;
 }
 
 export interface CrmCallLog {
-  /** Confirmed /book calls from now on, soonest first. */
+  /** Confirmed /book calls and Outlook calendar meetings from now on, soonest first. */
   upcoming: CrmCallRow[];
   /** Logged calls (and booked calls that have happened), newest first. */
   calls: CrmCallRow[];

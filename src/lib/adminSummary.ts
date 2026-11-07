@@ -9,6 +9,7 @@ import { buildReport } from '@/lib/analyticsReport';
 import { markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { sitemapPaths } from '@/lib/sitemapPaths';
 import { searchReport } from '@/lib/searchConsole';
+import { loadMeetings } from '@/lib/calendarEvents';
 import type { AdminSummary } from '@/types/adminSummary';
 import type { CrmStage } from '@/types/crm';
 
@@ -76,6 +77,13 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
   ]);
 
   const asked = new Set((askedDeals.data ?? []).map((r) => r.crm_deal_id));
+
+  // Meetings on Lauren's Outlook calendar this week (migration 043).
+  const meetings = await loadMeetings(db, {
+    from: new Date(Date.now() - 30 * 60_000).toISOString(),
+    to: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    skipStarts: (calls.data ?? []).map((c) => c.starts_at),
+  });
 
   const lastReminded = new Map<string, string>();
   for (const r of reminders.data ?? []) {
@@ -172,9 +180,26 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
     ],
     unpaidInvoices: unpaid,
     reviewsToApprove: (reviewQueue.data ?? []) as AdminSummary['reviewsToApprove'],
-    upcomingCalls: (calls.data ?? []).map((c) => ({
-      id: c.id, starts_at: c.starts_at, name: c.name, company: c.company, notes: c.notes, contact_id: c.crm_contact_id,
-    })),
+    upcomingCalls: [
+      ...(calls.data ?? []).map((c) => ({
+        id: c.id, starts_at: c.starts_at, name: c.name, company: c.company, notes: c.notes, contact_id: c.crm_contact_id, kind: 'booking' as const,
+      })),
+      ...meetings.map((m) => ({
+        id: `meeting:${m.id}`,
+        starts_at: m.starts_at,
+        name: m.contact_name || m.subject,
+        company: m.company,
+        notes: null,
+        contact_id: m.contact_id,
+        kind: 'meeting' as const,
+        event_id: m.id,
+        subject: m.subject,
+        ends_at: m.ends_at,
+        join_url: m.join_url,
+        web_link: m.web_link,
+        matched_by: m.matched_by,
+      })),
+    ].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
     reviewCandidates: (recentWins.data ?? [])
       .filter((d) => !asked.has(d.id))
       .slice(0, 5)
