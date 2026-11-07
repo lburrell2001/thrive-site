@@ -12,8 +12,9 @@ export const metadata: Metadata = {
   alternates: { canonical: `${SITE_URL}/` },
 };
 
-// The homepage photos are chosen in admin (Website → Homepage); saving there revalidates this page.
-export const revalidate = 3600;
+// The homepage photos are chosen in admin (Website → Homepage); saving there
+// revalidates this page, and it rebuilds at least every 5 minutes regardless.
+export const revalidate = 300;
 
 export default async function HomePage() {
   let db = null;

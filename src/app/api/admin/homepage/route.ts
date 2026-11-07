@@ -32,7 +32,8 @@ export async function PATCH(req: Request) {
   if (!parsed.success) return badRequest(`Give every tile a photo (1 to ${MAX_TILES} tiles)`);
   try {
     const config = await saveConfig(auth.db, parsed.data as Parameters<typeof saveConfig>[1]);
-    // The homepage is cached for an hour.
+    // Refresh the cached homepage now (both forms: the root path alone didn't always clear it).
+    revalidatePath('/', 'page');
     revalidatePath('/');
     return NextResponse.json({ ok: true, data: { config, shown: photosFor(config) } });
   } catch (error) {
