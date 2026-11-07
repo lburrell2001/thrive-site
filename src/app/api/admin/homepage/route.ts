@@ -1,35 +1,40 @@
 export const runtime = 'nodejs';
 
-// Website → Homepage: the hero collage's seven photos (src/lib/homeCollage.ts).
+// Website → Homepage: the hero mosaic (tiles, sizes, order) and the statement
+// and heading photos (src/lib/homeCollage.ts).
 
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { COLLAGE_SLOTS, SLOT_SHAPES, collageLibrary, loadCollage, loadPicks, savePicks } from '@/lib/homeCollage';
+import { FAN_COUNT, INLINE_COUNT, collageLibrary, loadConfig, photosFor, saveConfig } from '@/lib/homeCollage';
+import { MAX_TILES, SIZE_ORDER } from '@/lib/collageLayout';
 
-/** Every case-study image to choose from, what's saved, and what each tile shows now. */
+/** Every case-study image to choose from, what's saved, and what the homepage shows now. */
 export async function GET(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
-  const [picks, tiles] = await Promise.all([loadPicks(auth.db), loadCollage(auth.db)]);
-  return NextResponse.json({ ok: true, data: { library: collageLibrary(), picks, tiles, shapes: SLOT_SHAPES } });
+  const config = await loadConfig(auth.db);
+  return NextResponse.json({ ok: true, data: { library: collageLibrary(), config, shown: photosFor(config) } });
 }
 
+const pick = z.object({ slug: z.string().max(200), src: z.string().max(500) });
 const schema = z.object({
-  picks: z.array(z.object({ slug: z.string().max(200), src: z.string().max(500) }).nullable()).length(COLLAGE_SLOTS),
+  tiles: z.array(pick.extend({ size: z.enum(SIZE_ORDER as [string, ...string[]]) })).min(1).max(MAX_TILES),
+  fan: z.array(pick.nullable()).length(FAN_COUNT),
+  inline: z.array(pick.nullable()).length(INLINE_COUNT),
 });
 
 export async function PATCH(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const parsed = schema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return badRequest('Choose a photo for each tile');
+  if (!parsed.success) return badRequest(`Give every tile a photo (1 to ${MAX_TILES} tiles)`);
   try {
-    const picks = await savePicks(auth.db, parsed.data.picks);
+    const config = await saveConfig(auth.db, parsed.data as Parameters<typeof saveConfig>[1]);
     // The homepage is cached for an hour.
     revalidatePath('/');
-    return NextResponse.json({ ok: true, data: { picks, tiles: await loadCollage(auth.db) } });
+    return NextResponse.json({ ok: true, data: { config, shown: photosFor(config) } });
   } catch (error) {
     return badRequest(error instanceof Error ? error.message : 'Could not save');
   }

@@ -1,13 +1,14 @@
-/* The collage preview uses the same bento as the homepage hero. */
+/* The mosaic preview: spots from packTiles() (src/lib/collageLayout.ts), like the homepage. */
 .grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(3, clamp(80px, 9vw, 140px));
-  grid-template-areas: "a a b b c c" "a a d e c c" "f f d e g g";
+  grid-auto-rows: clamp(80px, 9vw, 140px);
   gap: 8px;
 }
 .tile {
   position: relative;
+  grid-column: var(--c) / span var(--w);
+  grid-row: var(--r) / span var(--h);
   border: 0;
   padding: 0;
   border-radius: 12px;
@@ -58,6 +59,23 @@
 .thumbUsed { box-shadow: inset 0 0 0 3px var(--a-accent, #e50586); }
 .thumbUsed img { opacity: 0.7; }
 .usedTag { position: absolute; top: 6px; left: 6px; background: var(--a-accent, #e50586); color: #fff; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-@media (max-width: 640px) {
-  .grid { grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 110px); grid-template-areas: "a b" "a c" "d e" "f g"; }
-}
+
+
+/* Mosaic editor */
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.barGroup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.sectionTitle { font-size: 15px; font-weight: 700; margin: 0; }
+.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 12px; background: var(--a-surface-2, #f3f1ef); }
+.toolsLabel { font-weight: 700; font-size: 13px; margin-right: 4px; }
+.gridPhone { grid-template-columns: 1fr 1fr; grid-auto-rows: 90px; max-width: 300px; }
+.gridPhone .tile { grid-column: var(--mc) / span var(--mw); grid-row: var(--mr) / span var(--mh); }
+.tileDragging { opacity: 0.4; }
+.tileNew { display: grid; place-items: center; border: 2px dashed var(--a-accent, #e50586); background: transparent; font-size: 12px; font-weight: 600; color: var(--a-accent, #e50586); text-align: center; padding: 6px; cursor: default; }
+.warn { color: #b45309; font-weight: 600; }
+.pairs { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.slot { position: relative; border: 0; padding: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--a-surface-2, #f3f1ef); cursor: pointer; outline: 3px solid transparent; outline-offset: 2px; }
+.slot:hover img { opacity: 0.9; }
+.slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.targetNote { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--a-accent, #e50586); }
+@media (max-width: 900px) { .pairs { grid-template-columns: 1fr; } }

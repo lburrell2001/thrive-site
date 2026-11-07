@@ -12,9 +12,9 @@
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 import { projectCoverThumb } from '@/lib/storage';
-import { WORK_PHOTOS } from '@/lib/workPhotos';
 import type { ReelProject } from '@/lib/workReel';
-import type { CollageTile } from '@/lib/homeCollage';
+import type { HomePhotos } from '@/lib/homeCollage';
+import { tileStyleVars } from '@/lib/collageLayout';
 import { ThriveIcon } from './ThriveIcons';
 import { rd } from './links';
 import CtaBand from './CtaBand';
@@ -62,20 +62,8 @@ const QUOTES = [
   { text: 'The work they did set us apart immediately. Bold, intentional, and exactly right.', who: 'The Burrell Group', tone: s.bMagenta },
 ];
 
-// One real photo per client project (never Thrive's own social), taken a
-// service at a time so neighbouring tiles show different kinds of work.
-const PHOTOS = (() => {
-  const groups = Object.values(WORK_PHOTOS);
-  const out: (typeof groups)[number] = [];
-  for (let i = 0; groups.some((g) => i < g.length); i++) {
-    for (const g of groups) {
-      const p = g[i];
-      if (p && !p.href.includes('/work/thrive-') && !out.some((q) => q.href === p.href)) out.push(p);
-    }
-  }
-  return out;
-})();
-// The hero collage's seven tiles come from admin (Website → Homepage, src/lib/homeCollage.ts).
+// Every photo in the hero mosaic, the statement and the services heading is
+// chosen in admin (Website → Homepage, src/lib/homeCollage.ts).
 
 const STATEMENT = 'We design and build brands, websites and content that people remember — in your colors, with your story, never from a template.';
 
@@ -90,7 +78,8 @@ function Petal({ turn }: { turn: number }) {
 
 // ---------------------------------------------------------------- page
 
-export default function Redesign({ projects, collage }: { projects: ReelProject[]; collage: CollageTile[] }) {
+export default function Redesign({ projects, photos }: { projects: ReelProject[]; photos: HomePhotos }) {
+  const { collage, fan, inline } = photos;
   const rootRef = useRef<HTMLDivElement>(null);
   const statementRef = useRef<HTMLParagraphElement>(null);
   const stepsRef = useRef<HTMLOListElement>(null);
@@ -139,10 +128,7 @@ export default function Redesign({ projects, collage }: { projects: ReelProject[
   const work = projects.slice(0, 6);
   // Tiles are labelled with the project's title (a photo's own caption can be the shot's name).
   const titleOf = (href: string) => projects.find((p) => href === `/work/${p.slug}`)?.title;
-  // Further down, photos of projects that aren't already in the collage.
-  const rest = PHOTOS.filter((p) => !collage.some((t) => t.href === p.href));
-  const pool = rest.length >= 5 ? rest : PHOTOS;
-  const photo = (i: number) => pool[i % pool.length];
+  const spots = tileStyleVars(collage.map((t) => t.size));
 
   return (
     <div ref={rootRef}>
@@ -166,7 +152,7 @@ export default function Redesign({ projects, collage }: { projects: ReelProject[
           </div>
           <div className={s.collage}>
             {collage.map((t, i) => (
-              <Link key={`${i}-${t.src}`} href={rd(t.href)} className={s.tile} style={{ gridArea: 'abcdefg'[i], '--d': `${i * 60}ms` } as React.CSSProperties}>
+              <Link key={`${i}-${t.src}`} href={rd(t.href)} className={s.tile} style={{ ...spots[i], '--d': `${i * 60}ms` } as React.CSSProperties}>
                 <img src={t.url} alt={t.alt} loading={i < 3 ? 'eager' : 'lazy'} decoding="async" />
                 <span className={s.tileTag}>{titleOf(t.href) ?? t.title}</span>
               </Link>
@@ -177,7 +163,7 @@ export default function Redesign({ projects, collage }: { projects: ReelProject[
         {/* ── Statement: client work fanned out, words filling in as you scroll ── */}
         <section className={s.statement}>
           <div className={`${s.fan} ${s.rise}`} aria-hidden>
-            {[0, 1, 2].map((i, k) => <img key={i} src={photo(i).src} alt="" className={s[`fan${k}`]} loading="lazy" />)}
+            {fan.map((src, k) => <img key={k} src={src} alt="" className={s[`fan${k}`]} loading="lazy" />)}
           </div>
           <h2 className={`${s.leadHead} ${s.rise}`}>We’re a Dallas creative studio where color meets strategy.</h2>
           <p ref={statementRef} className={s.fill}>
@@ -188,8 +174,8 @@ export default function Redesign({ projects, collage }: { projects: ReelProject[
         {/* ── Services: photos inside the heading, then the tilted cards ── */}
         <section className={s.services}>
           <h2 className={`${s.display} ${s.inlineHead} ${s.rise}`}>
-            We’re a <img src={photo(3).src} alt="" className={s.inlinePhoto} /> Full-Service<br />
-            <img src={photo(4).src} alt="" className={s.inlinePhoto} /> Creative Studio
+            We’re a <img src={inline[0]} alt="" className={s.inlinePhoto} /> Full-Service<br />
+            <img src={inline[1]} alt="" className={s.inlinePhoto} /> Creative Studio
           </h2>
           <div id="services" className={s.cards}>
             {SERVICES.map((svc, i) => (

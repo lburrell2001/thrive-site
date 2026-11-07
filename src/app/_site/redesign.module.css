@@ -260,19 +260,18 @@
   75% { transform: translate(-22px, 4px); }
 }
 
-/* Hero collage: one photo per project, a bento of seven tiles. */
+/* Hero collage: a mosaic of project photos. Each tile's spot comes from
+   packTiles() in src/lib/collageLayout.ts (--c/--r/--w/--h, --m… on phones). */
 .collage {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  grid-template-rows: repeat(3, clamp(120px, 14vw, 230px));
-  grid-template-areas:
-    "a a b b c c"
-    "a a d e c c"
-    "f f d e g g";
+  grid-auto-rows: clamp(120px, 14vw, 230px);
   gap: clamp(8px, 1vw, 14px);
 }
 .tile {
   position: relative;
+  grid-column: var(--c) / span var(--w);
+  grid-row: var(--r) / span var(--h);
   overflow: hidden;
   border-radius: clamp(12px, 1.4vw, 20px);
   background: #eee;
@@ -534,11 +533,8 @@
   .figures > div { border-left: 0; padding: 0; }
   .menuGrid { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(110px, 1fr); }
   .menuLogo { display: none; }
-  .collage {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(4, 34vw);
-    grid-template-areas: "a b" "a c" "d e" "f g";
-  }
+  .collage { grid-template-columns: 1fr 1fr; grid-auto-rows: 34vw; }
+  .tile { grid-column: var(--mc) / span var(--mw); grid-row: var(--mr) / span var(--mh); }
   .tileTag { opacity: 1; transform: none; }
   /* Phones: the logo goes full width again. */
   .heroTop, .footerLogo { width: 100%; }
