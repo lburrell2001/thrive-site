@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
+import { WhenField, localNow, whenToIso } from './WhenField';
 import { apiSend } from '../proposals/adminApi';
 import {
   DM_DIRECTIONS,
@@ -42,6 +43,7 @@ export function LogDmForm({ contactId, contactName, instagram, facebook, prospec
   const [body, setBody] = useState('');
   const [followUp, setFollowUp] = useState(true);
   const [followDue, setFollowDue] = useState(() => inDays(3));
+  const [at, setAt] = useState(localNow);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,15 +55,18 @@ export function LogDmForm({ contactId, contactName, instagram, facebook, prospec
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    const when = whenToIso(at);
+    if ('error' in when) { setError(when.error); return; }
     setSaving(true); setError('');
     try {
       await apiSend(`/api/crm/contacts/${contactId}/activities`, 'POST', {
         kind: 'dm',
         body,
+        at: when.iso,
         dm: { platform, direction },
         follow_up: followUp ? { title: followTitle, due_date: followDue || null } : null,
       });
-      setBody('');
+      setBody(''); setAt(localNow());
       await onLogged();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not log the DM');
@@ -103,6 +108,7 @@ export function LogDmForm({ contactId, contactName, instagram, facebook, prospec
             autoFocus={autoFocus}
           />
         </label>
+        <WhenField value={at} onChange={setAt} />
         <label className={s.full} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} />
           <span>Add a task: {followTitle}</span>

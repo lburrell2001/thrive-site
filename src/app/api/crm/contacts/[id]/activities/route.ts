@@ -26,6 +26,8 @@ export async function POST(req: Request, { params }: Ctx) {
   const parsed = createActivitySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
   const { kind, body, at, deal_id, call, dm, text, follow_up } = parsed.data;
+  // Back-dating is fine (logging a call from last week); the future isn't.
+  if (at && Date.parse(at) > Date.now() + 5 * 60_000) return badRequest('That time hasn’t happened yet');
   // A text records the number it went to, as Google Voice alerts do.
   const phone = kind === 'text' && text
     ? (await auth.db.from('crm_contacts').select('phone').eq('id', id).maybeSingle()).data?.phone ?? null

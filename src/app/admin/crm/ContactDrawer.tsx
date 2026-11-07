@@ -34,6 +34,7 @@ import { isRetainer, retainerProgress } from '@/lib/retainer';
 import { LogCallForm } from './LogCallForm';
 import { LogDmForm } from './LogDmForm';
 import { LogTextForm } from './LogTextForm';
+import { WhenField, localNow, whenToIso } from './WhenField';
 import { facebookLabel, facebookUrl, instagramUrl } from '@/lib/social';
 
 const KIND_LABEL: Record<CrmActivityKind, string> = {
@@ -1053,15 +1054,18 @@ function LogForm({ contactId, contactName, instagram, facebook, phone, prospect,
 }) {
   const [kind, setKind] = useState<CrmActivityKind>(initialKind);
   const [body, setBody] = useState('');
+  const [at, setAt] = useState(localNow);
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!body.trim()) return;
+    const when = whenToIso(at);
+    if ('error' in when) { notify(when.error, 'error'); return; }
     setSaving(true);
     try {
-      await apiSend(`/api/crm/contacts/${contactId}/activities`, 'POST', { kind, body });
-      setBody('');
+      await apiSend(`/api/crm/contacts/${contactId}/activities`, 'POST', { kind, body, at: when.iso });
+      setBody(''); setAt(localNow());
       await onLogged();
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Could not save', 'error');
@@ -1122,7 +1126,8 @@ function LogForm({ contactId, contactName, instagram, facebook, phone, prospect,
             placeholder={kind === 'note' ? 'Add a note…' : `What was the ${KIND_LABEL[kind].toLowerCase()} about?`}
             aria-label="Note"
           />
-          <div className={s.modalActions} style={{ marginTop: 8 }}>
+          <div className={s.modalActions} style={{ marginTop: 8, alignItems: 'flex-end' }}>
+            <div style={{ marginRight: 'auto' }}><WhenField value={at} onChange={setAt} /></div>
             <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={saving || !body.trim()}>
               {saving ? 'Saving…' : `Log ${KIND_LABEL[kind].toLowerCase()}`}
             </button>

@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
+import { WhenField, localNow, whenToIso } from './WhenField';
 import { apiSend } from '../proposals/adminApi';
 import {
   CALL_DIRECTIONS,
@@ -17,13 +18,6 @@ import {
   type CallOutcome,
   type CrmDeal,
 } from '@/types/crm';
-
-/** Now, as a datetime-local value in the browser's time. */
-function localNow() {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
 
 function inDays(days: number) {
   const d = new Date();
@@ -61,14 +55,14 @@ export function LogCallForm({ contactId, contactName, deals = [], defaultDealId,
     e.preventDefault();
     const mins = minutes.trim() ? Number(minutes) : null;
     if (mins !== null && (!Number.isInteger(mins) || mins < 0 || mins > 600)) { setError('Minutes: a whole number'); return; }
-    const when = at ? new Date(at) : new Date();
-    if (Number.isNaN(when.getTime())) { setError('Check the date and time'); return; }
+    const when = whenToIso(at);
+    if ('error' in when) { setError(when.error); return; }
     setSaving(true); setError('');
     try {
       await apiSend(`/api/crm/contacts/${contactId}/activities`, 'POST', {
         kind: 'call',
         body,
-        at: when.toISOString(),
+        at: when.iso,
         deal_id: dealId || null,
         call: { direction, outcome, minutes: outcome === 'connected' ? mins : null },
         follow_up: followUp ? { title: followTitle.trim() || followPlaceholder, due_date: followDue || null } : null,
@@ -99,10 +93,7 @@ export function LogCallForm({ contactId, contactName, deals = [], defaultDealId,
       </div>
 
       <div className={s.formGrid}>
-        <label>
-          <span className={s.miniLabel}>When</span>
-          <input className={p.input} type="datetime-local" value={at} max={localNow()} onChange={(e) => setAt(e.target.value)} />
-        </label>
+        <WhenField value={at} onChange={setAt} />
         {outcome === 'connected' && (
           <label>
             <span className={s.miniLabel}>Minutes</span>
