@@ -69,7 +69,8 @@ export default function RequestsPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // Load after the first paint (setting state straight from an effect re-renders synchronously).
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t); }, [load]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

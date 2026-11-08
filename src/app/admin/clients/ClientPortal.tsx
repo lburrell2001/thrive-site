@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
+import QuestionnairesSection from './QuestionnairesSection';
 import { formatPhone } from '@/lib/phone';
 import { adminHeaders } from '@/lib/adminSession';
 
@@ -421,6 +422,8 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       <ProposalsSection clientId={clientId} proposals={data.proposals} projects={data.projects} reminders={data.reminders} api={api} onRefresh={onRefresh} />
       <Divider />
       <ActivitySection activity={data.activity} />
+      <Divider />
+      <QuestionnairesSection clientId={clientId} projects={data.projects} reminders={data.reminders} remind={remind} />
       <Divider />
       <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
     </div>

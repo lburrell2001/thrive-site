@@ -31,7 +31,10 @@ const NAV: { group: string | null; items: NavItem[] }[] = [
       { href: '/admin/invoices', label: 'Estimates & invoices', icon: 'invoices' },
     ],
   },
-  { group: 'Clients', items: [{ href: '/admin/clients', label: 'Clients', icon: 'clients' }] },
+  { group: 'Clients', items: [
+    { href: '/admin/clients', label: 'Clients', icon: 'clients' },
+    { href: '/admin/questionnaires', label: 'Questionnaires', icon: 'questionnaires' },
+  ] },
   {
     group: 'Outreach',
     items: [

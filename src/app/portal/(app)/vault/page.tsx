@@ -111,7 +111,8 @@ export default function VaultPage() {
     setLoading(false);
   }, [api]);
 
-  useEffect(() => { load(); }, [load]);
+  // Load after the first paint (setting state straight from an effect re-renders synchronously).
+  useEffect(() => { const t = setTimeout(load, 0); return () => clearTimeout(t); }, [load]);
 
   function openAddForm() {
     setEditingId(null);

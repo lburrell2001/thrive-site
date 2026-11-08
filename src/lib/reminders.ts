@@ -24,6 +24,8 @@ export const reminderTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('portal_proposal'), id: z.string().uuid() }),
   z.object({ kind: z.literal('proposal'), id: z.string().uuid() }),
   z.object({ kind: z.literal('onboarding'), clientId: z.string().uuid() }),
+  // An assigned questionnaire (client_questionnaires id) not yet submitted.
+  z.object({ kind: z.literal('questionnaire'), id: z.string().uuid() }),
   z.object({
     kind: z.literal('custom'),
     clientId: z.string().uuid(),
@@ -218,6 +220,38 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
           ctaUrl: `${site}/portal/onboarding`,
           ctaLabel: 'Finish onboarding',
           sms: `Friendly reminder, you have ${open.length} onboarding step${open.length === 1 ? '' : 's'} left. Finish here:`,
+        },
+      };
+    }
+
+    case 'questionnaire': {
+      const { data: a } = await db
+        .from('client_questionnaires')
+        .select('id, client_id, status, questionnaire_id')
+        .eq('id', target.id)
+        .maybeSingle();
+      if (!a) throw new ReminderError('Questionnaire not found');
+      if (a.status === 'submitted') throw new ReminderError('This questionnaire has already been submitted');
+      const contact = await portalContact(db, a.client_id);
+      if (!contact) throw new ReminderError('Client not found');
+      const { data: qn } = await db.from('questionnaires').select('title').eq('id', a.questionnaire_id).maybeSingle();
+      const title = qn?.title ?? 'onboarding';
+      const started = a.status === 'in_progress' || a.status === 'reopened';
+      return {
+        contact,
+        targetType: 'questionnaire',
+        targetId: a.id,
+        summary: `Questionnaire · ${title}`,
+        message: {
+          subject: `Reminder: your ${title} questionnaire`,
+          eyebrow: 'Friendly reminder',
+          headline: started
+            ? `Your ${title} questionnaire is partly done. Pick up where you left off whenever you're ready.`
+            : `Your ${title} questionnaire is waiting for you. It saves as you go, so you can do a little at a time.`,
+          detail: 'Your answers help us get your project started on the right foot.',
+          ctaUrl: `${site}/portal/onboarding/${a.id}`,
+          ctaLabel: started ? 'Continue the questionnaire' : 'Start the questionnaire',
+          sms: `Friendly reminder, your ${title} questionnaire is waiting in your client portal:`,
         },
       };
     }

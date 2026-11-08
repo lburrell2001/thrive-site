@@ -34,6 +34,10 @@ function change(now: number, before: number) {
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 interface Reminding { title: string; target: ReminderTarget }
+interface WaitingQuestionnaire {
+  id: string; client_id: string; client_name?: string; company_name?: string; title: string;
+  status: 'not_started' | 'in_progress' | 'reopened' | 'submitted'; answered: number; total: number; assigned_at: string;
+}
 
 export default function AdminHome() {
   const { openContact, contacts, version, refresh, notify } = useCrm();
@@ -42,6 +46,14 @@ export default function AdminHome() {
   const [failed, setFailed] = useState('');
   const [reminding, setReminding] = useState<Reminding | null>(null);
   const [sendingDigest, setSendingDigest] = useState(false);
+  const [waitingQs, setWaitingQs] = useState<WaitingQuestionnaire[]>([]);
+
+  // Questionnaires assigned but not submitted (empty until migration 046 is run).
+  useEffect(() => {
+    apiGet<{ assignments: WaitingQuestionnaire[] }>('/api/admin/questionnaires/assignments')
+      .then((r) => setWaitingQs(r.assignments))
+      .catch(() => setWaitingQs([]));
+  }, [version]);
 
   useEffect(() => {
     let cancelled = false;
@@ -241,6 +253,19 @@ export default function AdminHome() {
                   </button>
                   <span className={w.itemWhen} style={inv.overdue ? { color: 'var(--a-danger)', fontWeight: 700 } : undefined}>{inv.overdue ? 'Overdue' : 'Due'} {formatDate(inv.due_date)}</span>
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
+                </div>
+              ))}
+            </Card>
+
+            <Card id="questionnaires" title="Questionnaires waiting" count={waitingQs.length} note="Assigned, not submitted" link={{ href: '/admin/questionnaires', label: 'Questionnaires' }} empty={waitingQs.length ? null : 'No questionnaires waiting on clients.'}>
+              {waitingQs.map((a) => (
+                <div key={a.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <Link href={`/admin/questionnaires/responses/${a.id}`} className={w.itemMain} style={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
+                    <span className={w.itemTitle}>{a.company_name || a.client_name || 'Client'} · {a.title}</span>
+                    <span className={w.itemSub}>{a.status === 'not_started' ? 'Not started' : a.status === 'reopened' ? 'Reopened' : 'In progress'} · {a.answered} of {a.total} answered</span>
+                  </Link>
+                  <span className={w.itemWhen}>{timeAgo(a.assigned_at)}</span>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: `Remind about ${a.title}`, target: { kind: 'questionnaire', id: a.id } })}>Remind</button>
                 </div>
               ))}
             </Card>

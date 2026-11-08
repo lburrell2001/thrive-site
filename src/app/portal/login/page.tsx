@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Bungee, Bai_Jamjuree } from 'next/font/google';
 import { supabasePortal } from '@/lib/supabasePortal';
 
@@ -256,12 +257,12 @@ export default function LoginPage() {
 
           {/* Bottom: copyright + homepage link */}
           <div className="portal-login-footer" style={{ position: 'absolute', bottom: 48, left: 52, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <a
+            <Link
               href="/"
               style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#E50586', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
               ← Return to Homepage
-            </a>
+            </Link>
             <p style={{ fontFamily: F.inter, fontSize: 12, color: '#444', margin: 0 }}>
               © 2025 Thrive Creative Studios
             </p>
@@ -284,7 +285,7 @@ export default function LoginPage() {
                   SIGN IN
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>
-                  Enter your email and we'll send you a code.
+                  Enter your email and we&apos;ll send you a code.
                 </p>
               </div>
             ) : (
@@ -363,7 +364,7 @@ export default function LoginPage() {
                 </button>
 
                 <p style={{ fontFamily: F.inter, fontSize: 13, color: '#888', textAlign: 'center', margin: 0 }}>
-                  Didn't get it?{' '}
+                  Didn&apos;t get it?{' '}
                   <button
                     type="button"
                     onClick={() => { setStep('contact'); setCode(['', '', '', '', '', '', '', '']); setError(''); }}
@@ -378,7 +379,7 @@ export default function LoginPage() {
             {/* Footer note */}
             <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #E5E5E5' }}>
               <p style={{ fontFamily: F.inter, fontSize: 12, color: '#aaa', margin: 0, lineHeight: 1.6 }}>
-                Don't have an account? Contact us at{' '}
+                Don&apos;t have an account? Contact us at{' '}
                 <a href="mailto:hello@thrivecreativestudios.org" style={{ color: '#888', textDecoration: 'underline', textUnderlineOffset: 3 }}>
                   hello@thrivecreativestudios.org
                 </a>

@@ -20,6 +20,7 @@ const ACTIONS = [
   { label: 'New proposal', hint: 'Start from the Thrive layout or a template', href: '/admin/crm/proposals/new' },
   { label: 'Estimates & invoices', hint: 'Type a list, get a PDF or a portal invoice', href: '/admin/invoices' },
   { label: 'Clients', hint: 'Portal logins, projects, files', href: '/admin/clients' },
+  { label: 'Questionnaires', hint: 'Onboarding questionnaires and responses', href: '/admin/questionnaires' },
   { label: 'Emails', hint: 'Newsletters, outreach, templates', href: '/admin/crm/emails' },
   { label: 'Campaigns', hint: 'Print and email, and what came of them', href: '/admin/crm/campaigns' },
   { label: 'Log a print campaign', hint: 'Postcard, flyer, mailer…', href: '/admin/crm/campaigns?new=1' },

@@ -3,6 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { portalApi } from '@/lib/portalApi';
+import { STATUS_LABELS, type AssignmentStatus } from '@/lib/questionnaires';
+import q from '@/components/questionnaire/questionnaire.module.css';
+
+type AssignedQuestionnaire = { id: string; title: string; status: AssignmentStatus; answered: number; total: number; project_name: string | null };
 
 interface DbStep {
   id: string; step_number: number; title: string;
@@ -19,6 +24,14 @@ export default function OnboardingPage() {
   const [steps,   setSteps]   = useState<DbStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(false);
+  const [questionnaires, setQuestionnaires] = useState<AssignedQuestionnaire[]>([]);
+
+  // Questionnaires assigned to this client (/api/portal/questionnaires).
+  useEffect(() => {
+    portalApi<{ assignments: AssignedQuestionnaire[] }>('/api/portal/questionnaires')
+      .then((r) => setQuestionnaires(r.assignments))
+      .catch(() => { /* the steps below still show */ });
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -46,8 +59,35 @@ export default function OnboardingPage() {
         </div>
       )}
 
+      {/* Questionnaires */}
+      {questionnaires.length > 0 && (
+        <section className={q.card} aria-labelledby="qs-title">
+          <h2 id="qs-title" className={q.h2}>Questionnaires</h2>
+          <p className={q.muted} style={{ marginBottom: 14 }}>Tell us about your business and your project. Answers save as you go, so you can stop and come back any time.</p>
+          <div className={q.qList}>
+            {questionnaires.map((a) => {
+              const pct = a.total ? Math.round((a.answered / a.total) * 100) : 0;
+              const done = a.status === 'submitted';
+              return (
+                <Link key={a.id} href={`/portal/onboarding/${a.id}`} className={q.qCard}>
+                  <div className={q.qCardBody}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <p className={q.qTitle} style={{ margin: 0 }}>{a.title}</p>
+                      <span className={`${q.pill} ${q[`pill_${a.status}`]}`}>{STATUS_LABELS[a.status]}</span>
+                    </div>
+                    <p className={q.muted} style={{ marginBottom: 8 }}>{a.answered} of {a.total} answered{a.project_name ? ` · ${a.project_name}` : ''}</p>
+                    <div className={q.bar}><div className={q.barFill} style={{ width: `${pct}%` }} /></div>
+                  </div>
+                  <span className={`${q.go} ${done ? q.goDone : ''}`}>{done ? 'View answers' : a.status === 'not_started' ? 'Start' : 'Continue'}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* Progress bar */}
-      <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', padding:'20px 24px' }}>
+      {(loading || steps.length > 0) && <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', padding:'20px 24px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
           <span style={{ fontFamily:F.inter, fontSize:14, fontWeight:700, color:'#0a0a0a' }}>
             {loading ? '—' : `${pct}% Complete`}
@@ -59,7 +99,7 @@ export default function OnboardingPage() {
         <div style={{ height:10, borderRadius:999, background:'#f1f0ef', overflow:'hidden' }}>
           <div style={{ height:'100%', borderRadius:999, background:'#0cf574', width:`${pct}%`, transition:'width .4s ease' }} />
         </div>
-      </div>
+      </div>}
 
       {/* Loading skeletons */}
       {loading && [1,2,3].map(i => (
@@ -67,7 +107,7 @@ export default function OnboardingPage() {
       ))}
 
       {/* Empty state */}
-      {!loading && !error && steps.length === 0 && (
+      {!loading && !error && steps.length === 0 && questionnaires.length === 0 && (
         <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', padding:'56px 40px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', gap:14 }}>
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><rect x="6" y="8" width="28" height="24" rx="4" stroke="#d0d0d0" strokeWidth="1.5"/><path d="M13 18h14M13 24h8" stroke="#d0d0d0" strokeWidth="1.5" strokeLinecap="round"/><circle cx="10" cy="18" r="2" fill="#d0d0d0"/><circle cx="10" cy="24" r="2" fill="#d0d0d0"/></svg>
           <p style={{ fontFamily:F.inter, fontSize:14, color:'#bfbfbf', margin:0 }}>

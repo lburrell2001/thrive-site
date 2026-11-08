@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Bungee, Bai_Jamjuree } from 'next/font/google';
@@ -11,6 +11,7 @@ const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['lat
 
 const BASE_NAV_LINKS = [
   { href: '/portal/dashboard', label: 'Dashboard' },
+  { href: '/portal/onboarding', label: 'Onboarding' },
   { href: '/portal/progress',  label: 'My Projects' },
   { href: '/portal/vault',     label: 'Secure Vault' },
   { href: '/portal/invoices',  label: 'Billing' },
@@ -25,7 +26,7 @@ function buildPageTitles(userName: string, userCompany: string) {
     '/portal/progress':   { title: 'MY PROJECTS',      subtitle: 'Everything organised by project' },
     '/portal/invoices':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
     '/portal/payments':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
-    '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Get started with your project' },
+    '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Questionnaires and first steps for your project' },
     '/portal/files':      { title: 'FILES & ASSETS',  subtitle: 'Delivered files and uploads' },
     '/portal/vault':      { title: 'SECURE VAULT',    subtitle: 'Share logins and access details safely' },
     '/portal/settings':   { title: 'SETTINGS',        subtitle: 'Account and notification preferences' },
@@ -52,29 +53,30 @@ function HamburgerIcon({ open }: { open: boolean }) {
   );
 }
 
+const DESKTOP_QUERY = '(min-width: 768px)';
+function subscribeDesktop(onChange: () => void) {
+  const mq = window.matchMedia(DESKTOP_QUERY);
+  mq.addEventListener('change', onChange);
+  return () => mq.removeEventListener('change', onChange);
+}
+
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const pathname = usePathname();
 
   const [checking,     setChecking]     = useState(true);
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
-  const [isDesktop,    setIsDesktop]    = useState(false);
   const [userName,     setUserName]     = useState('Client');
   const [userInitials, setUserInitials] = useState('CL');
   const [userRole,     setUserRole]     = useState('client');
   const [userCompany,  setUserCompany]  = useState('');
 
-  // Track desktop breakpoint
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)');
-    setIsDesktop(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
+  // Desktop breakpoint (false while rendering on the server).
+  const isDesktop = useSyncExternalStore(subscribeDesktop, () => window.matchMedia(DESKTOP_QUERY).matches, () => false);
 
-  // Close sidebar on route change
-  useEffect(() => { setSidebarOpen(false); }, [pathname]);
+  // Close the sidebar when the route changes.
+  const [navPath, setNavPath] = useState(pathname);
+  if (navPath !== pathname) { setNavPath(pathname); setSidebarOpen(false); }
 
   useEffect(() => {
     if (pathname === '/portal/login') return;
@@ -126,7 +128,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const NAV_LINKS = BASE_NAV_LINKS;
 
   const PAGE_TITLES = buildPageTitles(userName, userCompany);
-  const pageInfo    = PAGE_TITLES[pathname] ?? { title: 'PORTAL', subtitle: '' };
+  const pageInfo    = PAGE_TITLES[pathname]
+    ?? (pathname.startsWith('/portal/onboarding/') ? { title: 'QUESTIONNAIRE', subtitle: 'Answers save as you go' } : { title: 'PORTAL', subtitle: '' });
 
   return (
     <div className={`${bungee.variable} ${baiJamjuree.variable}`} style={{ display: 'flex', minHeight: '100dvh' }}>
