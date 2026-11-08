@@ -1,79 +1,98 @@
 // The homepage hero mosaic's layout, shared by the homepage and the admin
-// editor (Website → Homepage) so the preview is exactly what the site shows.
-// Each tile has a size; tiles are packed in order, each into the first spot it
-// fits (like CSS grid's dense flow), on 6 columns on desktop and 2 on phones
-// (where Big tiles are one column by two rows, the rest one cell, and a tile
-// with an empty space beside it stretches across).
-// Pure — no server imports — so the admin page can run it in the browser.
+// editor (Website → Homepage). Desktop and phones each have their own layout:
+// a list of tiles placed on a grid (6 columns on desktop, 2 on phones), each
+// at a column and row with a width and height in cells. Lauren drags tiles
+// into place and resizes them in admin; the homepage draws exactly that.
+// Pure — no server imports — so the admin page runs it in the browser.
 
 import { WORK_PHOTOS, type WorkPhoto } from './workPhotos';
 
-export type TileSize = 'big' | 'wide' | 'tall' | 'small';
+export type Rect = { col: number; row: number; w: number; h: number };
+export type Layout = 'desktop' | 'phone';
 
-/** Columns × rows a tile covers, on desktop and on phones. */
-export const TILE_SIZES: Record<TileSize, { label: string; w: number; h: number; mw: number; mh: number }> = {
-  big: { label: 'Big', w: 2, h: 2, mw: 1, mh: 2 },
-  wide: { label: 'Wide', w: 2, h: 1, mw: 1, mh: 1 },
-  tall: { label: 'Tall', w: 1, h: 2, mw: 1, mh: 1 },
-  small: { label: 'Small', w: 1, h: 1, mw: 1, mh: 1 },
+export const COLS: Record<Layout, number> = { desktop: 6, phone: 2 };
+export const MAX_TILE_H = 4;
+export const MAX_ROWS = 14;
+export const MAX_TILES = 20;
+
+/** Quick sizes offered in admin (width × height in cells), per layout. */
+export const PRESETS: Record<Layout, { label: string; w: number; h: number }[]> = {
+  desktop: [
+    { label: 'Small', w: 1, h: 1 }, { label: 'Wide', w: 2, h: 1 }, { label: 'Tall', w: 1, h: 2 },
+    { label: 'Big', w: 2, h: 2 }, { label: 'Large', w: 3, h: 2 }, { label: 'Banner', w: 3, h: 1 },
+    { label: 'Hero', w: 4, h: 2 }, { label: 'Full width', w: 6, h: 1 },
+  ],
+  phone: [
+    { label: 'Small', w: 1, h: 1 }, { label: 'Tall', w: 1, h: 2 }, { label: 'Wide', w: 2, h: 1 }, { label: 'Big', w: 2, h: 2 },
+  ],
 };
-/** The original seven-tile layout, the default. */
-export const DEFAULT_SIZES_LIST: TileSize[] = ['big', 'wide', 'big', 'tall', 'tall', 'wide', 'wide'];
-export const SIZE_ORDER: TileSize[] = ['big', 'wide', 'tall', 'small'];
-export const isTileSize = (v: unknown): v is TileSize => typeof v === 'string' && v in TILE_SIZES;
 
-export const DESKTOP_COLS = 6;
-export const PHONE_COLS = 2;
-export const MAX_TILES = 16;
+const overlaps = (a: Rect, b: Rect) =>
+  a.col < b.col + b.w && b.col < a.col + a.w && a.row < b.row + b.h && b.row < a.row + a.h;
 
-export type Placement = { col: number; row: number; w: number; h: number };
+/** Whether `r` sits inside the grid without covering another tile (skipping index `ignore`). */
+export function canPlace(rects: Rect[], r: Rect, cols: number, ignore = -1) {
+  if (r.col < 1 || r.row < 1 || r.w < 1 || r.h < 1 || r.col + r.w - 1 > cols || r.h > MAX_TILE_H || r.row + r.h - 1 > MAX_ROWS) return false;
+  return rects.every((o, i) => i === ignore || !overlaps(o, r));
+}
 
-/** Place each tile in the first spot it fits. Rows/cols are 1-based for CSS grid. */
-export function packTiles(sizes: TileSize[], cols: number) {
-  const grid: boolean[][] = [];
-  const free = (r: number, c: number) => !grid[r]?.[c];
-  const places: Placement[] = sizes.map((size) => {
-    const t = TILE_SIZES[size];
-    const w = Math.min(cols === PHONE_COLS ? t.mw : t.w, cols);
-    const h = cols === PHONE_COLS ? t.mh : t.h;
-    for (let r = 0; ; r++) {
-      for (let c = 0; c + w <= cols; c++) {
-        let fits = true;
-        for (let dr = 0; dr < h && fits; dr++) for (let dc = 0; dc < w && fits; dc++) fits = free(r + dr, c + dc);
-        if (!fits) continue;
-        for (let dr = 0; dr < h; dr++) for (let dc = 0; dc < w; dc++) (grid[r + dr] ??= [])[c + dc] = true;
-        return { col: c + 1, row: r + 1, w, h };
-      }
+/** Rows the layout covers. */
+export const rowsOf = (rects: Rect[]) => rects.reduce((m, r) => Math.max(m, r.row + r.h - 1), 0);
+
+/** Empty cells inside the rows the layout covers (they show as blank space). */
+export function emptyCells(rects: Rect[], cols: number) {
+  const area = rects.reduce((n, r) => n + r.w * r.h, 0);
+  return rowsOf(rects) * cols - area;
+}
+
+/** The first spot a w×h tile fits, scanning row by row. */
+export function firstFree(rects: Rect[], w: number, h: number, cols: number): Rect | null {
+  for (let row = 1; row <= MAX_ROWS; row++) {
+    for (let col = 1; col + w - 1 <= cols; col++) {
+      const r = { col, row, w, h };
+      if (canPlace(rects, r, cols)) return r;
     }
-  });
-  // Phones: a tile with nothing beside it (e.g. the last one) stretches across the row.
-  if (cols === PHONE_COLS) {
-    places.forEach((pl) => {
-      if (pl.w >= cols) return;
-      const r0 = pl.row - 1;
-      for (let c = 0; c < cols; c++) {
-        if (c >= pl.col - 1 && c < pl.col - 1 + pl.w) continue;
-        for (let dr = 0; dr < pl.h; dr++) if (!free(r0 + dr, c)) return;
-      }
-      for (let dr = 0; dr < pl.h; dr++) for (let c = 0; c < cols; c++) (grid[r0 + dr] ??= [])[c] = true;
-      pl.col = 1; pl.w = cols;
-    });
   }
-  const rows = grid.length;
-  let gaps = 0;
-  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (!grid[r]?.[c]) gaps++;
-  return { places, rows, gaps };
+  return null;
 }
 
-/** The CSS variables a tile needs to sit in its spot on both layouts. */
-export function tileStyleVars(sizes: TileSize[]) {
-  const desk = packTiles(sizes, DESKTOP_COLS).places;
-  const phone = packTiles(sizes, PHONE_COLS).places;
-  return sizes.map((_, i) => ({
-    '--c': desk[i].col, '--r': desk[i].row, '--w': desk[i].w, '--h': desk[i].h,
-    '--mc': phone[i].col, '--mr': phone[i].row, '--mw': phone[i].w, '--mh': phone[i].h,
-  }));
+/** Place tiles of these sizes in order, each into the first spot it fits. */
+export function pack(dims: { w: number; h: number }[], cols: number): Rect[] {
+  const out: Rect[] = [];
+  for (const d of dims) {
+    const r = firstFree(out, Math.min(d.w, cols), Math.min(d.h, MAX_TILE_H), cols) ?? firstFree(out, 1, 1, cols);
+    if (r) out.push(r);
+  }
+  return out;
 }
+
+/** A phone layout from a desktop one: same tiles in reading order, sized down, gaps filled. */
+export function phoneFrom(desktop: Rect[]): Rect[] {
+  const order = desktop.map((r, i) => ({ r, i })).sort((a, b) => a.r.row - b.r.row || a.r.col - b.r.col);
+  const placed = pack(order.map(({ r }) => ({ w: r.w >= 4 ? 2 : 1, h: r.h >= 2 && r.w >= 2 ? 2 : 1 })), COLS.phone);
+  // A tile with nothing beside it stretches across.
+  placed.forEach((p, k) => {
+    if (p.w === 1 && canPlace(placed, { ...p, col: 1, w: 2 }, COLS.phone, k)) { p.col = 1; p.w = 2; }
+  });
+  const out: Rect[] = new Array(desktop.length);
+  order.forEach(({ i }, k) => { out[i] = placed[k]; });
+  return out;
+}
+
+/** The CSS variables that put a tile in its spot. */
+export const rectVars = (r: Rect) => ({ '--c': r.col, '--r': r.row, '--w': r.w, '--h': r.h });
+
+/** The original seven-tile layout, the default. */
+export const DEFAULT_DESKTOP: Rect[] = [
+  { col: 1, row: 1, w: 2, h: 2 }, { col: 3, row: 1, w: 2, h: 1 }, { col: 5, row: 1, w: 2, h: 2 },
+  { col: 3, row: 2, w: 1, h: 2 }, { col: 4, row: 2, w: 1, h: 2 }, { col: 1, row: 3, w: 2, h: 1 }, { col: 5, row: 3, w: 2, h: 1 },
+];
+
+// ---- older saves: tiles in order with a named size, packed automatically
+export type TileSize = 'big' | 'wide' | 'tall' | 'small';
+const OLD_SIZES: Record<TileSize, { w: number; h: number }> = { big: { w: 2, h: 2 }, wide: { w: 2, h: 1 }, tall: { w: 1, h: 2 }, small: { w: 1, h: 1 } };
+export const isTileSize = (v: unknown): v is TileSize => typeof v === 'string' && v in OLD_SIZES;
+export const packOldSizes = (sizes: TileSize[]) => pack(sizes.map((s) => OLD_SIZES[s]), COLS.desktop);
 
 // ---- photos further down the homepage
 

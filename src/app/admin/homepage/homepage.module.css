@@ -1,10 +1,3 @@
-/* The mosaic preview: spots from packTiles() (src/lib/collageLayout.ts), like the homepage. */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  grid-auto-rows: clamp(80px, 9vw, 140px);
-  gap: 8px;
-}
 .tile {
   position: relative;
   grid-column: var(--c) / span var(--w);
@@ -67,10 +60,6 @@
 .sectionTitle { font-size: 15px; font-weight: 700; margin: 0; }
 .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 12px; background: var(--a-surface-2, #f3f1ef); }
 .toolsLabel { font-weight: 700; font-size: 13px; margin-right: 4px; }
-.gridPhone { grid-template-columns: 1fr 1fr; grid-auto-rows: 90px; max-width: 300px; }
-.gridPhone .tile { grid-column: var(--mc) / span var(--mw); grid-row: var(--mr) / span var(--mh); }
-.tileDragging { opacity: 0.4; }
-.tileNew { display: grid; place-items: center; border: 2px dashed var(--a-accent, #e50586); background: transparent; font-size: 12px; font-weight: 600; color: var(--a-accent, #e50586); text-align: center; padding: 6px; cursor: default; }
 .warn { color: #b45309; font-weight: 600; }
 .pairs { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
 .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
@@ -81,3 +70,27 @@
 @media (max-width: 900px) { .pairs { grid-template-columns: 1fr; } }
 .stripTitle { font-size: 13px; font-weight: 700; margin: 0 0 6px; }
 .stripTitle a { font-weight: 500; margin-left: 6px; text-decoration: none; }
+
+/* Drag-and-drop mosaic editor (MosaicEditor.tsx) */
+.editor { position: relative; display: grid; user-select: none; touch-action: none; }
+.editorPhone { max-width: 340px; }
+.editorDragging { cursor: grabbing; }
+.cell { border: 1.5px dashed var(--a-border, #ddd); border-radius: 10px; background: transparent; color: var(--a-muted, #999); font-size: 18px; cursor: pointer; display: grid; place-items: center; opacity: 0.7; transition: background 0.15s, border-color 0.15s, opacity 0.15s; }
+.cell span { opacity: 0; transition: opacity 0.15s; }
+.cell:hover { opacity: 1; border-color: var(--a-accent, #e50586); background: rgba(229, 5, 134, 0.05); }
+.cell:hover span { opacity: 1; color: var(--a-accent, #e50586); }
+.mTile { position: relative; z-index: 1; border-radius: 12px; overflow: hidden; background: var(--a-surface-2, #f3f1ef); cursor: grab; outline: 3px solid transparent; outline-offset: 2px; transition: outline-color 0.15s, opacity 0.15s; }
+.mTile img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.mTile:focus-visible { outline-color: #3943b7; }
+.mTileOn { outline-color: var(--a-accent, #e50586); }
+.mTileGhost { opacity: 0.35; }
+.mTileNew { display: grid; place-items: center; border: 2px dashed var(--a-accent, #e50586); background: rgba(229, 5, 134, 0.04); font-size: 12px; font-weight: 600; color: var(--a-accent, #e50586); text-align: center; padding: 6px; cursor: default; }
+.mLabel { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 40px); padding: 3px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.handle { position: absolute; right: 4px; bottom: 4px; width: 22px; height: 22px; border-radius: 6px; background: #fff; cursor: nwse-resize; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 0.15s; }
+.handle::after { content: ''; position: absolute; right: 5px; bottom: 5px; width: 9px; height: 9px; border-right: 2px solid #141414; border-bottom: 2px solid #141414; }
+.mTile:hover .handle, .mTileOn .handle { opacity: 1; }
+.preview { position: relative; z-index: 3; border-radius: 12px; overflow: hidden; outline: 3px solid #0cf574; outline-offset: 2px; pointer-events: none; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25); }
+.preview img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.9; }
+.previewBad { outline-color: #b42318; }
+.previewBad img { opacity: 0.5; }
+.dim { opacity: 0.55; font-weight: 500; margin-left: 3px; }

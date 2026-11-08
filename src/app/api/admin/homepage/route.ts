@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 
-// Website → Homepage: the hero mosaic (tiles, sizes, order) and the statement
+// Website → Homepage: the hero mosaic (desktop and phone layouts) and the statement
 // and heading photos, and the photo strips on About, Contact and Book a call
 // (src/lib/homeCollage.ts).
 
@@ -9,7 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { FAN_COUNT, INLINE_COUNT, PAGE_STRIPS, collageLibrary, loadConfig, photosFor, saveConfig } from '@/lib/homeCollage';
-import { MAX_TILES, SIZE_ORDER } from '@/lib/collageLayout';
+import { MAX_TILES } from '@/lib/collageLayout';
 
 /** Every case-study image to choose from, what's saved, and what the homepage shows now. */
 export async function GET(req: Request) {
@@ -20,8 +20,10 @@ export async function GET(req: Request) {
 }
 
 const pick = z.object({ slug: z.string().max(200), src: z.string().max(500) });
+const cell = z.number().int().min(1).max(20);
+const placed = z.array(pick.extend({ col: cell, row: cell, w: cell, h: cell }));
 const schema = z.object({
-  tiles: z.array(pick.extend({ size: z.enum(SIZE_ORDER as [string, ...string[]]) })).min(1).max(MAX_TILES),
+  mosaic: z.object({ desktop: placed.min(1).max(MAX_TILES), phone: placed.min(1).max(MAX_TILES) }),
   fan: z.array(pick.nullable()).length(FAN_COUNT),
   inline: z.array(pick.nullable()).length(INLINE_COUNT),
   pages: z.object({

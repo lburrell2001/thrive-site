@@ -14,7 +14,7 @@ import { useEffect, useRef } from 'react';
 import { projectCoverThumb } from '@/lib/storage';
 import type { ReelProject } from '@/lib/workReel';
 import type { HomePhotos } from '@/lib/homeCollage';
-import { tileStyleVars } from '@/lib/collageLayout';
+import { rectVars, type Layout } from '@/lib/collageLayout';
 import { ThriveIcon } from './ThriveIcons';
 import { rd } from './links';
 import CtaBand from './CtaBand';
@@ -128,7 +128,6 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
   const work = projects.slice(0, 6);
   // Tiles are labelled with the project's title (a photo's own caption can be the shot's name).
   const titleOf = (href: string) => projects.find((p) => href === `/work/${p.slug}`)?.title;
-  const spots = tileStyleVars(collage.map((t) => t.size));
 
   return (
     <div ref={rootRef}>
@@ -150,14 +149,17 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
               </span>
             ))}
           </div>
-          <div className={s.collage}>
-            {collage.map((t, i) => (
-              <Link key={`${i}-${t.src}`} href={rd(t.href)} className={s.tile} style={{ ...spots[i], '--d': `${i * 60}ms` } as React.CSSProperties}>
-                <img src={t.url} alt={t.alt} loading={i < 3 ? 'eager' : 'lazy'} decoding="async" />
-                <span className={s.tileTag}>{titleOf(t.href) ?? t.title}</span>
-              </Link>
-            ))}
-          </div>
+          {/* Desktop and phones each have their own mosaic, laid out in admin. */}
+          {(['desktop', 'phone'] as Layout[]).map((layout) => (
+            <div key={layout} className={`${s.collage} ${layout === 'phone' ? s.collagePhone : s.collageDesk}`}>
+              {collage[layout].map((t, i) => (
+                <Link key={`${i}-${t.src}`} href={rd(t.href)} className={s.tile} style={{ ...rectVars(t), '--d': `${i * 60}ms` } as React.CSSProperties}>
+                  <img src={t.url} alt={t.alt} loading={layout === 'desktop' && i < 3 ? 'eager' : 'lazy'} decoding="async" />
+                  <span className={s.tileTag}>{titleOf(t.href) ?? t.title}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
         </section>
 
         {/* ── Statement: client work fanned out, words filling in as you scroll ── */}

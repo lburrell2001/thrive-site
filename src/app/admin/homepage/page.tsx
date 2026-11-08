@@ -1,9 +1,10 @@
 'use client';
 
 // Website → Homepage: the homepage's photos.
-// - Hero mosaic: add, remove, resize and reorder tiles (drag, or the arrows),
-//   and choose each tile's photo. The preview is packed by the same code as the
-//   homepage (src/lib/collageLayout.ts), so what you see is what the site shows.
+// - Hero mosaic: desktop and phones each have their own layout. Drag tiles to
+//   any spot, resize from the corner, click an empty cell to add a tile there,
+//   and choose each tile's photo (MosaicEditor.tsx; rules in
+//   src/lib/collageLayout.ts, shared with the homepage).
 // - The three photos above the statement and the two inside the services
 //   heading. Left on Automatic, they show projects that aren't in the mosaic.
 // - The photo strips on About, Contact and Book a call (Automatic = a mix by service).
@@ -13,14 +14,15 @@ import { useEffect, useState } from 'react';
 import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { apiGet, apiSend } from '../proposals/adminApi';
-import { DESKTOP_COLS, MAX_TILES, autoPhotos, PHONE_COLS, SIZE_ORDER, TILE_SIZES, packTiles, tileStyleVars, type TileSize } from '@/lib/collageLayout';
+import { COLS, MAX_TILES, PRESETS, autoPhotos, canPlace, emptyCells, firstFree, phoneFrom, type Layout, type Rect } from '@/lib/collageLayout';
 import { mixedPhotos } from '@/lib/workPhotos';
+import MosaicEditor from './MosaicEditor';
 import s from './homepage.module.css';
 
 type Pick = { slug: string; src: string };
-type TilePick = Pick & { size: TileSize };
+type Placed = Pick & Rect;
 type StripPage = 'about' | 'contact' | 'book';
-type Config = { tiles: TilePick[]; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]> };
+type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]> };
 const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] = [
   { page: 'about', label: 'About', hint: 'the row of five photos', href: '/about' },
   { page: 'contact', label: 'Contact', hint: 'the three beside “Ready to Thrive?”', href: '/contact' },
@@ -29,18 +31,19 @@ const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] =
 type Shown = { fan: string[]; inline: string[] };
 type Library = { slug: string; title: string; images: { src: string; url: string; alt: string }[] }[];
 type Data = { library: Library; config: Config; shown: Shown };
-type Target = { kind: 'tile'; i: number } | { kind: 'new' } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number };
+type Target = { kind: 'tile'; i: number } | { kind: 'new'; rect: Rect } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number };
+
+const rectOf = ({ col, row, w: width, h }: Rect): Rect => ({ col, row, w: width, h });
 
 export default function HomepageAdmin() {
   const [data, setData] = useState<Data | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
   const [target, setTarget] = useState<Target>({ kind: 'tile', i: 0 });
-  const [newSize, setNewSize] = useState<TileSize>('small');
-  const [phone, setPhone] = useState(false);
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [layout, setLayout] = useState<Layout>('desktop');
   const [project, setProject] = useState('all');
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const [hint, setHint] = useState('');
   const [failed, setFailed] = useState('');
 
   useEffect(() => {
@@ -54,30 +57,36 @@ export default function HomepageAdmin() {
   const all = data.library.flatMap((pr) => pr.images.map((im) => ({ ...im, slug: pr.slug, title: pr.title })));
   const find = (pk: Pick | null) => (pk ? all.find((im) => im.src === pk.src && im.slug === pk.slug) ?? null : null);
   const dirty = JSON.stringify(config) !== JSON.stringify(data.config);
-  const used = new Set([...config.tiles, ...config.fan, ...config.inline].filter(Boolean).map((pk) => pk!.src));
+  const tiles = config.mosaic[layout];
+  const cols = COLS[layout];
+  const used = new Set([...tiles, ...config.fan, ...config.inline].filter(Boolean).map((pk) => pk!.src));
+
+  const update = (fn: (c: Config) => Config) => { setConfig((c) => (c ? fn(c) : c)); setNote(null); };
+  const setTiles = (fn: (t: Placed[]) => Placed[]) => update((c) => ({ ...c, mosaic: { ...c.mosaic, [layout]: fn(c.mosaic[layout]) } }));
   const setStrip = (page: StripPage, i: number, pk: Pick | null) =>
     update((c) => ({ ...c, pages: { ...c.pages, [page]: c.pages[page].map((x, k) => (k === i ? pk : x)) } }));
 
-  const update = (fn: (c: Config) => Config) => { setConfig((c) => (c ? fn(c) : c)); setNote(null); };
-  const setTiles = (fn: (t: TilePick[]) => TilePick[]) => update((c) => ({ ...c, tiles: fn(c.tiles) }));
-
-  // The preview: the tiles, plus the empty "new tile" spot while adding one.
-  const adding = target.kind === 'new';
-  const sizes = [...config.tiles.map((t) => t.size), ...(adding ? [newSize] : [])];
-  const spots = tileStyleVars(sizes);
-  const gaps = packTiles(sizes, phone ? PHONE_COLS : DESKTOP_COLS).gaps;
-  const selected = target.kind === 'tile' ? config.tiles[target.i] : null;
-  // Automatic statement/heading photos: projects not in the mosaic (same rule as the homepage).
-  const auto = autoPhotos(config.tiles.map((t) => `/work/${t.slug}`), config.fan.length + config.inline.length);
+  const selectedIndex = target.kind === 'tile' && target.i < tiles.length ? target.i : null;
+  const selected = selectedIndex !== null ? tiles[selectedIndex] : null;
+  const pending = target.kind === 'new' ? target.rect : null;
+  const gaps = emptyCells(tiles.map(rectOf), cols);
+  // Automatic statement/heading photos: projects not in the desktop mosaic (same rule as the homepage).
+  const auto = autoPhotos(config.mosaic.desktop.map((t) => `/work/${t.slug}`), config.fan.length + config.inline.length);
   const autoFor = (key: 'fan' | 'inline', i: number) => auto[key === 'fan' ? i : config.fan.length + i];
+
+  function switchLayout(next: Layout) {
+    setLayout(next);
+    setTarget({ kind: 'tile', i: 0 });
+    setHint('');
+  }
 
   function choose(slug: string, src: string) {
     const pk = { slug, src };
     if (target.kind === 'new') {
-      setTiles((t) => [...t, { ...pk, size: newSize }]);
-      setTarget({ kind: 'tile', i: config!.tiles.length });
+      setTiles((t) => [...t, { ...pk, ...target.rect }]);
+      setTarget({ kind: 'tile', i: tiles.length });
     } else if (target.kind === 'tile') {
-      setTiles((t) => t.map((x, i) => (i === target.i ? { ...pk, size: x.size } : x)));
+      setTiles((t) => t.map((x, i) => (i === target.i ? { ...x, ...pk } : x)));
     } else if (target.kind === 'strip') {
       setStrip(target.page, target.i, pk);
     } else {
@@ -86,16 +95,32 @@ export default function HomepageAdmin() {
     }
   }
 
-  function move(from: number, to: number) {
-    if (to < 0 || to >= config!.tiles.length || from === to) return;
-    setTiles((t) => { const n = [...t]; const [x] = n.splice(from, 1); n.splice(to, 0, x); return n; });
-    setTarget({ kind: 'tile', i: to });
+  function addTile(rect?: Rect) {
+    if (tiles.length >= MAX_TILES) return;
+    const spot = rect ?? firstFree(tiles.map(rectOf), 1, 1, cols);
+    if (spot) { setTarget({ kind: 'new', rect: spot }); setHint(''); }
+  }
+
+  function resizeSelected(wd: number, ht: number) {
+    if (selectedIndex === null || !selected) return;
+    const rects = tiles.map(rectOf);
+    const here = { col: Math.min(selected.col, cols - wd + 1), row: selected.row, w: wd, h: ht };
+    const spot = canPlace(rects, here, cols, selectedIndex) ? here : null;
+    if (!spot) { setHint('That size doesn’t fit where the tile is. Drag it somewhere with more room, or move the tiles next to it.'); return; }
+    setHint('');
+    setTiles((t) => t.map((x, i) => (i === selectedIndex ? { ...x, ...spot } : x)));
   }
 
   function remove(i: number) {
-    if (config!.tiles.length <= 1) return;
+    if (tiles.length <= 1) return;
     setTiles((t) => t.filter((_, k) => k !== i));
     setTarget({ kind: 'tile', i: Math.max(0, i - 1) });
+  }
+
+  function copyDesktop() {
+    const rects = phoneFrom(config!.mosaic.desktop.map(rectOf));
+    update((c) => ({ ...c, mosaic: { ...c.mosaic, phone: c.mosaic.desktop.map((t, i) => ({ slug: t.slug, src: t.src, ...rects[i] })) } }));
+    setTarget({ kind: 'tile', i: 0 });
   }
 
   async function save() {
@@ -115,7 +140,7 @@ export default function HomepageAdmin() {
   const library = project === 'all' ? data.library : data.library.filter((pr) => pr.slug === project);
   const targetText =
     target.kind === 'new' ? 'Pick a photo below for the new tile.'
-    : target.kind === 'tile' ? `Tile ${target.i + 1} is selected. Pick a photo below to change it.`
+    : target.kind === 'tile' ? `${layout === 'phone' ? 'Phone' : 'Desktop'} tile ${target.i + 1} is selected. Pick a photo below to change it.`
     : target.kind === 'fan' ? `Statement photo ${target.i + 1} is selected. Pick a photo below.`
     : target.kind === 'inline' ? `Heading photo ${target.i + 1} is selected. Pick a photo below.`
     : `${STRIPS.find((x) => x.page === target.page)?.label} photo ${target.i + 1} is selected. Pick a photo below.`;
@@ -136,71 +161,51 @@ export default function HomepageAdmin() {
 
       <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
         <div className={s.bar}>
-          <h2 className={s.sectionTitle}>Hero mosaic <span className={w.muted}>· {config.tiles.length} tile{config.tiles.length === 1 ? '' : 's'}</span></h2>
+          <h2 className={s.sectionTitle}>Hero mosaic <span className={w.muted}>· {layout === 'phone' ? 'phones' : 'desktop'} · {tiles.length} tile{tiles.length === 1 ? '' : 's'}</span></h2>
           <div className={s.barGroup}>
-            <div className={w.chips} role="group" aria-label="Preview">
-              <button type="button" className={`${w.chip} ${!phone ? w.chipOn : ''}`} onClick={() => setPhone(false)}>Desktop</button>
-              <button type="button" className={`${w.chip} ${phone ? w.chipOn : ''}`} onClick={() => setPhone(true)}>Phone</button>
+            <div className={w.chips} role="group" aria-label="Layout">
+              <button type="button" className={`${w.chip} ${layout === 'desktop' ? w.chipOn : ''}`} onClick={() => switchLayout('desktop')}>Desktop · {config.mosaic.desktop.length}</button>
+              <button type="button" className={`${w.chip} ${layout === 'phone' ? w.chipOn : ''}`} onClick={() => switchLayout('phone')}>Phone · {config.mosaic.phone.length}</button>
             </div>
-            <button type="button" className={p.btn} disabled={config.tiles.length >= MAX_TILES || adding}
-              onClick={() => setTarget({ kind: 'new' })}>+ Add tile</button>
+            {layout === 'phone' && <button type="button" className={p.btn} onClick={copyDesktop} title="Replace the phone layout with the desktop tiles, sized for phones">Copy from desktop</button>}
+            <button type="button" className={p.btn} disabled={tiles.length >= MAX_TILES || pending !== null} onClick={() => addTile()}>+ Add tile</button>
           </div>
         </div>
 
-        {/* What the selected tile (or the one being added) is: size, place, remove. */}
-        {(selected || adding) && (
+        {(selected || pending) && (
           <div className={s.tools}>
-            <span className={s.toolsLabel}>{adding ? 'New tile' : `Tile ${(target as { i: number }).i + 1}`}</span>
-            <div className={w.chips} role="group" aria-label="Size">
-              {SIZE_ORDER.map((size) => {
-                const on = adding ? newSize === size : selected?.size === size;
-                return (
-                  <button key={size} type="button" className={`${w.chip} ${on ? w.chipOn : ''}`}
-                    onClick={() => (adding ? setNewSize(size) : setTiles((t) => t.map((x, i) => (target.kind === 'tile' && i === target.i ? { ...x, size } : x))))}>
-                    {TILE_SIZES[size].label}
+            <span className={s.toolsLabel}>{pending ? 'New tile' : `Tile ${selectedIndex! + 1} · ${selected!.w}×${selected!.h}`}</span>
+            {selected && (
+              <div className={w.chips} role="group" aria-label="Size">
+                {PRESETS[layout].map((ps) => (
+                  <button key={ps.label} type="button" className={`${w.chip} ${selected.w === ps.w && selected.h === ps.h ? w.chipOn : ''}`} onClick={() => resizeSelected(ps.w, ps.h)}>
+                    {ps.label} <span className={s.dim}>{ps.w}×{ps.h}</span>
                   </button>
-                );
-              })}
-            </div>
-            {target.kind === 'tile' && (
-              <>
-                <button type="button" className={p.btn} disabled={target.i === 0} onClick={() => move(target.i, target.i - 1)} aria-label="Move earlier">← Earlier</button>
-                <button type="button" className={p.btn} disabled={target.i === config.tiles.length - 1} onClick={() => move(target.i, target.i + 1)} aria-label="Move later">Later →</button>
-                <button type="button" className={p.btn} disabled={config.tiles.length <= 1} onClick={() => remove(target.i)}>Remove tile</button>
-              </>
+                ))}
+              </div>
             )}
-            {adding && <button type="button" className={p.btn} onClick={() => setTarget({ kind: 'tile', i: 0 })}>Cancel</button>}
+            {selected && <button type="button" className={p.btn} disabled={tiles.length <= 1} onClick={() => remove(selectedIndex!)}>Remove tile</button>}
+            {pending && <button type="button" className={p.btn} onClick={() => setTarget({ kind: 'tile', i: 0 })}>Cancel</button>}
           </div>
         )}
+        {hint && <p className={s.warn} style={{ margin: '0 0 10px', fontSize: 13 }}>{hint}</p>}
 
-        <div className={`${s.grid} ${phone ? s.gridPhone : ''}`}>
-          {config.tiles.map((t, i) => {
+        <MosaicEditor
+          key={layout}
+          layout={layout}
+          tiles={tiles.map((t, i) => {
             const im = find(t);
-            const on = target.kind === 'tile' && target.i === i;
-            return (
-              <button key={`${i}-${t.src}`} type="button" className={`${s.tile} ${on ? s.tileOn : ''} ${dragFrom === i ? s.tileDragging : ''}`}
-                style={spots[i] as React.CSSProperties} draggable
-                onDragStart={() => setDragFrom(i)} onDragEnd={() => setDragFrom(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); if (dragFrom !== null) move(dragFrom, i); setDragFrom(null); }}
-                onClick={() => setTarget({ kind: 'tile', i })} aria-pressed={on}
-                aria-label={`Tile ${i + 1} (${TILE_SIZES[t.size].label})${im ? `: ${im.title}` : ''}`}>
-                {im && <img src={im.url} alt="" draggable={false} />}
-                <span className={s.tileLabel}>{i + 1} · {TILE_SIZES[t.size].label}{im ? ` · ${im.title}` : ''}</span>
-              </button>
-            );
+            return { ...rectOf(t), key: `${i}-${t.src}`, url: im?.url, label: `${i + 1}${im ? ` · ${im.title}` : ''}` };
           })}
-          {adding && (
-            <div className={`${s.tile} ${s.tileOn} ${s.tileNew}`} style={spots[config.tiles.length] as React.CSSProperties}>
-              <span>Pick a photo below</span>
-            </div>
-          )}
-        </div>
+          selected={selectedIndex}
+          pending={pending}
+          onSelect={(i) => { setTarget({ kind: 'tile', i }); setHint(''); }}
+          onChange={(rects) => setTiles((t) => t.map((x, i) => ({ ...x, ...rects[i] })))}
+          onEmptyCell={(col, row) => addTile({ col, row, w: 1, h: 1 })}
+        />
         <p className={w.muted} style={{ margin: '10px 0 0', fontSize: 13 }}>
-          {gaps > 0
-            ? <span className={s.warn}>{gaps} empty space{gaps === 1 ? '' : 's'} on {phone ? 'phones' : 'desktop'}. Change a size, reorder, or add a Small tile to fill {gaps === 1 ? 'it' : 'them'}.</span>
-            : `No gaps on ${phone ? 'phones' : 'desktop'}.`}
-          {' '}Drag tiles to reorder. Tiles fill in order, each into the first space it fits.
+          Drag a tile to move it, drag its corner to resize, or drop it on a tile the same size to swap. Click a + to add a tile there.
+          {gaps > 0 && <span className={s.warn}> {gaps} empty cell{gaps === 1 ? '' : 's'} will show as blank space.</span>}
         </p>
       </section>
 
