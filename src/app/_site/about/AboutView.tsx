@@ -4,7 +4,7 @@
 // real work and the values. All copy is the page's existing wording.
 
 import Link from 'next/link';
-import { mixedPhotos } from '@/lib/workPhotos';
+import type { WorkPhoto } from '@/lib/workPhotos';
 import CtaBand from '../CtaBand';
 import { rd } from '../links';
 import { ThriveIcon, type ThriveIconName } from '../ThriveIcons';
@@ -26,9 +26,8 @@ const VALUES: { title: string; desc: string; icon: ThriveIconName; tone: string 
   { title: 'Community', icon: 'social', tone: s.bPurple, desc: 'We’re not just building brands — we’re building with community. Everything we create is rooted in real connection and collective growth.' },
 ];
 
-const PHOTOS = mixedPhotos(5);
 
-export default function AboutView({ titles }: { titles: Record<string, string> }) {
+export default function AboutView({ titles, photos }: { titles: Record<string, string>; photos: WorkPhoto[] }) {
   const root = useReveal<HTMLDivElement>();
   return (
     <div ref={root}>
@@ -76,7 +75,7 @@ export default function AboutView({ titles }: { titles: Record<string, string> }
       <section className={a.block}>
         <h2 className={`${s.display} ${a.sectionTitle} ${s.rise}`}>Bold by design</h2>
         <div className={a.strip}>
-          {PHOTOS.map((p, i) => (
+          {photos.map((p, i) => (
             <Link key={p.href} href={rd(p.href)} className={`${a.stripPhoto} ${s.rise}`} style={{ '--d': `${i * 70}ms` } as React.CSSProperties}>
               <img src={p.src} alt={p.alt} loading="lazy" style={p.position ? { objectPosition: p.position } : undefined} />
               <span className={a.tag}>{titles[p.href] ?? p.caption}</span>

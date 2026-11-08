@@ -79,3 +79,5 @@
 .slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .targetNote { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--a-accent, #e50586); }
 @media (max-width: 900px) { .pairs { grid-template-columns: 1fr; } }
+.stripTitle { font-size: 13px; font-weight: 700; margin: 0 0 6px; }
+.stripTitle a { font-weight: 500; margin-left: 6px; text-decoration: none; }

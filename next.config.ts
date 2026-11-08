@@ -29,6 +29,7 @@ const nextConfig: NextConfig = {
       // (it's live now), go to the real pages.
       { source: "/newhomepage", destination: "/", permanent: true },
       { source: "/redesign", destination: "/", permanent: true },
+      { source: "/work", destination: "/portfolio", permanent: true },
       { source: "/redesign/work", destination: "/portfolio", permanent: true },
       { source: "/redesign/work/:slug", destination: "/work/:slug", permanent: true },
       { source: "/redesign/services/:slug", destination: "/services/:slug", permanent: true },

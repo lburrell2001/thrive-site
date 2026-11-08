@@ -6,6 +6,7 @@
 //   homepage (src/lib/collageLayout.ts), so what you see is what the site shows.
 // - The three photos above the statement and the two inside the services
 //   heading. Left on Automatic, they show projects that aren't in the mosaic.
+// - The photo strips on About, Contact and Book a call (Automatic = a mix by service).
 // Only case-study images are offered, so every photo is real client work.
 
 import { useEffect, useState } from 'react';
@@ -13,15 +14,22 @@ import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { apiGet, apiSend } from '../proposals/adminApi';
 import { DESKTOP_COLS, MAX_TILES, autoPhotos, PHONE_COLS, SIZE_ORDER, TILE_SIZES, packTiles, tileStyleVars, type TileSize } from '@/lib/collageLayout';
+import { mixedPhotos } from '@/lib/workPhotos';
 import s from './homepage.module.css';
 
 type Pick = { slug: string; src: string };
 type TilePick = Pick & { size: TileSize };
-type Config = { tiles: TilePick[]; fan: (Pick | null)[]; inline: (Pick | null)[] };
+type StripPage = 'about' | 'contact' | 'book';
+type Config = { tiles: TilePick[]; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]> };
+const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] = [
+  { page: 'about', label: 'About', hint: 'the row of five photos', href: '/about' },
+  { page: 'contact', label: 'Contact', hint: 'the three beside “Ready to Thrive?”', href: '/contact' },
+  { page: 'book', label: 'Book a call', hint: 'the four above the calendar', href: '/book' },
+];
 type Shown = { fan: string[]; inline: string[] };
 type Library = { slug: string; title: string; images: { src: string; url: string; alt: string }[] }[];
 type Data = { library: Library; config: Config; shown: Shown };
-type Target = { kind: 'tile'; i: number } | { kind: 'new' } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number };
+type Target = { kind: 'tile'; i: number } | { kind: 'new' } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number };
 
 export default function HomepageAdmin() {
   const [data, setData] = useState<Data | null>(null);
@@ -47,6 +55,8 @@ export default function HomepageAdmin() {
   const find = (pk: Pick | null) => (pk ? all.find((im) => im.src === pk.src && im.slug === pk.slug) ?? null : null);
   const dirty = JSON.stringify(config) !== JSON.stringify(data.config);
   const used = new Set([...config.tiles, ...config.fan, ...config.inline].filter(Boolean).map((pk) => pk!.src));
+  const setStrip = (page: StripPage, i: number, pk: Pick | null) =>
+    update((c) => ({ ...c, pages: { ...c.pages, [page]: c.pages[page].map((x, k) => (k === i ? pk : x)) } }));
 
   const update = (fn: (c: Config) => Config) => { setConfig((c) => (c ? fn(c) : c)); setNote(null); };
   const setTiles = (fn: (t: TilePick[]) => TilePick[]) => update((c) => ({ ...c, tiles: fn(c.tiles) }));
@@ -68,6 +78,8 @@ export default function HomepageAdmin() {
       setTarget({ kind: 'tile', i: config!.tiles.length });
     } else if (target.kind === 'tile') {
       setTiles((t) => t.map((x, i) => (i === target.i ? { ...pk, size: x.size } : x)));
+    } else if (target.kind === 'strip') {
+      setStrip(target.page, target.i, pk);
     } else {
       const key = target.kind;
       update((c) => ({ ...c, [key]: c[key].map((x, i) => (i === target.i ? pk : x)) }));
@@ -105,14 +117,15 @@ export default function HomepageAdmin() {
     target.kind === 'new' ? 'Pick a photo below for the new tile.'
     : target.kind === 'tile' ? `Tile ${target.i + 1} is selected. Pick a photo below to change it.`
     : target.kind === 'fan' ? `Statement photo ${target.i + 1} is selected. Pick a photo below.`
-    : `Heading photo ${target.i + 1} is selected. Pick a photo below.`;
+    : target.kind === 'inline' ? `Heading photo ${target.i + 1} is selected. Pick a photo below.`
+    : `${STRIPS.find((x) => x.page === target.page)?.label} photo ${target.i + 1} is selected. Pick a photo below.`;
 
   return (
     <div className={w.page}>
       <div className={w.head}>
         <div>
           <h1 className={w.title}>Homepage</h1>
-          <p className={w.sub}>The photos on the homepage. Click a spot, then a photo below to put it there. Mosaic tiles link to their case study.</p>
+          <p className={w.sub}>The photos on the homepage, and the photo strips on About, Contact and Book a call. Click a spot, then a photo below to put it there. Every photo links to its case study.</p>
         </div>
         <div className={w.headActions}>
           <a className={p.btn} href="/" target="_blank" rel="noreferrer">View page ↗</a>
@@ -220,6 +233,36 @@ export default function HomepageAdmin() {
           ))}
         </div>
         <p className={w.muted} style={{ margin: '10px 0 0', fontSize: 13 }}>Automatic photos are projects that aren’t in the mosaic, so they change when the mosaic does.</p>
+      </section>
+
+      <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
+        <h2 className={s.sectionTitle}>Photos on other pages</h2>
+        <p className={w.muted} style={{ margin: '2px 0 12px', fontSize: 13 }}>The photo strips on About, Contact and Book a call. Automatic is a mix of projects, one per service.</p>
+        {STRIPS.map(({ page, label, hint, href }) => {
+          const auto = mixedPhotos(config.pages[page].length);
+          return (
+            <div key={page} style={{ marginBottom: 14 }}>
+              <p className={s.stripTitle}>{label} <span className={w.muted} style={{ fontWeight: 500 }}>· {hint}</span> <a href={href} target="_blank" rel="noreferrer" className={w.muted}>View ↗</a></p>
+              <div className={s.slots}>
+                {config.pages[page].map((pk, i) => {
+                  const im = find(pk);
+                  const on = target.kind === 'strip' && target.page === page && target.i === i;
+                  return (
+                    <button key={i} type="button" className={`${s.slot} ${on ? s.tileOn : ''}`} onClick={() => setTarget({ kind: 'strip', page, i })} aria-pressed={on}>
+                      <img src={im?.url ?? auto[i % auto.length]?.src} alt="" />
+                      <span className={s.tileLabel}>{i + 1} · {im ? im.title : `Automatic · ${auto[i % auto.length]?.caption ?? ''}`}</span>
+                      {pk && (
+                        <span role="button" tabIndex={0} className={s.reset} title="Back to automatic"
+                          onClick={(e) => { e.stopPropagation(); setStrip(page, i, null); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); setStrip(page, i, null); } }}>↺</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       <p className={s.targetNote}>{targetText}</p>

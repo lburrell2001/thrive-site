@@ -242,7 +242,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
         <section className={s.work}>
           <div className={s.workHead}>
             <h2 className={`${s.display} ${s.rise}`}>Our Work</h2>
-            <Link href={rd('/work')} className={`${s.pill} ${s.pillDark}`}>See all work</Link>
+            <Link href={rd('/portfolio')} className={`${s.pill} ${s.pillDark}`}>See all work</Link>
           </div>
           <div className={s.workGrid}>
             {work.map((p, i) => (

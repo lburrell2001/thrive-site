@@ -14,7 +14,7 @@ import s from './redesign.module.css';
 
 export const MENU = [
   { n: '01', label: 'Home', href: '/', tone: s.bMagenta },
-  { n: '02', label: 'Work', href: '/work', tone: s.bOrange },
+  { n: '02', label: 'Work', href: '/portfolio', tone: s.bOrange },
   { n: '03', label: 'Services', href: '/services', tone: s.bBlue },
   { n: '04', label: 'About', href: '/about', tone: s.bMint },
   { n: '05', label: 'Journal', href: '/journal', tone: s.bPurple },

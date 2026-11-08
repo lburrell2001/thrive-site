@@ -10,7 +10,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { mixedPhotos } from '@/lib/workPhotos';
+import type { WorkPhoto } from '@/lib/workPhotos';
 import { readAttribution } from '../../components/SiteTracker';
 import { opinlyAnonId, opinlyIdentify } from '../../components/OpinlyPixel';
 import { rd } from '../links';
@@ -41,10 +41,9 @@ const FAQ = [
 ];
 
 // Three real photos (web, social, UX) for the mosaic beside the ask.
-const PHOTOS = mixedPhotos(3);
 const ERROR = 'Something went wrong. Please try again, or email hello@thrivecreativestudios.org.';
 
-export default function ContactView({ titles }: { titles: Record<string, string> }) {
+export default function ContactView({ titles, photos }: { titles: Record<string, string>; photos: WorkPhoto[] }) {
   const root = useReveal<HTMLDivElement>();
   const [form, setForm] = useState({ name: '', company: '', email: '', service: '', description: '' });
   const [sent, setSent] = useState(false);
@@ -97,7 +96,7 @@ export default function ContactView({ titles }: { titles: Record<string, string>
           <p className={`${s.leadText} ${c.lede}`}>Whether you’re building from scratch or leveling up — let’s make something unforgettable together.</p>
         </div>
         <div className={c.mosaic}>
-          {PHOTOS.map((p, i) => (
+          {photos.map((p, i) => (
             <Link key={p.href} href={rd(p.href)} className={`${c.tile} ${s.rise}`} style={{ '--d': `${i * 80}ms` } as React.CSSProperties}>
               <img src={p.src} alt={p.alt} loading="eager" style={p.position ? { objectPosition: p.position } : undefined} />
               <span className={c.tileTag}>{titles[p.href] ?? p.caption}</span>
@@ -113,7 +112,7 @@ export default function ContactView({ titles }: { titles: Record<string, string>
             <div className={`${c.success} ${s.bMint}`} role="status">
               <h2 className={c.successHead}>You’re in!</h2>
               <p>Thanks for reaching out. We’ll be in touch within 24–48 hours to schedule a discovery call.</p>
-              <Link href={rd('/work')} className={`${s.pill} ${s.pillBig}`}>See our work while you wait</Link>
+              <Link href={rd('/portfolio')} className={`${s.pill} ${s.pillBig}`}>See our work while you wait</Link>
             </div>
           ) : (
             <form onSubmit={submit} className={c.form}>

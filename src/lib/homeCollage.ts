@@ -4,7 +4,9 @@
 // `tiles` is the hero mosaic in order, any number from 1 to MAX_TILES, each
 // with a size (layout in src/lib/collageLayout.ts). `fan` is the three photos
 // above the statement, `inline` the two inside "We're a … Full-Service …
-// Creative Studio"; a null there means "pick automatically". Only case-study
+// Creative Studio"; a null there means "pick automatically". `pages` holds
+// the photo strips on other pages (About, Contact, Book a call), same rule:
+// null = the automatic pick (mixedPhotos). Only case-study
 // images can be chosen, so every photo is real client work with real alt
 // text. Older saves were a plain array of seven picks; they still read.
 
@@ -12,6 +14,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { CASE_STUDIES, type CaseImage, type CaseStudy } from '@/app/work/caseStudies';
 import { caseImageUrl } from './storage';
+import { mixedPhotos, type WorkPhoto } from './workPhotos';
 import { DEFAULT_SIZES_LIST, MAX_TILES, autoPhotos, isTileSize, type TileSize } from './collageLayout';
 
 export const COLLAGE_KEY = 'home_collage';
@@ -21,7 +24,16 @@ export const INLINE_COUNT = 2;
 export type CollagePick = { slug: string; src: string };
 export type TilePick = CollagePick & { size: TileSize };
 export type CollageTile = { slug: string; src: string; url: string; alt: string; title: string; href: string; size: TileSize };
-export type HomeConfig = { tiles: TilePick[]; fan: (CollagePick | null)[]; inline: (CollagePick | null)[] };
+/** Photo strips on other pages: how many photos each shows. */
+export const PAGE_STRIPS = { about: 5, contact: 3, book: 4 } as const;
+export type StripPage = keyof typeof PAGE_STRIPS;
+export const STRIP_PAGES = Object.keys(PAGE_STRIPS) as StripPage[];
+export type HomeConfig = {
+  tiles: TilePick[];
+  fan: (CollagePick | null)[];
+  inline: (CollagePick | null)[];
+  pages: Record<StripPage, (CollagePick | null)[]>;
+};
 export type HomePhotos = { collage: CollageTile[]; fan: string[]; inline: string[] };
 export type LibraryProject = { slug: string; title: string; images: { src: string; url: string; alt: string }[] };
 
@@ -93,7 +105,7 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
   if (Array.isArray(raw)) {
     raw = { tiles: DEFAULT_TILES.map((d, i) => ({ ...(validPick(raw && (raw as unknown[])[i]) ?? d), size: d.size })) };
   }
-  const obj = (raw && typeof raw === 'object' ? raw : {}) as { tiles?: unknown; fan?: unknown; inline?: unknown };
+  const obj = (raw && typeof raw === 'object' ? raw : {}) as { tiles?: unknown; fan?: unknown; inline?: unknown; pages?: Record<string, unknown> };
   const tiles = (Array.isArray(obj.tiles) ? obj.tiles : [])
     .map((t) => {
       const pick = validPick(t);
@@ -103,7 +115,8 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
     .filter((t): t is TilePick => Boolean(t))
     .slice(0, MAX_TILES);
   const list = (v: unknown, n: number) => Array.from({ length: n }, (_, i) => validPick(Array.isArray(v) ? v[i] : null));
-  return { tiles: tiles.length ? tiles : DEFAULT_TILES, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT) };
+  const pages = Object.fromEntries(STRIP_PAGES.map((k) => [k, list(obj.pages?.[k], PAGE_STRIPS[k])])) as HomeConfig['pages'];
+  return { tiles: tiles.length ? tiles : DEFAULT_TILES, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT), pages };
 }
 
 export async function loadConfig(db: SupabaseClient): Promise<HomeConfig> {
@@ -129,6 +142,22 @@ export function photosFor(config: HomeConfig): HomePhotos {
 export async function loadHomePhotos(db: SupabaseClient | null): Promise<HomePhotos> {
   const config = db ? await loadConfig(db).catch(() => parseConfig(null)) : parseConfig(null);
   return photosFor(config);
+}
+
+/** A page's photo strip: chosen photos, automatic ones where nothing is chosen. */
+export function stripPhotos(config: HomeConfig, page: StripPage): WorkPhoto[] {
+  const auto = mixedPhotos(PAGE_STRIPS[page]);
+  return config.pages[page].map((pk, i) => {
+    const found = imageFor(pk);
+    if (!found) return auto[i % auto.length];
+    const { cs, im } = found;
+    return { src: caseImageUrl(im.src, 900), alt: im.alt, caption: cs.client, href: `/work/${cs.slug}` };
+  });
+}
+
+export async function loadStripPhotos(db: SupabaseClient | null, page: StripPage): Promise<WorkPhoto[]> {
+  const config = db ? await loadConfig(db).catch(() => parseConfig(null)) : parseConfig(null);
+  return stripPhotos(config, page);
 }
 
 export async function saveConfig(db: SupabaseClient, config: HomeConfig) {
