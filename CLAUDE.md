@@ -124,7 +124,7 @@ Migration `046`. Onboarding questionnaires clients fill out in the portal. Share
 
 ### Estimates on deals
 
-Migration `049`. `estimates.crm_deal_id`: on insert a trigger files the estimate under the contact's deal whose name matches the estimate's project (the Project dropdown lists deals), else their open deal, else a new lead (source `estimate`); the contact is `crm_contact_id` or the portal client's contact. Sent moves the deal to Proposal sent, accepted wins it (`crm_follow_estimate`); declined leaves it. Estimates show on the contact timeline (kind `estimate`) and on their deal card, linking to `/admin/invoices?estimate=<id>`. "Turn into invoice" passes the estimate's deal to `add_invoice` (`crm_deal_id`), and "Turn into proposal" files the proposal under it.
+Migration `049`. `estimates.crm_deal_id`: on insert a trigger files the estimate under the contact's deal whose name matches the estimate's project (the Project dropdown lists deals), else their open deal, else a new lead (source `estimate`); the contact is `crm_contact_id` or the portal client's contact. Sent moves the deal to Quote sent (the `proposal` stage), accepted wins it (`crm_follow_estimate`); declined leaves it. Estimates show on the contact timeline (kind `estimate`) and on their deal card, linking to `/admin/invoices?estimate=<id>`. "Turn into invoice" passes the estimate's deal to `add_invoice` (`crm_deal_id`), and "Turn into proposal" files the proposal under it.
 
 ### Invoice deposits
 

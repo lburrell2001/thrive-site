@@ -6,7 +6,7 @@ export type CrmStage = (typeof CRM_STAGES)[number];
 export const STAGE_LABEL: Record<CrmStage, string> = {
   lead: 'New lead',
   contacted: 'Contacted',
-  proposal: 'Proposal sent',
+  proposal: 'Quote sent',
   won: 'Won',
   lost: 'Lost',
 };

@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: Ctx) {
   if (contact.portal_client_id) return badRequest('This contact already has a portal account');
 
   // A login on its own does not move the deal (migration 036): projects,
-  // proposals and invoices added in Clients move it to Proposal sent, and a
+  // proposals and invoices added in Clients move it to Quote sent, and a
   // paid invoice wins it.
   const result = await makePortalClient(db, id);
   if (!result.ok) return badRequest(result.error);
