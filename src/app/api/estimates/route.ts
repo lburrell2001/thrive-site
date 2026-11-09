@@ -30,10 +30,19 @@ export async function GET(req: Request) {
   let projects = await projectQuery('id, client_id, name, status, archived');
   if (projects.error) projects = await projectQuery('id, client_id, name, status');
 
+  // Open deals too (a deal made before deal projects has no portal project).
+  const dealQuery = (closed: boolean) => {
+    const q = db.from('crm_deals').select('id, contact_id, title, stage').neq('stage', 'lost').order('updated_at', { ascending: false }).limit(2000);
+    return closed ? q.is('closed_at', null) : q;
+  };
+  let deals = await dealQuery(true);
+  if (deals.error) deals = await dealQuery(false);
+
   return NextResponse.json({
     ok: true,
     data: {
       projects: projects.data ?? [],
+      deals: deals.data ?? [],
       ready: !estimates.error,
       estimates: estimates.data ?? [],
       invoices: invoices.data ?? [],
