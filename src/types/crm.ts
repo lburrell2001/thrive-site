@@ -165,7 +165,7 @@ export interface CrmTask {
 
 export type TimelineKind =
   | 'note' | 'call' | 'text' | 'dm' | 'meeting' | 'email' | 'stage'
-  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print' | 'visit';
+  | 'inquiry' | 'message' | 'proposal' | 'portal_proposal' | 'invoice' | 'estimate' | 'review' | 'newsletter' | 'prospect' | 'reply' | 'print' | 'visit';
 
 export interface TimelineItem {
   /** Unique across sources, e.g. "activity:<uuid>". */

@@ -205,7 +205,7 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
   ].filter(Boolean).join(',');
 
   const none = Promise.resolve({ data: [] as never[] });
-  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings, outlookSent, meetings] = await Promise.all([
+  const [deals, tasks, activities, inquiries, reminders, proposals, portalProfile, portalProposals, invoices, portalProjects, newsletters, prospects, replies, print, bookings, outlookSent, meetings, estimates] = await Promise.all([
     db.from('crm_deals').select('*').eq('contact_id', id).order('created_at', { ascending: false }),
     db.from('crm_tasks').select('*').eq('contact_id', id)
       .order('completed_at', { ascending: false, nullsFirst: true })
@@ -235,6 +235,10 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
     db.from('outlook_sent').select('id, subject, preview, web_link, sent_at').eq('contact_id', id).order('sent_at', { ascending: false }).limit(100),
     // Meetings on Lauren's Outlook calendar (migration 043).
     contactMeetings(db, id),
+    // Estimates for them, as a contact or as a portal client. select('*') so
+    // crm_deal_id (migration 049) comes back once it exists.
+    db.from('estimates').select('*').or(portalId ? `crm_contact_id.eq.${id},portal_client_id.eq.${portalId}` : `crm_contact_id.eq.${id}`)
+      .order('created_at', { ascending: false }).limit(100),
   ]);
 
   const timeline: TimelineItem[] = [];
@@ -521,6 +525,19 @@ export async function loadContactDetail(db: SupabaseClient, id: string): Promise
       title: `Invoice ${inv.invoice_number}${inv.project_name ? ` · ${inv.project_name}` : ''}`,
       meta: `${money(inv.amount_cents)} · ${inv.status}`,
       dealId: inv.crm_deal_id ?? null,
+    });
+  }
+
+  const ESTIMATE_STATUS: Record<string, string> = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined', invoiced: 'Invoiced' };
+  for (const est of (estimates.data ?? []) as { id: string; estimate_number: string; title: string; total_cents: number; status: string; created_at: string; crm_deal_id?: string | null }[]) {
+    timeline.push({
+      key: `estimate:${est.id}`,
+      kind: 'estimate',
+      at: est.created_at,
+      title: `Estimate ${est.estimate_number}${est.title ? ` · ${est.title}` : ''}`,
+      meta: `${money(est.total_cents)} · ${ESTIMATE_STATUS[est.status] ?? est.status}`,
+      href: `/admin/invoices?estimate=${est.id}`,
+      dealId: est.crm_deal_id ?? null,
     });
   }
 

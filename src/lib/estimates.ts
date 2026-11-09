@@ -24,6 +24,8 @@ export type Estimate = {
   invoice_id: string | null;
   /** Migration 047: the client's PDF shows category subtotals, not each line. */
   totals_only?: boolean;
+  /** Migration 049: the deal it belongs to. */
+  crm_deal_id?: string | null;
   created_at: string;
   updated_at: string;
 };

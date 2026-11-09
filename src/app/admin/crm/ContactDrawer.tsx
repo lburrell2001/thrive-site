@@ -59,6 +59,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
   proposal: '#9409ce',
   portal_proposal: '#9409ce',
   invoice: '#0cf574',
+  estimate: '#fd6100',
   review: '#e50586',
   newsletter: '#9409ce',
   prospect: '#fd6100',
@@ -71,6 +72,7 @@ const EVENT_COLOR: Record<TimelineKind, string> = {
 const DEAL_SOURCE: Record<string, string> = {
   inquiry: 'a website inquiry',
   proposal: 'a proposal',
+  estimate: 'an estimate',
   portal: 'the portal',
   'email reply': 'a reply to your email',
   booking: 'a booked call',
@@ -519,9 +521,9 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
       {detail.deals.length === 0 && <p className={s.eventMeta} style={{ margin: '0 0 8px' }}>No deals with this person yet.</p>}
       {detail.deals.map((deal) => {
         const proposals = detail.proposals.filter((pr) => pr.crm_deal_id === deal.id);
-        // Projects, uploaded proposals and invoices from the Clients tab.
+        // Estimates, and projects, uploaded proposals and invoices from the Clients tab.
         const clientWork = detail.timeline.filter(
-          (item) => item.dealId === deal.id && (item.kind === 'portal_proposal' || item.kind === 'invoice'),
+          (item) => item.dealId === deal.id && (item.kind === 'estimate' || item.kind === 'portal_proposal' || item.kind === 'invoice'),
         );
         const isFocused = deal.id === focusDealId;
         return (
@@ -569,7 +571,11 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
               <ul className={s.dealProposals}>
                 {clientWork.map((item) => (
                   <li key={item.key} className={s.task}>
-                    <button type="button" className={s.taskTitle} style={{ all: 'unset', cursor: 'pointer', color: '#111', fontWeight: 600 }} onClick={onOpenClient}>{item.title}</button>
+                    {item.href ? (
+                      <Link href={item.href} className={s.taskTitle} style={{ color: '#111', fontWeight: 600, textDecoration: 'none' }}>{item.title}</Link>
+                    ) : (
+                      <button type="button" className={s.taskTitle} style={{ all: 'unset', cursor: 'pointer', color: '#111', fontWeight: 600 }} onClick={onOpenClient}>{item.title}</button>
+                    )}
                     {item.meta && <span className={s.taskDue}>{item.meta}</span>}
                   </li>
                 ))}

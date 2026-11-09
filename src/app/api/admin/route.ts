@@ -359,10 +359,12 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_invoice': {
-        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only, deposit_cents, deposit_due_date } = params as Record<string, unknown>;
+        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only, deposit_cents, deposit_due_date, crm_deal_id } = params as Record<string, unknown>;
         let { amount_cents } = params as Record<string, unknown>;
         const row: Record<string, unknown> = { client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status };
         if (subscription_id) row.subscription_id = subscription_id;
+        // From an estimate on a deal: the invoice joins the same deal.
+        if (typeof crm_deal_id === 'string' && /^[0-9a-f-]{36}$/i.test(crm_deal_id)) row.crm_deal_id = crm_deal_id;
         // From the invoice builder: the lines set the total.
         if (line_items !== undefined) {
           const lines = lineItemsSchema.safeParse(line_items);

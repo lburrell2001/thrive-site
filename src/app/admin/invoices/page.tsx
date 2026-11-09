@@ -142,6 +142,8 @@ export default function InvoiceBuilder() {
   // The saved estimate being edited, and the estimate an invoice came from.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fromEstimateId, setFromEstimateId] = useState<string | null>(null);
+  // The deal of the estimate an invoice came from, so the invoice joins it too.
+  const [fromDealId, setFromDealId] = useState<string | null>(null);
   // The draft as last saved/opened, so leaving with changes can ask first.
   const [snapshot, setSnapshot] = useState('');
   const [busy, setBusy] = useState(false);
@@ -186,6 +188,22 @@ export default function InvoiceBuilder() {
         setData(d);
         // ?mode=invoice|estimate&client=<portal client id>&project=<name>, from a client's project.
         const params = new URLSearchParams(window.location.search);
+        // ?estimate=<id>, from the estimate on a deal in a contact's panel.
+        const estimateId = params.get('estimate');
+        const linked = estimateId ? d.estimates.find((e) => e.id === estimateId) : undefined;
+        if (linked) {
+          window.history.replaceState(null, '', window.location.pathname);
+          const next: Draft = {
+            ...blankDraft('estimate'), client: linked.portal_client_id ? `p:${linked.portal_client_id}` : linked.crm_contact_id ? `c:${linked.crm_contact_id}` : '',
+            clientName: linked.client_name, title: linked.title, number: linked.estimate_number, issueDate: linked.issue_date,
+            dueDate: linked.valid_until ?? '', text: lineItemsToText(linked.line_items), notes: linked.notes ?? '', totalsOnly: linked.totals_only ?? false,
+          };
+          setEditingId(linked.id);
+          setDraft(next);
+          setSnapshot(JSON.stringify(next));
+          setView('edit');
+          return;
+        }
         // ?proposal=<id>&part=full|deposit|balance, from a signed proposal.
         const proposalId = params.get('proposal');
         if (proposalId) {
@@ -376,6 +394,7 @@ export default function InvoiceBuilder() {
     const t = today();
     setEditingId(null);
     setFromEstimateId(est.id);
+    setFromDealId(est.crm_deal_id ?? null);
     setDraft({
       mode: 'invoice', client, clientName: est.client_name, title: est.title, number: '',
       issueDate: t, dueDate: addDays(t, 14), text: lineItemsToText(est.line_items), notes: est.notes ?? '',
@@ -459,6 +478,7 @@ export default function InvoiceBuilder() {
         notes: draft.notes,
         totals_only: draft.totalsOnly,
         ...(depositCents ? { deposit_cents: depositCents, deposit_due_date: draft.depositDue } : {}),
+        ...(fromEstimateId && fromDealId ? { crm_deal_id: fromDealId } : {}),
       });
       if (fromEstimateId) {
         await apiSend(`/api/estimates/${fromEstimateId}`, 'PATCH', { status: 'invoiced', invoice_id: inv.id }).catch(() => undefined);

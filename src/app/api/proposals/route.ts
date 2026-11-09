@@ -77,6 +77,7 @@ export async function POST(req: Request) {
   let currency = 'USD';
 
   let skipped: string[] = [];
+  let estimateDealId: string | null = null;
 
   if (fromEstimateId) {
     // An estimate: the Thrive layout, its client, and its lines as the pricing.
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
       const r = await recipientForContact(db, est.crm_contact_id);
       if ('id' in r) clientId = r.id;
     }
+    estimateDealId = est.crm_deal_id ?? null;
     const converted = estimateToProposalLines((est.line_items ?? []) as LineItem[]);
     lineItems = converted.lineItems;
     skipped = converted.skipped;
@@ -175,9 +177,9 @@ export async function POST(req: Request) {
       title,
       client_id: clientId ?? null,
       template_id: templateId ?? null,
-      // Set when started from a deal; otherwise the CRM trigger files it
-      // under the client's most recent open deal.
-      ...(crmDealId ? { crm_deal_id: crmDealId } : {}),
+      // Set when started from a deal (or from an estimate on one); otherwise
+      // the CRM trigger files it under the client's most recent open deal.
+      ...(crmDealId || estimateDealId ? { crm_deal_id: crmDealId ?? estimateDealId } : {}),
       status: 'draft',
       currency,
       deposit_percent: depositPercent,
