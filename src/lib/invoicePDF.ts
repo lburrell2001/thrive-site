@@ -1,4 +1,4 @@
-import { amountText, categoryTotals, formatLineMoney, isMonthly, splitTotals, type LineItem } from './lineItems';
+import { amountText, clientRows, formatLineMoney, splitTotals, type LineItem } from './lineItems';
 
 export interface InvoiceForPDF {
   invoice_number: string;
@@ -25,14 +25,8 @@ function tableRows(invoice: InvoiceForPDF): Row[] {
   if (!lines.length) {
     return [{ name: invoice.project_name || 'Creative Services', description: '', hours: null, amount: fmtMoney(invoice.amount_cents) }];
   }
-  if (invoice.totals_only) {
-    return categoryTotals(lines).map((g) => ({ name: g.category, description: '', hours: null, amount: amountText(g.oneTime, g.monthly) }));
-  }
-  return lines.map((l) => ({
-    name: l.name,
-    description: l.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '').trim(),
-    hours: l.hours,
-    amount: isMonthly(l) ? amountText(0, l.amount_cents) : amountText(l.amount_cents, 0),
+  return clientRows(lines, !!invoice.totals_only).map((r) => ({
+    name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly),
   }));
 }
 

@@ -421,7 +421,7 @@
   border-top: 1px solid #eee;
 }
 
-.rowGroupHead + .itemRow { border-top: 0; }
+.rowGroupHead + .itemRow, .rowGroup > .itemRow:first-child { border-top: 0; }
 
 .itemRowMain { display: grid; gap: 1px; min-width: 0; }
 .itemRowName { font-size: 14px; font-weight: 700; }
@@ -657,6 +657,9 @@
   background: #141414;
   color: #fff;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+  /* Its own layer, so Safari repaints it when the total changes. */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
 .barTotal { display: grid; min-width: 0; }

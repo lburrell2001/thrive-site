@@ -371,6 +371,7 @@
 }
 
 .railType {
+  display: block;
   margin: 1px 0 0;
   font-size: 11px;
   color: #9a9a9a;
@@ -524,3 +525,6 @@
   .row { grid-template-columns: 1fr auto; }
   .rowHideSmall { display: none; }
 }
+
+/* "Opened" status pill on the proposals list. */
+.stViewed { background: #9409ce; color: #fff; }

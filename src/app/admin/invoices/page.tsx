@@ -13,6 +13,7 @@
 
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
@@ -22,6 +23,7 @@ import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lin
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
+import { proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
 
 type Mode = 'estimate' | 'invoice';
 
@@ -106,6 +108,7 @@ function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
 }
 
 export default function InvoiceBuilder() {
+  const router = useRouter();
   const [data, setData] = useState<BillingData | null>(null);
   const [failed, setFailed] = useState('');
   const [view, setView] = useState<'list' | 'edit'>('list');
@@ -153,6 +156,35 @@ export default function InvoiceBuilder() {
         setData(d);
         // ?mode=invoice|estimate&client=<portal client id>&project=<name>, from a client's project.
         const params = new URLSearchParams(window.location.search);
+        // ?proposal=<id>&part=full|deposit|balance, from a signed proposal.
+        const proposalId = params.get('proposal');
+        if (proposalId) {
+          window.history.replaceState(null, '', window.location.pathname);
+          const part = (['full', 'deposit', 'balance'].includes(params.get('part') ?? '') ? params.get('part') : 'full') as InvoicePart;
+          apiGet<{ proposal: { title: string; deposit_percent: number }; lineItems: ProposalLine[]; client: { name: string; company: string | null; portal_client_id: string | null } | null }>(`/api/proposals/${proposalId}`)
+            .then((pr) => {
+              if (cancelled) return;
+              const current = storedDraft();
+              if (current.text.trim() && !window.confirm('Start an invoice from this proposal? The draft you had open will be replaced.')) return;
+              const portalClient = pr.client?.portal_client_id ? d.clients.find((c) => c.id === pr.client!.portal_client_id) : undefined;
+              const key = portalClient ? `p:${portalClient.id}` : '';
+              setEditingId(null);
+              setFromEstimateId(null);
+              setDraft({
+                ...blankDraft('invoice'), client: key,
+                clientName: portalClient ? clientLabel(portalClient) : (pr.client?.company || pr.client?.name || ''),
+                title: pr.proposal.title, text: proposalInvoiceText(part, pr.proposal, pr.lineItems), totalsOnly: part === 'full',
+              });
+              setView('edit');
+              if (portalClient) {
+                apiSend<{ invoice_number: string }>('/api/admin', 'POST', { action: 'next_invoice_number', clientId: portalClient.id })
+                  .then((r) => setDraft((dr) => (dr.client === key && !dr.number ? { ...dr, number: r.invoice_number } : dr)))
+                  .catch(() => { /* the number can be typed */ });
+              }
+            })
+            .catch((e) => setFailed(e instanceof Error ? e.message : 'Could not load the proposal'));
+          return;
+        }
         const portal = params.get('client');
         const client = portal ? d.clients.find((c) => c.id === portal) : undefined;
         if (!client) return;
@@ -291,6 +323,24 @@ export default function InvoiceBuilder() {
     if (!portalIdOf(client)) show('Pick a client with a portal login to add this invoice to their portal.', 'error');
     setView('edit');
     scrollTop();
+  }
+
+  /** "Turn into proposal": the Thrive layout with this estimate's client and lines as its pricing. */
+  async function proposalFromEstimate(est: Estimate) {
+    const discounts = est.line_items.filter((l) => l.amount_cents < 0).map((l) => l.name);
+    if (discounts.length && !window.confirm(`Proposals can’t show a discount line, so ${discounts.join(', ')} will be left out. Make the proposal anyway?`)) return;
+    setBusy(true);
+    try {
+      const created = await apiSend<{ id: string }>('/api/proposals', 'POST', {
+        title: est.title || (est.client_name ? `Proposal for ${est.client_name}` : 'Proposal'),
+        fromEstimateId: est.id,
+        starter: true,
+      });
+      router.push(`/admin/crm/proposals/${created.id}/edit`);
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not make the proposal', 'error');
+      setBusy(false);
+    }
   }
 
   function estimateBody() {
@@ -573,6 +623,7 @@ export default function InvoiceBuilder() {
                         </select>
                       )}
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => estimatePdf(est)}>PDF</button>
+                      <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
                       {est.status !== 'invoiced' && (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Invoice it</button>
                       )}
@@ -847,11 +898,15 @@ export default function InvoiceBuilder() {
               <textarea className={p.textarea} rows={3} value={draft.notes} onChange={(e) => set('notes', e.target.value)}
                 placeholder={isInvoice ? 'Payment terms, thank-you note…' : 'What’s not included, timeline, next steps…'} />
             </label>
-            {editingEstimate && editingEstimate.status !== 'invoiced' && (
+            {editingEstimate && (
               <div className={s.finishLinks}>
-                <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
-                  onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
-                <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => remove(editingEstimate)}>Delete estimate</button>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty || busy} title={dirty ? 'Save your changes first' : undefined}
+                  onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
+                {editingEstimate.status !== 'invoiced' && <>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
+                    onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
+                  <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => remove(editingEstimate)}>Delete estimate</button>
+                </>}
               </div>
             )}
           </section>
@@ -908,14 +963,17 @@ function ItemRows({ blocks, catalog, onRemove, onQty }: {
     return rule ? catalog.items.find((i) => i.id === rule.item_id)?.name ?? '' : '';
   };
   const groups = categoryTotals(valid.map((b) => b.item));
+  const headed = valid.some((b) => b.item.category?.trim());
   return (
     <div className={s.rows}>
       {groups.map((g) => (
         <div key={g.category} className={s.rowGroup}>
-          <div className={s.rowGroupHead}>
-            <span>{g.category}</span>
-            <span>{amountText(g.oneTime, g.monthly)}</span>
-          </div>
+          {headed && (
+            <div className={s.rowGroupHead}>
+              <span>{g.category}</span>
+              <span>{amountText(g.oneTime, g.monthly)}</span>
+            </div>
+          )}
           {valid.filter((b) => (b.item.category?.trim() || 'Other') === g.category).map((b) => {
             const cat = catalog ? itemForLine(catalog.items, b.item.name) : undefined;
             const qty = Number(b.item.name.match(/\(x(\d+)\)/i)?.[1] ?? 1);
@@ -1076,7 +1134,7 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
       </div>
 
       {draft.totalsOnly && items.length > 0 && (
-        <p className={s.paperFlag}>Totals only: the client sees each category’s subtotal, not the lines in grey.</p>
+        <p className={s.paperFlag}>Totals only: the client doesn’t see what’s in grey. Categories with two or more items show as one subtotal.</p>
       )}
       <table className={s.table}>
         <thead>
@@ -1089,19 +1147,25 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you add them.</td></tr>
-          ) : groups.map((g) => (
+          ) : groups.map((g) => {
+            // What the client sees with Totals only: a category with two or more
+            // lines collapses to its subtotal; a lone or uncategorised line keeps its name.
+            const collapsed = draft.totalsOnly && g.items.length > 1 && g.items.some((it) => it.category?.trim());
+            return (
             <Fragment key={g.category}>
-              {(grouped || draft.totalsOnly) && (
+              {(collapsed || (grouped && !draft.totalsOnly && g.items.some((it) => it.category?.trim()))) && (
                 <tr className={s.catRow}>
                   <td colSpan={showHours ? 2 : 1}>{g.category}</td>
                   <td className={s.num}>{amountText(g.oneTime, g.monthly)}</td>
                 </tr>
               )}
               {g.items.map((it, i) => (
-                <tr key={i} className={draft.totalsOnly ? s.dimmed : undefined}>
+                <tr key={i} className={collapsed ? s.dimmed : undefined}>
                   <td>
                     <div className={s.lineName}>{it.name}</div>
-                    {it.description && <div className={s.lineDesc}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>}
+                    {it.description && (
+                      <div className={`${s.lineDesc} ${draft.totalsOnly && !collapsed ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
+                    )}
                   </td>
                   {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
                   <td className={s.num} style={{ fontWeight: 700 }}>
@@ -1110,7 +1174,8 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
                 </tr>
               ))}
             </Fragment>
-          ))}
+            );
+          })}
         </tbody>
       </table>
 

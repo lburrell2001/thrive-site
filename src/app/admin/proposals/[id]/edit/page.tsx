@@ -3,6 +3,9 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import s from '../../proposals.module.css';
+import pb from './builder.module.css';
+import b from '../../../invoices/billing.module.css';
+import { proposalTotals } from '@/lib/proposalBilling';
 import { apiGet, apiSend, formatMoneyCents } from '../../adminApi';
 import { Toast, useToast } from '../../Toast';
 import { BlockEditor } from './BlockEditor';
@@ -81,6 +84,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const [signatures, setSignatures] = useState<SignatureRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'details' | 'pricing' | 'pages'>('pages');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [publishing, setPublishing] = useState(false);
@@ -128,7 +132,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         setImageUrls(loaded.imageUrls);
         setSignatures(loaded.signatures ?? []);
         setClients(clientRows ?? []);
-        setSelectedId(loaded.blocks[0]?.id ?? null);
+        setTab(loaded.proposal.client_id ? 'pages' : 'details');
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : 'Could not load this proposal');
       }
@@ -364,257 +368,200 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
 
   const selected = doc.blocks.find((block) => block.id === selectedId) ?? null;
   const hasCover = doc.blocks.some((block) => block.type === 'cover' && block.visible);
+  const pricingBlock = doc.blocks.find((block) => block.type === 'pricing') ?? null;
+  const { oneTime, monthly } = proposalTotals(doc.lineItems);
+  const status = STATUS[meta.status];
+  const addDays = (date: string, days: number) => {
+    const d = new Date(`${date}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+
+  const editBlock = (updated: ProposalBlock) =>
+    edit((current) => ({ blocks: current.blocks.map((block) => (block.id === updated.id ? updated : block)) }));
+
+  const blockEditor = (block: ProposalBlock) => (
+    <BlockEditor
+      block={block}
+      currency={meta.currency}
+      lineItems={doc.lineItems}
+      onLineItemsChange={(lineItems) => edit({ lineItems })}
+      onChange={editBlock}
+    />
+  );
 
   return (
     <BuilderProvider value={builderCtx}>
-      <div className={s.builder}>
+      <div className={`${s.builder} ${pb.builder}`}>
         <div className={s.pane}>
-          <div className={s.builderBar}>
-            <Link href="/admin/crm/proposals" className={`${s.btn} ${s.btnSmall}`}>
-              ← Proposals
-            </Link>
-            <span
-              className={`${s.saveState} ${
-                saveState === 'error'
-                  ? s.saveStateError
-                  : saveState === 'saved'
-                    ? s.saveStateSaved
-                    : ''
-              }`}
-              role="status"
-              aria-live="polite"
-            >
-              {
-                {
-                  clean: 'Up to date',
-                  pending: 'Unsaved changes',
-                  saving: 'Saving…',
-                  saved: 'Saved',
-                  error: 'Not saved',
-                }[saveState]
-              }
-            </span>
-            <span style={{ display: 'flex', gap: 6 }}>
-              <button
-                type="button"
-                className={`${s.btn} ${s.btnSmall}`}
-                aria-pressed={hasCover}
-                onClick={toggleCover}
-                title="Most proposals go without one; the first page opens with the running header instead"
+          <div className={pb.top}>
+            <div className={pb.topRow}>
+              <Link href="/admin/crm/proposals" className={pb.back}>← Proposals</Link>
+              <span className={`${b.status} ${status.cls}`}>{status.label}</span>
+              <span
+                className={`${s.saveState} ${saveState === 'error' ? s.saveStateError : saveState === 'saved' ? s.saveStateSaved : ''}`}
+                role="status"
+                aria-live="polite"
               >
-                Cover: {hasCover ? 'on' : 'off'}
-              </button>
-              <Link
-                href={`/admin/crm/proposals/${id}/tune`}
-                className={`${s.btn} ${s.btnSmall}`}
-                title="Tune the template's proportions and lock them in"
-              >
-                Tune design
-              </Link>
-              <Link
-                href={`/admin/crm/proposals/templates?from=${id}`}
-                className={`${s.btn} ${s.btnSmall}`}
-                title="Save this proposal's blocks as a reusable template"
-              >
-                Save as template
-              </Link>
-              <Link
-                href={`/admin/crm/proposals/${id}/preview`}
-                target="_blank"
-                className={`${s.btn} ${s.btnSmall}`}
-              >
-                Preview
-              </Link>
-              <button
-                type="button"
-                className={`${s.btn} ${s.btnSmall}`}
-                disabled={downloading}
-                onClick={downloadPdf}
-              >
+                {{ clean: 'Up to date', pending: 'Unsaved', saving: 'Saving…', saved: 'Saved', error: 'Not saved' }[saveState]}
+              </span>
+            </div>
+            <input
+              className={pb.titleInput}
+              value={doc.title}
+              aria-label="Proposal name"
+              placeholder="Proposal name"
+              onChange={(e) => edit({ title: e.target.value })}
+            />
+            <div className={pb.actions}>
+              <Link href={`/admin/crm/proposals/${id}/preview`} target="_blank" className={`${s.btn} ${s.btnSmall}`}>Preview</Link>
+              <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={downloading} onClick={downloadPdf}>
                 {downloading ? 'Building…' : 'PDF'}
               </button>
-              <button
-                type="button"
-                className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
-                disabled={publishing}
-                onClick={publish}
-              >
+              <details className={pb.more}>
+                <summary className={`${s.btn} ${s.btnSmall}`}>More</summary>
+                <div className={pb.menu}>
+                  <button type="button" onClick={toggleCover}>{hasCover ? 'Hide the cover page' : 'Add a cover page'}</button>
+                  <Link href={`/admin/crm/proposals/${id}/tune`}>Tune the design</Link>
+                  <Link href={`/admin/crm/proposals/templates?from=${id}`}>Save as a template</Link>
+                </div>
+              </details>
+              <button type="button" className={`${s.btn} ${s.btnSmall} ${s.btnPrimary} ${pb.primary}`} disabled={publishing} onClick={publish}>
                 {publishing ? 'Publishing…' : publishLabel(meta.status)}
               </button>
-            </span>
+            </div>
           </div>
 
-          {signatures.length > 0 && <SignedBanner signature={signatures[0]} currency={meta.currency} />}
-          {meta.status === 'declined' && (
-            <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />
+          {signatures.length > 0 && (
+            <SignedBanner signature={signatures[0]} currency={meta.currency} proposalId={id} depositPercent={doc.depositPercent} />
+          )}
+          {meta.status === 'declined' && <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />}
+
+          <div className={pb.tabs} role="tablist" aria-label="Edit">
+            {([['details', 'Details'], ['pricing', 'Pricing'], ['pages', 'Pages']] as const).map(([value, label]) => (
+              <button key={value} type="button" role="tab" aria-selected={tab === value}
+                className={`${pb.tab} ${tab === value ? pb.tabOn : ''}`}
+                onClick={() => { setTab(value); if (value === 'pages') setSelectedId(null); }}>
+                {label}
+                {value === 'pricing' && doc.lineItems.length > 0 && <span className={pb.tabNote}>{formatMoneyCents(oneTime || monthly, meta.currency)}</span>}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'details' && (
+            <div className={pb.panel}>
+              <Field label="Client">
+                {(fieldId) => (
+                  <select id={fieldId} className={s.select} value={doc.clientId} onChange={(e) => edit({ clientId: e.target.value })}>
+                    <option value="">No client</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.company ? `${client.name} · ${client.company}` : client.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+
+              <div className={s.inlineRow}>
+                <Field label="Date">
+                  {(fieldId) => (
+                    <input id={fieldId} type="date" className={s.input} value={doc.proposalDate} onChange={(e) => edit({ proposalDate: e.target.value })} />
+                  )}
+                </Field>
+                <Field label="Good until">
+                  {(fieldId) => (
+                    <input id={fieldId} type="date" className={s.input} value={doc.validUntil} onChange={(e) => edit({ validUntil: e.target.value })} />
+                  )}
+                </Field>
+              </div>
+              <div className={pb.chips}>
+                {[14, 30, 60].map((days) => (
+                  <button key={days} type="button" className={`${pb.chip} ${doc.validUntil === addDays(doc.proposalDate, days) ? pb.chipOn : ''}`}
+                    onClick={() => edit({ validUntil: addDays(doc.proposalDate, days) })}>{days} days</button>
+                ))}
+                <button type="button" className={`${pb.chip} ${!doc.validUntil ? pb.chipOn : ''}`} onClick={() => edit({ validUntil: '' })}>No end date</button>
+              </div>
+
+              <div className={pb.group}>
+                <span className={s.label}>Deposit due at signing</span>
+                <div className={pb.chips}>
+                  {[0, 25, 50, 100].map((pct) => (
+                    <button key={pct} type="button" className={`${pb.chip} ${doc.depositPercent === pct ? pb.chipOn : ''}`}
+                      onClick={() => edit({ depositPercent: pct })}>{pct === 0 ? 'None' : pct === 100 ? 'In full' : `${pct}%`}</button>
+                  ))}
+                  <input type="number" min={0} max={100} className={`${s.input} ${pb.pct}`} aria-label="Deposit percent" value={doc.depositPercent}
+                    onChange={(e) => edit({ depositPercent: Math.min(100, Math.max(0, Number.parseInt(e.target.value, 10) || 0)) })} />
+                  <span className={pb.pctSign}>%</span>
+                </div>
+                {doc.depositPercent > 0 && oneTime > 0 && (
+                  <p className={s.hint}>{formatMoneyCents(Math.round((oneTime * doc.depositPercent) / 100), meta.currency)} due at signing</p>
+                )}
+              </div>
+
+              <div className={pb.group}>
+                <span className={s.label}>Accent colour</span>
+                <div className={pb.swatches}>
+                  {(['magenta', 'orange', 'blue', 'green', 'purple'] as AccentName[]).map((accent) => (
+                    <button key={accent} type="button" aria-label={accent} aria-pressed={doc.accent === accent}
+                      className={`${pb.swatch} ${pb[`sw_${accent}`]} ${doc.accent === accent ? pb.swatchOn : ''}`}
+                      onClick={() => edit({ accent })} />
+                  ))}
+                </div>
+              </div>
+
+              <details className={pb.disclosure}>
+                <summary>Running header</summary>
+                <TextInput label="Left" value={doc.agencyName} onChange={(agencyName) => edit({ agencyName })} />
+                <TextInput label="Right" value={doc.headerNote} onChange={(headerNote) => edit({ headerNote })} hint="On every page, e.g. the date." />
+              </details>
+
+              <button type="button" className={`${s.btn} ${s.btnPrimary} ${pb.next}`} onClick={() => setTab('pricing')}>Next: Pricing →</button>
+            </div>
           )}
 
-          <div className={s.railSection}>
-            <details style={{ marginBottom: 14 }}>
-              <summary
-                style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 10 }}
-              >
-                Proposal settings
-              </summary>
-
-              <div style={{ paddingTop: 10 }}>
-                <TextInput
-                  label="Name"
-                  value={doc.title}
-                  onChange={(title) => edit({ title })}
-                />
-
-                <Field label="Client">
-                  {(fieldId) => (
-                    <select
-                      id={fieldId}
-                      className={s.select}
-                      value={doc.clientId}
-                      onChange={(e) => edit({ clientId: e.target.value })}
-                    >
-                      <option value="">No client</option>
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.company ? `${client.name} · ${client.company}` : client.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Field>
-
-                <div className={s.inlineRow}>
-                  <Field label="Proposal date">
-                    {(fieldId) => (
-                      <input
-                        id={fieldId}
-                        type="date"
-                        className={s.input}
-                        value={doc.proposalDate}
-                        onChange={(e) => edit({ proposalDate: e.target.value })}
-                      />
-                    )}
-                  </Field>
-                  <Field label="Valid until">
-                    {(fieldId) => (
-                      <input
-                        id={fieldId}
-                        type="date"
-                        className={s.input}
-                        value={doc.validUntil}
-                        onChange={(e) => edit({ validUntil: e.target.value })}
-                      />
-                    )}
-                  </Field>
+          {tab === 'pricing' && (
+            <div className={pb.panel}>
+              {pricingBlock ? blockEditor(pricingBlock) : (
+                <div className={pb.emptyPanel}>
+                  <p>This proposal has no pricing page yet.</p>
+                  <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={() => { addBlock('pricing'); setTab('pricing'); }}>Add a pricing page</button>
                 </div>
-
-                <Field
-                  label="Deposit"
-                  hint={`Due on approval: ${formatMoneyCents(
-                    Math.round((totalCents * doc.depositPercent) / 100),
-                    meta.currency,
-                  )}`}
-                >
-                  {(fieldId) => (
-                    <input
-                      id={fieldId}
-                      type="number"
-                      min={0}
-                      max={100}
-                      className={s.input}
-                      value={doc.depositPercent}
-                      onChange={(e) =>
-                        edit({
-                          depositPercent: Math.min(
-                            100,
-                            Math.max(0, Number.parseInt(e.target.value, 10) || 0),
-                          ),
-                        })
-                      }
-                    />
-                  )}
-                </Field>
-
-                <Field label="Default accent">
-                  {(fieldId) => (
-                    <select
-                      id={fieldId}
-                      className={s.select}
-                      value={doc.accent}
-                      onChange={(e) => edit({ accent: e.target.value as AccentName })}
-                    >
-                      {(['green', 'orange', 'magenta', 'purple', 'blue'] as AccentName[]).map((accent) => (
-                        <option key={accent} value={accent}>
-                          {accent[0].toUpperCase() + accent.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Field>
-
-                <TextInput
-                  label="Running header — left"
-                  value={doc.agencyName}
-                  onChange={(agencyName) => edit({ agencyName })}
-                />
-                <TextInput
-                  label="Running header — right"
-                  value={doc.headerNote}
-                  onChange={(headerNote) => edit({ headerNote })}
-                  hint="Appears on every page, e.g. the date."
-                />
-              </div>
-            </details>
-
-            <div className={s.repeatHead}>
-              <span className={s.label} style={{ margin: 0 }}>
-                Blocks
-              </span>
-              <button
-                type="button"
-                className={`${s.btn} ${s.btnSmall}`}
-                onClick={() => setPickerOpen((open) => !open)}
-              >
-                Add block
-              </button>
+              )}
             </div>
+          )}
 
-            <BlockRail
-              blocks={doc.blocks}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onReorder={(blocks) => edit({ blocks })}
-              onToggleVisible={(blockId) =>
-                edit((current) => ({
-                  blocks: current.blocks.map((block) =>
-                    block.id === blockId ? { ...block, visible: !block.visible } : block,
-                  ),
-                }))
-              }
-              onDuplicate={duplicateBlock}
-              onDelete={deleteBlock}
-            />
-
-            {doc.blocks.length === 0 && (
-              <p className={s.hint}>No blocks yet. Add one to start the document.</p>
-            )}
-          </div>
-
-          <BlockPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onAdd={addBlock} />
-
-          {selected && (
-            <BlockEditor
-              block={selected}
-              currency={meta.currency}
-              lineItems={doc.lineItems}
-              onLineItemsChange={(lineItems) => edit({ lineItems })}
-              onChange={(updated) =>
-                edit((current) => ({
-                  blocks: current.blocks.map((block) =>
-                    block.id === updated.id ? updated : block,
-                  ),
-                }))
-              }
-            />
+          {tab === 'pages' && (
+            selected ? (
+              <div className={pb.panel}>
+                <button type="button" className={pb.back} onClick={() => setSelectedId(null)}>← All pages</button>
+                {blockEditor(selected)}
+              </div>
+            ) : (
+              <div className={s.railSection}>
+                <div className={s.repeatHead}>
+                  <span className={pb.panelHint}>Tap a page to edit it. Drag to reorder.</span>
+                  <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={() => setPickerOpen((open) => !open)}>
+                    + Add a page
+                  </button>
+                </div>
+                <BlockPicker open={pickerOpen} onClose={() => setPickerOpen(false)} onAdd={addBlock} />
+                <BlockRail
+                  blocks={doc.blocks}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onReorder={(blocks) => edit({ blocks })}
+                  onToggleVisible={(blockId) =>
+                    edit((current) => ({
+                      blocks: current.blocks.map((block) => (block.id === blockId ? { ...block, visible: !block.visible } : block)),
+                    }))
+                  }
+                  onDuplicate={duplicateBlock}
+                  onDelete={deleteBlock}
+                />
+                {doc.blocks.length === 0 && <p className={s.hint}>No pages yet. Add one to start the document.</p>}
+              </div>
+            )
           )}
         </div>
 
@@ -622,14 +569,10 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
           <div className={proposalFontClass}>
             <ProposalRenderer
               blocks={doc.blocks}
-              theme={{
-                accent: doc.accent,
-                agencyName: doc.agencyName,
-                headerNote: doc.headerNote,
-              }}
+              theme={{ accent: doc.accent, agencyName: doc.agencyName, headerNote: doc.headerNote }}
               mode="web"
               currency={meta.currency}
-              totalCents={totalCents}
+              totalCents={doc.lineItems.length ? oneTime + monthly : totalCents}
               lineItems={doc.lineItems.map((item, index) => ({
                 id: item.id ?? `local-${index}`,
                 proposal_id: id,
@@ -653,109 +596,71 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   );
 }
 
+const STATUS: Record<ProposalStatus, { cls: string; label: string }> = {
+  draft: { cls: b.stDraft, label: 'Draft' },
+  sent: { cls: b.stSent, label: 'Sent' },
+  viewed: { cls: s.stViewed, label: 'Opened' },
+  signed: { cls: b.stAccepted, label: 'Signed' },
+  declined: { cls: b.stDeclined, label: 'Declined' },
+  expired: { cls: b.stInvoiced, label: 'Expired' },
+};
+
 /**
- * Shown once a client has approved. Editing stays available on purpose — the
- * signature row holds its own frozen copy of the blocks, so changes here
- * cannot alter what was signed.
+ * Shown once a client has approved, with the next step: invoicing. Editing
+ * stays available on purpose — the signature row holds its own frozen copy
+ * of the blocks, so changes here cannot alter what was signed.
  */
 function SignedBanner({
   signature,
   currency,
+  proposalId,
+  depositPercent,
 }: {
   signature: SignatureRow;
   currency: string;
+  proposalId: string;
+  depositPercent: number;
 }) {
+  const split = depositPercent > 0 && depositPercent < 100;
   return (
-    <div
-      style={{
-        margin: '12px 12px 0',
-        border: '1px solid #bbf7d0',
-        borderLeft: '3px solid #141414',
-        borderRadius: 8,
-        background: '#f0fdf4',
-        padding: '12px 14px',
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#141414', marginBottom: 4 }}>
-        Signed by {signature.signer_name}
-      </div>
-      <p style={{ margin: 0, fontSize: 12, color: '#3f6212', lineHeight: 1.55 }}>
-        {new Date(signature.signed_at).toLocaleString('en-US', {
-          dateStyle: 'medium',
-          timeStyle: 'short',
-        })}{' '}
-        · {formatMoneyCents(signature.total_cents, currency)}
+    <div className={`${pb.banner} ${pb.bannerSigned}`}>
+      <strong>Signed by {signature.signer_name}</strong>
+      <p>
+        {new Date(signature.signed_at).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+        {' · '}{formatMoneyCents(signature.total_cents, currency)}
         {signature.ip_address ? ` · ${signature.ip_address}` : ''}
       </p>
-      <p style={{ margin: '6px 0 0', fontSize: 11, color: '#65803d', lineHeight: 1.5 }}>
-        Editing below changes the live document only. What was signed is frozen on the signature
-        record and does not change.
+      <div className={pb.bannerActions}>
+        {split ? (
+          <>
+            <Link href={`/admin/invoices?proposal=${proposalId}&part=deposit`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Invoice the deposit</Link>
+            <Link href={`/admin/invoices?proposal=${proposalId}&part=balance`} className={`${s.btn} ${s.btnSmall}`}>Invoice the balance</Link>
+          </>
+        ) : (
+          <Link href={`/admin/invoices?proposal=${proposalId}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Make the invoice</Link>
+        )}
+      </div>
+      <p className={pb.bannerSmall}>
+        Editing changes the live document only. What was signed is frozen on the signature record.
+        {signature.content_hash ? ` Fingerprint ${signature.content_hash.slice(0, 16)}…` : ''}
       </p>
-      {signature.content_hash && (
-        <p
-          style={{
-            margin: '6px 0 0',
-            fontSize: 10,
-            color: '#84a05a',
-            wordBreak: 'break-all',
-            fontFamily: 'ui-monospace, monospace',
-          }}
-        >
-          {signature.content_hash}
-        </p>
-      )}
     </div>
   );
 }
 
 /**
- * Shown when a client has said no. The reason is the useful part, so it is
- * the thing the banner is built around — publishing again reopens the
- * proposal on the same link and clears this.
+ * Shown when a client has said no. The reason is the useful part — publishing
+ * again reopens the proposal on the same link and clears this.
  */
-function DeclinedBanner({
-  reason,
-  declinedAt,
-}: {
-  reason: string | null;
-  declinedAt: string | null;
-}) {
+function DeclinedBanner({ reason, declinedAt }: { reason: string | null; declinedAt: string | null }) {
   return (
-    <div
-      style={{
-        margin: '12px 12px 0',
-        border: '1px solid #fed7aa',
-        borderLeft: '3px solid #c2410c',
-        borderRadius: 8,
-        background: '#fff7ed',
-        padding: '12px 14px',
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#c2410c', marginBottom: 4 }}>
+    <div className={`${pb.banner} ${pb.bannerDeclined}`}>
+      <strong>
         Declined
-        {declinedAt
-          ? ` ${new Date(declinedAt).toLocaleString('en-US', {
-              dateStyle: 'medium',
-              timeStyle: 'short',
-            })}`
-          : ''}
-      </div>
-      {reason && (
-        <p
-          style={{
-            margin: '0 0 6px',
-            fontSize: 12,
-            color: '#7c2d12',
-            lineHeight: 1.55,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          “{reason}”
-        </p>
-      )}
-      <p style={{ margin: 0, fontSize: 11, color: '#9a5b3d', lineHeight: 1.5 }}>
-        Revise and publish again to reopen it on the same link.
-      </p>
+        {declinedAt ? ` ${new Date(declinedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
+      </strong>
+      {reason && <p className={pb.reason}>“{reason}”</p>}
+      <p className={pb.bannerSmall}>Revise it and publish again to reopen it on the same link.</p>
     </div>
   );
 }
@@ -763,11 +668,10 @@ function DeclinedBanner({
 /**
  * The button both publishes and copies, so it has to say which one it is
  * about to do. A declined proposal in particular reopens to the client when
- * this is pressed — labelling that "Copy link" would be a quiet way to
- * un-decline a proposal by accident.
+ * this is pressed.
  */
 function publishLabel(status: ProposalStatus): string {
   if (status === 'draft') return 'Publish';
   if (status === 'declined') return 'Publish again';
-  return 'Copy link';
+  return 'Copy client link';
 }

@@ -74,6 +74,8 @@ export const createProposalSchema = z.object({
   cover: z.boolean().optional(),
   /** The CRM deal this proposal is for, when started from one. */
   crmDealId: z.string().uuid().nullable().optional(),
+  /** Start from a saved estimate: its client, its lines as the pricing, the Thrive layout around it. */
+  fromEstimateId: z.string().uuid().nullable().optional(),
 });
 
 export const createClientSchema = z.object({

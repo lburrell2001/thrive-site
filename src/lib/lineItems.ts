@@ -242,6 +242,31 @@ export function amountText(oneTime: number, monthly: number): string {
   return `${money(oneTime)} + ${money(monthly)}/mo`;
 }
 
+export type ClientRow = { name: string; description: string; hours: number | null; oneTime: number; monthly: number; group: boolean };
+
+/**
+ * The rows the client sees. Every line normally; with "Totals only", one row
+ * per category — except that a line with no category, or the only line in
+ * its category, shows under its own name (a lone "Other — $125" tells the
+ * client nothing).
+ */
+export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] {
+  const one = (it: LineItem): ClientRow => ({
+    name: it.name,
+    description: it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, ''),
+    hours: it.hours,
+    oneTime: isMonthly(it) ? 0 : it.amount_cents,
+    monthly: isMonthly(it) ? it.amount_cents : 0,
+    group: false,
+  });
+  if (!totalsOnly) return items.map(one);
+  return categoryTotals(items).flatMap((g): ClientRow[] => {
+    const uncategorised = g.items.every((it) => !it.category?.trim());
+    if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), description: '', hours: null }));
+    return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true }];
+  });
+}
+
 /** "One-time: $2,675 · Monthly: $100/mo", or just the one that applies. */
 export function totalsLabel(items: LineItem[]): string {
   const { oneTime, monthly } = splitTotals(items);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { decryptSecret, encryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
@@ -417,27 +418,9 @@ export async function POST(req: NextRequest) {
       case 'proposal_recipient': {
         const { clientId } = params as { clientId: string };
         if (!clientId) return err('Missing client');
-        const { data: contact } = await admin.from('crm_contacts').select('id, name, company, email, phone').eq('portal_client_id', clientId).limit(1).maybeSingle();
-        const filter = contact ? `portal_client_id.eq.${clientId},crm_contact_id.eq.${contact.id}` : `portal_client_id.eq.${clientId}`;
-        const { data: existing } = await admin.from('proposal_clients').select('id').or(filter).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (existing) return NextResponse.json({ ok: true, data: { id: existing.id } });
-
-        const [{ data: profile }, { data: authData }] = await Promise.all([
-          admin.from('portal_clients').select('full_name, company_name, phone').eq('id', clientId).maybeSingle(),
-          admin.auth.admin.getUserById(clientId),
-        ]);
-        if (!profile && !contact) return err('Client not found');
-        const name = contact?.name || profile?.full_name || profile?.company_name || authData?.user?.email || 'Client';
-        const { data, error } = await admin.from('proposal_clients').insert({
-          name,
-          company: contact?.company || profile?.company_name || null,
-          email: contact?.email || authData?.user?.email || null,
-          phone: contact?.phone || profile?.phone || null,
-          portal_client_id: clientId,
-          crm_contact_id: contact?.id ?? null,
-        }).select('id').single();
-        if (error) return err(error.message);
-        return NextResponse.json({ ok: true, data: { id: data.id } });
+        const result = await recipientForPortalClient(admin, clientId);
+        if ('error' in result) return err(result.error);
+        return NextResponse.json({ ok: true, data: { id: result.id } });
       }
 
       case 'next_invoice_number': {

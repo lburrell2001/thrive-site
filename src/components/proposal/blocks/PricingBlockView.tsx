@@ -19,6 +19,14 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
   const itemised = c.showLineItemPrices && ctx.lineItems.length > 0;
   const deposit = depositLine(ctx.depositPercent);
   const hasRows = itemised || c.deliverables.length > 0;
+  // Monthly lines (from the price list, description ending "/mo") are shown
+  // apart from the one-time total. Only the sums are rendered, never a line.
+  const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
+  const monthlyCents = ctx.lineItems
+    .filter((item) => isMonthly(item.description))
+    .reduce((sum, item) => sum + Math.round(item.quantity * item.unit_price_cents), 0);
+  const oneTimeCents = ctx.totalCents - monthlyCents;
+  const stripMo = (d: string) => d.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
 
   return (
     <Page ctx={ctx} accent={accent} startsPage={startsPage} type="pricing">
@@ -31,12 +39,13 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
               <div key={item.id} className={styles.pricingRow}>
                 <div className={styles.pricingRowText}>
                   <p className={styles.pricingRowTitle}>{item.label}</p>
-                  {item.description && (
-                    <p className={styles.pricingRowDescription}>{item.description}</p>
+                  {item.description && stripMo(item.description) && (
+                    <p className={styles.pricingRowDescription}>{stripMo(item.description)}</p>
                   )}
                 </div>
                 <div className={styles.pricingRowAmount}>
                   {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}
+                  {isMonthly(item.description) ? '/mo' : ''}
                 </div>
               </div>
             ))
@@ -56,8 +65,13 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
         <span className={styles.pricingTotalLabel}>{c.totalLabel}</span>
         <div className={styles.pricingTotalRight}>
           <div className={styles.pricingTotalValue}>
-            {formatMoney(ctx.totalCents, ctx.currency)}
+            {monthlyCents > 0 && oneTimeCents <= 0
+              ? `${formatMoney(monthlyCents, ctx.currency)}/mo`
+              : formatMoney(oneTimeCents, ctx.currency)}
           </div>
+          {monthlyCents > 0 && oneTimeCents > 0 && (
+            <div className={styles.pricingDeposit}>+ {formatMoney(monthlyCents, ctx.currency)}/mo</div>
+          )}
           {deposit && <div className={styles.pricingDeposit}>{deposit}</div>}
         </div>
       </div>

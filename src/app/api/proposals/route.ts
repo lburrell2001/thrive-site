@@ -7,6 +7,9 @@ import { createProposalSchema } from '@/lib/proposalWriteSchemas';
 import { emptyBlock, parseBlocksLenient } from '@/lib/proposalSchemas';
 import { headerDate, starterBlocks } from '@/lib/proposalStarter';
 import type { ProposalBlock } from '@/types/proposal';
+import { estimateToProposalLines } from '@/lib/proposalBilling';
+import { recipientForContact, recipientForPortalClient } from '@/lib/proposalRecipients';
+import type { LineItem } from '@/lib/lineItems';
 
 export function newAccessToken() {
   return randomBytes(24).toString('base64url').slice(0, 32);
@@ -62,7 +65,8 @@ export async function POST(req: Request) {
   const parsed = createProposalSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid request');
 
-  const { title, clientId, templateId, fromProposalId, starter, cover = false, crmDealId } = parsed.data;
+  const { title, templateId, fromProposalId, starter, cover = false, crmDealId, fromEstimateId } = parsed.data;
+  let { clientId } = parsed.data;
   const db = auth.db;
 
   // Work out the starting blocks.
@@ -72,7 +76,30 @@ export async function POST(req: Request) {
   let depositPercent = 50;
   let currency = 'USD';
 
-  if (fromProposalId) {
+  let skipped: string[] = [];
+
+  if (fromEstimateId) {
+    // An estimate: the Thrive layout, its client, and its lines as the pricing.
+    const { data: est } = await db.from('estimates').select('*').eq('id', fromEstimateId).maybeSingle();
+    if (!est) return badRequest('Estimate not found', 404);
+    if (!clientId && est.portal_client_id) {
+      const r = await recipientForPortalClient(db, est.portal_client_id);
+      if ('id' in r) clientId = r.id;
+    }
+    if (!clientId && est.crm_contact_id) {
+      const r = await recipientForContact(db, est.crm_contact_id);
+      if ('id' in r) clientId = r.id;
+    }
+    const converted = estimateToProposalLines((est.line_items ?? []) as LineItem[]);
+    lineItems = converted.lineItems;
+    skipped = converted.skipped;
+    blocks = starterBlocks({ cover, clientName: est.client_name || null, projectName: est.title || null }).map((block) =>
+      block.type === 'pricing'
+        ? { ...block, content: { ...block.content, deliverables: converted.deliverables } }
+        : block,
+    );
+    theme = { accent: 'magenta', headerNote: headerDate() };
+  } else if (fromProposalId) {
     const [source, sourceBlocks, sourceItems] = await Promise.all([
       db.from('proposals').select('*').eq('id', fromProposalId).maybeSingle(),
       db.from('proposal_blocks').select('*').eq('proposal_id', fromProposalId).order('position'),
@@ -178,5 +205,5 @@ export async function POST(req: Request) {
     if (saveError) return badRequest(saveError.message);
   }
 
-  return NextResponse.json({ ok: true, data: { id: created.id } });
+  return NextResponse.json({ ok: true, data: { id: created.id, skipped } });
 }
