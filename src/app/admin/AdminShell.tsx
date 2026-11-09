@@ -2,28 +2,26 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Bai_Jamjuree } from 'next/font/google';
 import { markThisBrowserAsAdmin } from '../components/SiteTracker';
 import { adminAuth, adminHeaders, adminSignOut, rememberPasscode, storedPasscode } from '@/lib/adminSession';
 import { AdminWorkspace } from './AdminWorkspace';
 
-const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
+// The site's type (Poppins, loaded in the root layout as --rd-sans).
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
-  inter:  `var(--font-inter),  'Inter',  sans-serif`,
+  inter: `var(--rd-sans), system-ui, sans-serif`,
 };
 
 type Stage = 'checking' | 'login' | 'code' | 'enroll' | 'passcode' | 'in';
 
 const fieldStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: '#1a1a1a', border: '1.5px solid #333',
-  borderRadius: 8, padding: '12px 14px',
+  background: '#1c1c1c', border: '1.5px solid #333',
+  borderRadius: 999, padding: '12px 18px',
   fontFamily: F.inter, fontSize: 14, color: '#fff',
   outline: 'none',
 };
-const labelStyle: React.CSSProperties = { fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#666', display: 'block', marginBottom: 6 };
+const labelStyle: React.CSSProperties = { fontFamily: F.inter, fontSize: 13, fontWeight: 600, color: '#9a9a9a', display: 'block', marginBottom: 6 };
 
 function SubmitButton({ busy, disabled, children }: { busy: boolean; disabled: boolean; children: React.ReactNode }) {
   const off = busy || disabled;
@@ -32,8 +30,8 @@ function SubmitButton({ busy, disabled, children }: { busy: boolean; disabled: b
       type="submit"
       disabled={off}
       style={{
-        background: off ? '#333' : '#e40586',
-        color: '#fff', border: 'none', borderRadius: 8,
+        background: off ? '#333' : '#e50586',
+        color: '#fff', border: 'none', borderRadius: 999,
         padding: '12px 0', fontFamily: F.inter, fontSize: 14, fontWeight: 700,
         cursor: off ? 'default' : 'pointer', transition: 'background .15s',
       }}
@@ -165,8 +163,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
   if (stage === 'checking') {
     return (
-      <div className={`${baiJamjuree.variable}`}
-        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a' }}>
+      <div 
+        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#141414' }}>
         <span style={{ fontFamily: F.inter, fontSize: 14, color: '#666' }}>Loading…</span>
       </div>
     );
@@ -175,27 +173,27 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   if (stage !== 'in') {
     const hint = (text: string) => <p style={{ fontFamily: F.inter, fontSize: 13, color: '#888', margin: 0, lineHeight: 1.55 }}>{text}</p>;
     return (
-      <div className={`${baiJamjuree.variable}`}
-        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0a0a0a', padding: 24 }}>
+      <div 
+        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#141414', padding: 24 }}>
         <div style={{ width: '100%', maxWidth: 360 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40 }}>
             <img src="/new-thrive/logo-white.svg" alt="Thrive Creative Studios" style={{ height: 28, width: 'auto' }} />
-            <div style={{ fontFamily: F.inter, fontSize: 9, color: '#666', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
-              ADMIN ACCESS
+            <div style={{ fontFamily: F.inter, fontSize: 12, color: '#8a8a8a', fontWeight: 600 }}>
+              Admin Access
             </div>
           </div>
 
           {stage === 'login' && (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={labelStyle} htmlFor="adm-email">EMAIL</label>
+                <label style={labelStyle} htmlFor="adm-email">Email</label>
                 <input id="adm-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus style={fieldStyle} />
               </div>
               <div>
-                <label style={labelStyle} htmlFor="adm-password">PASSWORD</label>
+                <label style={labelStyle} htmlFor="adm-password">Password</label>
                 <input id="adm-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} style={fieldStyle} />
               </div>
-              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{error}</p>}
+              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{error}</p>}
               <SubmitButton busy={busy} disabled={!email || !password}>Sign in</SubmitButton>
               {passcodeOn && (
                 <button type="button" onClick={() => { setError(''); setStage('passcode'); }}
@@ -212,7 +210,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               <input aria-label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
                 value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} autoFocus
                 style={{ ...fieldStyle, fontSize: 22, letterSpacing: '0.3em', textAlign: 'center' }} />
-              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{error}</p>}
+              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{error}</p>}
               <SubmitButton busy={busy} disabled={code.length !== 6}>Verify</SubmitButton>
               <button type="button" onClick={handleSignOut} style={{ background: 'none', border: 0, color: '#888', fontFamily: F.inter, fontSize: 12, cursor: 'pointer' }}>Use a different account</button>
             </form>
@@ -233,7 +231,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
               <input aria-label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6}
                 value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                 style={{ ...fieldStyle, fontSize: 22, letterSpacing: '0.3em', textAlign: 'center' }} />
-              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{error}</p>}
+              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{error}</p>}
               <SubmitButton busy={busy} disabled={!enrollment || code.length !== 6}>Finish setup</SubmitButton>
               <button type="button" onClick={handleSignOut} style={{ background: 'none', border: 0, color: '#888', fontFamily: F.inter, fontSize: 12, cursor: 'pointer' }}>Cancel</button>
             </form>
@@ -242,10 +240,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           {stage === 'passcode' && (
             <form onSubmit={handlePasscode} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={labelStyle} htmlFor="adm-passcode">PASSCODE</label>
+                <label style={labelStyle} htmlFor="adm-passcode">Passcode</label>
                 <input id="adm-passcode" type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="Enter admin passcode" autoFocus style={fieldStyle} />
               </div>
-              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{error}</p>}
+              {error && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{error}</p>}
               <SubmitButton busy={busy} disabled={!passcode}>Enter Admin</SubmitButton>
               <button type="button" onClick={() => { setError(''); setStage('login'); }} style={{ background: 'none', border: 0, color: '#888', fontFamily: F.inter, fontSize: 12, cursor: 'pointer' }}>
                 Sign in with your account instead
@@ -270,7 +268,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className={baiJamjuree.variable}>
+    <div>
       <style>{`
         input[type="date"] { cursor: pointer; }
         input[type="date"]::-webkit-calendar-picker-indicator {

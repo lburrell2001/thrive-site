@@ -90,7 +90,7 @@ export function SecuritySettings() {
 
         {status === null && !error && <p className={p.empty}>Loading…</p>}
         {error && <p style={{ color: '#c40473', fontSize: 14, margin: '0 0 16px' }}>{error}</p>}
-        {note && <p style={{ color: '#1a8a4a', fontSize: 14, margin: '0 0 16px' }}>{note}</p>}
+        {note && <p style={{ color: '#141414', fontSize: 14, margin: '0 0 16px' }}>{note}</p>}
 
         {status && (
           <>

@@ -16,7 +16,7 @@
   display: inline-flex;
   padding: 3px;
   border-radius: 999px;
-  background: #ece9e6;
+  background: #ececec;
   margin-bottom: 16px;
 }
 
@@ -60,7 +60,7 @@
 .help code {
   padding: 1px 5px;
   border-radius: 4px;
-  background: #ece9e6;
+  background: #ececec;
   font-size: 11.5px;
   color: #333;
 }
@@ -69,8 +69,8 @@
   margin: 8px 0 0;
   padding: 8px 12px;
   border-radius: 8px;
-  background: #fff0f8;
-  color: #a1035e;
+  background: #ffffff;
+  color: #e50586;
   font-size: 12.5px;
   list-style: none;
 }
@@ -88,7 +88,7 @@
   position: sticky;
   top: 16px;
   background: #fff;
-  border: 1px solid #e4e1de;
+  border: 1px solid #e6e6e6;
   border-radius: 12px;
   padding: 32px 30px 26px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
@@ -102,7 +102,7 @@
   right: 0;
   bottom: 0;
   width: 6px;
-  background: #e40586;
+  background: #e50586;
 }
 
 .paperHead {
@@ -111,16 +111,17 @@
   align-items: flex-start;
   gap: 16px;
   padding-bottom: 14px;
-  border-bottom: 2px solid #e40586;
+  border-bottom: 2px solid #e50586;
 }
 
 .paperLogo { height: 26px; width: auto; }
 
 .paperKind {
   margin: 0;
-  font-family: var(--font-bungee), 'Bungee', sans-serif;
-  font-size: 26px;
-  font-weight: 400;
+  font-family: var(--a-display);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.085em;
   line-height: 1;
 }
 
@@ -150,7 +151,7 @@
 
 .table th {
   padding: 8px 10px;
-  background: #f6f5f4;
+  background: #f5f5f5;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -185,11 +186,13 @@
   color: #fff;
 }
 
-.totalLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #888; }
+.totalLabel { font-size: 12.5px; font-weight: 600; color: #6b6b6b; }
 
 .totalValue {
-  font-family: var(--font-bungee), 'Bungee', sans-serif;
-  font-size: 22px;
+  font-family: var(--a-display);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.07em;
 }
 
 .paperNotes {
@@ -221,7 +224,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid #f0eeec;
+  border-bottom: 1px solid #e6e6e6;
 }
 
 .listMain { flex: 1; min-width: 220px; }

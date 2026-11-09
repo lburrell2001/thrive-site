@@ -121,7 +121,7 @@ export default function PipelinePage() {
         </div>
         <button type="button" className={w.stat} style={{ textAlign: 'left', cursor: 'pointer', font: 'inherit', borderColor: dueOnly ? '#141414' : undefined }} aria-pressed={dueOnly} onClick={() => setDueOnly((v) => !v)}>
           <p className={w.statLabel}>Follow-ups due</p>
-          <p className={w.statValue} style={{ color: stats.due ? '#b0045f' : undefined }}>{stats.due}</p>
+          <p className={w.statValue} style={{ color: stats.due ? '#e50586' : undefined }}>{stats.due}</p>
           <p className={w.statNote}>{dueOnly ? 'Showing only these — click to show all' : 'Click to show only these'}</p>
         </button>
         <div className={w.stat}><p className={w.statLabel}>Unread inquiries</p><p className={w.statValue}>{stats.unread}</p></div>
@@ -251,7 +251,7 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
           <span className={s.cardValue}>{formatMoneyCents(d.value_cents)}</span>
         )}
         {progress && (
-          <span className={s.chip} style={progress.status === 'ended' ? { color: '#b45309' } : undefined}>
+          <span className={s.chip} style={progress.status === 'ended' ? { color: '#e50586' } : undefined}>
             {progress.status === 'active' ? `Month ${progress.month} of ${progress.term}` : progress.status === 'upcoming' ? `Starts ${formatDate(progress.startsOn)}` : 'Ended — renew?'}
           </span>
         )}

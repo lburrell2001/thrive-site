@@ -12,7 +12,7 @@ import type { ReminderPreview, ReminderResult, ReminderTarget } from '@/lib/remi
 import { formatPhone } from '@/lib/phone';
 
 const FONT = `var(--font-inter), 'Inter', sans-serif`;
-const PINK = '#e40586';
+const PINK = '#e50586';
 const DARK = '#0a0a0a';
 
 const input: React.CSSProperties = {
@@ -20,8 +20,8 @@ const input: React.CSSProperties = {
   fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box', background: '#fff', color: DARK,
 };
 const label: React.CSSProperties = {
-  fontFamily: FONT, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase',
-  letterSpacing: '0.06em', display: 'block', marginBottom: 5,
+  fontFamily: FONT, fontSize: 12.5, fontWeight: 600, color: '#2b2b2b',
+  display: 'block', marginBottom: 5,
 };
 
 function button(variant: 'primary' | 'ghost', disabled?: boolean): React.CSSProperties {
@@ -39,7 +39,7 @@ function when(iso: string) {
 }
 
 function StatusLine({ channel, status, to, error }: { channel: string; status: string; to: string | null; error: string | null }) {
-  const color = status === 'sent' ? '#1a8a4a' : status === 'failed' ? PINK : '#808080';
+  const color = status === 'sent' ? '#141414' : status === 'failed' ? PINK : '#808080';
   const text =
     status === 'sent' ? `sent${to ? ` to ${channel === 'Text' ? formatPhone(to) : to}` : ''}`
     : status === 'failed' ? `failed — ${error ?? 'unknown error'}`

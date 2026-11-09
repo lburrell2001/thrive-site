@@ -78,7 +78,7 @@ export function PricingForm({
         )}
       />
 
-      <hr style={{ border: 'none', borderTop: '1px solid #e4e1de', margin: '20px 0 16px' }} />
+      <hr style={{ border: 'none', borderTop: '1px solid #e6e6e6', margin: '20px 0 16px' }} />
 
       <Repeater
         label="Line items — the money"

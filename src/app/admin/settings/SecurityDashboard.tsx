@@ -9,15 +9,15 @@ import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import type { CheckStatus, SecurityReport } from '@/lib/securityReport';
 
 const TONE: Record<CheckStatus, { bg: string; fg: string; label: string }> = {
-  pass: { bg: '#e8f8ef', fg: '#1a7a45', label: 'OK' },
-  warn: { bg: '#fff4e5', fg: '#a65b00', label: 'Check' },
-  fail: { bg: '#fde8f1', fg: '#b0045f', label: 'Fix' },
+  pass: { bg: '#0cf574', fg: '#141414', label: 'OK' },
+  warn: { bg: '#fd6100', fg: '#141414', label: 'Check' },
+  fail: { bg: '#e50586', fg: '#fff', label: 'Fix' },
 };
 
 function Pill({ status }: { status: CheckStatus }) {
   const t = TONE[status];
   return (
-    <span style={{ display: 'inline-block', minWidth: 44, textAlign: 'center', padding: '3px 8px', borderRadius: 999, background: t.bg, color: t.fg, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase' }}>
+    <span style={{ display: 'inline-block', minWidth: 44, textAlign: 'center', padding: '3px 8px', borderRadius: 999, background: t.bg, color: t.fg, fontSize: 11.5, fontWeight: 600 }}>
       {t.label}
     </span>
   );
@@ -93,7 +93,7 @@ export default function SecurityDashboard({ version }: { version: number }) {
         <p style={sub}>Run live against the database, storage and website. The “public” checks use the same key every visitor’s browser has, so they show exactly what an outsider could reach.</p>
         {groups.map((g) => (
           <div key={g} style={{ marginTop: 14 }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: '.06em' }}>{g}</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#141414', letterSpacing: '-0.085em', wordSpacing: '0.1em' }}>{g}</h3>
             {report.checks.filter((c) => c.group === g).sort((a, b) => order[a.status] - order[b.status]).map((c) => (
               <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '56px 1fr', gap: 12, padding: '10px 0', borderTop: '1px solid #eee' }}>
                 <div><Pill status={c.status} /></div>
@@ -119,7 +119,7 @@ export default function SecurityDashboard({ version }: { version: number }) {
               <span style={{ fontSize: 14, fontWeight: 600, display: 'block' }}>{c.title}</span>
               <span style={{ fontSize: 13, color: '#666' }}>{c.detail}</span>
             </span>
-            <span style={{ fontSize: 12, color: c.stale ? '#a65b00' : '#888', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 12, color: c.stale ? '#e50586' : '#888', whiteSpace: 'nowrap' }}>
               {c.confirmedAt ? (c.stale ? `Due again (confirmed ${formatDate(c.confirmedAt)})` : `Confirmed ${formatDate(c.confirmedAt)}`) : 'Not confirmed'}
             </span>
           </label>

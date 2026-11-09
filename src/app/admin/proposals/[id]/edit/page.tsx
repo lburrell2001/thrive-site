@@ -670,13 +670,13 @@ function SignedBanner({
       style={{
         margin: '12px 12px 0',
         border: '1px solid #bbf7d0',
-        borderLeft: '3px solid #15803d',
+        borderLeft: '3px solid #141414',
         borderRadius: 8,
         background: '#f0fdf4',
         padding: '12px 14px',
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#141414', marginBottom: 4 }}>
         Signed by {signature.signer_name}
       </div>
       <p style={{ margin: 0, fontSize: 12, color: '#3f6212', lineHeight: 1.55 }}>

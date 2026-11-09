@@ -73,7 +73,7 @@ export function NewPrintCampaign({ onClose, onCreated, notify, contactIds = [] }
             </select>
           </label>
         </div>
-        {error && <p style={{ color: '#b00020', fontSize: 13 }}>{error}</p>}
+        {error && <p style={{ color: '#c4046f', fontSize: 13 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
           <button type="button" className={p.btn} onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className={`${p.btn} ${p.btnPrimary}`} disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create'}</button>

@@ -250,12 +250,12 @@ export function EmailDialog({ contactId, onClose, onDone }: {
                 </label>
               )}
               {left.length > 0 && (
-                <p className={s.eventMeta} style={{ margin: 0, color: '#b45309' }}>
+                <p className={s.eventMeta} style={{ margin: 0, color: '#e50586' }}>
                   Replace {left.length === 1 ? 'the' : `all ${left.length}`} <code>[[…]]</code> {left.length === 1 ? 'note' : 'notes'} before sending: {left[0]}
                 </p>
               )}
               {missing && (
-                <p className={s.eventMeta} style={{ margin: 0, color: '#b45309' }}>
+                <p className={s.eventMeta} style={{ margin: 0, color: '#e50586' }}>
                   No company on this contact, so {'{{company}}'} reads “your business”. Add it in Details, or reword.
                 </p>
               )}
@@ -275,7 +275,7 @@ export function EmailDialog({ contactId, onClose, onDone }: {
                   <span className={s.eventMeta} style={{ margin: 0, flexBasis: '100%' }}>Goes out within {CRON_MINUTES} minutes of this time. If they unsubscribe before then, it won’t send.</span>
                 </div>
               )}
-              {testedTo && <p className={s.eventMeta} style={{ margin: 0, color: '#1a8a4a' }}>Test sent to {testedTo}.</p>}
+              {testedTo && <p className={s.eventMeta} style={{ margin: 0, color: '#141414' }}>Test sent to {testedTo}.</p>}
               {error && <p className={s.error} style={{ margin: 0 }}>{error}</p>}
             </div>
             <div style={{ minWidth: 0 }}>
@@ -286,7 +286,7 @@ export function EmailDialog({ contactId, onClose, onDone }: {
                 title="Email preview"
                 srcDoc={preview?.html ?? ''}
                 sandbox=""
-                style={{ width: '100%', height: 'min(560px, 60vh)', border: '1px solid #e4e1de', borderRadius: 10, background: '#fff' }}
+                style={{ width: '100%', height: 'min(560px, 60vh)', border: '1px solid #e6e6e6', borderRadius: 10, background: '#fff' }}
               />
             </div>
           </div>

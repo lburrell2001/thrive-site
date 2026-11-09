@@ -21,7 +21,7 @@ const TABS: { value: ReviewStatus; label: string; empty: string }[] = [
 
 function Stars({ n }: { n: number | null }) {
   if (!n) return null;
-  return <span aria-label={`${n} out of 5 stars`} style={{ color: '#e40586', letterSpacing: 1 }}>{'★'.repeat(n)}<span style={{ color: '#d9d6d2' }}>{'★'.repeat(5 - n)}</span></span>;
+  return <span aria-label={`${n} out of 5 stars`} style={{ color: '#e50586', letterSpacing: 1 }}>{'★'.repeat(n)}<span style={{ color: '#d4d4d4' }}>{'★'.repeat(5 - n)}</span></span>;
 }
 
 export default function ReviewsAdmin() {
@@ -100,7 +100,7 @@ export default function ReviewsAdmin() {
           {rows === null && <p className={p.empty}>Loading…</p>}
           {rows !== null && visible.length === 0 && <p className={p.empty}>{current.empty}</p>}
           {visible.map((r) => (
-            <div key={r.id} style={{ padding: '16px 18px', borderBottom: '1px solid #f0eeec' }}>
+            <div key={r.id} style={{ padding: '16px 18px', borderBottom: '1px solid #e6e6e6' }}>
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: 10, justifyContent: 'space-between' }}>
                 <div>
                   <strong style={{ fontSize: 14 }}>{r.display_name || r.contact_name || 'Client'}</strong>

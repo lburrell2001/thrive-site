@@ -346,7 +346,7 @@ export function ImageField({
         />
       </div>
 
-      {error && <p className={s.hint} style={{ color: '#b00020' }}>{error}</p>}
+      {error && <p className={s.hint} style={{ color: '#c4046f' }}>{error}</p>}
 
       {onAltChange && (
         <TextInput

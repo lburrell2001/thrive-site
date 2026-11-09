@@ -153,7 +153,7 @@ export default function EmailsPage() {
       </div>
 
       {settings && !settings.address && (
-        <p className={p.card} style={{ color: '#92400e', background: '#fffbeb', marginBottom: 14 }}>
+        <p className={p.card} style={{ color: '#141414', borderColor: '#fd6100', borderWidth: 2, marginBottom: 14 }}>
           Add your mailing address in <button type="button" className={w.cardLink} style={{ color: 'inherit', textDecoration: 'underline' }} onClick={() => router.push('/admin/settings?tab=email')}>Settings</button> — every marketing email has to include one, so sending is off until it’s there.
         </p>
       )}
@@ -311,7 +311,7 @@ function NewEmailDialog({ contactIds, templates, onClose, onCreated }: {
         <p className={w.navLabel} style={{ margin: '16px 0 8px' }}>Who is it for?</p>
         <div style={{ display: 'grid', gap: 8 }}>
           {options.map((o) => (
-            <label key={o.value} className={w.item} style={{ border: `1px solid ${who === o.value ? '#141414' : '#ebe9e5'}`, borderRadius: 12, opacity: o.disabled ? 0.5 : 1, cursor: o.disabled ? 'default' : 'pointer' }}>
+            <label key={o.value} className={w.item} style={{ border: `1px solid ${who === o.value ? '#141414' : '#e6e6e6'}`, borderRadius: 12, opacity: o.disabled ? 0.5 : 1, cursor: o.disabled ? 'default' : 'pointer' }}>
               <input type="radio" name="who" className={w.check} checked={who === o.value} disabled={o.disabled} onChange={() => setWho(o.value)} />
               <span className={w.itemMain}>
                 <span style={{ display: 'block', fontWeight: 600, fontSize: 14 }}>{o.label}</span>
@@ -331,7 +331,7 @@ function NewEmailDialog({ contactIds, templates, onClose, onCreated }: {
             For people who haven’t heard from you before, a short personal note usually lands in the main inbox and gets more replies than a designed email.
           </p>
         )}
-        {error && <p style={{ color: '#b00020', fontSize: 13 }}>{error}</p>}
+        {error && <p style={{ color: '#c4046f', fontSize: 13 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 18 }}>
           <button type="button" className={p.btn} onClick={onClose} disabled={busy}>Cancel</button>
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={create} disabled={busy}>{busy ? 'Starting…' : 'Start writing'}</button>

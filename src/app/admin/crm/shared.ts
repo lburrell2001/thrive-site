@@ -1,11 +1,11 @@
 import type { CrmStage } from '@/types/crm';
 
 export const STAGE_COLOR: Record<CrmStage, string> = {
-  lead: '#e40586',
+  lead: '#e50586',
   contacted: '#fd6100',
-  proposal: '#5b2d8e',
-  won: '#1a8a4a',
-  lost: '#9a9a9a',
+  proposal: '#9409ce',
+  won: '#0cf574',
+  lost: '#141414',
 };
 
 /** Local calendar date, YYYY-MM-DD — what task due dates are compared to. */
@@ -39,7 +39,8 @@ export function lifecycleOf(c: { portal_client_id: string | null; won_deals?: nu
   return 'contact';
 }
 
-const AVATAR = ['#e50586', '#fd6100', '#3943b7', '#9409ce', '#0a8f4f', '#0a0a0a'];
+// Brand colours that carry white initials.
+const AVATAR = ['#e50586', '#3943b7', '#9409ce', '#141414'];
 
 /** A steady colour per person, so they're recognisable at a glance. */
 export function avatarColor(id: string) {

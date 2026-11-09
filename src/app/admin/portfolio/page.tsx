@@ -364,9 +364,9 @@ export default function PortfolioAdminPage() {
           {msg && (
             <div style={{
               padding: '10px 14px', borderRadius: 10, marginBottom: 20,
-              background: msg.type === 'ok' ? '#e6f6ec' : 'var(--a-accent-soft)',
+              background: msg.type === 'ok' ? '#0cf574' : 'var(--a-accent-soft)',
               fontSize: 13, fontWeight: 600,
-              color: msg.type === 'ok' ? '#13703a' : 'var(--a-accent-hover)',
+              color: msg.type === 'ok' ? '#141414' : 'var(--a-accent-hover)',
             }}>
               {msg.text}
             </div>

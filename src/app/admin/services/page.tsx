@@ -10,8 +10,8 @@ import { adminHeaders } from '@/lib/adminSession';
 
 const SERVICES = [
   { slug: 'branding',       label: 'Branding',       accent: '#fd6100', coverKey: 'brand-design',   staticFallback: '/new-thrive/services/brand-design.webp' },
-  { slug: 'digital-design', label: 'Web development', accent: '#1e3add', coverKey: 'digital-design', staticFallback: '/new-thrive/services/web-development.webp' },
-  { slug: 'ux-design',      label: 'UX design',      accent: '#5b2d8e', coverKey: 'ux-design',      staticFallback: '/new-thrive/services/ux.webp' },
+  { slug: 'digital-design', label: 'Web development', accent: '#3943b7', coverKey: 'digital-design', staticFallback: '/new-thrive/services/web-development.webp' },
+  { slug: 'ux-design',      label: 'UX design',      accent: '#9409ce', coverKey: 'ux-design',      staticFallback: '/new-thrive/services/ux.webp' },
   { slug: 'social-media',   label: 'Social media',   accent: '#e50586', coverKey: 'social-media',   staticFallback: '/new-thrive/services/social-media.webp' },
   { slug: 'photography',    label: 'Photography',    accent: '#0cf574', coverKey: 'photography',    staticFallback: '/new-thrive/services/photo.webp' },
 ];
@@ -197,7 +197,7 @@ export default function ServicesAdminPage() {
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => inputRefs.current[svc.slug]?.click()} disabled={isUploading}>
                     {isUploading ? 'Uploading…' : 'Replace'}
                   </button>
-                  {msg && <p style={{ flexBasis: '100%', fontSize: 12, margin: 0, color: msg.type === 'ok' ? '#13703a' : 'var(--a-danger)' }}>{msg.text}</p>}
+                  {msg && <p style={{ flexBasis: '100%', fontSize: 12, margin: 0, color: msg.type === 'ok' ? '#141414' : 'var(--a-danger)' }}>{msg.text}</p>}
                 </div>
               </div>
             );
@@ -261,7 +261,7 @@ export default function ServicesAdminPage() {
             {saving === activeServiceTab ? 'Saving…' : `Save ${activeService.label}`}
           </button>
           {featuredMsgs[activeServiceTab] && (
-            <span style={{ fontSize: 13, color: featuredMsgs[activeServiceTab].type === 'ok' ? '#13703a' : 'var(--a-danger)' }}>
+            <span style={{ fontSize: 13, color: featuredMsgs[activeServiceTab].type === 'ok' ? '#141414' : 'var(--a-danger)' }}>
               {featuredMsgs[activeServiceTab].text}
             </span>
           )}

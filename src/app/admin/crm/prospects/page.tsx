@@ -403,7 +403,7 @@ function AddProspects({ onClose, onAdded, existingTags }: { onClose: () => void;
             <p className={w.muted} style={{ fontSize: 12, lineHeight: 1.5, margin: '10px 0 0' }}>
               Add people at businesses you’ve a real reason to contact. Every email includes an unsubscribe link, and anyone who uses it is never emailed again. People added with only a handle are skipped by email sends.
             </p>
-            {error && <p style={{ color: '#b00020', fontSize: 13 }}>{error}</p>}
+            {error && <p style={{ color: '#c4046f', fontSize: 13 }}>{error}</p>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
               <button type="button" className={p.btn} onClick={addedSoFar ? onAdded : onClose} disabled={busy}>{addedSoFar ? 'Done' : 'Cancel'}</button>
               {mode === 'one' && (

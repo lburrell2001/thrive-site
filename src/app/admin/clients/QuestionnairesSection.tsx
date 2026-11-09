@@ -24,10 +24,10 @@ type Assigned = {
 
 const FONT = 'var(--a-font)';
 const STATUS_COLOR: Record<AssignmentStatus, { bg: string; fg: string }> = {
-  not_started: { bg: '#f1f0ef', fg: '#4a4a4a' },
+  not_started: { bg: '#f5f5f5', fg: '#4a4a4a' },
   in_progress: { bg: '#fff3e8', fg: '#a14000' },
-  reopened: { bg: '#fff0f8', fg: '#b0005f' },
-  submitted: { bg: '#e6fff0', fg: '#0a7a3a' },
+  reopened: { bg: '#ffffff', fg: '#b0005f' },
+  submitted: { bg: '#e6fff0', fg: '#141414' },
 };
 
 export default function QuestionnairesSection({ clientId, projects, reminders, remind }: {
@@ -135,7 +135,7 @@ export default function QuestionnairesSection({ clientId, projects, reminders, r
         {!picking && <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={startPicking} disabled={!assigned}>+ Assign</button>}
       </div>
 
-      {msg && <p style={{ fontSize: 13, margin: '0 0 10px', color: msg.tone === 'error' ? 'var(--a-danger)' : '#1a8a4a' }}>{msg.text}</p>}
+      {msg && <p style={{ fontSize: 13, margin: '0 0 10px', color: msg.tone === 'error' ? 'var(--a-danger)' : '#141414' }}>{msg.text}</p>}
 
       {picking && (
         <div style={{ ...box, background: 'var(--a-surface-2)', marginBottom: 12, display: 'grid', gap: 10 }}>

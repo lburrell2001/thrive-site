@@ -141,7 +141,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
         <section className={w.card}>
           <div className={w.cardHead}><h2 className={w.cardTitle}>QR code for the piece</h2></div>
           <div style={{ padding: 18, display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div style={{ width: 150, height: 150, flex: 'none', border: '1px solid #ebe9e5', borderRadius: 12, padding: 8, background: '#fff' }}
+            <div style={{ width: 150, height: 150, flex: 'none', border: '1px solid #e6e6e6', borderRadius: 12, padding: 8, background: '#fff' }}
               // The SVG is generated locally by the qrcode library from our own URL.
               dangerouslySetInnerHTML={{ __html: qr }} aria-label={`QR code for ${link}`} role="img" />
             <div style={{ minWidth: 0, flex: 1, display: 'grid', gap: 8 }}>
@@ -171,7 +171,7 @@ export default function CampaignPage({ params }: { params: Promise<{ id: string 
           <div className={w.cardHead}><h2 className={w.cardTitle}>Inquiries through the QR code</h2><span className={`${w.cardCount} ${w.cardHot}`}>{d.inquiries.length}</span></div>
           {d.inquiries.map((i) => (
             <button key={i.id} type="button" className={w.item} onClick={() => i.contact_id && openContact(i.contact_id)}>
-              <span className={w.avatar} style={{ background: i.contact_id ? avatarColor(i.contact_id) : '#a19d97' }}>{initials(i.name)}</span>
+              <span className={w.avatar} style={{ background: i.contact_id ? avatarColor(i.contact_id) : '#8a8a8a' }}>{initials(i.name)}</span>
               <span className={w.itemMain}><span className={w.itemTitle}>{i.name}</span><span className={w.itemSub}>Sent the contact form after scanning</span></span>
               <span className={w.itemWhen}>{timeAgo(i.created_at)}</span>
             </button>
@@ -234,7 +234,7 @@ function CampaignDetails({ c, onSave, onDelete }: { c: Campaign; onSave: (b: Par
       <div style={{ padding: 18, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <label style={{ gridColumn: '1 / -1' }}><span className={p.label}>Name</span><input className={p.input} value={name} onChange={(e) => setName(e.target.value)} /></label>
         <label><span className={p.label}>Sent</span><input className={p.input} type="date" value={sentOn} onChange={(e) => setSentOn(e.target.value)} /></label>
-        <label><span className={p.label}>Total cost ($){cents === undefined && <span style={{ color: '#b00020' }}> · numbers only</span>}</span><input className={p.input} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Printing + postage" /></label>
+        <label><span className={p.label}>Total cost ($){cents === undefined && <span style={{ color: '#c4046f' }}> · numbers only</span>}</span><input className={p.input} inputMode="decimal" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Printing + postage" /></label>
         <label style={{ gridColumn: '1 / -1' }}><span className={p.label}>QR code opens (a page on the site)</span><input className={p.input} value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="/portfolio" /></label>
         <label style={{ gridColumn: '1 / -1' }}><span className={p.label}>Notes</span><textarea className={p.textarea} rows={2} style={{ minHeight: 0 }} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Printer, quantity, the offer on the card…" /></label>
         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'space-between' }}>
@@ -309,7 +309,7 @@ function AddRecipients({ campaignId, existing, contacts, onClose, onAdded }: {
             </label>
           ))}
         </div>
-        {error && <p style={{ color: '#b00020', fontSize: 13 }}>{error}</p>}
+        {error && <p style={{ color: '#c4046f', fontSize: 13 }}>{error}</p>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button type="button" className={p.btn} onClick={onClose} disabled={busy}>Cancel</button>
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={busy || !picked.size} onClick={() => add({ contact_ids: [...picked] })}>

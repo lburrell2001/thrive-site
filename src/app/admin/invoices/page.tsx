@@ -47,10 +47,10 @@ Hosting setup | Included
 Returning client discount | -$100`;
 
 const STATUS_STYLE: Record<EstimateStatus, { bg: string; fg: string; label: string }> = {
-  draft:    { bg: '#ece9e6', fg: '#555',    label: 'Draft' },
-  sent:     { bg: '#eef1ff', fg: '#1e3add', label: 'Sent' },
-  accepted: { bg: '#edfff6', fg: '#0a7d4a', label: 'Accepted' },
-  declined: { bg: '#fff0f8', fg: '#a1035e', label: 'Declined' },
+  draft:    { bg: '#f5f5f5', fg: '#141414', label: 'Draft' },
+  sent:     { bg: '#3943b7', fg: '#fff',    label: 'Sent' },
+  accepted: { bg: '#0cf574', fg: '#141414', label: 'Accepted' },
+  declined: { bg: '#e50586', fg: '#fff',    label: 'Declined' },
   invoiced: { bg: '#0a0a0a', fg: '#fff',    label: 'Invoiced' },
 };
 
@@ -332,7 +332,7 @@ export default function InvoiceBuilder() {
         </div>
 
         {!data.ready && (
-          <p className={p.card} style={{ marginBottom: 16, color: '#a1035e' }}>
+          <p className={p.card} style={{ marginBottom: 16, color: '#e50586' }}>
             Run <code>supabase/migrations/039_invoice_estimate_builder.sql</code> in Supabase to save estimates and invoice lines. Until then you can still build and download PDFs.
           </p>
         )}

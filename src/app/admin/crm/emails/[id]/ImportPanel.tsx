@@ -78,7 +78,7 @@ export function ImportPanel({ newsletter, onChange, notify, locked }: {
         {!locked && <button type="button" className={`${p.btn} ${p.btnDanger}`} onClick={remove}>Remove design</button>}
       </div>
       {meta?.warnings.map((w) => (
-        <p key={w} style={{ margin: '10px 0 0', fontSize: 13, color: '#92400e', background: '#fffbeb', borderRadius: 8, padding: '8px 10px' }}>{w}</p>
+        <p key={w} style={{ margin: '10px 0 0', fontSize: 13, color: '#e50586', background: '#ffffff', borderRadius: 8, padding: '8px 10px' }}>{w}</p>
       ))}
       <p className={p.rowMeta} style={{ marginTop: 10 }}>
         To change the design, edit it in Canva, download again, and click Replace design. Subject, preview text and audience are set above.

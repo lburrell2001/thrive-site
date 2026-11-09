@@ -357,7 +357,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
                 {picked.map((c) => (
                   <span key={c.id} className={w.chip} style={{ cursor: 'default' }}>
                     <button type="button" onClick={() => openContact(c.id)} style={{ all: 'unset', cursor: 'pointer' }}>{c.name || c.email}</button>
-                    {!locked && <button type="button" aria-label={`Remove ${c.name || c.email}`} onClick={() => set('audience_contact_ids', draft.audience_contact_ids.filter((x) => x !== c.id))} style={{ all: 'unset', cursor: 'pointer', marginLeft: 6, color: '#a19d97' }}>×</button>}
+                    {!locked && <button type="button" aria-label={`Remove ${c.name || c.email}`} onClick={() => set('audience_contact_ids', draft.audience_contact_ids.filter((x) => x !== c.id))} style={{ all: 'unset', cursor: 'pointer', marginLeft: 6, color: '#8a8a8a' }}>×</button>}
                   </span>
                 ))}
               </div>
@@ -377,7 +377,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
       </div>
 
       {!address && n.status !== 'sent' && (
-        <p className={p.card} style={{ color: '#92400e', background: '#fffbeb', marginBottom: 14 }}>
+        <p className={p.card} style={{ color: '#e50586', background: '#ffffff', marginBottom: 14 }}>
           Add your mailing address in <Link href="/admin/settings?tab=email">Settings → Email</Link> before sending — it’s required in every marketing email.
         </p>
       )}
@@ -385,7 +385,7 @@ export default function EmailEditor({ params }: { params: Promise<{ id: string }
       <ImportPanel newsletter={n} onChange={(updated) => { setN(updated); }} notify={show} locked={locked} />
 
       {imported || (designed && locked) ? (
-        <iframe title="Email preview" srcDoc={preview} sandbox="" style={{ width: '100%', height: '80vh', border: '1px solid #e4e1de', borderRadius: 14, background: '#fff' }} />
+        <iframe title="Email preview" srcDoc={preview} sandbox="" style={{ width: '100%', height: '80vh', border: '1px solid #e6e6e6', borderRadius: 14, background: '#fff' }} />
       ) : designed ? (
         <EmailDesigner
           blocks={draft.blocks}

@@ -177,7 +177,7 @@ export function AdminWorkspace({ children, onSignOut }: { children: React.ReactN
               <Link href="/admin" className={a.brand}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/new-thrive/logo-white.svg" alt="Thrive Creative Studios" />
-                <span className={a.brandTag}>ADMIN</span>
+                <span className={a.brandTag}>Admin</span>
               </Link>
               <button type="button" className={a.search} onClick={() => setPalette(true)}>
                 <AdminIcon name="search" className={a.icon} /><span>Search people</span><span className={a.kbd}>⌘K</span>

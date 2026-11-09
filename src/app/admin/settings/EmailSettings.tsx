@@ -94,7 +94,7 @@ export function EmailSettings() {
             ) : (
               <p style={{ margin: 0 }}>Connect Outlook below so replies come to your inbox and are logged here.</p>
             )}
-            {settings?.inbound.domain && !settings.inbound.webhook && <p style={{ color: '#b45309' }}>RESEND_INBOUND_DOMAIN is set but RESEND_WEBHOOK_SECRET isn’t, so replies to newsletters would be refused.</p>}
+            {settings?.inbound.domain && !settings.inbound.webhook && <p style={{ color: '#e50586' }}>RESEND_INBOUND_DOMAIN is set but RESEND_WEBHOOK_SECRET isn’t, so replies to newsletters would be refused.</p>}
           </div>
         </section>
       </div>

@@ -512,7 +512,7 @@ function Thumb({ type }: { type: BlockType }) {
     case 'header': return box('#0a0a0a', <><span className={d.thumbRow}>{bar('34%', '#fff', 6)}<span style={{ flex: 1 }} />{bar('14%', '#777', 3)}{bar('14%', '#777', 3)}</span></>, { justifyContent: 'center' });
     case 'hero': return box('#0a0a0a', <>{bar('30%', '#e50586', 3)}{bar('85%', '#fff', 7)}{bar('60%', '#fff', 7)}{bar('34%', '#e50586', 6)}</>);
     case 'gallery': return box('#fff', <span className={d.thumbRow}><i className={d.thumbImg} /><i className={d.thumbImg} /></span>);
-    case 'stats': return box('#f5f4f1', <span className={d.thumbRow} style={{ justifyContent: 'space-around' }}>{bar('18%', '#e50586', 8)}{bar('18%', '#e50586', 8)}{bar('18%', '#e50586', 8)}</span>, { justifyContent: 'center' });
+    case 'stats': return box('#f5f5f5', <span className={d.thumbRow} style={{ justifyContent: 'space-around' }}>{bar('18%', '#e50586', 8)}{bar('18%', '#e50586', 8)}{bar('18%', '#e50586', 8)}</span>, { justifyContent: 'center' });
     case 'features': return box('#fff', <>{[0, 1, 2].map((i) => <span key={i} className={d.thumbRow}>{bar('10%', '#e50586', 4)}{bar('60%')}</span>)}</>);
     case 'quote': return box('#fff7fb', <>{bar('14%', '#e50586', 7)}{bar('85%', '#555', 4)}{bar('60%', '#555', 4)}</>);
     case 'cta': return box('#e50586', <>{bar('70%', '#fff', 7)}{bar('34%', '#fff', 7)}</>, { alignItems: 'center', justifyContent: 'center' });

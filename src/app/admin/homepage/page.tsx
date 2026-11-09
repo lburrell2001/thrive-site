@@ -157,7 +157,7 @@ export default function HomepageAdmin() {
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
         </div>
       </div>
-      {note && <p style={{ color: note.tone === 'error' ? 'var(--a-danger)' : '#0a7d4a', margin: '0 0 12px' }}>{note.text}</p>}
+      {note && <p style={{ color: note.tone === 'error' ? 'var(--a-danger)' : '#141414', margin: '0 0 12px' }}>{note.text}</p>}
 
       <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
         <div className={s.bar}>

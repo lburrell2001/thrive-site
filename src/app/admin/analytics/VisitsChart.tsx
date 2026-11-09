@@ -10,8 +10,8 @@ import type { DailyPoint } from '@/types/analytics';
 
 const HEIGHT = 200;
 const PAD = { top: 12, right: 8, bottom: 26, left: 36 };
-const BAR = '#e40586';
-const GRID = '#efedeb';
+const BAR = '#e50586';
+const GRID = '#ececec';
 const AXIS_TEXT = '#8a8a8a';
 
 function niceMax(n: number) {
@@ -100,7 +100,7 @@ export function VisitsChart({ daily }: { daily: DailyPoint[] }) {
             );
           })}
 
-          <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} stroke="#d8d5d2" strokeWidth={1} />
+          <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} stroke="#d4d4d4" strokeWidth={1} />
           {labelled.map((i) => (
             <text
               key={i}

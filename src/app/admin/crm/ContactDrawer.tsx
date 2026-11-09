@@ -48,19 +48,19 @@ const KIND_LABEL: Record<CrmActivityKind, string> = {
 
 const EVENT_COLOR: Record<TimelineKind, string> = {
   note: '#808080',
-  call: '#1e3add',
-  text: '#0f766e',
-  dm: '#d62976',
-  meeting: '#1e3add',
-  email: '#1e3add',
-  stage: '#111',
-  inquiry: '#e40586',
+  call: '#3943b7',
+  text: '#9409ce',
+  dm: '#e50586',
+  meeting: '#3943b7',
+  email: '#3943b7',
+  stage: '#141414',
+  inquiry: '#e50586',
   message: '#fd6100',
-  proposal: '#5b2d8e',
-  portal_proposal: '#5b2d8e',
-  invoice: '#1a8a4a',
-  review: '#e40586',
-  newsletter: '#0f766e',
+  proposal: '#9409ce',
+  portal_proposal: '#9409ce',
+  invoice: '#0cf574',
+  review: '#e50586',
+  newsletter: '#9409ce',
   prospect: '#fd6100',
   reply: '#0a8f4f',
   print: '#9409ce',
@@ -764,7 +764,7 @@ function ValueField({ cents, onSave }: { cents: number | null; onSave: (cents: n
 
   return (
     <label>
-      <span className={s.miniLabel}>Value ($){error && <span style={{ color: '#b00020' }}> · {error}</span>}</span>
+      <span className={s.miniLabel}>Value ($){error && <span style={{ color: '#c4046f' }}> · {error}</span>}</span>
       <input
         className={p.input}
         inputMode="decimal"

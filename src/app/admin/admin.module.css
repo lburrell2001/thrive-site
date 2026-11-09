@@ -2,29 +2,40 @@
    ADMIN SHELL — one sidebar for every admin page, and the design tokens
    every admin stylesheet reads (proposals.module.css, workspace.module.css
    and the rest use var(--a-…) so the whole admin looks like one product).
-   Black sidebar, warm light work area, Bai Jamjuree for the interface,
-   Bungee only for page titles, pink for the main action.
+   Since Nov 2026 it follows the public site (src/app/_site): Poppins only
+   (Bold at −100 for page titles, −85 for smaller headings, Medium at −75 for
+   text), Thrive's brand colours only — magenta, orange, blue, green, purple,
+   black, white — on a white work area, black pill buttons that turn magenta,
+   big rounded cards, Title Case. The black sidebar matches the site's footer.
+   --font-inter / --font-bungee are pointed at Poppins here so components that
+   still name them inline pick up the site's type.
    ====================================================================== */
 
 .app {
-  --a-bg: #f5f4f1;
+  --a-bg: #ffffff;
   --a-surface: #fff;
-  --a-surface-2: #faf9f7;
-  --a-border: #ebe9e5;
-  --a-border-strong: #d9d5cf;
+  --a-surface-2: #f5f5f5;
+  --a-border: #e6e6e6;
+  --a-border-strong: #cfcfcf;
   --a-text: #141414;
-  --a-muted: #6b6863;
-  --a-faint: #8a8782;
+  --a-muted: #6b6b6b;
+  --a-faint: #8a8a8a;
   --a-accent: #e50586;
-  --a-accent-hover: #c40473;
-  --a-accent-soft: #fde7f3;
-  --a-danger: #b91c1c;
-  --a-radius: 10px;
-  --a-radius-lg: 16px;
-  --a-shadow: 0 1px 2px rgba(20, 20, 20, 0.04);
+  --a-accent-hover: #c4046f;
+  --a-accent-soft: rgba(229, 5, 134, 0.1);
+  --a-danger: #c4046f;
+  --a-radius: 12px;
+  --a-radius-lg: 22px;
+  --a-shadow: none;
   --a-shadow-lg: 0 18px 50px rgba(20, 20, 20, 0.16);
-  --a-font: var(--font-inter), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
-  --a-display: var(--font-bungee), 'Bungee', sans-serif;
+  --a-font: var(--rd-sans), system-ui, sans-serif;
+  --a-display: var(--rd-sans), system-ui, sans-serif;
+  /* Inline styles that still name the old faces get Poppins too. */
+  --font-inter: var(--rd-sans);
+  --font-bungee: var(--rd-sans);
+  /* The site's regular-text tracking, applied by the page frames and sidebar. */
+  --a-track: -0.075em;
+  --a-word: 0.1em;
 
   display: grid;
   grid-template-columns: 236px minmax(0, 1fr);
@@ -32,6 +43,7 @@
   overflow: hidden;
   background: var(--a-bg);
   font-family: var(--a-font);
+  font-weight: 500;
   color: var(--a-text);
 }
 
@@ -43,25 +55,31 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: #0a0a0a;
-  color: #cfcac4;
+  background: #141414;
+  color: #d9d9d9;
+  letter-spacing: var(--a-track);
+  word-spacing: var(--a-word);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 18px 14px;
+  padding: 20px 18px 16px;
   text-decoration: none;
 }
 
-.brand img { height: 22px; width: auto; }
+.brand img { height: 24px; width: auto; }
 
+/* Like the site footer's Admin button. */
 .brandTag {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: #8f6bc2;
+  padding: 2px 9px;
+  border: 1.5px solid #4a4a4a;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #bdbdbd;
+  letter-spacing: -0.02em;
 }
 
 .search {
@@ -69,26 +87,27 @@
   align-items: center;
   gap: 8px;
   margin: 0 12px 10px;
-  padding: 8px 10px;
-  border: 1px solid #262626;
-  border-radius: var(--a-radius);
-  background: #141414;
+  padding: 9px 14px;
+  border: 1.5px solid #333;
+  border-radius: 999px;
+  background: #1c1c1c;
   font: inherit;
   font-size: 13px;
-  color: #8a8580;
+  color: #9a9a9a;
   cursor: pointer;
   text-align: left;
 }
 
-.search:hover { border-color: #3a3a3a; color: #cfcac4; }
+.search:hover { border-color: #fff; color: #fff; }
 
 .kbd {
   margin-left: auto;
   padding: 1px 6px;
-  border: 1px solid #2e2e2e;
-  border-radius: 5px;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
   font-size: 11px;
-  color: #77726c;
+  color: #8a8a8a;
+  letter-spacing: 0;
 }
 
 .nav {
@@ -99,28 +118,26 @@
 }
 
 .group {
-  margin: 16px 10px 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #5f5a55;
+  margin: 18px 12px 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #7a7a7a;
 }
 
 .link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #b9b3ac;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #cfcfcf;
   text-decoration: none;
   transition: background 0.12s, color 0.12s;
 }
 
-.link:hover { background: #171717; color: #fff; }
+.link:hover { background: #262626; color: #fff; }
 .link:focus-visible { outline: 2px solid var(--a-accent); outline-offset: 1px; }
 
 .linkOn,
@@ -141,17 +158,18 @@
   color: #fff;
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0;
   text-align: center;
 }
 
-.countQuiet { background: #262626; color: #b9b3ac; }
-.linkOn .countQuiet { background: #ece9e5; color: #4a4844; }
+.countQuiet { background: #333; color: #d9d9d9; }
+.linkOn .countQuiet { background: #141414; color: #fff; }
 
 .foot {
   display: grid;
   gap: 2px;
   padding: 10px 10px 14px;
-  border-top: 1px solid #1c1c1c;
+  border-top: 1px solid #2a2a2a;
 }
 
 .signOut {
@@ -184,7 +202,7 @@
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
-    background: #0a0a0a;
+    background: #141414;
   }
 
   .bar img { height: 20px; width: auto; }
@@ -192,8 +210,8 @@
   .menuButton {
     margin-left: auto;
     padding: 6px 12px;
-    border: 1px solid #2e2e2e;
-    border-radius: 8px;
+    border: 1.5px solid #4a4a4a;
+    border-radius: 999px;
     background: none;
     font: inherit;
     font-size: 13px;

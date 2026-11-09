@@ -96,7 +96,7 @@ export function Connections({ status, onChange, notify }: {
               </p>
               <ul style={{ listStyle: 'none', margin: '0 0 10px', padding: 0 }}>
                 {[conn.account_email, ...conn.shared_mailboxes].map((m) => (
-                  <li key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderTop: '1px solid #f0eeec' }}>
+                  <li key={m} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderTop: '1px solid #e6e6e6' }}>
                     <span style={{ flex: 1 }}>{m}{m === conn.account_email && <span className={w.muted}> · signed in</span>}</span>
                     {m !== conn.account_email && (
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy !== null} onClick={() => mailbox('remove_mailbox', m)}>Remove</button>
@@ -119,7 +119,7 @@ export function Connections({ status, onChange, notify }: {
                 </select>
                 {conn.send_from && <span className={w.muted} style={{ display: 'block', marginTop: 4 }}>Sending as {conn.send_from} needs “Send as” for {conn.account_email} on that mailbox in Exchange.</span>}
               </label>
-              <div style={{ margin: '0 0 12px', padding: '10px 12px', background: '#f6f5f4', borderRadius: 8 }}>
+              <div style={{ margin: '0 0 12px', padding: '10px 12px', background: '#f5f5f5', borderRadius: 8 }}>
                 <strong>Calendar</strong>{' '}
                 {conn.granted_scopes === undefined ? (
                   <span className={w.muted}>— run migration 043 in Supabase, then reconnect Outlook.</span>
@@ -138,7 +138,7 @@ export function Connections({ status, onChange, notify }: {
               <p className={w.muted} style={{ margin: '0 0 12px' }}>
                 {conn.last_sync_at ? `Last checked ${formatWhen(conn.last_sync_at)}.` : 'Not checked yet.'}
               </p>
-              {conn.last_error && <p style={{ margin: '0 0 12px', color: '#b45309' }}>{conn.last_error}</p>}
+              {conn.last_error && <p style={{ margin: '0 0 12px', color: '#e50586' }}>{conn.last_error}</p>}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {broken && conn.last_error?.startsWith('Reconnect') ? (
                   <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={busy !== null} onClick={() => run('connect')}>Reconnect Outlook</button>
@@ -153,7 +153,7 @@ export function Connections({ status, onChange, notify }: {
               <p style={{ margin: '0 0 12px' }}>
                 Connect the mailbox that gets your Thrive email. CRM emails will send from it (they show in your Sent folder and replies come straight to you), and mail with your contacts is logged on their timeline. Only mail involving a CRM contact is saved.
               </p>
-              {!status.ready && <p style={{ margin: '0 0 12px', color: '#b45309' }}>Run migration 040 in Supabase first.</p>}
+              {!status.ready && <p style={{ margin: '0 0 12px', color: '#e50586' }}>Run migration 040 in Supabase first.</p>}
               <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={busy !== null || !status.ready} onClick={() => run('connect')}>
                 {busy === 'connect' ? 'Opening Microsoft…' : 'Connect Outlook'}
               </button>
@@ -192,7 +192,7 @@ export function Connections({ status, onChange, notify }: {
               <p className={w.muted} style={{ margin: '0 0 6px' }}>Add the number to a contact and these move onto their timeline at the next sync.</p>
               <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {status.unmatchedVoice.map((v) => (
-                  <li key={v.id} style={{ padding: '6px 0', borderTop: '1px solid #f0eeec' }}>
+                  <li key={v.id} style={{ padding: '6px 0', borderTop: '1px solid #e6e6e6' }}>
                     <strong>{v.caller_name || formatPhone(v.phone) || 'Unknown'}</strong>
                     <span className={w.muted}> · {VOICE_KIND[v.kind]} · {formatWhen(v.occurred_at)}</span>
                     {v.body && <div className={w.muted} style={{ whiteSpace: 'pre-line' }}>{v.body.slice(0, 200)}</div>}

@@ -163,7 +163,7 @@ export default function QuestionnaireEditor() {
   const pv = draft.sections[Math.min(previewSection, draft.sections.length - 1)];
 
   return (
-    <div className={w.pageWide ?? w.page}>
+    <div className={`${w.page} ${w.pageWide}`}>
       <div className={q.bar}>
         <div>
           <Link href="/admin/questionnaires" className={w.muted} style={{ fontSize: 13, textDecoration: 'none' }}>← Questionnaires</Link>

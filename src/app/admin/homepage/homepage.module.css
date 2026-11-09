@@ -6,7 +6,7 @@
   padding: 0;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--a-surface-2, #f3f1ef);
+  background: var(--a-surface-2, #f5f5f5);
   cursor: pointer;
   outline: 3px solid transparent;
   outline-offset: 2px;
@@ -45,7 +45,7 @@
 }
 .projectTitle { font-size: 14px; font-weight: 700; margin: 0 0 8px; }
 .library { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
-.thumb { position: relative; border: 0; padding: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; background: #f3f1ef; cursor: pointer; }
+.thumb { position: relative; border: 0; padding: 0; border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; background: #f5f5f5; cursor: pointer; }
 .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.2s; }
 .thumb:hover img { transform: scale(1.05); }
 .thumb:focus-visible { outline: 3px solid var(--a-accent, #e50586); outline-offset: 2px; }
@@ -57,13 +57,13 @@
 /* Mosaic editor */
 .bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 .barGroup { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-.sectionTitle { font-size: 15px; font-weight: 700; margin: 0; }
-.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 12px; background: var(--a-surface-2, #f3f1ef); }
+.sectionTitle { font-size: 17px; font-weight: 700; letter-spacing: -0.085em; word-spacing: 0.1em; margin: 0; }
+.tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 12px; border-radius: 999px; background: var(--a-surface-2, #f5f5f5); }
 .toolsLabel { font-weight: 700; font-size: 13px; margin-right: 4px; }
-.warn { color: #b45309; font-weight: 600; }
+.warn { color: #e50586; font-weight: 600; }
 .pairs { display: grid; grid-template-columns: 3fr 2fr; gap: 24px; }
 .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.slot { position: relative; border: 0; padding: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--a-surface-2, #f3f1ef); cursor: pointer; outline: 3px solid transparent; outline-offset: 2px; }
+.slot { position: relative; border: 0; padding: 0; border-radius: 12px; overflow: hidden; aspect-ratio: 4 / 3; background: var(--a-surface-2, #f5f5f5); cursor: pointer; outline: 3px solid transparent; outline-offset: 2px; }
 .slot:hover img { opacity: 0.9; }
 .slot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .targetNote { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--a-accent, #e50586); }
@@ -79,7 +79,7 @@
 .cell span { opacity: 0; transition: opacity 0.15s; }
 .cell:hover { opacity: 1; border-color: var(--a-accent, #e50586); background: rgba(229, 5, 134, 0.05); }
 .cell:hover span { opacity: 1; color: var(--a-accent, #e50586); }
-.mTile { position: relative; z-index: 1; border-radius: 12px; overflow: hidden; background: var(--a-surface-2, #f3f1ef); cursor: grab; outline: 3px solid transparent; outline-offset: 2px; transition: outline-color 0.15s, opacity 0.15s; }
+.mTile { position: relative; z-index: 1; border-radius: 12px; overflow: hidden; background: var(--a-surface-2, #f5f5f5); cursor: grab; outline: 3px solid transparent; outline-offset: 2px; transition: outline-color 0.15s, opacity 0.15s; }
 .mTile img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
 .mTile:focus-visible { outline-color: #3943b7; }
 .mTileOn { outline-color: var(--a-accent, #e50586); }

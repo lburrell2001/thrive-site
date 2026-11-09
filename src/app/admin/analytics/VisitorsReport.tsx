@@ -163,7 +163,7 @@ export function VisitorsReport({ tabs }: { tabs: React.ReactNode }) {
 
 function VisitorDetail({ visitor: v, onOpenContact }: { visitor: SiteVisitor; onOpenContact: (id: string) => void }) {
   return (
-    <div style={{ padding: '14px 18px 18px 58px', borderBottom: '1px solid #f4f2ef', background: '#faf9f7' }}>
+    <div style={{ padding: '14px 18px 18px 58px', borderBottom: '1px solid #f4f2ef', background: '#f5f5f5' }}>
       <p className={w.muted} style={{ margin: '0 0 10px', fontSize: 13 }}>
         First seen {when(v.first_seen)}{v.first_source ? ` via ${v.first_source}` : ''}{v.place ? ` · ${v.place}` : ''}
         {v.visits > v.sessions.length ? ` · showing the latest ${v.sessions.length} of ${v.visits} visits` : ''}

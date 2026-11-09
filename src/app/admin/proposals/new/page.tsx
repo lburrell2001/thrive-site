@@ -178,7 +178,7 @@ export default function NewProposalPage() {
 
           <details>
             <summary
-              style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#e40586' }}
+              style={{ cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#e50586' }}
             >
               Add a new client
             </summary>
@@ -341,7 +341,7 @@ function StartOption({
       className={s.pickerItem}
       onClick={onSelect}
       aria-pressed={selected}
-      style={selected ? { borderColor: '#e40586', boxShadow: 'inset 0 0 0 1px #e40586' } : undefined}
+      style={selected ? { borderColor: '#e50586', boxShadow: 'inset 0 0 0 1px #e50586' } : undefined}
     >
       <div className={s.pickerName}>{name}</div>
       <p className={s.pickerDesc}>{description}</p>

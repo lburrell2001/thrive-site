@@ -123,7 +123,7 @@ export function SearchPanel({ search }: { search: SearchSection }) {
       )}
 
       {search.status === 'error' && (
-        <p className={s.evidence} style={{ color: '#b91c1c' }}>Search Console could not be read: {search.message}</p>
+        <p className={s.evidence} style={{ color: '#c4046f' }}>Search Console could not be read: {search.message}</p>
       )}
 
       {search.status === 'ok' && (

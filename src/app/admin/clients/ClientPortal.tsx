@@ -20,11 +20,11 @@ const F = {
 };
 
 // ── Colours ────────────────────────────────────────────────────────────────────
-const PINK   = '#e40586';
-const PURPLE = '#5b2d8e';
+const PINK   = '#e50586';
+const PURPLE = '#9409ce';
 const GREEN  = '#0cf574';
 const ORANGE = '#fd6100';
-const BLUE   = '#1e3add';
+const BLUE   = '#3943b7';
 const DARK   = '#141414';
 
 const INPUT: React.CSSProperties = {
@@ -40,14 +40,15 @@ const LABEL: React.CSSProperties = {
 
 const COLOR_SWATCHES = [PINK, ORANGE, GREEN, BLUE, PURPLE, DARK, '#808080'];
 
+// Brand colours only, text picked for contrast (no pastels).
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  due:         { bg: '#fff4ec', color: ORANGE },
-  paid:        { bg: '#edfff6', color: '#1a8a4a' },
-  overdue:     { bg: '#fff0f8', color: PINK },
-  kickoff:     { bg: '#eef1ff', color: BLUE },
-  in_progress: { bg: '#fff0f8', color: PINK },
-  review:      { bg: '#fff4ec', color: ORANGE },
-  completed:   { bg: '#edfff6', color: '#1a8a4a' },
+  due:         { bg: ORANGE, color: DARK },
+  paid:        { bg: GREEN, color: DARK },
+  overdue:     { bg: PINK, color: '#fff' },
+  kickoff:     { bg: BLUE, color: '#fff' },
+  in_progress: { bg: PINK, color: '#fff' },
+  review:      { bg: ORANGE, color: DARK },
+  completed:   { bg: GREEN, color: DARK },
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -117,9 +118,9 @@ function relTime(d: string) {
 
 // ── Small components ───────────────────────────────────────────────────────────
 function Badge({ status }: { status: string }) {
-  const s = STATUS_COLORS[status] ?? { bg: '#f1f0ef', color: '#808080' };
+  const s = STATUS_COLORS[status] ?? { bg: '#f5f5f5', color: DARK };
   return (
-    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color, padding: '3px 9px', borderRadius: 999, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
+    <span style={{ fontFamily: F.inter, fontSize: 11.5, fontWeight: 600, background: s.bg, color: s.color, padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize', whiteSpace: 'nowrap' }}>
       {status.replace('_', ' ')}
     </span>
   );
@@ -127,7 +128,7 @@ function Badge({ status }: { status: string }) {
 
 function RecurringBadge({ title }: { title?: string }) {
   return (
-    <span title={title ?? 'Generated from a recurring schedule'} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#edfff6', color: '#1a8a4a', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <span title={title ?? 'Generated from a recurring schedule'} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: GREEN, color: DARK, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       ↻ Recurring
     </span>
   );
@@ -197,7 +198,7 @@ function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,
         border: `2px dashed ${dragging ? PINK : '#e5e5e5'}`,
         borderRadius: 10, padding: '20px 16px', textAlign: 'center',
         cursor: uploading ? 'default' : 'pointer',
-        background: dragging ? '#fff0f8' : '#fafafa',
+        background: dragging ? '#ffffff' : '#fafafa',
         transition: 'border-color .15s, background .15s',
         userSelect: 'none',
       }}
@@ -220,12 +221,12 @@ function DropZone({ onFile, accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.gif,.zip,
 
 function ErrorMsg({ msg }: { msg: string }) {
   if (!msg) return null;
-  return <p style={{ fontFamily: F.inter, fontSize: 13, color: PINK, background: '#fff0f8', border: `1px solid #fbc8e8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
+  return <p style={{ fontFamily: F.inter, fontSize: 13, color: PINK, background: '#ffffff', border: `1px solid #e50586`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
 }
 
 function SuccessMsg({ msg }: { msg: string }) {
   if (!msg) return null;
-  return <p style={{ fontFamily: F.inter, fontSize: 13, color: '#1a8a4a', background: '#edfff6', border: `1px solid #a3f0c8`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
+  return <p style={{ fontFamily: F.inter, fontSize: 13, color: '#141414', background: '#ffffff', border: `1px solid #0cf574`, borderRadius: 8, padding: '8px 12px', margin: '10px 0 0' }}>{msg}</p>;
 }
 
 function Btn({ children, onClick, type = 'button', variant = 'primary', disabled, style, title }: {
@@ -493,7 +494,7 @@ function RequestInboxSection({ clientId, data, api, onRefresh }: {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Brain Dump Inbox</h3>
-        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: inbox.length ? '#fff4ec' : '#f1f0ef', color: inbox.length ? ORANGE : '#808080', padding: '1px 7px', borderRadius: 999 }}>{inbox.length}</span>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: inbox.length ? '#ffffff' : '#f5f5f5', color: inbox.length ? ORANGE : '#808080', padding: '1px 7px', borderRadius: 999 }}>{inbox.length}</span>
       </div>
       <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
         Everything the client brain-dumped without a project. File each one under an existing project or spin up a new one.
@@ -517,13 +518,13 @@ function RequestInboxSection({ clientId, data, api, onRefresh }: {
                     )}
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
                       {isProposal(req) && (
-                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f3edfb', color: PURPLE, padding: '2px 9px', borderRadius: 999 }}>
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#ffffff', color: PURPLE, padding: '2px 9px', borderRadius: 999 }}>
                           ✦ Wants a new project: {req.project_name}
                         </span>
                       )}
-                      {req.type && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{req.type}</span>}
+                      {req.type && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f5f5f5', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{req.type}</span>}
                       {req.priority !== 'normal' && (
-                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: req.priority === 'high' ? '#fff0f8' : '#f1f0ef', color: req.priority === 'high' ? PINK : '#808080', padding: '2px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{req.priority}</span>
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: req.priority === 'high' ? '#ffffff' : '#f5f5f5', color: req.priority === 'high' ? PINK : '#808080', padding: '2px 9px', borderRadius: 999, textTransform: 'capitalize' }}>{req.priority}</span>
                       )}
                       {req.created_at && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#bfbfbf', alignSelf: 'center' }}>{fmtDate(req.created_at)}</span>}
                     </div>
@@ -583,7 +584,7 @@ function ActivitySection({ activity }: { activity: Activity[] }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 12px' }}>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Activity</h3>
-        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{activity.length}</span>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f5f5f5', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{activity.length}</span>
       </div>
 
       {activity.length === 0 ? (
@@ -621,14 +622,14 @@ function ActivitySection({ activity }: { activity: Activity[] }) {
 
 // ── Credentials Section ────────────────────────────────────────────────────────
 const CRED_CATEGORIES: Record<string, { label: string; color: string; bg: string }> = {
-  website_host: { label: 'Website Host',     color: BLUE,     bg: '#eef1ff' },
-  domain:       { label: 'Domain Registrar', color: PURPLE,   bg: '#f3edfb' },
-  cms:          { label: 'CMS / Admin',      color: PINK,     bg: '#fff0f8' },
-  ftp:          { label: 'FTP / Server',     color: ORANGE,   bg: '#fff4ec' },
-  analytics:    { label: 'Analytics',        color: '#1a8a4a', bg: '#edfff6' },
-  social:       { label: 'Social Account',   color: '#0b7f8f', bg: '#e9f8fa' },
-  email:        { label: 'Email / Mailing',  color: '#8a6d1a', bg: '#fdf7e3' },
-  other:        { label: 'Other',            color: '#808080', bg: '#f1f0ef' },
+  website_host: { label: 'Website Host',     color: '#fff', bg: BLUE },
+  domain:       { label: 'Domain Registrar', color: '#fff', bg: PURPLE },
+  cms:          { label: 'CMS / Admin',      color: '#fff', bg: PINK },
+  ftp:          { label: 'FTP / Server',     color: DARK,   bg: ORANGE },
+  analytics:    { label: 'Analytics',        color: DARK,   bg: GREEN },
+  social:       { label: 'Social Account',   color: '#fff', bg: PINK },
+  email:        { label: 'Email / Mailing',  color: '#fff', bg: BLUE },
+  other:        { label: 'Other',            color: DARK,   bg: '#f5f5f5' },
 };
 
 function CredentialsSection({ clientId, data, api, onRefresh }: {
@@ -681,7 +682,7 @@ function CredentialsSection({ clientId, data, api, onRefresh }: {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Secure Vault</h3>
-        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{credentials.length}</span>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f5f5f5', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{credentials.length}</span>
         {editing === null && (
           <Btn variant="ghost" style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 12 }} onClick={() => setEditing('new')}>+ Add login</Btn>
         )}
@@ -723,7 +724,7 @@ function CredentialsSection({ clientId, data, api, onRefresh }: {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
                       <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{c.label}</span>
                       <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: cat.bg, color: cat.color, padding: '2px 9px', borderRadius: 999 }}>{cat.label}</span>
-                      {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
+                      {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f5f5f5', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
                     </div>
                     {c.site_url && (
                       <a href={c.site_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: BLUE, textDecoration: 'none', wordBreak: 'break-all' }}>
@@ -740,7 +741,7 @@ function CredentialsSection({ clientId, data, api, onRefresh }: {
                   </div>
                 </div>
 
-                <div style={{ background: 'var(--a-surface-2)', border: '1px solid #f1f0ef', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ background: 'var(--a-surface-2)', border: '1px solid #f5f5f5', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={rowLabel}>User</span>
                     <span style={{ fontFamily: F.inter, fontSize: 13, color: c.username ? DARK : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>{c.username || 'Not provided'}</span>
@@ -920,8 +921,8 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
   }
 
   const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
-    pending: { bg: '#fff4ec', color: ORANGE },
-    signed:  { bg: '#edfff6', color: '#1a8a4a' },
+    pending: { bg: ORANGE, color: DARK },
+    signed:  { bg: GREEN, color: DARK },
   };
 
   const projectName = (id?: string | null) => projects.find(p => p.id === id)?.name ?? '';
@@ -931,7 +932,7 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
         <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Proposals</h3>
-        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{proposals.length}</span>
+        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f5f5f5', color: '#808080', padding: '1px 7px', borderRadius: 999 }}>{proposals.length}</span>
       </div>
       <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
         {proposals.length === 0
@@ -952,13 +953,13 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
             const signingThis = uploadingSignedId === p.id;
             return (
               <div key={p.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK }}>{p.name}</span>
-                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.project_id ? '#eef1ff' : '#f1f0ef', color: p.project_id ? BLUE : '#808080', padding: '2px 9px', borderRadius: 999 }}>
+                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.project_id ? '#ffffff' : '#f5f5f5', color: p.project_id ? BLUE : '#808080', padding: '2px 9px', borderRadius: 999 }}>
                       {projectName(p.project_id) || (p.project_id ? 'Project' : 'General')}
                     </span>
                   </div>
@@ -968,7 +969,7 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
                   {p.signed_file_url ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download
-                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '4px 10px', borderRadius: 8 }}>
+                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#141414', textDecoration: 'none', background: '#ffffff', padding: '4px 10px', borderRadius: 8 }}>
                         ↓ Signed Copy
                       </a>
                       <Btn variant="ghost" style={{ padding: '4px 10px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
@@ -977,7 +978,7 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
                     </div>
                   ) : (
                     <div style={{ marginTop: 8 }}>
-                      <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
+                      <Btn variant="ghost" style={{ padding: '4px 12px', fontSize: 12, borderColor: '#141414', color: '#141414' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>
                         {signingThis ? 'Uploading…' : '↑ Upload Signed Copy'}
                       </Btn>
                     </div>
@@ -1118,7 +1119,7 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                 <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
                 <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
                 {inv.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{inv.project_name}</span>}
-                {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+                {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
                 <Badge status={inv.status} />
                 {inv.subscription_id && <RecurringBadge />}
               </div>
@@ -1135,7 +1136,7 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {standaloneRequests.map(req => {
-              const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+              const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: '#fff', bg: PINK }, normal: { color: '#fff', bg: BLUE }, low: { color: DARK, bg: '#f5f5f5' } };
               const pr = PRIORITY[req.priority] ?? PRIORITY.normal;
               return (
                 <div key={req.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
@@ -1220,7 +1221,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
   return (
     <div style={{ borderRadius: 10, border: expanded ? `1.5px solid ${PINK}` : '1px solid var(--a-border)', overflow: 'hidden', transition: 'border-color .15s' }}>
       {/* Header row — click to expand */}
-      <div onClick={onToggle} style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', background: expanded ? '#fff0f8' : '#fff', userSelect: 'none' }}>
+      <div onClick={onToggle} style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', background: expanded ? '#ffffff' : '#fff', userSelect: 'none' }}>
         <div style={{ width: 10, height: 10, borderRadius: '50%', background: project.color, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: expanded ? PINK : DARK }}>{project.name}</div>
@@ -1228,7 +1229,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             <div style={{ height: 4, borderRadius: 999, background: project.color, width: `${project.progress}%`, transition: 'width .3s' }} />
           </div>
         </div>
-        {project.archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '2px 8px', borderRadius: 999, flexShrink: 0 }}>ARCHIVED</span>}
+        {project.archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '2px 8px', borderRadius: 999, flexShrink: 0 }}>Archived</span>}
         <Badge status={project.status} />
         <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', minWidth: 32 }}>{project.progress}%</span>
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0, transition: 'transform .2s', transform: expanded ? 'rotate(180deg)' : 'rotate(0)' }}>
@@ -1260,7 +1261,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                 <label style={{ ...LABEL, margin: 0 }}>Stages</label>
-                <button type="button" onClick={addStage} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: PINK, background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>+ Add Stage</button>
+                <button type="button" onClick={addStage} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: PINK, background: '#ffffff', border: '1px solid #e50586', borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}>+ Add Stage</button>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                 {stages.map((st, idx) => {
@@ -1272,7 +1273,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
                   return (
                     <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
-                        style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 6, cursor: 'pointer', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1px solid var(--a-border)', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', fontFamily: F.inter, fontSize: 10, fontWeight: 800, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>
+                        style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 6, cursor: 'pointer', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1px solid var(--a-border)', background: isCurrent ? accent : isPast ? `${accent}22` : '#f5f5f5', fontFamily: F.inter, fontSize: 10, fontWeight: 800, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>
                         {String(idx + 1).padStart(2, '0')}
                       </button>
                       <input
@@ -1299,7 +1300,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
                   const accent    = project.color || PINK;
                   return (
                     <button key={st.key} type="button" onClick={() => setEditData(d => ({ ...d, status: st.key }))}
-                      style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', background: isCurrent ? accent : isPast ? `${accent}22` : '#f6f5f4', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1px solid var(--a-border)', opacity: (!isCurrent && !isPast) ? 0.6 : 1, transition: 'all .15s' }}>
+                      style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', cursor: 'pointer', background: isCurrent ? accent : isPast ? `${accent}22` : '#f5f5f5', border: isCurrent ? `2px solid ${accent}` : isPast ? `1.5px solid ${accent}55` : '1px solid var(--a-border)', opacity: (!isCurrent && !isPast) ? 0.6 : 1, transition: 'all .15s' }}>
                       <div style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 800, color: isCurrent ? '#fff' : isPast ? accent : '#808080', marginBottom: 3 }}>{String(idx + 1).padStart(2, '0')}</div>
                       <div style={{ fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#fff' : isPast ? accent : '#808080' }}>{st.label}</div>
                     </button>
@@ -1357,7 +1358,7 @@ function ProjectSubProposals({ project, proposals, clientId, reminders, api, onR
     if (project.crm_deal_id) q.set('deal', project.crm_deal_id);
     router.push(`/admin/crm/proposals/new?${q}`);
   }
-  const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: '#fff4ec', color: ORANGE }, signed: { bg: '#edfff6', color: '#1a8a4a' } };
+  const STATUS_STYLE: Record<string, { bg: string; color: string }> = { pending: { bg: ORANGE, color: DARK }, signed: { bg: GREEN, color: DARK } };
 
   async function handleFile(file: File) {
     if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
@@ -1408,19 +1409,19 @@ function ProjectSubProposals({ project, proposals, clientId, reminders, api, onR
             const signingThis = uploadingSignedId === p.id;
             return (
               <div key={p.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap', background: '#fff' }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                   <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
                   {p.signed_file_url ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none', background: '#edfff6', padding: '2px 8px', borderRadius: 6 }}>↓ Signed</a>
+                      <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" download style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#141414', textDecoration: 'none', background: '#ffffff', padding: '2px 8px', borderRadius: 6 }}>↓ Signed</a>
                       <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? '…' : 'Replace'}</Btn>
                     </div>
                   ) : (
                     <div style={{ marginTop: 6 }}>
-                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11, borderColor: '#1a8a4a', color: '#1a8a4a' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? 'Uploading…' : '↑ Upload Signed'}</Btn>
+                      <Btn variant="ghost" style={{ padding: '2px 8px', fontSize: 11, borderColor: '#141414', color: '#141414' }} onClick={() => pickSignedFile(p)} disabled={signingThis}>{signingThis ? 'Uploading…' : '↑ Upload Signed'}</Btn>
                     </div>
                   )}
                 </div>
@@ -1467,7 +1468,7 @@ function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps 
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {files.map((f) => (
             <div key={f.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f1f0ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
               </div>
               <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
@@ -1520,7 +1521,7 @@ function ProjectSubMilestones({ project, milestones, clientId, api, onRefresh }:
               <input type="checkbox" checked={m.completed} onChange={() => { api({ action: 'update_milestone', id: m.id, title: m.title, due_date: m.due_date, completed: !m.completed }); onRefresh(); }} style={{ width: 14, height: 14, cursor: 'pointer', accentColor: GREEN }} />
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
               <span style={{ flex: 1, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: m.completed ? '#bfbfbf' : DARK, textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
-              {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
+              {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
               <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_milestone', id: m.id }); onRefresh(); }}>Delete</Btn>
             </div>
           ))}
@@ -1645,7 +1646,7 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
             <div key={inv.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{inv.invoice_number}</span>
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
-              {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
+              {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
               <Badge status={inv.status} />
               {inv.subscription_id && <RecurringBadge />}
               {inv.status !== 'paid' && lastRemindedLabel(data.reminders, 'invoice', inv.id) && (
@@ -1682,7 +1683,7 @@ function ProjectSubRequests({ project, requests, projects = [], clientId, api, o
   const [priority, setPriority] = useState('normal');
   const [addErr,   setAddErr]   = useState('');
   const [adding,   setAdding]   = useState(false);
-  const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: PINK, bg: '#fff0f8' }, normal: { color: BLUE, bg: '#eef1ff' }, low: { color: '#808080', bg: '#f1f0ef' } };
+  const PRIORITY: Record<string, { color: string; bg: string }> = { high: { color: '#fff', bg: PINK }, normal: { color: '#fff', bg: BLUE }, low: { color: DARK, bg: '#f5f5f5' } };
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -1791,8 +1792,8 @@ function SubscriptionsList({ data, api, onRefresh }: { data: ClientData; api: (b
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid var(--a-border)', borderRadius: 8, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK }}>{fmtAmount(s.amount_cents)} · {intervalLabel(s.interval_count || 1, s.interval_unit || 'month')}</span>
               <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{s.project_name || '—'}</span>
-              {!isPaused && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f1f0ef', padding: '2px 8px', borderRadius: 999 }}>Next: {fmtDate(s.next_due_date)}</span>}
-              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isPaused ? '#808080' : '#1a8a4a', background: isPaused ? '#f1f0ef' : '#edfff6', padding: '2px 8px', borderRadius: 999 }}>{isPaused ? 'Paused' : 'Active'}</span>
+              {!isPaused && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Next: {fmtDate(s.next_due_date)}</span>}
+              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isPaused ? '#808080' : '#141414', background: isPaused ? '#f5f5f5' : '#ffffff', padding: '2px 8px', borderRadius: 999 }}>{isPaused ? 'Paused' : 'Active'}</span>
               <div style={{ flex: 1 }} />
               <Btn variant="ghost" disabled={busy === s.id} onClick={() => run(s, isPaused ? 'active' : 'paused')} style={{ padding: '4px 10px', fontSize: 11 }}>{isPaused ? 'Resume' : 'Pause'}</Btn>
               <Btn variant="danger" disabled={busy === s.id} onClick={() => stop(s)} style={{ padding: '4px 10px', fontSize: 11 }}>Stop repeating</Btn>
@@ -1882,7 +1883,7 @@ function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; d
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf' }}>STEP {step.step_number}</span>
                   <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: step.completed ? '#bfbfbf' : DARK, textDecoration: step.completed ? 'line-through' : 'none' }}>{step.title}</span>
-                  {step.completed && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', background: '#edfff6', padding: '2px 8px', borderRadius: 999 }}>Done</span>}
+                  {step.completed && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#141414', background: '#ffffff', padding: '2px 8px', borderRadius: 999 }}>Done</span>}
                 </div>
                 {step.description && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '4px 0 0' }}>{step.description}</p>}
                 {step.action_label && <span style={{ fontFamily: F.inter, fontSize: 12, color: BLUE, marginTop: 4, display: 'inline-block' }}>{step.action_label} → {step.action_href}</span>}

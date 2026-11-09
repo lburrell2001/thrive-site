@@ -155,7 +155,7 @@ export function ImageInput({ src, alt, href, onChange, notify, hideLink, label =
         <input type="file" accept="image/jpeg,image/png,image/gif" hidden disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ''; }} />
       </label>
       {big !== null && (
-        <span className={d.hint} style={{ color: '#b45309' }}>
+        <span className={d.hint} style={{ color: '#e50586' }}>
           {(big / 1024 / 1024).toFixed(1)} MB is heavy for email. Export as JPG around 1200px wide.
         </span>
       )}

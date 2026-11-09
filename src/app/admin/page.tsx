@@ -141,7 +141,7 @@ export default function AdminHome() {
               <Card id="replies" title="Replies" count={replies.length} hot wide>
                 {replies.map((r) => (
                   <div key={r.id} className={w.item} style={{ cursor: 'default' }}>
-                    <span className={w.avatar} style={{ background: r.contact_id ? avatarColor(r.contact_id) : '#a19d97' }}>{initials(r.name)}</span>
+                    <span className={w.avatar} style={{ background: r.contact_id ? avatarColor(r.contact_id) : '#8a8a8a' }}>{initials(r.name)}</span>
                     <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: r.contact_id ? 'pointer' : 'default' }} onClick={() => r.contact_id && openContact(r.contact_id)}>
                       <span className={w.itemTitle}>{r.name}{r.company ? <span className={w.muted} style={{ fontWeight: 500 }}> · {r.company}</span> : null}</span>
                       <span className={w.itemSub}>{r.subject || '(no subject)'}{!r.contact_id ? ' · not in the CRM' : ''}</span>
