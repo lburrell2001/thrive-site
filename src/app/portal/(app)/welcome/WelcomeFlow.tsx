@@ -2,51 +2,40 @@
 
 // The welcome a new client sees on first sign-in: one step at a time, like
 // setting up a new phone. Welcome → your details → text updates → the portal
-// at a glance → your questionnaires (if any) → all set. Saves to their own
-// portal_clients row (the same columns Settings can change) and marks the
-// welcome done on their auth user_metadata (src/lib/portalWelcome.ts), so it
-// shows once. "Skip setup" finishes it straight away.
+// at a glance → each open questionnaire (an intro, then its sections one
+// screen at a time, answers saved as they type, submitted at the end) → all
+// set. Only the site's own logo, logo mark and line icons (ThriveIcons).
+// Saves profile fields to their portal_clients row, answers through
+// /api/portal/questionnaires/[id], and marks the welcome done on their auth
+// user_metadata (src/lib/portalWelcome.ts). "Skip setup" finishes at once.
 //
 // With `preview` (admin → /admin/welcome-preview) it runs on the given data,
 // saves nothing, and "Skip setup" / the last step start over instead.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
-import { portalApi } from '@/lib/portalApi';
+import { portalApi, PortalApiError } from '@/lib/portalApi';
 import { formatPhone, normalizePhone } from '@/lib/phone';
+import { isAnswered, isMulti, missingRequired, type AnswerValue, type Question, type Questionnaire } from '@/lib/questionnaires';
+import { ThriveIcon, type ThriveIconName } from '@/app/_site/ThriveIcons';
 import SmsOptInLabel from '../../../components/SmsOptInLabel';
 import s from './welcome.module.css';
 
-type StepId = 'welcome' | 'profile' | 'texts' | 'tour' | 'questionnaires' | 'done';
-type Assigned = { id: string; title: string; status: string; answered: number; total: number };
-export type WelcomePreview = { name: string; company: string; projects: string[]; questionnaires: Assigned[] };
+/** An open questionnaire: its visible sections and any answers so far. */
+export type WelcomeQuestionnaire = { id: string; title: string; questionnaire: Questionnaire; answers: Record<string, AnswerValue> };
+export type WelcomePreview = { name: string; company: string; projects: string[]; questionnaires: WelcomeQuestionnaire[] };
 
-const PETALS = [
-  { r: -78, c: '#e50586' }, { r: -40, c: '#0cf574' }, { r: 0, c: '#9409ce' }, { r: 40, c: '#3943b7' }, { r: 78, c: '#fd6100' },
-];
+type Step =
+  | { kind: 'welcome' | 'profile' | 'texts' | 'tour' | 'done' }
+  | { kind: 'intro'; qi: number }
+  | { kind: 'section'; qi: number; si: number };
 
-function Icon({ name }: { name: 'user' | 'chat' | 'grid' | 'list' | 'folder' | 'lock' | 'card' }) {
-  const paths: Record<string, string> = {
-    user: 'M20 21v-1a5 5 0 0 0-5-5H9a5 5 0 0 0-5 5v1M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
-    chat: 'M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12zM8.5 12h.01M12 12h.01M15.5 12h.01',
-    grid: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
-    list: 'M9 4h6v3H9zM7 5.5H5.5A1.5 1.5 0 0 0 4 7v12.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V7a1.5 1.5 0 0 0-1.5-1.5H17M8 12l2 2 4-4M8 17h8',
-    folder: 'M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM3 10h18',
-    lock: 'M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1zM8 11V8a4 4 0 0 1 8 0v3M12 15v2',
-    card: 'M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zM2 10h20M6 15h4',
-  };
-  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={paths[name]} /></svg>;
-}
+const TEXT_DELAY = 800;
 
-/** One petal of the Thrive mark (same shape as the logo). */
-function Petal({ r, c, i }: { r: number; c: string; i: number }) {
-  return (
-    <svg className={s.petal} viewBox="166 90 26 39" style={{ ['--r' as string]: `${r}deg`, animationDelay: `${0.15 + i * 0.07}s`, color: c, background: 'none', width: 40, height: 62, marginLeft: -20 }} aria-hidden>
-      <path d="M187.37,123.58c-1.25,2.95-1.92,4.13-5.13,4.13h-3.86c-3.21,0-3.83-1.27-5.15-4.19-4.09-9.09-5.84-17.08-5.42-27.26.13-3.2,1.41-4.62,4.62-4.62h14.47c3.21,0,4.47,1.41,4.62,4.62.47,9.86-.42,18.54-4.16,27.32Z" fill="currentColor" />
-    </svg>
-  );
+function Badge({ icon, tone }: { icon: ThriveIconName; tone: string }) {
+  return <span className={`${s.icon} ${tone}`}><ThriveIcon name={icon} /></span>;
 }
 
 export default function WelcomeFlow({ preview: previewProp }: { preview?: WelcomePreview }) {
@@ -59,44 +48,99 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
   const [phone, setPhone] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [projects, setProjects] = useState<string[]>([]);
-  const [questionnaires, setQuestionnaires] = useState<Assigned[]>([]);
+  const [qs, setQs] = useState<WelcomeQuestionnaire[]>([]);
+  const [submitted, setSubmitted] = useState<string[]>([]);
+  const [missing, setMissing] = useState<string[]>([]);
   const [step, setStep] = useState(0);
   const [back, setBack] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [saveNote, setSaveNote] = useState('');
   const [ready, setReady] = useState(false);
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const pending = useRef(new Map<string, { aid: string; qid: string; value: AnswerValue }>());
 
   useEffect(() => {
     if (preview) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- preview data arrives as props
-      setFullName(preview.name); setCompany(preview.company); setPhone(''); setSmsOptIn(false);
-      setProjects(preview.projects); setQuestionnaires(preview.questionnaires); setStep(0); setReady(true);
+      setFullName(preview.name); setCompany(preview.company); setProjects(preview.projects); setQs(preview.questionnaires); setReady(true);
       return;
     }
     (async () => {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) { router.replace('/portal/login'); return; }
       setUserId(user.id);
-      const [{ data: me }, { data: proj }, qs] = await Promise.all([
+      const [{ data: me }, { data: proj }, list] = await Promise.all([
         supabasePortal.from('portal_clients').select('full_name, company_name, phone, sms_opt_in').eq('id', user.id).maybeSingle(),
         supabasePortal.from('portal_projects').select('name, archived').eq('client_id', user.id),
-        portalApi<{ assignments: Assigned[] }>('/api/portal/questionnaires').catch(() => ({ assignments: [] })),
+        portalApi<{ assignments: { id: string; status: string }[] }>('/api/portal/questionnaires').catch(() => ({ assignments: [] })),
       ]);
-      // The profile starts as the email's first part; don't prefill that as a name.
+      const open = list.assignments.filter((a) => a.status !== 'submitted');
+      const details = await Promise.all(open.map((a) =>
+        portalApi<{ assignment: { title: string }; questionnaire: Questionnaire; answers: Record<string, AnswerValue> }>(`/api/portal/questionnaires/${a.id}`)
+          .then((d) => ({ id: a.id, title: d.assignment.title, questionnaire: d.questionnaire, answers: d.answers }))
+          .catch(() => null)));
       const emailName = user.email?.split('@')[0] ?? '';
       setFullName(me?.full_name && me.full_name !== emailName ? me.full_name : '');
       setCompany(me?.company_name ?? '');
       setPhone(formatPhone(me?.phone));
       setSmsOptIn(Boolean(me?.sms_opt_in));
       setProjects((proj ?? []).filter((p: { archived?: boolean }) => !p.archived).map((p: { name: string }) => p.name));
-      setQuestionnaires(qs.assignments.filter((a) => a.status !== 'submitted'));
+      setQs(details.filter((d): d is WelcomeQuestionnaire => Boolean(d)).filter((d) => d.questionnaire.sections.length > 0));
       setReady(true);
     })();
   }, [router, preview]);
 
-  const steps: StepId[] = ['welcome', 'profile', 'texts', 'tour', ...(questionnaires.length ? ['questionnaires' as const] : []), 'done'];
-  const id = steps[Math.min(step, steps.length - 1)];
+  // ---- answers: saved as they type (text after a pause, choices at once)
+  const send = useCallback(async (aid: string, qid: string, value: AnswerValue) => {
+    if (preview) return;
+    try {
+      await portalApi(`/api/portal/questionnaires/${aid}`, { body: { action: 'answer', questionId: qid, value } });
+      if (pending.current.size === 0) setSaveNote('Saved');
+    } catch (e) {
+      setSaveNote(e instanceof Error ? e.message : 'Not saved');
+    }
+  }, [preview]);
+
+  const flush = useCallback(() => {
+    timers.current.forEach((t) => clearTimeout(t));
+    timers.current.clear();
+    const all = [...pending.current.values()];
+    pending.current.clear();
+    return Promise.all(all.map((p) => send(p.aid, p.qid, p.value)));
+  }, [send]);
+
+  useEffect(() => () => { flush(); }, [flush]);
+
+  function answer(qi: number, q: Question, value: AnswerValue, typed: boolean) {
+    const aid = qs[qi].id;
+    setQs((cur) => cur.map((x, i) => (i === qi ? { ...x, answers: { ...x.answers, [q.id]: value } } : x)));
+    if (isAnswered(value)) { setMissing((m) => m.filter((x) => x !== q.id)); setError(''); }
+    const key = `${aid}:${q.id}`;
+    const prev = timers.current.get(key);
+    if (prev) clearTimeout(prev);
+    if (preview) return;
+    if (!typed) { pending.current.delete(key); send(aid, q.id, value); return; }
+    setSaveNote('Saving…');
+    pending.current.set(key, { aid, qid: q.id, value });
+    timers.current.set(key, setTimeout(() => {
+      timers.current.delete(key);
+      const p = pending.current.get(key);
+      pending.current.delete(key);
+      if (p) send(p.aid, p.qid, p.value);
+    }, TEXT_DELAY));
+  }
+
+  // ---- the steps
+  const steps: Step[] = [
+    { kind: 'welcome' }, { kind: 'profile' }, { kind: 'texts' }, { kind: 'tour' },
+    ...qs.flatMap((q, qi): Step[] => [{ kind: 'intro', qi }, ...q.questionnaire.sections.map((_, si): Step => ({ kind: 'section', qi, si }))]),
+    { kind: 'done' },
+  ];
+  const cur = steps[Math.min(step, steps.length - 1)];
   const firstName = fullName.trim().split(/\s+/)[0] || '';
+  const pct = Math.round((step / (steps.length - 1)) * 100);
+  const openLeft = qs.filter((q) => !submitted.includes(q.id));
 
   async function finish() {
     if (preview) return;
@@ -104,11 +148,15 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
   }
 
   function go(to: number) {
+    flush();
     setError('');
     setBack(to < step);
     setStep(to);
-    if (steps[to] === 'done') finish();
+    if (steps[to]?.kind === 'done') finish();
   }
+
+  /** The step after this questionnaire's last section (its "do this later"). */
+  const afterQuestionnaire = (qi: number) => steps.findIndex((st, i) => i > step && (st.kind === 'done' || (st.kind === 'intro' && st.qi > qi)));
 
   async function saveProfile() {
     if (!fullName.trim()) { setError('Add your name so we know what to call you.'); return; }
@@ -116,8 +164,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
     setBusy(true);
     const name = fullName.trim();
     const initials = name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-    const { error: e } = await supabasePortal.from('portal_clients')
-      .update({ full_name: name, company_name: company.trim(), initials }).eq('id', userId);
+    const { error: e } = await supabasePortal.from('portal_clients').update({ full_name: name, company_name: company.trim(), initials }).eq('id', userId);
     setBusy(false);
     if (e) { setError('That didn’t save. Try again.'); return; }
     go(step + 1);
@@ -128,55 +175,78 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
     if (phone.trim() && !normalized) { setError('Enter a mobile number like (555) 123-4567.'); return; }
     if (preview) { go(step + 1); return; }
     setBusy(true);
-    const { error: e } = await supabasePortal.from('portal_clients')
-      .update({ phone: normalized, sms_opt_in: Boolean(normalized) && smsOptIn }).eq('id', userId);
+    const { error: e } = await supabasePortal.from('portal_clients').update({ phone: normalized, sms_opt_in: Boolean(normalized) && smsOptIn }).eq('id', userId);
     setBusy(false);
     if (e) { setError('That didn’t save. Try again.'); return; }
     go(step + 1);
   }
 
+  /** Last section of a questionnaire: check required answers, submit, move on. */
+  async function submitQuestionnaire(qi: number) {
+    const q = qs[qi];
+    const left = missingRequired(q.questionnaire.sections, [], q.answers);
+    if (left.length) {
+      setMissing(left);
+      const si = q.questionnaire.sections.findIndex((sec) => sec.questions.some((x) => left.includes(x.id)));
+      setError(`${left.length} required question${left.length === 1 ? '' : 's'} still need${left.length === 1 ? 's' : ''} an answer.`);
+      const target = steps.findIndex((st) => st.kind === 'section' && st.qi === qi && st.si === si);
+      if (target >= 0 && target !== step) { setBack(true); setStep(target); }
+      return;
+    }
+    setBusy(true);
+    await flush();
+    if (!preview) {
+      try {
+        await portalApi(`/api/portal/questionnaires/${q.id}`, { body: { action: 'submit' } });
+      } catch (e) {
+        setBusy(false);
+        if (e instanceof PortalApiError && Array.isArray(e.body.missing)) setMissing(e.body.missing as string[]);
+        setError(e instanceof Error ? e.message : 'Could not submit. Try again.');
+        return;
+      }
+    }
+    setBusy(false);
+    setSubmitted((x) => [...x, q.id]);
+    go(step + 1);
+  }
+
   async function skipAll() {
     if (preview) { go(0); return; }
+    await flush();
     await finish();
     router.replace('/portal/dashboard');
   }
 
   if (!ready) return <div className={`${s.screen} ${preview ? s.screenPreview : ''}`}><div className={`${s.card} ${s.dark}`} /></div>;
 
-  const tone = id === 'welcome' ? s.dark : id === 'done' ? s.green : '';
-  const showTop = id !== 'welcome';
+  const tone = cur.kind === 'welcome' ? s.dark : '';
 
   return (
     <div className={`${s.screen} ${preview ? s.screenPreview : ''}`}>
       <main className={`${s.card} ${tone}`} aria-live="polite">
-        {showTop && (
+        {cur.kind !== 'welcome' && (
           <div className={s.top}>
-            {id !== 'done' ? <button type="button" className={s.back} onClick={() => go(step - 1)}>← Back</button> : <span />}
-            <div className={s.progress} aria-label={`Step ${step} of ${steps.length - 1}`}>
-              {steps.slice(1).map((st, i) => <span key={st} className={`${s.seg} ${i + 1 === step ? s.segOn : i + 1 < step ? s.segDone : ''}`} />)}
-            </div>
-            {id !== 'done' ? <button type="button" className={s.skip} onClick={skipAll}>Skip setup</button> : <span />}
+            {cur.kind !== 'done' ? <button type="button" className={s.back} onClick={() => go(step - 1)}>← Back</button> : <span />}
+            <div className={s.bar} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${pct}%` }} /></div>
+            {cur.kind !== 'done' ? <button type="button" className={s.skip} onClick={skipAll}>Skip setup</button> : <span />}
           </div>
         )}
 
-        <div key={id} className={`${s.body} ${back ? s.bodyBack : ''} ${id === 'welcome' || id === 'done' ? s.center : ''}`}>
-          {id === 'welcome' && (
+        <div key={step} className={`${s.body} ${back ? s.bodyBack : ''} ${cur.kind === 'welcome' || cur.kind === 'done' ? s.center : ''}`}>
+          {cur.kind === 'welcome' && (
             <>
-              <div className={s.petals} aria-hidden>
-                {PETALS.map((p, i) => <Petal key={p.c} {...p} i={i} />)}
-                <span className={s.square} />
-              </div>
-              <h1 className={s.title}>Welcome to Thrive{firstName ? <>, <em>{firstName}</em></> : ''}.</h1>
-              <p className={s.lead}>This is your client portal: your project, files, questionnaires and invoices in one place. Let’s get you set up. It takes about two minutes.</p>
+              <img src="/new-thrive/logo-white.svg" alt="Thrive Creative Studios" className={s.logo} />
+              <h1 className={s.title}>Welcome{firstName ? <>, <em>{firstName}</em></> : ''}.</h1>
+              <p className={s.lead}>This is your client portal: your project, files, questionnaires and invoices in one place. Let’s get you set up — it only takes a few minutes.</p>
               <div className={s.actions}>
                 <button type="button" className={`${s.btn} ${s.btnLight}`} onClick={() => go(1)} autoFocus>Get Started</button>
               </div>
             </>
           )}
 
-          {id === 'profile' && (
+          {cur.kind === 'profile' && (
             <>
-              <span className={`${s.icon} ${s.bMagenta}`}><Icon name="user" /></span>
+              <Badge icon="person" tone={s.bMagenta} />
               <h1 className={s.title}>First, Who Are We Talking To?</h1>
               <p className={s.lead}>This is how your name and business show up on proposals, invoices and messages from us.</p>
               <div className={s.content}>
@@ -194,9 +264,9 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
             </>
           )}
 
-          {id === 'texts' && (
+          {cur.kind === 'texts' && (
             <>
-              <span className={`${s.icon} ${s.bBlue}`}><Icon name="chat" /></span>
+              <Badge icon="social" tone={s.bBlue} />
               <h1 className={s.title}>Want Updates by Text?</h1>
               <p className={s.lead}>We’ll text you when there’s something to look at — a proposal, an invoice, new files. Never marketing. You can change this any time in Settings.</p>
               <div className={s.content}>
@@ -216,16 +286,16 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
             </>
           )}
 
-          {id === 'tour' && (
+          {cur.kind === 'tour' && (
             <>
-              <span className={`${s.icon} ${s.bPurple}`}><Icon name="grid" /></span>
+              <Badge icon="brand" tone={s.bPurple} />
               <h1 className={s.title}>Your Portal, at a Glance</h1>
-              <p className={s.lead}>{projects.length ? `Everything for ${projects.length === 1 ? projects[0] : 'your projects'} lives here.` : 'Everything for your project lives here.'} It’s in the menu any time.</p>
+              <p className={s.lead}>{projects.length === 1 ? `Everything for ${projects[0]} lives here.` : 'Everything for your project lives here.'} It’s all in the menu any time.</p>
               <div className={`${s.content} ${s.tiles}`}>
-                <div className={`${s.tile} ${s.bMagenta}`}><Icon name="list" /><div><p className={s.tileName}>Onboarding</p><p className={s.tileText}>Questionnaires and first steps</p></div></div>
-                <div className={`${s.tile} ${s.bBlue}`}><Icon name="folder" /><div><p className={s.tileName}>My Projects</p><p className={s.tileText}>Progress, files and milestones</p></div></div>
-                <div className={`${s.tile} ${s.bOrange}`}><Icon name="lock" /><div><p className={s.tileName}>Secure Vault</p><p className={s.tileText}>Share logins safely, never by text</p></div></div>
-                <div className={`${s.tile} ${s.bGreen}`}><Icon name="card" /><div><p className={s.tileName}>Billing</p><p className={s.tileText}>Invoices and online payments</p></div></div>
+                <div className={`${s.tile} ${s.bMagenta}`}><ThriveIcon name="edit" /><div><p className={s.tileName}>Onboarding</p><p className={s.tileText}>Questionnaires and first steps</p></div></div>
+                <div className={`${s.tile} ${s.bBlue}`}><ThriveIcon name="folder" /><div><p className={s.tileName}>My Projects</p><p className={s.tileText}>Progress, files and milestones</p></div></div>
+                <div className={`${s.tile} ${s.bOrange}`}><ThriveIcon name="box" /><div><p className={s.tileName}>Secure Vault</p><p className={s.tileText}>Share logins safely, never by text</p></div></div>
+                <div className={`${s.tile} ${s.bGreen}`}><ThriveIcon name="card" /><div><p className={s.tileName}>Billing</p><p className={s.tileText}>Invoices and online payments</p></div></div>
               </div>
               <div className={s.actions}>
                 <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(step + 1)}>Continue</button>
@@ -233,47 +303,149 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
             </>
           )}
 
-          {id === 'questionnaires' && (
-            <>
-              <span className={`${s.icon} ${s.bOrange}`}><Icon name="list" /></span>
-              <h1 className={s.title}>Tell Us About Your Business</h1>
-              <p className={s.lead}>{questionnaires.length === 1 ? 'We have one short questionnaire for you.' : `We have ${questionnaires.length} short questionnaires for you.`} Your answers save as you type, so you can do a little at a time.</p>
-              <div className={`${s.content} ${s.qList}`}>
-                {questionnaires.map((q, i) => (
-                  <div key={q.id} className={s.qItem}>
-                    <span className={s.qNum}>{i + 1}</span>
-                    <div><p className={s.qName}>{q.title}</p><p className={s.qMeta}>{q.total} questions{q.answered ? ` · ${q.answered} answered` : ''}</p></div>
-                  </div>
-                ))}
-              </div>
-              <div className={s.actions}>
-                <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(step + 1)}>Continue</button>
-              </div>
-            </>
-          )}
+          {cur.kind === 'intro' && (() => {
+            const q = qs[cur.qi];
+            const total = q.questionnaire.sections.reduce((n, sec) => n + sec.questions.length, 0);
+            return (
+              <>
+                <Badge icon="edit" tone={s.bOrange} />
+                <p className={s.kicker}>Questionnaire {cur.qi + 1} of {qs.length}</p>
+                <h1 className={s.title}>{q.title}</h1>
+                <p className={s.lead}>{q.questionnaire.description || 'A few questions so we can get your project started on the right foot.'}</p>
+                <div className={`${s.content} ${s.qList}`}>
+                  {q.questionnaire.sections.map((sec, i) => (
+                    <div key={sec.id} className={s.qItem}>
+                      <span className={s.qNum}>{i + 1}</span>
+                      <div><p className={s.qName}>{sec.title}</p><p className={s.qMeta}>{sec.questions.length} question{sec.questions.length === 1 ? '' : 's'}</p></div>
+                    </div>
+                  ))}
+                </div>
+                <p className={s.note}>{total} questions in all. Answers save as you type, so you can stop and finish later from Onboarding.</p>
+                <div className={s.actions}>
+                  <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(step + 1)}>Start</button>
+                  <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => go(afterQuestionnaire(cur.qi))}>Do this later</button>
+                </div>
+              </>
+            );
+          })()}
 
-          {id === 'done' && (
+          {cur.kind === 'section' && (() => {
+            const q = qs[cur.qi];
+            const sec = q.questionnaire.sections[cur.si];
+            const last = cur.si === q.questionnaire.sections.length - 1;
+            return (
+              <>
+                <p className={s.kicker}>{q.title} · {cur.si + 1} of {q.questionnaire.sections.length}</p>
+                <h1 className={`${s.title} ${s.titleSm}`}>{sec.title}</h1>
+                {sec.description && <p className={s.lead}>{sec.description}</p>}
+                <div className={`${s.content} ${s.questions}`}>
+                  {sec.questions.map((x) => (
+                    <WelcomeQuestion key={x.id} q={x} value={q.answers[x.id] ?? null} missing={missing.includes(x.id)} onChange={(v, typed) => answer(cur.qi, x, v, typed)} />
+                  ))}
+                </div>
+                {error && <p className={s.error} role="alert">{error}</p>}
+                <div className={s.actions}>
+                  {!preview && saveNote && <p className={s.saved} aria-live="polite">{saveNote}</p>}
+                  {last
+                    ? <button type="button" className={`${s.btn} ${s.btnDark}`} disabled={busy} onClick={() => submitQuestionnaire(cur.qi)}>{busy ? 'Submitting…' : `Submit ${q.title}`}</button>
+                    : <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(step + 1)}>Next</button>}
+                  <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => go(afterQuestionnaire(cur.qi))}>Finish later</button>
+                </div>
+              </>
+            );
+          })()}
+
+          {cur.kind === 'done' && (
             <>
-              <svg className={s.check} viewBox="0 0 120 120" aria-hidden><circle cx="60" cy="60" r="60" /><path d="M36 62l16 16 32-34" /></svg>
+              <img src="/new-thrive/logo-mark-blk.svg" alt="" className={s.mark} />
               <h1 className={s.title}>You’re All Set{firstName ? `, ${firstName}` : ''}.</h1>
-              <p className={s.lead}>{questionnaires.length ? 'The best next step is your first questionnaire. It helps us hit the ground running.' : 'We’ll be in touch with next steps. Your dashboard has everything in the meantime.'}</p>
-              {preview ? (
-                <div className={s.actions}>
-                  {questionnaires.length > 0 && <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(0)}>Start {questionnaires[0].title}</button>}
-                  <button type="button" className={`${s.btn} ${questionnaires.length ? s.btnGhost : s.btnDark}`} onClick={() => go(0)}>Go to my dashboard</button>
-                </div>
-              ) : (
-                <div className={s.actions}>
-                  {questionnaires.length > 0 && (
-                    <Link href={`/portal/onboarding/${questionnaires[0].id}`} className={`${s.btn} ${s.btnDark}`}>Start {questionnaires[0].title}</Link>
-                  )}
-                  <Link href="/portal/dashboard" className={`${s.btn} ${questionnaires.length ? s.btnGhost : s.btnDark}`}>Go to my dashboard</Link>
-                </div>
-              )}
+              <p className={s.lead}>
+                {submitted.length ? `Thanks for filling out ${submitted.length === 1 ? 'your questionnaire' : 'your questionnaires'}. ` : ''}
+                {openLeft.length ? 'You can finish the rest any time from Onboarding.' : 'We’ll be in touch with next steps. Your dashboard has everything in the meantime.'}
+              </p>
+              <div className={s.actions}>
+                {preview
+                  ? <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(0)}>Go to my dashboard</button>
+                  : <Link href={openLeft.length ? '/portal/onboarding' : '/portal/dashboard'} className={`${s.btn} ${s.btnDark}`}>{openLeft.length ? 'Go to Onboarding' : 'Go to my dashboard'}</Link>}
+              </div>
             </>
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** A questionnaire question, in the welcome's look. */
+function WelcomeQuestion({ q, value, missing, onChange }: {
+  q: Question;
+  value: AnswerValue;
+  missing: boolean;
+  onChange: (v: AnswerValue, typed: boolean) => void;
+}) {
+  const id = `wq-${q.id}`;
+  const str = typeof value === 'string' ? value : '';
+  const list = Array.isArray(value) ? (value as string[]) : [];
+  let field: React.ReactNode;
+  switch (q.type) {
+    case 'short_text':
+      field = <input id={id} className={s.input} value={str} maxLength={1000} onChange={(e) => onChange(e.target.value, true)} />;
+      break;
+    case 'long_text':
+      field = <textarea id={id} className={`${s.input} ${s.textarea}`} value={str} maxLength={20000} onChange={(e) => onChange(e.target.value, true)} />;
+      break;
+    case 'url':
+      field = <input id={id} className={s.input} type="url" inputMode="url" placeholder="https://" value={str} onChange={(e) => onChange(e.target.value, true)} />;
+      break;
+    case 'date':
+      field = <input id={id} className={s.input} type="date" value={str} onChange={(e) => onChange(e.target.value || null, false)} />;
+      break;
+    case 'yes_no':
+      field = (
+        <div className={s.choices} role="radiogroup" aria-labelledby={`${id}-l`}>
+          {[true, false].map((v) => (
+            <button key={String(v)} type="button" role="radio" aria-checked={value === v} className={`${s.choice} ${value === v ? s.choiceOn : ''}`} onClick={() => onChange(value === v ? null : v, false)}>{v ? 'Yes' : 'No'}</button>
+          ))}
+        </div>
+      );
+      break;
+    case 'single_choice':
+      field = (
+        <div className={s.choices} role="radiogroup" aria-labelledby={`${id}-l`}>
+          {q.options.map((o) => (
+            <button key={o} type="button" role="radio" aria-checked={str === o} className={`${s.choice} ${str === o ? s.choiceOn : ''}`} onClick={() => onChange(str === o ? null : o, false)}>{o}</button>
+          ))}
+        </div>
+      );
+      break;
+    case 'multi_choice':
+    case 'checkbox_list':
+      field = (
+        <div className={s.choices} role="group" aria-labelledby={`${id}-l`}>
+          {q.options.map((o) => {
+            const on = list.includes(o);
+            return (
+              <button key={o} type="button" role="checkbox" aria-checked={on} className={`${s.choice} ${on ? s.choiceOn : ''}`}
+                onClick={() => { const next = on ? list.filter((x) => x !== o) : [...list, o]; onChange(next.length ? next : null, false); }}>{o}</button>
+            );
+          })}
+        </div>
+      );
+      break;
+    case 'file_upload':
+      field = <p className={s.note}>You can upload files for this one from Onboarding in your portal.</p>;
+      break;
+  }
+  const labelled = ['short_text', 'long_text', 'url', 'date'].includes(q.type);
+  return (
+    <div className={`${s.question} ${missing ? s.questionMissing : ''}`}>
+      {labelled
+        ? <label htmlFor={id} id={`${id}-l`} className={s.prompt}>{q.prompt}{q.is_required && <span className={s.req}> *</span>}</label>
+        : <p id={`${id}-l`} className={s.prompt}>{q.prompt}{q.is_required && <span className={s.req}> *</span>}</p>}
+      {q.help_text && <p className={s.help}>{q.help_text}</p>}
+      {isMulti(q.type) && <p className={s.help}>Pick as many as you like.</p>}
+      {field}
+      {missing && <p className={s.error}>This one’s required.</p>}
     </div>
   );
 }
