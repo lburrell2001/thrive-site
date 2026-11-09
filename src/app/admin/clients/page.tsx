@@ -67,6 +67,7 @@ export default function ClientsPage() {
           <p className={w.sub}>Everyone with a portal login. Open one to see their projects, invoices, files and requests next to their deals and history.</p>
         </div>
         <div className={w.headActions}>
+          <a href="/admin/welcome-preview" className={p.btn}>Preview portal welcome</a>
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => setAdding(true)}>New client</button>
         </div>
       </div>
