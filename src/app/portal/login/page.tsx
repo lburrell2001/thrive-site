@@ -41,6 +41,13 @@ export default function LoginPage() {
   const [sentTo, setSentTo]   = useState<{ email: boolean; texted: boolean }>({ email: true, texted: false });
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Sent back here because the account isn't a client's (portal layout).
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('no_portal')) return;
+    const t = setTimeout(() => setError('That email doesn’t have a client portal. If you’re working with Thrive, ask us to set one up for you.'), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     if (step === 'verify') {
       setTimeout(() => codeRefs.current[0]?.focus(), 80);

@@ -90,6 +90,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       const res = await fetch('/api/portal/me', {
         headers: { 'Authorization': `Bearer ${session.access_token}` },
       });
+      // Signed in, but not a client Lauren set up: no portal.
+      if (res.status === 403) {
+        await supabasePortal.auth.signOut();
+        router.replace('/portal/login?no_portal=1');
+        return;
+      }
       const json = await res.json() as { ok?: boolean; profile?: { full_name: string; initials: string; role: string; company_name: string } };
 
       const profile = json.profile;

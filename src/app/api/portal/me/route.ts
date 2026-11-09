@@ -14,28 +14,16 @@ export async function GET(req: NextRequest) {
   const { data: { user }, error: authError } = await admin.auth.getUser(token);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
-  let { data: profile } = await admin
+  const { data: profile } = await admin
     .from('portal_clients')
     .select('full_name, initials, role, company_name')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
 
-  // Auto-create profile if missing
-  if (!profile) {
-    const emailName = user.email?.split('@')[0] ?? 'client';
-    await admin.from('portal_clients').insert({
-      id: user.id,
-      full_name: emailName,
-      initials: emailName.slice(0, 2).toUpperCase(),
-      role: 'client',
-    });
-    const { data: fresh } = await admin
-      .from('portal_clients')
-      .select('full_name, initials, role, company_name')
-      .eq('id', user.id)
-      .single();
-    profile = fresh;
-  }
+  // Only people Lauren set up as clients (admin → Clients → New client) have a
+  // portal. An account made any other way — e.g. straight against Supabase's
+  // sign-up — gets no profile and no portal (it used to be created here).
+  if (!profile) return NextResponse.json({ error: 'no_portal' }, { status: 403 });
 
   return NextResponse.json({ ok: true, profile });
 }
