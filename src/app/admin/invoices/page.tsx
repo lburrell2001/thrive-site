@@ -6,16 +6,21 @@
 // Stripe, reminders and the CRM deal all work as they do for any invoice.
 // "Add from price list" inserts catalog items as typed lines (migration 047);
 // "Totals only" makes the client's PDF show category subtotals.
+//
+// Two views: the list (stats, estimates, invoices) and the editor (four steps,
+// a live paper preview, and a bar pinned to the bottom with the total and the
+// main action). On phones the preview opens as a sheet.
 
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
+import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, isMonthly, lineItemsToText, parseLineItems, splitTotals, totalCents, totalsLabel, type LineItem } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, isMonthly, lineItemsToText, parseLineItems, splitTotals, totalCents, type LineItem } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
-import { insertUnderHeading, itemLine, priceLabel, missingRequired, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
+import { insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 
 type Mode = 'estimate' | 'invoice';
@@ -46,19 +51,22 @@ interface Draft {
 
 const DRAFT_KEY = 'thrive-billing-draft';
 
-const EXAMPLE = `Homepage design | Custom layout for phone and desktop | $600
+const EXAMPLE = `# Website
+Homepage design | Custom layout for phone and desktop | $600
 Inner pages | Services, About, Contact | 6h @ $100
+Hosting setup | Included
+
+# Branding
 Logo refresh - two concepts $350
   - Three rounds of revisions
-Hosting setup | Included
 Returning client discount | -$100`;
 
-const STATUS_STYLE: Record<EstimateStatus, { bg: string; fg: string; label: string }> = {
-  draft:    { bg: '#f5f5f5', fg: '#141414', label: 'Draft' },
-  sent:     { bg: '#3943b7', fg: '#fff',    label: 'Sent' },
-  accepted: { bg: '#0cf574', fg: '#141414', label: 'Accepted' },
-  declined: { bg: '#e50586', fg: '#fff',    label: 'Declined' },
-  invoiced: { bg: '#0a0a0a', fg: '#fff',    label: 'Invoiced' },
+const STATUS_STYLE: Record<EstimateStatus, { cls: string; label: string }> = {
+  draft:    { cls: s.stDraft,    label: 'Draft' },
+  sent:     { cls: s.stSent,     label: 'Sent' },
+  accepted: { cls: s.stAccepted, label: 'Accepted' },
+  declined: { cls: s.stDeclined, label: 'Declined' },
+  invoiced: { cls: s.stInvoiced, label: 'Invoiced' },
 };
 
 /** Today in Dallas, YYYY-MM-DD. */
@@ -90,14 +98,28 @@ function storedDraft(): Draft {
 const clientLabel = (c: PortalClient) => c.company_name || c.full_name || 'Unnamed client';
 const contactLabel = (c: Contact) => [c.name, c.company].filter(Boolean).join(' · ') || c.email || 'Unnamed contact';
 
+/** Paid, overdue (due date gone by) or due. */
+function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
+  if (inv.status === 'paid') return { cls: s.stAccepted, label: 'Paid' };
+  if (inv.status === 'overdue' || (inv.due_date && inv.due_date < today())) return { cls: s.stDeclined, label: 'Overdue' };
+  return { cls: s.stSent, label: 'Due' };
+}
+
 export default function InvoiceBuilder() {
   const [data, setData] = useState<BillingData | null>(null);
   const [failed, setFailed] = useState('');
+  const [view, setView] = useState<'list' | 'edit'>('list');
+  const [tab, setTab] = useState<'estimates' | 'invoices'>('estimates');
+  const [query, setQuery] = useState('');
   const [draft, setDraft] = useState<Draft>(storedDraft);
   // The saved estimate being edited, and the estimate an invoice came from.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [fromEstimateId, setFromEstimateId] = useState<string | null>(null);
+  // The draft as last saved/opened, so leaving with changes can ask first.
+  const [snapshot, setSnapshot] = useState('');
   const [busy, setBusy] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
   const { toast, show } = useToast();
@@ -130,6 +152,7 @@ export default function InvoiceBuilder() {
         const client = portal ? d.clients.find((c) => c.id === portal) : undefined;
         if (!client) return;
         setReturnClient(client.id);
+        setView('edit');
         const mode: Mode = params.get('mode') === 'estimate' ? 'estimate' : 'invoice';
         const project = (params.get('project') ?? '').slice(0, 200);
         const key = `p:${client.id}`;
@@ -158,13 +181,16 @@ export default function InvoiceBuilder() {
   }, [draft, editingId]);
 
   if (!data) {
-    return <div className={p.screen}><div className={p.wrap}><p className={p.empty}>{failed || 'Loading…'}</p></div></div>;
+    return <div className={w.page}><p className={w.muted}>{failed || 'Loading…'}</p></div>;
   }
 
   const { items, problems } = parseLineItems(draft.text);
   const total = totalCents(items);
-  const showHours = items.some((it) => it.hours !== null);
+  const split = splitTotals(items);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
+  const isInvoice = draft.mode === 'invoice';
+  const dirty = editingId ? JSON.stringify(draft) !== snapshot : false;
+  const hasDraft = !editingId && (draft.text.trim() !== '' || draft.clientName.trim() !== '');
 
   /** The portal login behind the chosen client, if any: needed to invoice in the portal. */
   function portalIdOf(client: string): string | null {
@@ -183,11 +209,8 @@ export default function InvoiceBuilder() {
     } catch { /* the number can be typed */ }
   }
 
-  function pickClient(value: string) {
-    let name = '';
-    if (value.startsWith('p:')) { const c = data!.clients.find((x) => x.id === value.slice(2)); name = c ? clientLabel(c) : ''; }
-    if (value.startsWith('c:')) { const c = data!.contacts.find((x) => x.id === value.slice(2)); name = c ? c.company || c.name : ''; }
-    setDraft((d) => ({ ...d, client: value, clientName: value ? name : d.clientName, number: d.mode === 'invoice' ? '' : d.number }));
+  function pickClient(value: string, name: string) {
+    setDraft((d) => ({ ...d, client: value, clientName: name, number: d.mode === 'invoice' ? '' : d.number }));
     if (draft.mode === 'invoice') void fillInvoiceNumber(value);
   }
 
@@ -198,11 +221,34 @@ export default function InvoiceBuilder() {
     else setFromEstimateId(null);
   }
 
-  function startNew() {
-    if (draft.text.trim() && !window.confirm('Clear this and start a new one?')) return;
+  const scrollTop = () => document.querySelector('main')?.scrollTo({ top: 0 });
+
+  function leaveEditor() {
+    if (dirty && !window.confirm('Leave without saving your changes to this estimate?')) return;
+    if (editingId) {
+      // Back to whatever unsaved draft was there before.
+      setEditingId(null);
+      setFromEstimateId(null);
+      setDraft(storedDraft());
+    }
+    setPreviewOpen(false);
+    setView('list');
+    scrollTop();
+  }
+
+  function startNew(mode: Mode) {
+    if (hasDraft && !window.confirm('Start fresh? The unsaved draft you had will be cleared.')) return;
     setEditingId(null);
     setFromEstimateId(null);
-    setDraft(blankDraft(draft.mode));
+    setDraft(blankDraft(mode));
+    setView('edit');
+    scrollTop();
+  }
+
+  function continueDraft() {
+    setEditingId(null);
+    setView('edit');
+    scrollTop();
   }
 
   function clientKeyFor(est: Estimate): string {
@@ -212,17 +258,21 @@ export default function InvoiceBuilder() {
   }
 
   function openEstimate(est: Estimate) {
-    setEditingId(est.id);
-    setFromEstimateId(null);
-    setDraft({
+    const next: Draft = {
       mode: 'estimate', client: clientKeyFor(est), clientName: est.client_name, title: est.title,
       number: est.estimate_number, issueDate: est.issue_date, dueDate: est.valid_until ?? '',
       text: lineItemsToText(est.line_items), notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
-    });
-    document.querySelector("main")?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    setEditingId(est.id);
+    setFromEstimateId(null);
+    setDraft(next);
+    setSnapshot(JSON.stringify(next));
+    setView('edit');
+    scrollTop();
   }
 
   function invoiceFromEstimate(est: Estimate) {
+    if (hasDraft && !window.confirm('Turn this into an invoice? The unsaved draft you had will be replaced.')) return;
     const client = clientKeyFor(est);
     const t = today();
     setEditingId(null);
@@ -234,7 +284,8 @@ export default function InvoiceBuilder() {
     });
     void fillInvoiceNumber(client);
     if (!portalIdOf(client)) show('Pick a client with a portal login to add this invoice to their portal.', 'error');
-    document.querySelector("main")?.scrollTo({ top: 0, behavior: 'smooth' });
+    setView('edit');
+    scrollTop();
   }
 
   function estimateBody() {
@@ -257,8 +308,10 @@ export default function InvoiceBuilder() {
       const saved = editingId
         ? await apiSend<Estimate>(`/api/estimates/${editingId}`, 'PATCH', estimateBody())
         : await apiSend<Estimate>('/api/estimates', 'POST', estimateBody());
+      const next = { ...draft, number: saved.estimate_number };
       setEditingId(saved.id);
-      setDraft((d) => ({ ...d, number: saved.estimate_number }));
+      setDraft(next);
+      setSnapshot(JSON.stringify(next));
       localStorage.removeItem(DRAFT_KEY);
       show(editingId ? 'Estimate updated.' : `Saved as ${saved.estimate_number}.`);
       await load();
@@ -292,6 +345,9 @@ export default function InvoiceBuilder() {
       localStorage.removeItem(DRAFT_KEY);
       setFromEstimateId(null);
       setDraft(blankDraft('invoice'));
+      setView('list');
+      setTab('invoices');
+      scrollTop();
       show(`Invoice ${inv.invoice_number} added to the portal and sent.`);
       await load();
     } catch (e) {
@@ -312,6 +368,9 @@ export default function InvoiceBuilder() {
     }, doc.client || null);
   }
 
+  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly });
+  const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, totalsOnly: est.totals_only ?? false });
+
   async function setStatus(est: Estimate, status: EstimateStatus) {
     try {
       await apiSend(`/api/estimates/${est.id}`, 'PATCH', { status });
@@ -325,8 +384,9 @@ export default function InvoiceBuilder() {
     if (!window.confirm(`Delete estimate ${est.estimate_number}?`)) return;
     try {
       await apiSend(`/api/estimates/${est.id}`, 'DELETE');
-      if (editingId === est.id) { setEditingId(null); setDraft(blankDraft('estimate')); }
+      if (editingId === est.id) { setEditingId(null); setDraft(storedDraft()); setView('list'); }
       await load();
+      show(`Deleted ${est.estimate_number}.`);
     } catch (e) {
       show(e instanceof Error ? e.message : 'Could not delete', 'error');
     }
@@ -362,67 +422,230 @@ export default function InvoiceBuilder() {
 
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
   const canSave = items.length > 0 && problems.length === 0 && missing.length === 0;
-  const isInvoice = draft.mode === 'invoice';
+  const editingEstimate = editingId ? data.estimates.find((e) => e.id === editingId) : undefined;
 
-  return (
-    <div className={p.screen}>
-      <div className={p.wrap} style={{ maxWidth: 1280 }}>
-        <div className={p.pageHead}>
+  // ── List view ─────────────────────────────────────────────────────────────
+  if (view === 'list') {
+    const q = query.trim().toLowerCase();
+    const estimates = data.estimates.filter((e) => !q || `${e.estimate_number} ${e.client_name} ${e.title}`.toLowerCase().includes(q));
+    const invoices = data.invoices.filter((i) => !q || `${i.invoice_number} ${clientNameById.get(i.client_id) ?? ''} ${i.project_name}`.toLowerCase().includes(q));
+    const open = data.estimates.filter((e) => e.status === 'draft' || e.status === 'sent');
+    const accepted = data.estimates.filter((e) => e.status === 'accepted');
+    const unpaid = data.invoices.filter((i) => i.status !== 'paid');
+    const overdue = unpaid.filter((i) => invoiceState(i).label === 'Overdue');
+    const sumEst = (xs: Estimate[]) => xs.reduce((n, x) => n + x.total_cents, 0);
+    const sumInv = (xs: InvoiceRow[]) => xs.reduce((n, x) => n + x.amount_cents, 0);
+
+    return (
+      <div className={w.page}>
+        <div className={w.head}>
           <div>
-            <h1 className={p.pageTitle}>Invoices and estimates</h1>
-            <p className={p.pageSub}>Type one item per line. The preview updates as you go.</p>
+            <h1 className={w.title}>Estimates &amp; Invoices</h1>
+            <p className={w.sub}>Build one from your price list or type it out, then download the PDF or send the invoice to their portal.</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {returnClient && <Link href={`/admin/clients?client=${returnClient}`} className={p.btn}>← Back to client</Link>}
-            <button type="button" className={p.btn} onClick={startNew}>New</button>
+          <div className={w.headActions}>
+            <Link href="/admin/price-list" className={p.btn}>Price list</Link>
+            <button type="button" className={p.btn} onClick={() => startNew('invoice')}>New invoice</button>
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => startNew('estimate')}>New estimate</button>
           </div>
         </div>
 
         {!data.ready && (
-          <p className={p.card} style={{ marginBottom: 16, color: '#e50586' }}>
+          <p className={s.notice}>
             Run <code>supabase/migrations/039_invoice_estimate_builder.sql</code> in Supabase to save estimates and invoice lines. Until then you can still build and download PDFs.
           </p>
         )}
 
-        <div className={s.layout}>
-          <section className={p.card}>
-            <div className={s.modes} role="tablist" aria-label="Document type">
-              {(['estimate', 'invoice'] as const).map((m) => (
-                <button key={m} type="button" role="tab" aria-selected={draft.mode === m}
-                  className={`${s.mode} ${draft.mode === m ? s.modeOn : ''}`} onClick={() => switchMode(m)}>
-                  {m === 'estimate' ? 'Estimate' : 'Invoice'}
-                </button>
-              ))}
+        {hasDraft && (
+          <div className={s.draftBanner}>
+            <div>
+              <strong>Unsaved {draft.mode}</strong>
+              <span className={w.muted}> · {[draft.clientName, draft.title, items.length ? formatLineMoney(total) : ''].filter(Boolean).join(' · ') || 'started'}</span>
             </div>
+            <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={continueDraft}>Continue</button>
+          </div>
+        )}
 
+        <div className={`${w.statRow} ${s.stats}`}>
+          <div className={w.stat}>
+            <p className={w.statLabel}>Open estimates</p>
+            <p className={w.statValue}>{formatLineMoney(sumEst(open))}</p>
+            <p className={w.statNote}>{open.length} draft or sent</p>
+          </div>
+          <div className={w.stat}>
+            <p className={w.statLabel}>Accepted</p>
+            <p className={w.statValue}>{formatLineMoney(sumEst(accepted))}</p>
+            <p className={w.statNote}>{accepted.length ? `${accepted.length} ready to invoice` : 'None waiting'}</p>
+          </div>
+          <div className={w.stat}>
+            <p className={w.statLabel}>Unpaid invoices</p>
+            <p className={w.statValue}>{formatLineMoney(sumInv(unpaid))}</p>
+            <p className={w.statNote}>{overdue.length ? `${overdue.length} overdue` : `${unpaid.length} waiting`}</p>
+          </div>
+        </div>
+
+        <div className={s.listBar}>
+          <div className={w.tabs} role="tablist" aria-label="Show" style={{ margin: 0 }}>
+            <button type="button" role="tab" aria-selected={tab === 'estimates'} className={`${w.tab} ${tab === 'estimates' ? w.tabOn : ''}`} onClick={() => setTab('estimates')}>
+              Estimates <span className={s.count}>{data.estimates.length}</span>
+            </button>
+            <button type="button" role="tab" aria-selected={tab === 'invoices'} className={`${w.tab} ${tab === 'invoices' ? w.tabOn : ''}`} onClick={() => setTab('invoices')}>
+              Invoices <span className={s.count}>{data.invoices.length}</span>
+            </button>
+          </div>
+          <input type="search" className={w.searchInput} placeholder="Search by number, client or project" value={query}
+            onChange={(e) => setQuery(e.target.value)} aria-label="Search estimates and invoices" />
+        </div>
+
+        {tab === 'estimates' && (
+          estimates.length === 0 ? (
+            <div className={s.emptyCard}>
+              <p>{q ? 'No estimates match.' : 'No estimates yet.'}</p>
+              {!q && <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => startNew('estimate')}>Make your first estimate</button>}
+            </div>
+          ) : (
+            <ul className={s.docList}>
+              {estimates.map((est) => {
+                const st = STATUS_STYLE[est.status];
+                return (
+                  <li key={est.id} className={s.doc}>
+                    <button type="button" className={s.docMain} onClick={() => openEstimate(est)}>
+                      <span className={s.docTop}>
+                        <span className={s.docNumber}>{est.estimate_number}</span>
+                        <span className={`${s.status} ${st.cls}`}>{st.label}</span>
+                      </span>
+                      <span className={s.docWho}>{est.client_name || 'No client'}</span>
+                      <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
+                    </button>
+                    <span className={s.docAmount}>{formatLineMoney(est.total_cents)}</span>
+                    <div className={s.docActions}>
+                      {est.status !== 'invoiced' && (
+                        <select className={s.statusSelect} value={est.status} aria-label={`Status of ${est.estimate_number}`}
+                          onChange={(e) => setStatus(est, e.target.value as EstimateStatus)}>
+                          {(['draft', 'sent', 'accepted', 'declined'] as const).map((v) => <option key={v} value={v}>{STATUS_STYLE[v].label}</option>)}
+                        </select>
+                      )}
+                      <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => estimatePdf(est)}>PDF</button>
+                      {est.status !== 'invoiced' && (
+                        <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Invoice it</button>
+                      )}
+                      <button type="button" className={s.iconBtn} aria-label={`Delete ${est.estimate_number}`} title="Delete" onClick={() => remove(est)}>×</button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+
+        {tab === 'invoices' && (
+          invoices.length === 0 ? (
+            <div className={s.emptyCard}>
+              <p>{q ? 'No invoices match.' : 'No invoices yet.'}</p>
+              {!q && <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => startNew('invoice')}>Make an invoice</button>}
+            </div>
+          ) : (
+            <ul className={s.docList}>
+              {invoices.map((inv) => {
+                const st = invoiceState(inv);
+                const client = clientNameById.get(inv.client_id) ?? '';
+                return (
+                  <li key={inv.id} className={s.doc}>
+                    <Link href={`/admin/clients?client=${inv.client_id}`} className={s.docMain}>
+                      <span className={s.docTop}>
+                        <span className={s.docNumber}>{inv.invoice_number}</span>
+                        <span className={`${s.status} ${st.cls}`}>{st.label}</span>
+                      </span>
+                      <span className={s.docWho}>{client || 'Client'}</span>
+                      <span className={s.docMeta}>{[inv.project_name, inv.status === 'paid' ? `issued ${formatDate(inv.invoice_date)}` : `due ${formatDate(inv.due_date)}`].filter(Boolean).join(' · ')}</span>
+                    </Link>
+                    <span className={s.docAmount}>{formatLineMoney(inv.amount_cents)}</span>
+                    <div className={s.docActions}>
+                      <button type="button" className={`${p.btn} ${p.btnSmall}`}
+                        onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client, totalsOnly: inv.totals_only ?? false })}>
+                        PDF
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )
+        )}
+        {tab === 'invoices' && invoices.length > 0 && <p className={s.listFoot}>The 30 most recent. Open a client to see all of theirs, record payments or send a reminder.</p>}
+        <Toast toast={toast} />
+      </div>
+    );
+  }
+
+  // ── Editor ────────────────────────────────────────────────────────────────
+  const heading = editingId ? `Edit ${draft.number}` : fromEstimateId ? 'Invoice from estimate' : `New ${isInvoice ? 'invoice' : 'estimate'}`;
+  const primaryLabel = isInvoice
+    ? (busy ? 'Sending…' : 'Send to client portal')
+    : (busy ? 'Saving…' : editingId ? (dirty ? 'Save changes' : 'Saved') : 'Save estimate');
+  const primaryDisabled = isInvoice
+    ? !canSave || !portalId || busy || !data.ready
+    : !canSave || busy || !data.ready || (!!editingId && !dirty);
+  const blocker = items.length === 0 ? 'Add at least one item'
+    : problems.length ? `Fix line ${problems[0].line}`
+    : missing.length ? `${missing[0].required.name} is required`
+    : isInvoice && !portalId ? 'Pick a portal client to send it'
+    : '';
+
+  return (
+    <div className={`${w.page} ${s.editorPage}`}>
+      <div className={s.editorTop}>
+        <button type="button" className={s.back} onClick={leaveEditor}>← All estimates &amp; invoices</button>
+        {returnClient && <Link href={`/admin/clients?client=${returnClient}`} className={s.back}>Back to client</Link>}
+      </div>
+
+      <div className={w.head}>
+        <div>
+          <h1 className={w.title}>{heading}</h1>
+          {editingEstimate && (
+            <p className={w.sub}>
+              <span className={`${s.status} ${STATUS_STYLE[editingEstimate.status].cls}`}>{STATUS_STYLE[editingEstimate.status].label}</span>
+              {' '}Saved {formatDate(editingEstimate.updated_at)}{dirty ? ' · unsaved changes' : ''}
+            </p>
+          )}
+          {fromEstimateId && <p className={w.sub}>The estimate will be marked Invoiced once this is sent.</p>}
+        </div>
+        {!editingId && (
+          <div className={w.tabs} role="tablist" aria-label="Document type" style={{ margin: 0 }}>
+            {(['estimate', 'invoice'] as const).map((m) => (
+              <button key={m} type="button" role="tab" aria-selected={draft.mode === m}
+                className={`${w.tab} ${draft.mode === m ? w.tabOn : ''}`} onClick={() => switchMode(m)}>
+                {m === 'estimate' ? 'Estimate' : 'Invoice'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className={s.layout}>
+        <div className={s.steps}>
+          <section className={s.step}>
+            <StepHead n={1} title="Who’s it for?"
+              hint={isInvoice ? 'Invoices go to a client with a portal login, where they pay by card.' : 'A portal client, a contact, or just type a name.'} />
+            <ClientPicker data={data} value={draft.client} name={draft.clientName}
+              onPick={pickClient}
+              onType={(name) => setDraft((d) => ({ ...d, client: '', clientName: name }))} />
+            {isInvoice && draft.clientName && !portalId && (
+              <p className={s.warn}>{draft.clientName} has no portal login, so this can only be downloaded as a PDF.</p>
+            )}
+          </section>
+
+          <section className={s.step}>
+            <StepHead n={2} title="Details" />
             <div className={s.fields}>
-              <label style={{ gridColumn: '1 / -1' }}>
-                <span className={p.label}>Client</span>
-                <select className={p.select} value={draft.client} onChange={(e) => pickClient(e.target.value)}>
-                  <option value="">Someone else (type their name below)</option>
-                  <optgroup label="Portal clients">
-                    {data.clients.map((c) => <option key={c.id} value={`p:${c.id}`}>{clientLabel(c)}</option>)}
-                  </optgroup>
-                  <optgroup label="CRM contacts">
-                    {data.contacts.filter((c) => !c.portal_client_id).map((c) => <option key={c.id} value={`c:${c.id}`}>{contactLabel(c)}</option>)}
-                  </optgroup>
-                </select>
-              </label>
-              <label>
-                <span className={p.label}>{isInvoice ? 'Billed to' : 'Prepared for'}</span>
-                <input className={p.input} value={draft.clientName} onChange={(e) => set('clientName', e.target.value)} placeholder="Business or person" />
-              </label>
-              <label>
+              <label className={s.wide}>
                 <span className={p.label}>Project</span>
                 <input className={p.input} value={draft.title} onChange={(e) => set('title', e.target.value)} placeholder="Website redesign" />
               </label>
-            </div>
-
-            <div className={s.fields}>
               <label>
                 <span className={p.label}>{isInvoice ? 'Invoice number' : 'Estimate number'}</span>
                 <input className={p.input} value={draft.number} onChange={(e) => set('number', e.target.value)}
-                  placeholder={isInvoice ? 'INV-001' : 'Given on save'} readOnly={!isInvoice} />
+                  placeholder={isInvoice ? 'INV-001' : 'Given when saved'} readOnly={!isInvoice} />
               </label>
               <label>
                 <span className={p.label}>Date</span>
@@ -433,17 +656,45 @@ export default function InvoiceBuilder() {
                 <input type="date" className={p.input} value={draft.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
               </label>
             </div>
+            <div className={s.quickDates}>
+              {(isInvoice ? [['On receipt', 0], ['7 days', 7], ['14 days', 14], ['30 days', 30]] as const : [['14 days', 14], ['30 days', 30], ['60 days', 60]] as const).map(([label, days]) => (
+                <button key={label} type="button" className={`${s.chip} ${draft.dueDate === addDays(draft.issueDate, days) ? s.chipOn : ''}`}
+                  onClick={() => set('dueDate', addDays(draft.issueDate, days))}>{label}</button>
+              ))}
+            </div>
+          </section>
 
-            <div className={s.itemsHead}>
-              <label htmlFor="billing-items" className={p.label} style={{ margin: 0 }}>Items</label>
-              <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={!catalog} onClick={() => setDrawer(true)}
+          <section className={s.step}>
+            <StepHead n={3} title="Items" hint="One item per line. Add from your price list or type your own." />
+            <div className={s.itemsTools}>
+              <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
                 title={catalog ? undefined : 'Run migration 047 to use the price list'}>
                 + Add from price list
               </button>
+              <button type="button" className={`${p.btn} ${p.btnSmall}`} aria-expanded={tipsOpen} onClick={() => setTipsOpen((v) => !v)}>
+                {tipsOpen ? 'Hide tips' : 'How to type items'}
+              </button>
+              {!draft.text && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => set('text', EXAMPLE)}>Use the example</button>}
             </div>
-            <textarea id="billing-items" className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
+            {tipsOpen && (
+              <ul className={s.tips}>
+                <li><code>Item | description | $price</code>, one per line</li>
+                <li><code>| 3h @ $100</code> multiplies; <code>| 3h | $300</code> is a flat price with the hours shown</li>
+                <li><code>Logo design $750</code> works without bars</li>
+                <li>A line starting with <code>-</code> adds to the description above</li>
+                <li><code>Included</code> for $0, <code>-$100</code> for a discount</li>
+                <li><code># Website</code> starts a group, for the category totals</li>
+                <li>A description ending in <code>/mo</code> is monthly</li>
+                <li>Pasting from a spreadsheet works too</li>
+              </ul>
+            )}
+            <textarea aria-label="Items" className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
               onChange={(e) => set('text', e.target.value)} placeholder={EXAMPLE} />
-            {items.length > 0 && <p className={s.runningTotal}>{totalsLabel(items)}</p>}
+            {problems.length > 0 && (
+              <ul className={s.problems}>
+                {problems.map((pr) => <li key={pr.line}>Line {pr.line}: {pr.message}</li>)}
+              </ul>
+            )}
             {missing.length > 0 && (
               <div className={s.required} role="alert">
                 {missing.map(({ item, required }) => (
@@ -466,131 +717,169 @@ export default function InvoiceBuilder() {
                 </div>
               </div>
             )}
-            <p className={s.help}>
-              <code>Item | description | $price</code>. Hours are optional: <code>| 3h | $300</code> is a flat price, <code>| 3h @ $100</code> multiplies.
-              No bars needed for simple lines: <code>Logo design $750</code>. Start a line with <code>-</code> to add to the description above.
-              Use <code>Included</code> for $0 and <code>-$100</code> for a discount. Paste from a spreadsheet works too.
-              A <code># Heading</code> line groups the lines under it for the category totals; a description ending in <code>/mo</code> is monthly.
-              {!draft.text && <> <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => set('text', EXAMPLE)}>Use the example</button></>}
-            </p>
-            {problems.length > 0 && (
-              <ul className={s.problems}>
-                {problems.map((pr) => <li key={pr.line}>Line {pr.line}: {pr.message}</li>)}
-              </ul>
-            )}
-
-            <label style={{ display: 'block', marginTop: 14 }}>
-              <span className={p.label}>Notes (optional)</span>
-              <textarea className={p.textarea} value={draft.notes} onChange={(e) => set('notes', e.target.value)}
-                placeholder={isInvoice ? 'Payment terms, thank-you note…' : 'What’s not included, timeline, next steps…'} />
-            </label>
-
-            <label className={s.switchRow}>
-              <input type="checkbox" checked={draft.totalsOnly} onChange={(e) => set('totalsOnly', e.target.checked)} />
-              <span>
-                Totals only
-                <small>The client’s PDF shows each category’s subtotal and the total, not every line. You always see every line here.</small>
-              </span>
-            </label>
-
-            <div className={s.actions}>
-              {isInvoice ? (
-                <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!canSave || !portalId || busy || !data.ready} onClick={addToPortal}
-                  title={portalId ? undefined : 'Pick a client with a portal login'}>
-                  {busy ? 'Adding…' : 'Add to client portal'}
-                </button>
-              ) : (
-                <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!canSave || busy || !data.ready} onClick={saveEstimate}>
-                  {busy ? 'Saving…' : editingId ? 'Save changes' : 'Save estimate'}
-                </button>
-              )}
-              <button type="button" className={p.btn} disabled={!canSave}
-                onClick={() => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly })}>
-                Download PDF
-              </button>
-            </div>
-            {isInvoice && !portalId && (
-              <p className={s.help}>Only clients with a portal login can be invoiced in the portal (where they pay by card). For anyone else, download the PDF.</p>
-            )}
-            {fromEstimateId && <p className={s.help}>From an estimate: it will be marked Invoiced once this is added.</p>}
-            {missing.length > 0 && <p className={s.help}>Add the required items back to save.</p>}
           </section>
 
-          <Preview draft={draft} items={items} total={total} showHours={showHours} />
+          <section className={s.step}>
+            <StepHead n={4} title="Finish" />
+            <label className={s.switchRow}>
+              <span className={s.switchText}>
+                <strong>Totals only</strong>
+                <small>The client’s PDF shows each category’s subtotal and the total, not every line. You always see every line here.</small>
+              </span>
+              <input type="checkbox" role="switch" className={s.switch} checked={draft.totalsOnly} onChange={(e) => set('totalsOnly', e.target.checked)} />
+            </label>
+            <label style={{ display: 'block', marginTop: 16 }}>
+              <span className={p.label}>Notes (optional)</span>
+              <textarea className={p.textarea} rows={3} value={draft.notes} onChange={(e) => set('notes', e.target.value)}
+                placeholder={isInvoice ? 'Payment terms, thank-you note…' : 'What’s not included, timeline, next steps…'} />
+            </label>
+            {editingEstimate && editingEstimate.status !== 'invoiced' && (
+              <div className={s.finishLinks}>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
+                  onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
+                <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => remove(editingEstimate)}>Delete estimate</button>
+              </div>
+            )}
+          </section>
         </div>
 
-        <section className={p.card} style={{ marginTop: 18 }}>
-          <h2 className={p.cardTitle}>Estimates</h2>
-          {data.estimates.length === 0 ? <p className={p.rowMeta}>No estimates yet.</p> : (
-            <ul className={s.list}>
-              {data.estimates.map((est) => {
-                const st = STATUS_STYLE[est.status];
-                return (
-                  <li key={est.id} className={s.listRow}>
-                    <div className={s.listMain}>
-                      <strong style={{ fontSize: 14 }}>{est.estimate_number}</strong>{' '}
-                      <span className={s.pill} style={{ background: st.bg, color: st.fg }}>{st.label}</span>
-                      <p className={p.rowMeta}>
-                        {[est.client_name, est.title, formatLineMoney(est.total_cents), formatDate(est.issue_date)].filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                    {est.status !== 'invoiced' && (
-                      <select className={p.select} style={{ width: 'auto' }} value={est.status} aria-label={`Status of ${est.estimate_number}`}
-                        onChange={(e) => setStatus(est, e.target.value as EstimateStatus)}>
-                        {(['draft', 'sent', 'accepted', 'declined'] as const).map((v) => <option key={v} value={v}>{STATUS_STYLE[v].label}</option>)}
-                      </select>
-                    )}
-                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => openEstimate(est)}>Edit</button>
-                    <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                      onClick={() => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, totalsOnly: est.totals_only ?? false })}>
-                      PDF
-                    </button>
-                    {est.status !== 'invoiced' && (
-                      <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Turn into invoice</button>
-                    )}
-                    <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => remove(est)}>Delete</button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        <section className={p.card} style={{ marginTop: 16 }}>
-          <h2 className={p.cardTitle}>Recent invoices</h2>
-          {data.invoices.length === 0 ? <p className={p.rowMeta}>No invoices yet.</p> : (
-            <ul className={s.list}>
-              {data.invoices.map((inv) => (
-                <li key={inv.id} className={s.listRow}>
-                  <div className={s.listMain}>
-                    <strong style={{ fontSize: 14 }}>{inv.invoice_number}</strong>
-                    <p className={p.rowMeta}>
-                      {[clientNameById.get(inv.client_id), inv.project_name, formatLineMoney(inv.amount_cents), `due ${formatDate(inv.due_date)}`, inv.status].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  <Link href={`/admin/clients?client=${inv.client_id}`} className={`${p.btn} ${p.btnSmall}`}>Client</Link>
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                    onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client: clientNameById.get(inv.client_id) ?? '', totalsOnly: inv.totals_only ?? false })}>
-                    PDF
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <aside className={s.previewCol}>
+          <Preview draft={draft} items={items} total={total} />
+        </aside>
       </div>
+
+      <div className={s.bar}>
+        <div className={s.barTotal}>
+          <span className={s.barLabel}>{isInvoice ? 'Total due' : split.monthly && split.oneTime ? 'One-time + monthly' : 'Estimate total'}</span>
+          <span className={s.barValue}>
+            {isInvoice || !split.monthly ? formatLineMoney(total) : amountText(split.oneTime, split.monthly)}
+          </span>
+          <span className={s.barMeta}>{blocker || `${items.length} item${items.length === 1 ? '' : 's'}${isInvoice && split.monthly ? ` · first month of ${formatLineMoney(split.monthly)}/mo included` : ''}`}</span>
+        </div>
+        <div className={s.barActions}>
+          <button type="button" className={`${p.btn} ${s.previewBtn}`} onClick={() => setPreviewOpen(true)}>Preview</button>
+          <button type="button" className={p.btn} disabled={!canSave} onClick={draftPdf}>PDF</button>
+          <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={primaryDisabled}
+            onClick={isInvoice ? addToPortal : saveEstimate}>{primaryLabel}</button>
+        </div>
+      </div>
+
+      {previewOpen && (
+        <div className={s.sheet} role="dialog" aria-modal="true" aria-label="Preview">
+          <div className={s.sheetHead}>
+            <strong>Preview</strong>
+            <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setPreviewOpen(false)}>Done</button>
+          </div>
+          <Preview draft={draft} items={items} total={total} />
+        </div>
+      )}
       {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insertItems} onClose={() => setDrawer(false)} />}
-      <Toast toast={toast} />
+      <div className={s.toastLift}><Toast toast={toast} /></div>
     </div>
   );
 }
 
+function StepHead({ n, title, hint }: { n: number; title: string; hint?: string }) {
+  return (
+    <div className={s.stepHead}>
+      <span className={s.stepNum} aria-hidden="true">{n}</span>
+      <div>
+        <h2 className={s.stepTitle}>{title}</h2>
+        {hint && <p className={s.stepHint}>{hint}</p>}
+      </div>
+    </div>
+  );
+}
 
-function Preview({ draft, items, total, showHours }: { draft: Draft; items: LineItem[]; total: number; showHours: boolean }) {
+/**
+ * One box for who it's for: type to search portal clients and contacts, pick
+ * one to link it (portal clients can be invoiced), or keep the typed name.
+ */
+function ClientPicker({ data, value, name, onPick, onType }: {
+  data: BillingData; value: string; name: string;
+  onPick: (key: string, name: string) => void; onType: (name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const q = name.trim().toLowerCase();
+  const linked = value !== '';
+  const portal = data.clients
+    .filter((c) => !q || clientLabel(c).toLowerCase().includes(q) || c.full_name.toLowerCase().includes(q))
+    .slice(0, 6)
+    .map((c) => ({ key: `p:${c.id}`, label: clientLabel(c), sub: c.company_name && c.full_name ? c.full_name : 'Portal client', group: 'Portal clients', name: clientLabel(c) }));
+  const contacts = data.contacts
+    .filter((c) => !c.portal_client_id)
+    .filter((c) => q && `${c.name} ${c.company ?? ''} ${c.email ?? ''}`.toLowerCase().includes(q))
+    .slice(0, 6)
+    .map((c) => ({ key: `c:${c.id}`, label: contactLabel(c), sub: c.email ?? 'Contact', group: 'Contacts', name: c.company || c.name }));
+  const options = [...portal, ...contacts];
+
+  function choose(i: number) {
+    const o = options[i];
+    if (!o) return;
+    onPick(o.key, o.name);
+    setOpen(false);
+  }
+
+  const linkedLabel = value.startsWith('p:') ? 'Portal client' : value.startsWith('c:')
+    ? (data.contacts.find((c) => c.id === value.slice(2))?.portal_client_id ? 'Contact with a portal login' : 'CRM contact')
+    : '';
+
+  return (
+    <div className={s.picker}>
+      <input
+        className={`${p.input} ${s.pickerInput}`}
+        value={name}
+        placeholder="Search clients or type a name"
+        role="combobox"
+        aria-expanded={open && !linked && options.length > 0}
+        aria-controls="client-options"
+        aria-autocomplete="list"
+        aria-label="Client"
+        onFocus={() => { if (blurTimer.current) clearTimeout(blurTimer.current); setOpen(true); setActive(0); }}
+        onBlur={() => { blurTimer.current = setTimeout(() => setOpen(false), 120); }}
+        onChange={(e) => { onType(e.target.value); setOpen(true); setActive(0); }}
+        onKeyDown={(e) => {
+          if (!open || linked) return;
+          if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, options.length - 1)); }
+          else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+          else if (e.key === 'Enter' && options.length) { e.preventDefault(); choose(active); }
+          else if (e.key === 'Escape') setOpen(false);
+        }}
+      />
+      {linked && (
+        <span className={s.linked}>
+          {linkedLabel}
+          <button type="button" aria-label="Unlink client" onClick={() => onType(name)}>×</button>
+        </span>
+      )}
+      {open && !linked && options.length > 0 && (
+        <ul id="client-options" role="listbox" className={s.pickerList}>
+          {options.map((o, i) => (
+            <Fragment key={o.key}>
+              {(i === 0 || options[i - 1].group !== o.group) && <li className={s.pickerGroup} aria-hidden="true">{o.group}</li>}
+              <li role="option" aria-selected={i === active} className={`${s.pickerOption} ${i === active ? s.pickerOptionOn : ''}`}
+                onMouseDown={(e) => { e.preventDefault(); choose(i); }} onMouseEnter={() => setActive(i)}>
+                <strong>{o.label}</strong>
+                <span>{o.sub}</span>
+              </li>
+            </Fragment>
+          ))}
+          {q && <li className={s.pickerHint} aria-hidden="true">Or keep “{name.trim()}” as a typed name</li>}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; total: number }) {
   const isInvoice = draft.mode === 'invoice';
   const groups = categoryTotals(items);
   const grouped = items.some((it) => it.category);
   const split = splitTotals(items);
+  const showHours = items.some((it) => it.hours !== null);
   return (
     <section className={s.paper} aria-label="Preview">
       <div className={s.paperHead}>
@@ -612,7 +901,7 @@ function Preview({ draft, items, total, showHours }: { draft: Draft; items: Line
       </div>
 
       {draft.totalsOnly && items.length > 0 && (
-        <p className={s.paperFlag}>Totals only: the client’s PDF shows each category’s subtotal, not the lines in grey.</p>
+        <p className={s.paperFlag}>Totals only: the client sees each category’s subtotal, not the lines in grey.</p>
       )}
       <table className={s.table}>
         <thead>
@@ -624,7 +913,7 @@ function Preview({ draft, items, total, showHours }: { draft: Draft; items: Line
         </thead>
         <tbody>
           {items.length === 0 ? (
-            <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you type.</td></tr>
+            <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you add them.</td></tr>
           ) : groups.map((g) => (
             <Fragment key={g.category}>
               {(grouped || draft.totalsOnly) && (
