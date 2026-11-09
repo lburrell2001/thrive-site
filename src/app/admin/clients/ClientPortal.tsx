@@ -53,7 +53,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; }
+interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; welcome_on?: boolean; welcome_done_at?: string | null; }
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
@@ -377,6 +377,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
   const [email, setEmail] = useState(p?.email ?? '');
   const [phone, setPhone] = useState(formatPhone(p?.phone));
   const [smsOptIn, setSmsOptIn] = useState(Boolean(p?.sms_opt_in));
+  const [welcomeOn, setWelcomeOn] = useState(Boolean(p?.welcome_on));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -408,14 +409,20 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
             <span style={{ display: 'block', fontSize: 11, color: '#bfbfbf' }}>Clients can also turn this on or off themselves in portal settings.</span>
           </span>
         </label>
+        <WelcomeSwitch
+          on={welcomeOn}
+          doneAt={p?.welcome_done_at ?? null}
+          onChange={async (on) => {
+            setError(''); setSuccess('');
+            setWelcomeOn(on);
+            const r = await api({ action: 'set_welcome', clientId, on }) as { error?: string };
+            if (r.error) { setError(r.error); setWelcomeOn(!on); }
+            else setSuccess(on ? 'They’ll see the walkthrough next time they open the portal.' : 'Walkthrough off: they go straight to their dashboard.');
+          }}
+        />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Btn>
           <Btn variant="ghost" onClick={() => remind({ kind: 'custom', clientId }, 'Message client')}>✉ Message Client</Btn>
-          <Btn variant="ghost" title="They'll see the step-by-step portal welcome next time they open the portal" onClick={async () => {
-            setError(''); setSuccess('');
-            const r = await api({ action: 'reset_welcome', clientId }) as { error?: string };
-            if (r.error) setError(r.error); else setSuccess('They’ll see the welcome next time they open the portal.');
-          }}>Show welcome again</Btn>
           <Btn variant="ghost" onClick={() => window.location.assign(`/admin/welcome-preview?client=${clientId}&name=${encodeURIComponent(fullName)}&company=${encodeURIComponent(companyName)}&email=${encodeURIComponent(p?.email ?? '')}`)}>Preview welcome</Btn>
           <ErrorMsg msg={error} /><SuccessMsg msg={success} />
         </div>
@@ -1990,5 +1997,31 @@ function ClientDangerZone({ api, clientId, clientName, clientEmail, onRefresh, o
       <ErrorMsg msg={error} />
       <SuccessMsg msg={success} />
     </section>
+  );
+}
+
+/** Onboarding walkthrough on/off: the step-by-step welcome they see when they next open the portal. */
+function WelcomeSwitch({ on, doneAt, onChange }: { on: boolean; doneAt: string | null; onChange: (on: boolean) => void }) {
+  return (
+    <div style={{ display: 'flex', gap: 12, alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: 14, background: '#f5f5f5' }}>
+      <span style={{ fontFamily: F.inter, fontSize: 13, color: DARK }}>
+        <strong id="welcome-switch-label">Onboarding walkthrough</strong>
+        <span style={{ display: 'block', fontSize: 12, color: '#808080', marginTop: 2 }}>
+          {on
+            ? 'On: they see the step-by-step welcome next time they open the portal.'
+            : `Off: they go straight to their dashboard.${doneAt ? ` They finished it ${fmtDate(doneAt)}.` : ''}`}
+        </span>
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-labelledby="welcome-switch-label"
+        onClick={() => onChange(!on)}
+        style={{ flex: 'none', position: 'relative', width: 46, height: 28, padding: 0, border: 0, borderRadius: 999, background: on ? PINK : '#d4d4d4', cursor: 'pointer', transition: 'background .15s' }}
+      >
+        <span aria-hidden="true" style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 22, height: 22, borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.25)', transition: 'left .15s' }} />
+      </button>
+    </div>
   );
 }

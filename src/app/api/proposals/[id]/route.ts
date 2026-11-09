@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
+import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { savePayloadSchema } from '@/lib/proposalWriteSchemas';
 import {
   collectImagePaths,
@@ -45,6 +46,10 @@ export async function GET(req: Request, { params }: Ctx) {
   ]);
 
   const blocks = rowsToBlocks(blockRows.data ?? []);
+  // Its estimate (migration 050), for the builder's Pricing tab.
+  const { data: estimate } = proposal.estimate_id
+    ? await db.from('estimates').select('id, estimate_number, status, total_cents').eq('id', proposal.estimate_id).maybeSingle()
+    : { data: null };
   const imageUrls = await signImageUrls(db, collectImagePaths(blocks));
 
   // The builder never needs the access token — publishing hands the link
@@ -61,6 +66,7 @@ export async function GET(req: Request, { params }: Ctx) {
       client: client.data ?? null,
       signatures: signatures.data ?? [],
       imageUrls,
+      estimate,
     },
   });
 }
@@ -120,13 +126,17 @@ export async function PATCH(req: Request, { params }: Ctx) {
 
   // Hand back the recomputed total so the builder's running total always
   // reflects what the database actually calculated, never the client's sum.
+  // The estimate is rebuilt from this pricing, so the two always match.
+  const synced = await syncProposalEstimate(db, id);
+  if (!synced.ok) console.error('[proposals] estimate not synced', synced.error);
+
   const { data: fresh } = await db
     .from('proposals')
     .select('total_cents, updated_at, status')
     .eq('id', id)
     .single();
 
-  return NextResponse.json({ ok: true, data: fresh });
+  return NextResponse.json({ ok: true, data: { ...fresh, estimate: synced.ok ? synced.estimate : null } });
 }
 
 export async function DELETE(req: Request, { params }: Ctx) {

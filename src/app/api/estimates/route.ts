@@ -38,9 +38,13 @@ export async function GET(req: Request) {
   let deals = await dealQuery(true);
   if (deals.error) deals = await dealQuery(false);
 
+  // Estimates that belong to a proposal (migration 050).
+  const linked = await db.from('proposals').select('id, title, estimate_id').not('estimate_id', 'is', null);
+
   return NextResponse.json({
     ok: true,
     data: {
+      proposalLinks: linked.error ? [] : linked.data ?? [],
       projects: projects.data ?? [],
       deals: deals.data ?? [],
       ready: !estimates.error,

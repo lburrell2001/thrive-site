@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { needsWelcome, welcomeDoneAt } from '@/lib/portalWelcome';
 import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
@@ -214,7 +215,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           ok: true,
           data: {
-            profile: profile.data ? { ...profile.data, email: authUser.data.user?.email ?? null } : null,
+            profile: profile.data ? {
+              ...profile.data,
+              email: authUser.data.user?.email ?? null,
+              // The onboarding walkthrough: will they see it next time, and did they finish it?
+              welcome_on: needsWelcome(authUser.data.user),
+              welcome_done_at: welcomeDoneAt(authUser.data.user),
+            } : null,
             projects: projects.data ?? [],
             requests: requests.data ?? [],
             invoices: invoices.data ?? [],
@@ -291,6 +298,19 @@ export async function POST(req: NextRequest) {
         const { error: insertErr } = await admin.from('portal_clients').insert({ id: newUser.user.id, full_name, company_name, initials, role: 'client' });
         if (insertErr) return err(insertErr.message);
         return NextResponse.json({ ok: true, data: { id: newUser.user.id } });
+      }
+
+      // The onboarding walkthrough switch on the Client tab.
+      case 'set_welcome': {
+        const { clientId, on } = params as { clientId?: string; on?: boolean };
+        if (!clientId || typeof on !== 'boolean') return err('Missing client');
+        const { data: found, error: getErr } = await admin.auth.admin.getUserById(clientId);
+        if (getErr || !found.user) return err('Client not found');
+        const { error } = await admin.auth.admin.updateUserById(clientId, {
+          user_metadata: { ...(found.user.user_metadata ?? {}), portal_welcome: on ? 'pending' : 'off' },
+        });
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
       }
 
       case 'reset_welcome': {

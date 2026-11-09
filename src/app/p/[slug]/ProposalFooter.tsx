@@ -1,5 +1,7 @@
 import { DeclineAction } from './DeclineAction';
 import { SignAction } from './SignAction';
+import { EstimateDownload } from './EstimateDownload';
+import type { InvoiceForPDF } from '@/lib/invoicePDF';
 
 /**
  * Sticky footer on the client view: what it costs, what is due on approval,
@@ -18,6 +20,8 @@ export function ProposalFooter({
   signedAt,
   declined,
   termsUrl,
+  estimate,
+  clientName,
 }: {
   slug: string;
   token: string;
@@ -29,6 +33,9 @@ export function ProposalFooter({
   signedAt: string | null;
   declined: boolean;
   termsUrl?: string;
+  /** The estimate that goes with the proposal, as the PDF prints it. */
+  estimate?: InvoiceForPDF | null;
+  clientName?: string | null;
 }) {
   return (
     <div className="proposalFooter">
@@ -48,6 +55,8 @@ export function ProposalFooter({
         >
           Save as PDF
         </a>
+
+        {estimate && <EstimateDownload estimate={estimate} clientName={clientName ?? null} />}
 
         {signed && (
           <span className="proposalFooterSigned">

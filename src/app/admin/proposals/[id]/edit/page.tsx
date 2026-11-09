@@ -43,7 +43,10 @@ interface LoadResponse {
   lineItems: BuilderLineItem[];
   signatures: SignatureRow[];
   imageUrls: Record<string, string>;
+  estimate?: LinkedEstimate | null;
 }
+
+interface LinkedEstimate { id: string; estimate_number: string; status: string; total_cents: number }
 
 interface ClientRow {
   id: string;
@@ -85,6 +88,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   const [signatures, setSignatures] = useState<SignatureRow[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<'details' | 'pricing' | 'pages'>('pages');
+  // Its estimate (migration 050), rebuilt from the pricing on every save.
+  const [estimate, setEstimate] = useState<LinkedEstimate | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [publishing, setPublishing] = useState(false);
@@ -131,6 +136,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         setDeclinedAt(loaded.proposal.declined_at);
         setImageUrls(loaded.imageUrls);
         setSignatures(loaded.signatures ?? []);
+        setEstimate(loaded.estimate ?? null);
         setClients(clientRows ?? []);
         setTab(loaded.proposal.client_id ? 'pages' : 'details');
       } catch (error) {
@@ -164,7 +170,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
       setSaveState('saving');
 
       try {
-        const result = await apiSend<{ total_cents: number; status: ProposalStatus }>(
+        const result = await apiSend<{ total_cents: number; status: ProposalStatus; estimate?: LinkedEstimate | null }>(
           `/api/proposals/${id}`,
           'PATCH',
           {
@@ -187,6 +193,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
 
         lastGood.current = snapshot;
         setTotalCents(result.total_cents);
+        if (result.estimate) setEstimate(result.estimate);
         setMeta((current) => (current ? { ...current, status: result.status } : current));
         setSaveState((current) => (current === 'saving' ? 'saved' : current));
       } catch (error) {
@@ -522,6 +529,22 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
 
           {tab === 'pricing' && (
             <div className={pb.panel}>
+              <div className={pb.estimateCard}>
+                {estimate ? (
+                  <>
+                    <div>
+                      <strong>Estimate {estimate.estimate_number}</strong>
+                      <span>{formatMoneyCents(estimate.total_cents, meta.currency)} · {ESTIMATE_STATUS[estimate.status] ?? estimate.status} · updates from this pricing · the client can download it</span>
+                    </div>
+                    <Link href={`/admin/invoices?estimate=${estimate.id}`} className={`${s.btn} ${s.btnSmall}`}>Open</Link>
+                  </>
+                ) : (
+                  <div>
+                    <strong>Estimate</strong>
+                    <span>Made from this pricing as soon as you add a line. Every proposal goes out with one.</span>
+                  </div>
+                )}
+              </div>
               {pricingBlock ? blockEditor(pricingBlock) : (
                 <div className={pb.emptyPanel}>
                   <p>This proposal has no pricing page yet.</p>
@@ -595,6 +618,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
     </BuilderProvider>
   );
 }
+
+const ESTIMATE_STATUS: Record<string, string> = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined', invoiced: 'Invoiced' };
 
 const STATUS: Record<ProposalStatus, { cls: string; label: string }> = {
   draft: { cls: b.stDraft, label: 'Draft' },

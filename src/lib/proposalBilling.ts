@@ -91,3 +91,28 @@ export function proposalInvoiceText(
     return [name, clean(i.description ?? ''), price].filter(Boolean).join(' | ');
   }).join('\n') + '\n';
 }
+
+/**
+ * Proposal → its estimate's lines. The proposal's pricing wins; what the
+ * estimate knew about each line (its category, hours × rate, a hidden
+ * description) is kept when the line is still there, matched by name.
+ */
+export function proposalToEstimateLines(items: ProposalLine[], previous: LineItem[] = []): LineItem[] {
+  const base = (n: string) => n.replace(/\s*\(x[\d.]+\)/i, '').trim().toLowerCase();
+  return [...items].sort((a, b) => a.position - b.position).filter((i) => i.label.trim()).map((i) => {
+    const before = previous.find((p) => base(p.name) === base(i.label));
+    const amount = Math.round(i.quantity * i.unit_price_cents);
+    const hourly = before?.hours !== null && before?.hours !== undefined && before.rate_cents !== null;
+    const label = i.label.replace(/\s*\(x[\d.]+\)/i, '').trim();
+    const line: LineItem = {
+      name: (hourly || i.quantity === 1 ? label : `${label} (x${i.quantity})`).slice(0, 200),
+      description: (i.description ?? '').slice(0, 2000),
+      hours: hourly ? i.quantity : null,
+      rate_cents: hourly ? i.unit_price_cents : null,
+      amount_cents: amount,
+    };
+    if (before?.category) line.category = before.category;
+    if (before?.hide_description) line.hide_description = true;
+    return line;
+  });
+}

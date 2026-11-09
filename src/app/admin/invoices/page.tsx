@@ -38,7 +38,7 @@ interface InvoiceRow {
 }
 interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
 interface DealRow { id: string; contact_id: string; title: string; stage: string }
-interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[]; deals?: DealRow[] }
+interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[]; deals?: DealRow[]; proposalLinks?: { id: string; title: string; estimate_id: string }[] }
 
 interface Draft {
   mode: Mode;
@@ -667,6 +667,9 @@ export default function InvoiceBuilder() {
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
   const canSave = items.length > 0 && problems.length === 0 && missing.length === 0 && !depositProblem;
   const editingEstimate = editingId ? data.estimates.find((e) => e.id === editingId) : undefined;
+  /** The proposal an estimate belongs to: its pricing is the source. */
+  const proposalOf = (estId: string | undefined) => (estId ? data.proposalLinks?.find((l) => l.estimate_id === estId) : undefined);
+  const linkedProposal = proposalOf(editingEstimate?.id);
 
   // ── List view ─────────────────────────────────────────────────────────────
   if (view === 'list') {
@@ -758,6 +761,7 @@ export default function InvoiceBuilder() {
                       <span className={s.docTop}>
                         <span className={s.docNumber}>{est.estimate_number}</span>
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
+                        {proposalOf(est.id) && <span className={`${s.status} ${s.stDraft}`}>With a proposal</span>}
                       </span>
                       <span className={s.docWho}>{est.client_name || 'No client'}</span>
                       <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
@@ -774,7 +778,11 @@ export default function InvoiceBuilder() {
                         {est.status === 'draft' ? 'Send' : 'Send again'}
                       </button>
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => estimatePdf(est)}>PDF</button>
-                      <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
+                      {proposalOf(est.id) ? (
+                        <Link href={`/admin/crm/proposals/${proposalOf(est.id)!.id}/edit`} className={`${p.btn} ${p.btnSmall}`}>Open proposal</Link>
+                      ) : (
+                        <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
+                      )}
                       {est.status !== 'invoiced' && (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Invoice it</button>
                       )}
@@ -857,7 +865,7 @@ export default function InvoiceBuilder() {
     : (busy ? 'Saving…' : editingId ? (dirty ? 'Save changes' : 'Saved') : 'Save estimate');
   const primaryDisabled = isInvoice
     ? !canSave || !portalId || busy || !data.ready
-    : !canSave || busy || !data.ready || (!!editingId && !dirty);
+    : !canSave || busy || !data.ready || (!!editingId && !dirty) || !!linkedProposal;
   const blocker = items.length === 0 ? 'Add at least one item'
     : problems.length ? `Fix line ${problems[0].line}`
     : missing.length ? `${missing[0].required.name} is required`
@@ -882,6 +890,12 @@ export default function InvoiceBuilder() {
             </p>
           )}
           {fromEstimateId && <p className={w.sub}>The estimate will be marked Invoiced once this is sent.</p>}
+          {linkedProposal && (
+            <p className={s.proposalLink}>
+              This is the estimate for the proposal <strong>{linkedProposal.title}</strong>. It’s rebuilt from the proposal’s pricing, so change prices there.
+              {' '}<Link href={`/admin/crm/proposals/${linkedProposal.id}/edit`}>Open the proposal →</Link>
+            </p>
+          )}
         </div>
         {!editingId && (
           <div className={w.tabs} role="tablist" aria-label="Document type" style={{ margin: 0 }}>
@@ -1083,8 +1097,12 @@ export default function InvoiceBuilder() {
             </label>
             {editingEstimate && (
               <div className={s.finishLinks}>
-                <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty || busy} title={dirty ? 'Save your changes first' : undefined}
-                  onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
+                {linkedProposal ? (
+                  <Link href={`/admin/crm/proposals/${linkedProposal.id}/edit`} className={`${p.btn} ${p.btnSmall}`}>Open the proposal</Link>
+                ) : (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty || busy} title={dirty ? 'Save your changes first' : undefined}
+                    onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
+                )}
                 {editingEstimate.status !== 'invoiced' && <>
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
                     onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>

@@ -194,3 +194,21 @@
 @media (max-width: 900px) {
   .builder { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Pricing tab: the estimate that goes with the proposal. */
+.estimateCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #fd6100;
+  color: #fff;
+  font-size: 12.5px;
+}
+
+.estimateCard > div { display: grid; gap: 2px; min-width: 0; }
+.estimateCard strong { font-size: 13.5px; }
+.estimateCard a { background: #fff; border-color: #fff; color: #141414; }

@@ -14,6 +14,7 @@ const BASE_NAV_LINKS = [
   { href: '/portal/dashboard', label: 'Dashboard' },
   { href: '/portal/onboarding', label: 'Onboarding' },
   { href: '/portal/progress',  label: 'My Projects' },
+  { href: '/portal/proposals', label: 'Proposals' },
   { href: '/portal/vault',     label: 'Secure Vault' },
   { href: '/portal/invoices',  label: 'Billing' },
   { href: '/portal/settings',  label: 'Settings' },
@@ -29,6 +30,7 @@ function buildPageTitles(userName: string, userCompany: string) {
     '/portal/payments':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
     '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Questionnaires and first steps for your project' },
     '/portal/files':      { title: 'FILES & ASSETS',  subtitle: 'Delivered files and uploads' },
+    '/portal/proposals':  { title: 'PROPOSALS',       subtitle: 'Read, sign and download your proposals' },
     '/portal/vault':      { title: 'SECURE VAULT',    subtitle: 'Share logins and access details safely' },
     '/portal/settings':   { title: 'SETTINGS',        subtitle: 'Account and notification preferences' },
   } as Record<string, { title: string; subtitle: string }>;

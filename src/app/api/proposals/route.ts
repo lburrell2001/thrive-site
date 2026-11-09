@@ -3,6 +3,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
+import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { createProposalSchema } from '@/lib/proposalWriteSchemas';
 import { emptyBlock, parseBlocksLenient } from '@/lib/proposalSchemas';
 import { headerDate, starterBlocks } from '@/lib/proposalStarter';
@@ -206,6 +207,11 @@ export async function POST(req: Request) {
     });
     if (saveError) return badRequest(saveError.message);
   }
+
+  // Every proposal has an estimate: the one it came from, or one built from its pricing.
+  if (fromEstimateId) await db.from('proposals').update({ estimate_id: fromEstimateId }).eq('id', created.id);
+  const synced = await syncProposalEstimate(db, created.id);
+  if (!synced.ok) console.error('[proposals] estimate not synced', synced.error);
 
   return NextResponse.json({ ok: true, data: { id: created.id, skipped } });
 }

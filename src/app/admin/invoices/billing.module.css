@@ -1084,3 +1084,17 @@
 
 .sendDialog .stepHint { margin: -4px 0 0; }
 .sendActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+/* An estimate that belongs to a proposal. */
+.proposalLink {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #fd6100;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 640px;
+}
+
+.proposalLink a { color: #fff; font-weight: 700; }

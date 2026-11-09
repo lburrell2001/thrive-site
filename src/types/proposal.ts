@@ -223,6 +223,8 @@ export interface Proposal {
   declined_at: string | null;
   /** Why the client declined, in their words. */
   decline_reason: string | null;
+  /** The estimate that goes with it (migration 050). */
+  estimate_id?: string | null;
   created_at: string;
   updated_at: string;
 }

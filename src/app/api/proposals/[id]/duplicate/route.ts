@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
+import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { newAccessToken } from '../../route';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -76,6 +77,10 @@ export async function POST(req: Request, { params }: Ctx) {
     })),
   });
   if (saveError) return badRequest(saveError.message);
+
+  // The copy gets its own estimate.
+  const synced = await syncProposalEstimate(db, created.id);
+  if (!synced.ok) console.error('[proposals] estimate not synced', synced.error);
 
   return NextResponse.json({ ok: true, data: created });
 }
