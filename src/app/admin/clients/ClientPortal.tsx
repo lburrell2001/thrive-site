@@ -410,6 +410,12 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Btn>
           <Btn variant="ghost" onClick={() => remind({ kind: 'custom', clientId }, 'Message client')}>✉ Message Client</Btn>
+          <Btn variant="ghost" title="They'll see the step-by-step portal welcome next time they open the portal" onClick={async () => {
+            setError(''); setSuccess('');
+            const r = await api({ action: 'reset_welcome', clientId }) as { error?: string };
+            if (r.error) setError(r.error); else setSuccess('They’ll see the welcome next time they open the portal.');
+          }}>Show welcome again</Btn>
+          <Btn variant="ghost" onClick={() => window.location.assign(`/admin/welcome-preview?client=${clientId}&name=${encodeURIComponent(fullName)}&company=${encodeURIComponent(companyName)}`)}>Preview welcome</Btn>
           <ErrorMsg msg={error} /><SuccessMsg msg={success} />
         </div>
       </form>

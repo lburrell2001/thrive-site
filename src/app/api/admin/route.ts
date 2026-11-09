@@ -292,6 +292,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true, data: { id: newUser.user.id } });
       }
 
+      case 'reset_welcome': {
+        // Show the portal's step-by-step welcome again on their next visit (src/lib/portalWelcome.ts).
+        const { clientId } = params as Record<string, string>;
+        const { data: found, error: getErr } = await admin.auth.admin.getUserById(clientId);
+        if (getErr || !found.user) return err('Client not found');
+        const { error } = await admin.auth.admin.updateUserById(clientId, {
+          user_metadata: { ...(found.user.user_metadata ?? {}), portal_welcome: 'pending' },
+        });
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
       case 'delete_client': {
         const { clientId } = params as Record<string, string>;
         await admin.from('portal_clients').delete().eq('id', clientId);

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Bungee, Bai_Jamjuree } from 'next/font/google';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { needsWelcome } from '@/lib/portalWelcome';
 
 const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bungee' });
 const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
@@ -83,6 +84,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
     supabasePortal.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace('/portal/login'); return; }
+      // New clients see the step-by-step welcome first (src/lib/portalWelcome.ts).
+      if (pathname !== '/portal/welcome' && needsWelcome(session.user)) { router.replace('/portal/welcome'); return; }
 
       const res = await fetch('/api/portal/me', {
         headers: { 'Authorization': `Bearer ${session.access_token}` },
@@ -123,6 +126,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         </span>
       </div>
     );
+  }
+
+  // The welcome is full screen, without the portal's sidebar and header.
+  if (pathname === '/portal/welcome') {
+    return <div className={`${bungee.variable} ${baiJamjuree.variable}`}>{children}</div>;
   }
 
   const NAV_LINKS = BASE_NAV_LINKS;

@@ -1,0 +1,225 @@
+/* The portal welcome (/portal/welcome): a step-by-step setup, like a new
+   phone's. The site's look (src/app/_site): Poppins — Bold −100 for the big
+   titles, Medium −75 for text — Thrive's brand colours only, black pill
+   buttons, big rounded corners. A white card on black on larger screens;
+   the whole screen on phones. */
+
+.screen {
+  --ink: #141414;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #141414;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.075em;
+  word-spacing: 0.1em;
+  color: var(--ink);
+}
+
+/* Inside admin (preview): fill the work area instead of the whole window. */
+.screenPreview { min-height: calc(100dvh - 120px); border-radius: 28px; }
+
+.card {
+  position: relative;
+  width: min(560px, 100%);
+  min-height: min(760px, calc(100dvh - 48px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 32px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+.dark { background: #141414; color: #fff; box-shadow: 0 0 0 1px #2a2a2a, 0 30px 80px rgba(0, 0, 0, 0.45); }
+.green { background: #0cf574; color: #141414; }
+
+/* Top bar: back, progress, skip */
+.top {
+  display: grid;
+  grid-template-columns: 72px 1fr 72px;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 22px 0;
+  min-height: 44px;
+}
+
+.back, .skip {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 8px 0;
+  opacity: 0.7;
+}
+.back { justify-self: start; }
+.skip { justify-self: end; }
+.back:hover, .skip:hover { opacity: 1; }
+.back:focus-visible, .skip:focus-visible, .btn:focus-visible, .tile:focus-visible { outline: 3px solid #3943b7; outline-offset: 3px; border-radius: 999px; }
+
+.progress { display: flex; gap: 6px; }
+.seg { flex: 1; height: 4px; border-radius: 999px; background: currentColor; opacity: 0.15; transition: opacity 0.3s; }
+.segOn { opacity: 1; }
+.segDone { opacity: 0.55; }
+
+/* A step */
+.body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 36px 32px;
+  animation: in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.bodyBack { animation-name: inBack; }
+@keyframes in { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes inBack { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+
+.center { text-align: center; align-items: center; }
+/* Welcome and done: the message sits in the middle, the buttons at the bottom. */
+.center > :first-child { margin-top: auto; }
+.center .actions { align-self: stretch; }
+.center .title { font-size: clamp(2.6rem, 9vw, 3.8rem); }
+
+/* The step's icon, like an app icon */
+.icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  margin: 8px 0 22px;
+  color: #fff;
+  animation: pop 0.5s 0.1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.icon svg { width: 42px; height: 42px; }
+@keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: none; } }
+.bMagenta { background: #e50586; color: #fff; }
+.bBlue { background: #3943b7; color: #fff; }
+.bPurple { background: #9409ce; color: #fff; }
+.bOrange { background: #fd6100; color: #141414; }
+.bGreen { background: #0cf574; color: #141414; }
+.bBlack { background: #141414; color: #fff; }
+
+.title {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(2.2rem, 7vw, 3.1rem);
+  line-height: 0.95;
+  letter-spacing: -0.1em;
+  word-spacing: 0.12em;
+}
+.title em { font-style: normal; color: #e50586; }
+.lead { margin: 14px 0 0; font-size: 16px; line-height: 1.45; opacity: 0.75; max-width: 40ch; }
+.center .lead { margin-left: auto; margin-right: auto; }
+
+.content { margin-top: 26px; display: grid; gap: 14px; }
+
+/* Fields */
+.field { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid #d4d4d4;
+  border-radius: 16px;
+  padding: 15px 18px;
+  font: inherit;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: normal;
+  word-spacing: normal;
+  color: #141414;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input:focus { outline: none; border-color: #141414; box-shadow: 0 0 0 4px rgba(20, 20, 20, 0.08); }
+.consent { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 16px; background: #f5f5f5; font-size: 12.5px; line-height: 1.5; letter-spacing: -0.02em; word-spacing: normal; cursor: pointer; }
+.consent input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #e50586; flex-shrink: 0; }
+.consentOff { opacity: 0.5; cursor: default; }
+.error { margin: 0; font-size: 14px; font-weight: 600; color: #e50586; }
+
+/* Portal tour tiles */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile {
+  border-radius: 22px;
+  padding: 18px;
+  min-height: 132px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.tile:nth-child(2) { animation-delay: 0.06s; }
+.tile:nth-child(3) { animation-delay: 0.12s; }
+.tile:nth-child(4) { animation-delay: 0.18s; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.tile svg { width: 28px; height: 28px; }
+.tileName { margin: 0; font-weight: 700; font-size: 18px; letter-spacing: -0.085em; line-height: 1.05; }
+.tileText { margin: 4px 0 0; font-size: 13px; line-height: 1.35; opacity: 0.85; }
+
+/* Questionnaire list */
+.qList { display: grid; gap: 10px; }
+.qItem { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: 18px; border: 1.5px solid #e6e6e6; }
+.qNum { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #141414; color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0; flex-shrink: 0; }
+.qName { margin: 0; font-weight: 700; font-size: 16px; letter-spacing: -0.06em; }
+.qMeta { margin: 2px 0 0; font-size: 13px; opacity: 0.65; }
+
+/* Bottom actions */
+.actions { margin-top: auto; padding-top: 28px; display: grid; gap: 10px; }
+.btn {
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-radius: 999px;
+  padding: 16px 24px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, transform 0.1s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.btnDark { background: #141414; color: #fff; }
+.btnDark:hover:not(:disabled) { background: #e50586; }
+.btnLight { background: #fff; color: #141414; }
+.btnLight:hover:not(:disabled) { background: #e50586; color: #fff; }
+.btnGhost { background: transparent; color: inherit; min-height: 44px; opacity: 0.75; }
+.btnGhost:hover { opacity: 1; }
+
+/* Welcome: the logo, then the mark's petals fanning out */
+.logo { width: min(260px, 70%); height: auto; margin: 10px auto 30px; animation: pop 0.6s 0.1s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+.petals { position: relative; width: 200px; height: 170px; margin: 0 auto 34px; }
+.petal { position: absolute; left: 50%; bottom: 50%; width: 22px; height: 46px; margin-left: -11px; border-radius: 9px 9px 7px 7px; transform-origin: 50% 100%; animation: fan 0.7s cubic-bezier(0.2, 1.3, 0.4, 1) both; }
+@keyframes fan { from { opacity: 0; transform: rotate(var(--r)) translateY(20px) scale(0.4); } to { opacity: 1; transform: rotate(var(--r)) translateY(-6px); } }
+.square { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; margin: -8px 0 0 -20px; border-radius: 9px; background: #fff; animation: pop 0.5s 0.5s both; }
+
+/* Done: a check that draws itself */
+.check { width: 140px; height: 140px; margin: 0 auto 30px; }
+.check circle { fill: #141414; animation: pop 0.5s both; transform-origin: center; }
+.check path { fill: none; stroke: #0cf574; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 80; stroke-dashoffset: 80; animation: draw 0.5s 0.35s ease forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+@media (max-width: 600px) {
+  .screen { padding: 0; }
+  .card { width: 100%; min-height: 100dvh; border-radius: 0; box-shadow: none; }
+  .body { padding: 24px 22px calc(24px + env(safe-area-inset-bottom)); }
+  .top { padding: calc(16px + env(safe-area-inset-top)) 18px 0; }
+  .tile { min-height: 118px; padding: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body, .icon, .tile, .logo, .petal, .square, .check circle { animation: none; }
+  .check path { animation: none; stroke-dashoffset: 0; }
+}
