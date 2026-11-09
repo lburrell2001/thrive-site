@@ -358,7 +358,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_invoice': {
-        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes } = params as Record<string, unknown>;
+        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only } = params as Record<string, unknown>;
         let { amount_cents } = params as Record<string, unknown>;
         const row: Record<string, unknown> = { client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status };
         if (subscription_id) row.subscription_id = subscription_id;
@@ -371,8 +371,14 @@ export async function POST(req: NextRequest) {
           row.amount_cents = amount_cents;
           row.line_items = lines.data;
           row.notes = typeof notes === 'string' && notes.trim() ? notes.trim().slice(0, 4000) : null;
+          if (typeof totals_only === 'boolean') row.totals_only = totals_only;
         }
-        const { data, error } = await admin.from('portal_invoices').insert(row).select().single();
+        let { data, error } = await admin.from('portal_invoices').insert(row).select().single();
+        // Before migration 047 there's no totals_only column.
+        if (error && /totals_only/.test(error.message)) {
+          delete row.totals_only;
+          ({ data, error } = await admin.from('portal_invoices').insert(row).select().single());
+        }
         if (error) return err(/line_items|notes/.test(error.message) ? 'Run migration 039 in Supabase to save invoice lines.' : error.message);
         const fmtAmt = ((Number(amount_cents)) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
         logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);

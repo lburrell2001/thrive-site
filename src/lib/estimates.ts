@@ -22,6 +22,8 @@ export type Estimate = {
   valid_until: string | null;
   status: EstimateStatus;
   invoice_id: string | null;
+  /** Migration 047: the client's PDF shows category subtotals, not each line. */
+  totals_only?: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +39,7 @@ export const estimateSchema = z.object({
   notes: z.string().max(4000).nullable(),
   issue_date: isoDate,
   valid_until: isoDate.nullable(),
+  totals_only: z.boolean().optional(),
 });
 
 export const estimatePatchSchema = estimateSchema.partial().extend({
@@ -60,6 +63,15 @@ export async function nextEstimateNumber(db: SupabaseClient): Promise<string> {
     if (m) max = Math.max(max, parseInt(m[1], 10));
   }
   return `EST-${String(max + 1).padStart(3, '0')}`;
+}
+
+/** Before migration 047 there's no totals_only column: save without it. */
+export const missingTotalsOnly = (message: string) => /totals_only/.test(message);
+
+export function withoutTotalsOnly<T extends Record<string, unknown>>(row: T): T {
+  const copy = { ...row };
+  delete copy.totals_only;
+  return copy;
 }
 
 /** Postgres/PostgREST errors that mean migration 039 isn't in yet. */

@@ -2,7 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { estimateRow, estimateSchema, missingEstimatesTable, nextEstimateNumber } from '@/lib/estimates';
+import { estimateRow, estimateSchema, missingEstimatesTable, missingTotalsOnly, nextEstimateNumber, withoutTotalsOnly } from '@/lib/estimates';
 
 const INVOICE_COLUMNS = 'id, client_id, invoice_number, project_name, amount_cents, invoice_date, due_date, status';
 
@@ -20,7 +20,8 @@ export async function GET(req: Request) {
 
   // Lines and notes only exist once 039 is in.
   const recent = (columns: string) => db.from('portal_invoices').select(columns).order('created_at', { ascending: false }).limit(30);
-  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes`);
+  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only`);
+  if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes`);
   if (invoices.error) invoices = await recent(INVOICE_COLUMNS);
 
   return NextResponse.json({
@@ -43,14 +44,16 @@ export async function POST(req: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid estimate');
 
   // The unique number is the guard if two saves race; try once more.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let row = estimateRow(parsed.data);
+  for (let attempt = 0; attempt < 3; attempt++) {
     const estimate_number = await nextEstimateNumber(auth.db);
     const { data, error } = await auth.db
       .from('estimates')
-      .insert({ ...estimateRow(parsed.data), estimate_number })
+      .insert({ ...row, estimate_number })
       .select('*')
       .single();
     if (!error) return NextResponse.json({ ok: true, data });
+    if (missingTotalsOnly(error.message) && 'totals_only' in row) { row = withoutTotalsOnly(row); continue; }
     if (missingEstimatesTable(error.message)) return badRequest('Run migration 039 in Supabase to save estimates.', 503);
     if (error.code !== '23505') return badRequest(error.message);
   }

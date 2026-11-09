@@ -122,6 +122,14 @@ Migration `046`. Onboarding questionnaires clients fill out in the portal. Share
 
 `/admin/invoices` (migration `039`) builds both from a typed list, one item per line, parsed by `src/lib/lineItems.ts` (pure; `Item | description | $price`, optional hours, `3h @ $100` multiplies, `-` lines extend the description above, `Included`, negative discounts, tab-separated paste). Invoices go into `portal_invoices` through the `add_invoice` action on `/api/admin`, which now takes `line_items` + `notes` and sets `amount_cents` from the lines, so the portal, Stripe, reminders and CRM deal triggers are unchanged; only portal clients can be invoiced (anyone can get a PDF). Estimates live in `estimates` (RLS on, no policies; `EST-001…`; `GET/POST /api/estimates`, `PATCH/DELETE /api/estimates/[id]`) and "Turn into invoice" marks them `invoiced`. `src/lib/invoicePDF.ts` prints the lines (older invoices print as one line), notes, and an ESTIMATE variant.
 
+### Price list
+
+`/admin/price-list` (Sales → Price list, migration `047`): `price_categories` → `price_items` (`price` in dollars, `price_type` flat | hourly | included | monthly, `hours`, `is_optional`, `is_active`, `unit` = per-unit items that get a quantity box, internal `notes`) and `price_item_rules` (`requires` | `suggests`). RLS on, no policies; all reads/writes through `GET/POST /api/price-list`. Seeded from `docs/thrive-price-list.md` (keep it in sync with the page's Export). Pure helpers in `src/lib/priceCatalog.ts`.
+
+- The invoice/estimate builder's "+ Add from price list" (`PriceListDrawer.tsx`) inserts catalog items as typed lines under `# Category` headings (the parser's only change: `# ` lines set `category` on the lines below; a description ending `/mo` is monthly — `isMonthly`, `splitTotals`, `categoryTotals`). Prices are copied in, so catalog edits never touch saved estimates/invoices. Rules are read from the box's current lines: a missing `requires` item shows "Add it back" and blocks saving; `suggests` show as one-click chips.
+- `totals_only` on `estimates` and `portal_invoices` (existing rows false, new default true): the PDF (`invoicePDF.ts`) prints category subtotals instead of lines. Estimates with monthly lines print one-time and monthly totals apart; invoices charge the total with a "first month included" note. Saves retry without `totals_only` if 047 isn't applied.
+- Deleting an item whose name is on any saved estimate/invoice switches it off instead.
+
 ### Reminders and text messages
 
 - Admin sends reminders from the Remind buttons on unpaid invoices, unsigned proposals (uploaded and builder), unfinished onboarding, and "Message Client" on the profile. The logic is in `src/lib/reminders.ts`; routes are the `reminder_preview` / `send_reminder` actions on `/api/admin` and `GET`/`POST /api/proposals/[id]/remind`.

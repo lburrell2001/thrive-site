@@ -12,7 +12,9 @@
 // Fields split on | or a tab (so a pasted spreadsheet works). The price is the
 // line total; "@ $100" or "$100/hr" makes it a rate times the hours. A line
 // that starts with a space, "-", "•" or "*" continues the description above.
-// Lines starting with // are ignored.
+// Lines starting with // are ignored. A line starting with "# " is a heading:
+// the lines under it belong to that category (for the "Totals only" PDF's
+// subtotals). A description ending in "/mo" marks a monthly line.
 
 import { z } from 'zod';
 
@@ -22,6 +24,8 @@ export type LineItem = {
   hours: number | null;
   rate_cents: number | null;
   amount_cents: number;
+  /** From a "# Heading" line above it; absent when typed without one. */
+  category?: string;
 };
 
 export type LineProblem = { line: number; message: string };
@@ -81,10 +85,15 @@ function splitLoose(line: string): string[] {
 export function parseLineItems(text: string): { items: LineItem[]; problems: LineProblem[] } {
   const items: LineItem[] = [];
   const problems: LineProblem[] = [];
+  let category = '';
 
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = i + 1;
     if (!raw.trim() || raw.trim().startsWith('//')) return;
+
+    // "# Website packages": the lines below belong to this category.
+    const heading = raw.match(/^#+\s+(.*\S)\s*$/);
+    if (heading) { category = heading[1].slice(0, 120); return; }
 
     // Continues the description of the item above.
     if (/^(\s+|[-•*]\s)/.test(raw)) {
@@ -129,6 +138,7 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       hours: money.hours ?? null,
       rate_cents: money.rate ?? null,
       amount_cents: amount,
+      ...(category ? { category } : {}),
     });
   });
 
@@ -143,17 +153,72 @@ function money(c: number): string {
 
 /** Back to the typed form, for editing a saved estimate or invoice. */
 export function lineItemsToText(items: LineItem[]): string {
+  let category = '';
   return items.map((it) => {
+    let head = '';
+    if ((it.category ?? '') !== category) {
+      category = it.category ?? '';
+      // A line with no category after a heading can't get back out from under it.
+      head = category ? `# ${category}\n` : '# Other\n';
+    }
     const [first = '', ...more] = it.description ? it.description.split('\n') : [];
     const price = it.hours !== null && it.rate_cents !== null
       ? `${it.hours}h @ ${money(it.rate_cents)}`
       : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
     const main = [it.name, first, price].filter(Boolean).join(' | ');
-    return [main, ...more.map((d) => `  - ${d}`)].join('\n');
+    return head + [main, ...more.map((d) => `  - ${d}`)].join('\n');
   }).join('\n');
 }
 
 export const totalCents = (items: LineItem[]) => items.reduce((sum, it) => sum + it.amount_cents, 0);
+
+/** A monthly charge: its description ends in "/mo" (the price list adds it). */
+export const isMonthly = (it: LineItem) => /\/\s*mo(nth)?\.?\s*$/i.test(it.description.trim());
+
+/** The same total, split into one-time and monthly. */
+export function splitTotals(items: LineItem[]): { oneTime: number; monthly: number } {
+  let oneTime = 0;
+  let monthly = 0;
+  for (const it of items) {
+    if (isMonthly(it)) monthly += it.amount_cents;
+    else oneTime += it.amount_cents;
+  }
+  return { oneTime, monthly };
+}
+
+export const OTHER_CATEGORY = 'Other';
+
+export type CategoryTotal = { category: string; items: LineItem[]; oneTime: number; monthly: number };
+
+/** Lines grouped by category in the order they first appear, with subtotals. */
+export function categoryTotals(items: LineItem[]): CategoryTotal[] {
+  const groups = new Map<string, CategoryTotal>();
+  for (const it of items) {
+    const key = it.category?.trim() || OTHER_CATEGORY;
+    let g = groups.get(key);
+    if (!g) { g = { category: key, items: [], oneTime: 0, monthly: 0 }; groups.set(key, g); }
+    g.items.push(it);
+    if (isMonthly(it)) g.monthly += it.amount_cents;
+    else g.oneTime += it.amount_cents;
+  }
+  return [...groups.values()];
+}
+
+/** "$1,250", "$100/mo", "$1,250 + $100/mo", "Included": an amount as the PDF prints it. */
+export function amountText(oneTime: number, monthly: number): string {
+  if (!oneTime && !monthly) return 'Included';
+  if (!monthly) return money(oneTime);
+  if (!oneTime) return `${money(monthly)}/mo`;
+  return `${money(oneTime)} + ${money(monthly)}/mo`;
+}
+
+/** "One-time: $2,675 · Monthly: $100/mo", or just the one that applies. */
+export function totalsLabel(items: LineItem[]): string {
+  const { oneTime, monthly } = splitTotals(items);
+  if (!monthly) return `One-time: ${money(oneTime)}`;
+  if (!oneTime) return `Monthly: ${money(monthly)}/mo`;
+  return `One-time: ${money(oneTime)} · Monthly: ${money(monthly)}/mo`;
+}
 
 /** "$1,250", "$62.50", "-$100"; zero prints as "Included" on a line. */
 export const formatLineMoney = money;
@@ -164,6 +229,7 @@ export const lineItemSchema = z.object({
   hours: z.number().min(0).max(10000).nullable(),
   rate_cents: z.number().int().min(-100_000_000).max(100_000_000).nullable(),
   amount_cents: z.number().int().min(-100_000_000).max(100_000_000),
+  category: z.string().trim().max(120).optional(),
 });
 
 export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200);

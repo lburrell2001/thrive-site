@@ -236,3 +236,230 @@
   font-size: 11px;
   font-weight: 700;
 }
+
+/* ── Price list in the builder ── */
+
+.itemsHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.runningTotal {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.required,
+.suggested {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.required { background: #e50586; color: #fff; }
+.required p { margin: 0 0 6px; }
+.required p:last-child { margin-bottom: 0; }
+
+.required button {
+  margin-left: 6px;
+  border: 1.5px solid #fff;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  padding: 2px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggested { border: 1px solid #e6e6e6; background: #fff; }
+
+.suggestedLabel { display: block; margin-bottom: 6px; font-weight: 700; }
+
+.suggestedList { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.suggestedChip {
+  border: 1.5px solid #141414;
+  border-radius: 999px;
+  background: #fff;
+  padding: 4px 11px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.suggestedChip:hover { background: #141414; color: #fff; }
+
+.switchRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.switchRow input { margin-top: 3px; accent-color: #e50586; width: 16px; height: 16px; flex: none; }
+.switchRow small { display: block; color: #777; font-size: 12px; }
+
+.catRow td {
+  padding-top: 14px;
+  background: #fff;
+  font-weight: 700;
+  border-bottom: 2px solid #0a0a0a;
+}
+
+.dimmed { opacity: 0.45; }
+
+.paperFlag {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  font-size: 12px;
+  color: #555;
+}
+
+/* The drawer: from the right on desktop, a full-screen sheet on phones. */
+
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 10, 10, 0.45);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: min(520px, 100%);
+  height: 100%;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 18px 0;
+  box-shadow: -10px 0 40px rgba(0, 0, 0, 0.15);
+  letter-spacing: var(--a-track, normal);
+}
+
+@media (max-width: 700px) {
+  .drawer { width: 100%; box-shadow: none; padding: 14px 16px 0; }
+}
+
+.drawerHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+.drawerTitle {
+  margin: 0;
+  font-family: var(--a-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.085em;
+}
+
+.drawerTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  flex: none;
+}
+
+.drawerTab {
+  flex: none;
+  border: 1.5px solid #141414;
+  border-radius: 999px;
+  background: #fff;
+  padding: 5px 12px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.drawerTabOn { background: #141414; color: #fff; }
+
+.drawerBody { flex: 1; overflow-y: auto; margin: 0 -18px; padding: 0 18px 12px; }
+
+.drawerGroup + .drawerGroup { margin-top: 18px; }
+
+.drawerGroupTitle { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+
+.drawerNote { margin: 0 0 6px; font-size: 12px; line-height: 1.5; color: #777; }
+
+.drawerList { list-style: none; margin: 0; padding: 0; }
+
+.drawerItem { border-bottom: 1px solid #eee; }
+.drawerItemOn { background: #fafafa; }
+
+.drawerItemMain {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 4px;
+  cursor: pointer;
+}
+
+.drawerItemMain input { margin-top: 3px; width: 17px; height: 17px; accent-color: #e50586; }
+
+.drawerItemText { min-width: 0; }
+
+.drawerItemName { display: block; font-size: 13.5px; font-weight: 700; }
+
+.drawerItemDesc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #666;
+}
+
+.drawerItemPrice { font-size: 13px; font-weight: 700; white-space: nowrap; }
+.drawerUnit { font-weight: 500; color: #777; }
+
+.badgeOptional {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #3943b7;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+.qtyRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 4px 10px;
+  font-size: 12.5px;
+}
+
+.qtyInput { width: 80px !important; }
+
+.drawerFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 -18px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #e6e6e6;
+  background: #fff;
+}

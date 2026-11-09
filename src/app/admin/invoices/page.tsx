@@ -4,15 +4,19 @@
 // src/lib/lineItems.ts. Estimates are saved here (migration 039); an invoice
 // goes into the client's portal through the add_invoice action, so the portal,
 // Stripe, reminders and the CRM deal all work as they do for any invoice.
+// "Add from price list" inserts catalog items as typed lines (migration 047);
+// "Totals only" makes the client's PDF show category subtotals.
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import p from '../proposals/proposals.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { formatLineMoney, lineItemsToText, parseLineItems, totalCents, type LineItem } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, isMonthly, lineItemsToText, parseLineItems, splitTotals, totalCents, totalsLabel, type LineItem } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
+import { insertUnderHeading, itemLine, priceLabel, missingRequired, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
+import { PriceListDrawer, type Pick } from './PriceListDrawer';
 
 type Mode = 'estimate' | 'invoice';
 
@@ -21,6 +25,7 @@ interface Contact { id: string; name: string; company: string | null; email: str
 interface InvoiceRow {
   id: string; client_id: string; invoice_number: string; project_name: string; amount_cents: number;
   invoice_date: string; due_date: string; status: string; line_items?: LineItem[] | null; notes?: string | null;
+  totals_only?: boolean | null;
 }
 interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[] }
 
@@ -35,6 +40,8 @@ interface Draft {
   dueDate: string;
   text: string;
   notes: string;
+  /** The client's PDF shows category subtotals, not each line. */
+  totalsOnly: boolean;
 }
 
 const DRAFT_KEY = 'thrive-billing-draft';
@@ -67,7 +74,7 @@ function addDays(date: string, days: number): string {
 
 function blankDraft(mode: Mode = 'estimate'): Draft {
   const t = today();
-  return { mode, client: '', clientName: '', title: '', number: '', issueDate: t, dueDate: addDays(t, mode === 'invoice' ? 14 : 30), text: '', notes: '' };
+  return { mode, client: '', clientName: '', title: '', number: '', issueDate: t, dueDate: addDays(t, mode === 'invoice' ? 14 : 30), text: '', notes: '', totalsOnly: true };
 }
 
 function storedDraft(): Draft {
@@ -94,6 +101,14 @@ export default function InvoiceBuilder() {
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
   const { toast, show } = useToast();
+  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  const [drawer, setDrawer] = useState(false);
+
+  useEffect(() => {
+    apiGet<Catalog & { ready: boolean }>('/api/price-list')
+      .then((c) => { if (c.ready) setCatalog(c); })
+      .catch(() => { /* the builder works without the catalog */ });
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -202,7 +217,7 @@ export default function InvoiceBuilder() {
     setDraft({
       mode: 'estimate', client: clientKeyFor(est), clientName: est.client_name, title: est.title,
       number: est.estimate_number, issueDate: est.issue_date, dueDate: est.valid_until ?? '',
-      text: lineItemsToText(est.line_items), notes: est.notes ?? '',
+      text: lineItemsToText(est.line_items), notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
     });
     document.querySelector("main")?.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -215,6 +230,7 @@ export default function InvoiceBuilder() {
     setDraft({
       mode: 'invoice', client, clientName: est.client_name, title: est.title, number: '',
       issueDate: t, dueDate: addDays(t, 14), text: lineItemsToText(est.line_items), notes: est.notes ?? '',
+      totalsOnly: est.totals_only ?? false,
     });
     void fillInvoiceNumber(client);
     if (!portalIdOf(client)) show('Pick a client with a portal login to add this invoice to their portal.', 'error');
@@ -231,6 +247,7 @@ export default function InvoiceBuilder() {
       notes: draft.notes || null,
       issue_date: draft.issueDate,
       valid_until: draft.dueDate || null,
+      totals_only: draft.totalsOnly,
     };
   }
 
@@ -267,6 +284,7 @@ export default function InvoiceBuilder() {
         status: 'due',
         line_items: items,
         notes: draft.notes,
+        totals_only: draft.totalsOnly,
       });
       if (fromEstimateId) {
         await apiSend(`/api/estimates/${fromEstimateId}`, 'PATCH', { status: 'invoiced', invoice_id: inv.id }).catch(() => undefined);
@@ -284,12 +302,13 @@ export default function InvoiceBuilder() {
 
   async function downloadPdf(doc: {
     kind: Mode; number: string; title: string; total: number; issue: string; due: string;
-    status: string; lines: LineItem[]; notes: string | null; client: string;
+    status: string; lines: LineItem[]; notes: string | null; client: string; totalsOnly: boolean;
   }) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
     await generateInvoicePDF({
       kind: doc.kind, invoice_number: doc.number || 'DRAFT', project_name: doc.title, amount_cents: doc.total,
       invoice_date: doc.issue, due_date: doc.due, status: doc.status, line_items: doc.lines, notes: doc.notes,
+      totals_only: doc.totalsOnly,
     }, doc.client || null);
   }
 
@@ -313,8 +332,36 @@ export default function InvoiceBuilder() {
     }
   }
 
+  // Price list rules, read from what's in the box now (so deleting a line by hand counts).
+  const lineNames = items.map((it) => it.name);
+  const missing = catalog ? missingRequired(catalog, lineNames) : [];
+  const suggestions = catalog ? suggestionsFor(catalog, lineNames) : [];
+
+  const categoryName = (item: PriceItem) => catalog?.categories.find((c) => c.id === item.category_id)?.name ?? 'Other';
+
+  /** Adds catalog items under their category headings, plus anything they require. */
+  function insertItems(picks: Pick[]) {
+    if (!catalog) return;
+    let text = draft.text;
+    const byCategory = new Map<string, string[]>();
+    for (const { item, qty } of picks) {
+      const cat = categoryName(item);
+      byCategory.set(cat, [...(byCategory.get(cat) ?? []), itemLine(item, qty)]);
+    }
+    for (const [cat, lines] of byCategory) text = insertUnderHeading(text, cat, lines);
+    // Required items come along automatically.
+    const added: string[] = [];
+    for (const { item, required } of missingRequired(catalog, parseLineItems(text).items.map((it) => it.name))) {
+      text = insertUnderHeading(text, categoryName(required), [itemLine(required)]);
+      added.push(`${required.name} added: required with ${item.name}`);
+    }
+    set('text', text);
+    setDrawer(false);
+    show(added.length ? added.join('. ') : `Added ${picks.length} item${picks.length === 1 ? '' : 's'}.`);
+  }
+
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
-  const canSave = items.length > 0 && problems.length === 0;
+  const canSave = items.length > 0 && problems.length === 0 && missing.length === 0;
   const isInvoice = draft.mode === 'invoice';
 
   return (
@@ -387,15 +434,43 @@ export default function InvoiceBuilder() {
               </label>
             </div>
 
-            <label>
-              <span className={p.label}>Items</span>
-              <textarea className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
-                onChange={(e) => set('text', e.target.value)} placeholder={EXAMPLE} />
-            </label>
+            <div className={s.itemsHead}>
+              <label htmlFor="billing-items" className={p.label} style={{ margin: 0 }}>Items</label>
+              <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={!catalog} onClick={() => setDrawer(true)}
+                title={catalog ? undefined : 'Run migration 047 to use the price list'}>
+                + Add from price list
+              </button>
+            </div>
+            <textarea id="billing-items" className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
+              onChange={(e) => set('text', e.target.value)} placeholder={EXAMPLE} />
+            {items.length > 0 && <p className={s.runningTotal}>{totalsLabel(items)}</p>}
+            {missing.length > 0 && (
+              <div className={s.required} role="alert">
+                {missing.map(({ item, required }) => (
+                  <p key={required.id}>
+                    {required.name} is required with {item.name}.
+                    <button type="button" onClick={() => insertItems([{ item: required, qty: 1 }])}>Add it back</button>
+                  </p>
+                ))}
+              </div>
+            )}
+            {suggestions.length > 0 && (
+              <div className={s.suggested}>
+                <span className={s.suggestedLabel}>Suggested add-ons</span>
+                <div className={s.suggestedList}>
+                  {suggestions.map((sg) => (
+                    <button key={sg.id} type="button" className={s.suggestedChip} onClick={() => insertItems([{ item: sg, qty: 1 }])}>
+                      + {sg.name} · {priceLabel(sg)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className={s.help}>
               <code>Item | description | $price</code>. Hours are optional: <code>| 3h | $300</code> is a flat price, <code>| 3h @ $100</code> multiplies.
               No bars needed for simple lines: <code>Logo design $750</code>. Start a line with <code>-</code> to add to the description above.
               Use <code>Included</code> for $0 and <code>-$100</code> for a discount. Paste from a spreadsheet works too.
+              A <code># Heading</code> line groups the lines under it for the category totals; a description ending in <code>/mo</code> is monthly.
               {!draft.text && <> <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => set('text', EXAMPLE)}>Use the example</button></>}
             </p>
             {problems.length > 0 && (
@@ -410,6 +485,14 @@ export default function InvoiceBuilder() {
                 placeholder={isInvoice ? 'Payment terms, thank-you note…' : 'What’s not included, timeline, next steps…'} />
             </label>
 
+            <label className={s.switchRow}>
+              <input type="checkbox" checked={draft.totalsOnly} onChange={(e) => set('totalsOnly', e.target.checked)} />
+              <span>
+                Totals only
+                <small>The client’s PDF shows each category’s subtotal and the total, not every line. You always see every line here.</small>
+              </span>
+            </label>
+
             <div className={s.actions}>
               {isInvoice ? (
                 <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!canSave || !portalId || busy || !data.ready} onClick={addToPortal}
@@ -422,7 +505,7 @@ export default function InvoiceBuilder() {
                 </button>
               )}
               <button type="button" className={p.btn} disabled={!canSave}
-                onClick={() => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName })}>
+                onClick={() => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly })}>
                 Download PDF
               </button>
             </div>
@@ -430,6 +513,7 @@ export default function InvoiceBuilder() {
               <p className={s.help}>Only clients with a portal login can be invoiced in the portal (where they pay by card). For anyone else, download the PDF.</p>
             )}
             {fromEstimateId && <p className={s.help}>From an estimate: it will be marked Invoiced once this is added.</p>}
+            {missing.length > 0 && <p className={s.help}>Add the required items back to save.</p>}
           </section>
 
           <Preview draft={draft} items={items} total={total} showHours={showHours} />
@@ -458,7 +542,7 @@ export default function InvoiceBuilder() {
                     )}
                     <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => openEstimate(est)}>Edit</button>
                     <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                      onClick={() => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name })}>
+                      onClick={() => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, totalsOnly: est.totals_only ?? false })}>
                       PDF
                     </button>
                     {est.status !== 'invoiced' && (
@@ -486,7 +570,7 @@ export default function InvoiceBuilder() {
                   </div>
                   <Link href={`/admin/clients?client=${inv.client_id}`} className={`${p.btn} ${p.btnSmall}`}>Client</Link>
                   <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                    onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client: clientNameById.get(inv.client_id) ?? '' })}>
+                    onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client: clientNameById.get(inv.client_id) ?? '', totalsOnly: inv.totals_only ?? false })}>
                     PDF
                   </button>
                 </li>
@@ -495,13 +579,18 @@ export default function InvoiceBuilder() {
           )}
         </section>
       </div>
+      {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insertItems} onClose={() => setDrawer(false)} />}
       <Toast toast={toast} />
     </div>
   );
 }
 
+
 function Preview({ draft, items, total, showHours }: { draft: Draft; items: LineItem[]; total: number; showHours: boolean }) {
   const isInvoice = draft.mode === 'invoice';
+  const groups = categoryTotals(items);
+  const grouped = items.some((it) => it.category);
+  const split = splitTotals(items);
   return (
     <section className={s.paper} aria-label="Preview">
       <div className={s.paperHead}>
@@ -522,6 +611,9 @@ function Preview({ draft, items, total, showHours }: { draft: Draft; items: Line
         </div>
       </div>
 
+      {draft.totalsOnly && items.length > 0 && (
+        <p className={s.paperFlag}>Totals only: the client’s PDF shows each category’s subtotal, not the lines in grey.</p>
+      )}
       <table className={s.table}>
         <thead>
           <tr>
@@ -533,23 +625,53 @@ function Preview({ draft, items, total, showHours }: { draft: Draft; items: Line
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you type.</td></tr>
-          ) : items.map((it, i) => (
-            <tr key={i}>
-              <td>
-                <div className={s.lineName}>{it.name}</div>
-                {it.description && <div className={s.lineDesc}>{it.description}</div>}
-              </td>
-              {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
-              <td className={s.num} style={{ fontWeight: 700 }}>{it.amount_cents === 0 ? 'Included' : formatLineMoney(it.amount_cents)}</td>
-            </tr>
+          ) : groups.map((g) => (
+            <Fragment key={g.category}>
+              {(grouped || draft.totalsOnly) && (
+                <tr className={s.catRow}>
+                  <td colSpan={showHours ? 2 : 1}>{g.category}</td>
+                  <td className={s.num}>{amountText(g.oneTime, g.monthly)}</td>
+                </tr>
+              )}
+              {g.items.map((it, i) => (
+                <tr key={i} className={draft.totalsOnly ? s.dimmed : undefined}>
+                  <td>
+                    <div className={s.lineName}>{it.name}</div>
+                    {it.description && <div className={s.lineDesc}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>}
+                  </td>
+                  {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
+                  <td className={s.num} style={{ fontWeight: 700 }}>
+                    {isMonthly(it) ? amountText(0, it.amount_cents) : amountText(it.amount_cents, 0)}
+                  </td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>
 
-      <div className={s.total}>
-        <span className={s.totalLabel}>{isInvoice ? 'TOTAL DUE' : 'ESTIMATE TOTAL'}</span>
-        <span className={s.totalValue}>{formatLineMoney(total)}</span>
-      </div>
+      {!isInvoice && split.monthly ? (
+        <>
+          {split.oneTime !== 0 && (
+            <div className={s.total}>
+              <span className={s.totalLabel}>ONE-TIME TOTAL</span>
+              <span className={s.totalValue}>{formatLineMoney(split.oneTime)}</span>
+            </div>
+          )}
+          <div className={s.total}>
+            <span className={s.totalLabel}>MONTHLY</span>
+            <span className={s.totalValue}>{formatLineMoney(split.monthly)}/mo</span>
+          </div>
+        </>
+      ) : (
+        <div className={s.total}>
+          <span className={s.totalLabel}>{isInvoice ? 'TOTAL DUE' : 'ESTIMATE TOTAL'}</span>
+          <span className={s.totalValue}>{formatLineMoney(total)}</span>
+        </div>
+      )}
+      {isInvoice && split.monthly !== 0 && (
+        <p className={s.paperNotes}>Includes the first month of monthly services ({formatLineMoney(split.monthly)}/mo).</p>
+      )}
 
       {draft.notes.trim() && <p className={s.paperNotes}>{draft.notes.trim()}</p>}
     </section>

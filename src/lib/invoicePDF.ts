@@ -1,4 +1,4 @@
-import { formatLineMoney, type LineItem } from './lineItems';
+import { amountText, categoryTotals, formatLineMoney, isMonthly, splitTotals, type LineItem } from './lineItems';
 
 export interface InvoiceForPDF {
   invoice_number: string;
@@ -12,6 +12,28 @@ export interface InvoiceForPDF {
   line_items?: LineItem[] | null;
   notes?: string | null;
   kind?: 'invoice' | 'estimate';
+  /** Category subtotals instead of every line (migration 047). */
+  totals_only?: boolean | null;
+}
+
+type Row = { name: string; description: string; hours: number | null; amount: string };
+
+
+/** What the table prints: every line, or one row per category. */
+function tableRows(invoice: InvoiceForPDF): Row[] {
+  const lines = invoice.line_items ?? [];
+  if (!lines.length) {
+    return [{ name: invoice.project_name || 'Creative Services', description: '', hours: null, amount: fmtMoney(invoice.amount_cents) }];
+  }
+  if (invoice.totals_only) {
+    return categoryTotals(lines).map((g) => ({ name: g.category, description: '', hours: null, amount: amountText(g.oneTime, g.monthly) }));
+  }
+  return lines.map((l) => ({
+    name: l.name,
+    description: l.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '').trim(),
+    hours: l.hours,
+    amount: isMonthly(l) ? amountText(0, l.amount_cents) : amountText(l.amount_cents, 0),
+  }));
 }
 
 /** Whole dollars stay whole; cents show when there are any. */
@@ -132,9 +154,7 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
 
   // ── Line items table ─────────────────────────────────────────────────────────
   const tableW = W - M * 2 - 7;
-  const lines: LineItem[] = invoice.line_items?.length
-    ? invoice.line_items
-    : [{ name: invoice.project_name || 'Creative Services', description: '', hours: null, rate_cents: null, amount_cents: invoice.amount_cents }];
+  const lines = tableRows(invoice);
   const showHours = lines.some((l) => l.hours !== null);
   const amountX = M + tableW - 5;
   const hoursX = amountX - 34;
@@ -181,7 +201,7 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     doc.setFontSize(11);
     doc.setTextColor('#0a0a0a');
     doc.text(nameLines, M + 5, ty);
-    doc.text(line.amount_cents === 0 ? 'Included' : fmtMoney(line.amount_cents), amountX, ty, { align: 'right' });
+    doc.text(line.amount, amountX, ty, { align: 'right' });
     if (showHours && line.hours !== null) {
       doc.setFont('helvetica', 'normal');
       doc.text(String(line.hours), hoursX, ty, { align: 'right' });
@@ -196,20 +216,38 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     y += rowH;
   }
 
-  // Total row (dark bg)
-  if (y + 15 > pageBottom) { doc.addPage(); y = 20; }
+  // Total row (dark bg). An estimate with monthly lines shows one-time and
+  // monthly apart; an invoice is due in full, first month included.
+  const split = invoice.line_items?.length ? splitTotals(invoice.line_items as LineItem[]) : { oneTime: invoice.amount_cents, monthly: 0 };
+  const totals: { label: string; value: string }[] = isEstimate && split.monthly
+    ? [
+        ...(split.oneTime ? [{ label: 'ONE-TIME TOTAL', value: fmtMoney(split.oneTime) }] : []),
+        { label: 'MONTHLY', value: `${fmtMoney(split.monthly)}/mo` },
+      ]
+    : [{ label: isEstimate ? 'ESTIMATE TOTAL' : 'TOTAL DUE', value: fmtMoney(invoice.amount_cents) }];
+  if (y + 15 * totals.length > pageBottom) { doc.addPage(); y = 20; }
   const totalY = y;
-  doc.setFillColor('#0a0a0a');
-  doc.rect(M, totalY, tableW, 15, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.setTextColor('#808080');
-  doc.text(isEstimate ? 'ESTIMATE TOTAL' : 'TOTAL DUE', M + 5, totalY + 9.5);
-  doc.setFontSize(17);
-  doc.setTextColor('#ffffff');
-  doc.text(fmtMoney(invoice.amount_cents), M + tableW - 5, totalY + 10, { align: 'right' });
+  totals.forEach((t, i) => {
+    const ty = totalY + i * 15;
+    doc.setFillColor('#0a0a0a');
+    doc.rect(M, ty, tableW, 15, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor('#808080');
+    doc.text(t.label, M + 5, ty + 9.5);
+    doc.setFontSize(17);
+    doc.setTextColor('#ffffff');
+    doc.text(t.value, M + tableW - 5, ty + 10, { align: 'right' });
+  });
 
-  let after = totalY + 22;
+  let after = totalY + 15 * totals.length + 7;
+  if (!isEstimate && split.monthly) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor('#666666');
+    doc.text(`Includes the first month of monthly services (${fmtMoney(split.monthly)}/mo).`, M, after);
+    after += 8;
+  }
 
   // ── Notes ────────────────────────────────────────────────────────────────────
   if (invoice.notes?.trim()) {
