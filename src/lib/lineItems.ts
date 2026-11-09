@@ -145,6 +145,36 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
   return { items, problems };
 }
 
+/** One item in the typed text: its line, any "-" lines under it, and what it reads as. */
+export type LineBlock = { start: number; end: number; item: LineItem | null };
+
+/**
+ * The items with the lines they came from, so the builder can show them as
+ * rows and remove or change one by editing just its lines. Follows the same
+ * rules as parseLineItems (headings, continuation lines, comments).
+ */
+export function lineBlocks(text: string): LineBlock[] {
+  const lines = text.split(/\r?\n/);
+  const blocks: { start: number; end: number; category: string }[] = [];
+  let category = '';
+  lines.forEach((raw, i) => {
+    if (!raw.trim() || raw.trim().startsWith('//')) return;
+    const heading = raw.match(/^#+\s+(.*\S)\s*$/);
+    if (heading) { category = heading[1].slice(0, 120); return; }
+    if (/^(\s+|[-•*]\s)/.test(raw)) {
+      const prev = blocks[blocks.length - 1];
+      if (prev) prev.end = i;
+      return;
+    }
+    blocks.push({ start: i, end: i, category });
+  });
+  return blocks.map((b) => {
+    const own = lines.slice(b.start, b.end + 1).filter((l, j) => j === 0 || /^(\s+|[-•*]\s)/.test(l)).join('\n');
+    const item = parseLineItems(own).items[0] ?? null;
+    return { start: b.start, end: b.end, item: item ? { ...item, ...(b.category ? { category: b.category } : {}) } : null };
+  });
+}
+
 function money(c: number): string {
   const sign = c < 0 ? '-' : '';
   const abs = Math.abs(c);

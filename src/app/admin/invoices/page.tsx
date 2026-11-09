@@ -18,9 +18,9 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, isMonthly, lineItemsToText, parseLineItems, splitTotals, totalCents, type LineItem } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lineItemsToText, parseLineItems, splitTotals, totalCents, type LineBlock, type LineItem } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
-import { insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
+import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 
 type Mode = 'estimate' | 'invoice';
@@ -119,6 +119,11 @@ export default function InvoiceBuilder() {
   const [snapshot, setSnapshot] = useState('');
   const [busy, setBusy] = useState(false);
   const [tipsOpen, setTipsOpen] = useState(false);
+  // Typing is tucked away: a small custom-item form, and the whole list as text.
+  const [customOpen, setCustomOpen] = useState(false);
+  const [textOpen, setTextOpen] = useState(false);
+  const [custom, setCustom] = useState({ name: '', description: '', price: '', monthly: false });
+  const [customError, setCustomError] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
@@ -420,6 +425,48 @@ export default function InvoiceBuilder() {
     show(added.length ? added.join('. ') : `Added ${picks.length} item${picks.length === 1 ? '' : 's'}.`);
   }
 
+  const blocks = lineBlocks(draft.text);
+
+  /** Removes one item's lines, and its heading if nothing is left under it. */
+  function removeBlock(b: LineBlock) {
+    const lines = draft.text.split('\n');
+    lines.splice(b.start, b.end - b.start + 1);
+    // Drop headings left with no items, and doubled blank lines.
+    const kept = lines.filter((l, i) => {
+      if (!/^#+\s+/.test(l)) return true;
+      for (let j = i + 1; j < lines.length; j++) {
+        if (/^#+\s+/.test(lines[j])) return false;
+        if (lines[j].trim() && !lines[j].trim().startsWith('//')) return true;
+      }
+      return false;
+    });
+    set('text', kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, ''));
+  }
+
+  /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
+  function setBlockQty(b: LineBlock, item: PriceItem, qty: number) {
+    const lines = draft.text.split('\n');
+    lines[b.start] = itemLine(item, Math.max(1, Math.min(999, qty)));
+    set('text', lines.join('\n'));
+  }
+
+  function addCustom() {
+    const price = custom.price.trim() || 'Included';
+    const description = [custom.description.trim(), custom.monthly ? '/mo' : ''].filter(Boolean).join(' ');
+    const line = [custom.name.trim(), description, price].filter(Boolean).join(' | ').replace(/\t/g, ' ');
+    const parsed = parseLineItems(line);
+    if (!custom.name.trim()) { setCustomError('Give it a name'); return; }
+    if (custom.name.includes('|') || custom.description.includes('|')) { setCustomError('Leave out the | character'); return; }
+    if (parsed.problems.length || !parsed.items.length) { setCustomError('Try a price like $500, 3h @ $45, -$100 or Included'); return; }
+    const text = /^#+\s+/m.test(draft.text)
+      ? insertUnderHeading(draft.text, 'Custom items', [line])
+      : `${draft.text.replace(/\s+$/, '')}${draft.text.trim() ? '\n' : ''}${line}\n`;
+    set('text', text);
+    setCustom({ name: '', description: '', price: '', monthly: false });
+    setCustomError('');
+    show(`Added ${custom.name.trim()}.`);
+  }
+
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
   const canSave = items.length > 0 && problems.length === 0 && missing.length === 0;
   const editingEstimate = editingId ? data.estimates.find((e) => e.id === editingId) : undefined;
@@ -665,36 +712,103 @@ export default function InvoiceBuilder() {
           </section>
 
           <section className={s.step}>
-            <StepHead n={3} title="Items" hint="One item per line. Add from your price list or type your own." />
-            <div className={s.itemsTools}>
-              <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
-                title={catalog ? undefined : 'Run migration 047 to use the price list'}>
-                + Add from price list
-              </button>
-              <button type="button" className={`${p.btn} ${p.btnSmall}`} aria-expanded={tipsOpen} onClick={() => setTipsOpen((v) => !v)}>
-                {tipsOpen ? 'Hide tips' : 'How to type items'}
-              </button>
-              {!draft.text && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => set('text', EXAMPLE)}>Use the example</button>}
-            </div>
-            {tipsOpen && (
-              <ul className={s.tips}>
-                <li><code>Item | description | $price</code>, one per line</li>
-                <li><code>| 3h @ $100</code> multiplies; <code>| 3h | $300</code> is a flat price with the hours shown</li>
-                <li><code>Logo design $750</code> works without bars</li>
-                <li>A line starting with <code>-</code> adds to the description above</li>
-                <li><code>Included</code> for $0, <code>-$100</code> for a discount</li>
-                <li><code># Website</code> starts a group, for the category totals</li>
-                <li>A description ending in <code>/mo</code> is monthly</li>
-                <li>Pasting from a spreadsheet works too</li>
-              </ul>
+            <StepHead n={3} title="Items" hint="Choose from your price list. Need something that isn’t on it? Add a custom item." />
+
+            {blocks.length === 0 && !textOpen ? (
+              <div className={s.itemsEmpty}>
+                <button type="button" className={`${p.btn} ${p.btnPrimary} ${s.bigBtn}`} disabled={!catalog} onClick={() => setDrawer(true)}
+                  title={catalog ? undefined : 'Run migration 047 to use the price list'}>
+                  Choose from price list
+                </button>
+                {!customOpen && <button type="button" className={s.textLink} onClick={() => setCustomOpen(true)}>or add a custom item</button>}
+              </div>
+            ) : (
+              <>
+                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} />
+                <div className={s.itemsTools}>
+                  <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
+                    title={catalog ? undefined : 'Run migration 047 to use the price list'}>
+                    + Add from price list
+                  </button>
+                  {!customOpen && <button type="button" className={p.btn} onClick={() => setCustomOpen(true)}>+ Custom item</button>}
+                </div>
+              </>
             )}
-            <textarea aria-label="Items" className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
-              onChange={(e) => set('text', e.target.value)} placeholder={EXAMPLE} />
+
             {problems.length > 0 && (
-              <ul className={s.problems}>
-                {problems.map((pr) => <li key={pr.line}>Line {pr.line}: {pr.message}</li>)}
-              </ul>
+              <div className={s.problems}>
+                {problems.map((pr) => <p key={pr.line}>Line {pr.line}: {pr.message}</p>)}
+                {!textOpen && <button type="button" className={s.textLink} onClick={() => setTextOpen(true)}>Fix it in the text</button>}
+              </div>
             )}
+
+            {customOpen && (
+              <div className={s.customForm}>
+                <div className={s.customHead}>
+                  <strong>Custom item</strong>
+                  <button type="button" className={s.iconBtn} aria-label="Close custom item" onClick={() => { setCustomOpen(false); setCustomError(''); }}>×</button>
+                </div>
+                <div className={s.customFields}>
+                  <label className={s.wide}>
+                    <span className={p.label}>Name</span>
+                    <input className={p.input} value={custom.name} autoFocus placeholder="e.g. Event signage"
+                      onChange={(e) => setCustom((c) => ({ ...c, name: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label className={s.wide}>
+                    <span className={p.label}>Description (optional)</span>
+                    <input className={p.input} value={custom.description} placeholder="What’s included"
+                      onChange={(e) => setCustom((c) => ({ ...c, description: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label>
+                    <span className={p.label}>Price</span>
+                    <input className={p.input} value={custom.price} placeholder="$250, 3h @ $45, Included" inputMode="text"
+                      onChange={(e) => setCustom((c) => ({ ...c, price: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label className={s.monthlyCheck}>
+                    <input type="checkbox" checked={custom.monthly} onChange={(e) => setCustom((c) => ({ ...c, monthly: e.target.checked }))} />
+                    Monthly
+                  </label>
+                </div>
+                {customError && <p className={s.warn}>{customError}</p>}
+                <div className={s.customActions}>
+                  <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={addCustom}>Add item</button>
+                  <button type="button" className={s.textLink} aria-expanded={textOpen} onClick={() => setTextOpen((v) => !v)}>
+                    {textOpen ? 'Hide the text editor' : 'Or edit the whole list as text'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {textOpen && (
+              <div className={s.textEditor}>
+                <div className={s.customHead}>
+                  <strong>Edit as text</strong>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} aria-expanded={tipsOpen} onClick={() => setTipsOpen((v) => !v)}>
+                      {tipsOpen ? 'Hide tips' : 'Tips'}
+                    </button>
+                    <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setTextOpen(false)}>Done</button>
+                  </div>
+                </div>
+                {tipsOpen && (
+                  <ul className={s.tips}>
+                    <li><code>Item | description | $price</code>, one per line</li>
+                    <li><code>| 3h @ $100</code> multiplies; <code>| 3h | $300</code> is a flat price with the hours shown</li>
+                    <li>A line starting with <code>-</code> adds to the description above</li>
+                    <li><code>Included</code> for $0, <code>-$100</code> for a discount</li>
+                    <li><code># Website</code> starts a group, for the category totals</li>
+                    <li>A description ending in <code>/mo</code> is monthly</li>
+                    <li>Pasting from a spreadsheet works too</li>
+                  </ul>
+                )}
+                <textarea aria-label="Items as text" className={`${p.textarea} ${s.items}`} value={draft.text} spellCheck={false}
+                  onChange={(e) => set('text', e.target.value)} placeholder={EXAMPLE} />
+              </div>
+            )}
+
             {missing.length > 0 && (
               <div className={s.required} role="alert">
                 {missing.map(({ item, required }) => (
@@ -775,6 +889,67 @@ export default function InvoiceBuilder() {
       )}
       {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insertItems} onClose={() => setDrawer(false)} />}
       <div className={s.toastLift}><Toast toast={toast} /></div>
+    </div>
+  );
+}
+
+/** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
+function ItemRows({ blocks, catalog, onRemove, onQty }: {
+  blocks: LineBlock[]; catalog: Catalog | null;
+  onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
+}) {
+  const valid = blocks.filter((b): b is LineBlock & { item: LineItem } => b.item !== null);
+  const names = valid.map((b) => b.item.name);
+  const present = catalog ? names.map((n) => itemForLine(catalog.items, n)).filter((i): i is PriceItem => !!i) : [];
+  /** "Required with Mobile App (MVP)" when another item on the list needs this one. */
+  const requiredBy = (item: PriceItem | undefined) => {
+    if (!catalog || !item) return '';
+    const rule = catalog.rules.find((r) => r.rule_type === 'requires' && r.related_item_id === item.id && present.some((x) => x.id === r.item_id));
+    return rule ? catalog.items.find((i) => i.id === rule.item_id)?.name ?? '' : '';
+  };
+  const groups = categoryTotals(valid.map((b) => b.item));
+  return (
+    <div className={s.rows}>
+      {groups.map((g) => (
+        <div key={g.category} className={s.rowGroup}>
+          <div className={s.rowGroupHead}>
+            <span>{g.category}</span>
+            <span>{amountText(g.oneTime, g.monthly)}</span>
+          </div>
+          {valid.filter((b) => (b.item.category?.trim() || 'Other') === g.category).map((b) => {
+            const cat = catalog ? itemForLine(catalog.items, b.item.name) : undefined;
+            const qty = Number(b.item.name.match(/\(x(\d+)\)/i)?.[1] ?? 1);
+            const lockedBy = requiredBy(cat);
+            const optional = /\(optional\)\s*$/i.test(b.item.name);
+            const name = b.item.name.replace(/\s*\(x\d+\)/i, '').replace(/\s*\(optional\)\s*$/i, '');
+            return (
+              <div key={b.start} className={s.itemRow}>
+                <div className={s.itemRowMain}>
+                  <span className={s.itemRowName}>
+                    {name}
+                    {optional && <span className={s.badgeOptional}>Optional</span>}
+                    {!cat && <span className={s.badgeCustom}>Custom</span>}
+                  </span>
+                  {b.item.description && <span className={s.itemRowDesc}>{b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</span>}
+                  {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
+                </div>
+                {cat?.unit && cat.price_type !== 'hourly' ? (
+                  <div className={s.stepper} role="group" aria-label={`How many ${cat.unit}s`}>
+                    <button type="button" aria-label="One fewer" disabled={qty <= 1} onClick={() => onQty(b, cat, qty - 1)}>−</button>
+                    <span>{qty}</span>
+                    <button type="button" aria-label="One more" onClick={() => onQty(b, cat, qty + 1)}>+</button>
+                  </div>
+                ) : <span />}
+                <span className={s.itemRowAmount}>
+                  {isMonthly(b.item) ? amountText(0, b.item.amount_cents) : amountText(b.item.amount_cents, 0)}
+                </span>
+                <button type="button" className={s.iconBtn} aria-label={`Remove ${name}`} disabled={!!lockedBy}
+                  title={lockedBy ? `Required with ${lockedBy}` : 'Remove'} onClick={() => onRemove(b)}>×</button>
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
