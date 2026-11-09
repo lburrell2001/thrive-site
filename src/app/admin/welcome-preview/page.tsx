@@ -59,6 +59,7 @@ function Preview() {
   const clientId = params.get('client');
   const [name, setName] = useState(params.get('name') ?? 'Maria Lopez');
   const [company, setCompany] = useState(params.get('company') ?? 'Lopez Bakery');
+  const email = params.get('email') || 'maria@lopezbakery.com';
   const [withQs, setWithQs] = useState(true);
   const [questionnaires, setQuestionnaires] = useState<WelcomeQuestionnaire[] | null>(null);
   const [failed, setFailed] = useState('');
@@ -70,7 +71,7 @@ function Preview() {
       .catch((e) => { setFailed(e instanceof Error ? e.message : 'Could not load questionnaires'); setQuestionnaires([]); });
   }, [clientId]);
 
-  const preview: WelcomePreview = { name, company, projects: [], questionnaires: withQs ? questionnaires ?? [] : [] };
+  const preview: WelcomePreview = { name, company, email, projects: [], questionnaires: withQs ? questionnaires ?? [] : [] };
 
   return (
     <div className={`${w.page} ${w.pageWide}`}>

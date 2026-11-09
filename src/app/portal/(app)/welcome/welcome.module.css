@@ -108,6 +108,14 @@
 .consentOff { opacity: 0.55; cursor: default; }
 .error { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; color: #e50586; text-align: center; }
 
+/* Email: the address with a Verified mark, and the code box */
+.emailRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-radius: 14px; background: #f2f2f2; }
+.emailAddr { font-size: 17px; font-weight: 600; letter-spacing: -0.03em; word-spacing: normal; overflow-wrap: anywhere; }
+.verified { flex-shrink: 0; padding: 4px 11px; border-radius: 999px; background: #0cf574; color: #141414; font-size: 13px; font-weight: 600; letter-spacing: -0.02em; }
+.ok { margin: 0; text-align: center; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; }
+.code { text-align: center; font-size: 30px; font-weight: 700; letter-spacing: 0.35em; padding: 18px; }
+.strong { color: var(--ink); font-weight: 600; }
+
 /* The portal at a glance */
 .tiles { grid-template-columns: 1fr 1fr; gap: 12px; }
 .tile { border-radius: 22px; padding: 20px; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between; animation: in 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }

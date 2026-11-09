@@ -415,7 +415,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
             const r = await api({ action: 'reset_welcome', clientId }) as { error?: string };
             if (r.error) setError(r.error); else setSuccess('They’ll see the welcome next time they open the portal.');
           }}>Show welcome again</Btn>
-          <Btn variant="ghost" onClick={() => window.location.assign(`/admin/welcome-preview?client=${clientId}&name=${encodeURIComponent(fullName)}&company=${encodeURIComponent(companyName)}`)}>Preview welcome</Btn>
+          <Btn variant="ghost" onClick={() => window.location.assign(`/admin/welcome-preview?client=${clientId}&name=${encodeURIComponent(fullName)}&company=${encodeURIComponent(companyName)}&email=${encodeURIComponent(p?.email ?? '')}`)}>Preview welcome</Btn>
           <ErrorMsg msg={error} /><SuccessMsg msg={success} />
         </div>
       </form>

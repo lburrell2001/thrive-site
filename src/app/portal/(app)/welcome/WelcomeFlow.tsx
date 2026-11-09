@@ -1,7 +1,8 @@
 'use client';
 
 // The welcome a new client sees on first sign-in: one step at a time, like
-// setting up a new phone. Welcome → your details → text updates → the portal
+// setting up a new phone. Welcome → your email (verified; change it with a
+// code to the new address, /api/portal/auth/change-email) → your details → text updates → the portal
 // at a glance → each open questionnaire (an intro, then its sections one
 // screen at a time, answers saved as they type, submitted at the end) → all
 // set. Only the site's own logo, logo mark and line icons (ThriveIcons).
@@ -25,10 +26,10 @@ import s from './welcome.module.css';
 
 /** An open questionnaire: its visible sections and any answers so far. */
 export type WelcomeQuestionnaire = { id: string; title: string; questionnaire: Questionnaire; answers: Record<string, AnswerValue> };
-export type WelcomePreview = { name: string; company: string; projects: string[]; questionnaires: WelcomeQuestionnaire[] };
+export type WelcomePreview = { name: string; company: string; email?: string; projects: string[]; questionnaires: WelcomeQuestionnaire[] };
 
 type Step =
-  | { kind: 'welcome' | 'profile' | 'texts' | 'tour' | 'done' }
+  | { kind: 'welcome' | 'email' | 'profile' | 'texts' | 'tour' | 'done' }
   | { kind: 'intro'; qi: number }
   | { kind: 'section'; qi: number; si: number };
 
@@ -46,6 +47,11 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [emailMode, setEmailMode] = useState<'confirm' | 'change' | 'code'>('confirm');
+  const [newEmail, setNewEmail] = useState('');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailNote, setEmailNote] = useState('');
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [projects, setProjects] = useState<string[]>([]);
   const [qs, setQs] = useState<WelcomeQuestionnaire[]>([]);
@@ -63,13 +69,14 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
   useEffect(() => {
     if (preview) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- preview data arrives as props
-      setFullName(preview.name); setCompany(preview.company); setProjects(preview.projects); setQs(preview.questionnaires); setReady(true);
+      setFullName(preview.name); setCompany(preview.company); setEmail(preview.email || 'maria@lopezbakery.com'); setProjects(preview.projects); setQs(preview.questionnaires); setReady(true);
       return;
     }
     (async () => {
       const { data: { user } } = await supabasePortal.auth.getUser();
       if (!user) { router.replace('/portal/login'); return; }
       setUserId(user.id);
+      setEmail(user.email ?? '');
       const [{ data: me }, { data: proj }, list] = await Promise.all([
         supabasePortal.from('portal_clients').select('full_name, company_name, phone, sms_opt_in').eq('id', user.id).maybeSingle(),
         supabasePortal.from('portal_projects').select('name, archived').eq('client_id', user.id),
@@ -133,7 +140,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
 
   // ---- the steps
   const steps: Step[] = [
-    { kind: 'welcome' }, { kind: 'profile' }, { kind: 'texts' }, { kind: 'tour' },
+    { kind: 'welcome' }, { kind: 'email' }, { kind: 'profile' }, { kind: 'texts' }, { kind: 'tour' },
     ...qs.flatMap((q, qi): Step[] => [{ kind: 'intro', qi }, ...q.questionnaire.sections.map((_, si): Step => ({ kind: 'section', qi, si }))]),
     { kind: 'done' },
   ];
@@ -157,6 +164,37 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
 
   /** The step after this questionnaire's last section (its "do this later"). */
   const afterQuestionnaire = (qi: number) => steps.findIndex((st, i) => i > step && (st.kind === 'done' || (st.kind === 'intro' && st.qi > qi)));
+
+  // ---- email: confirm it, or change it with a code sent to the new address
+  async function sendEmailCode() {
+    const next = newEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) { setError('Enter a valid email address.'); return; }
+    if (next === email.toLowerCase()) { setError('That’s already your email.'); return; }
+    setError(''); setBusy(true);
+    try {
+      if (!preview) await portalApi('/api/portal/auth/change-email', { body: { action: 'send', email: next } });
+      setNewEmail(next); setEmailCode(''); setEmailMode('code');
+      setEmailNote(preview ? 'Preview: any 6 digits will work.' : '');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not send the code.');
+    }
+    setBusy(false);
+  }
+
+  async function verifyEmailCode() {
+    if (!/^\d{6}$/.test(emailCode.trim())) { setError('Enter the 6-digit code from the email.'); return; }
+    setError(''); setBusy(true);
+    try {
+      if (!preview) {
+        await portalApi('/api/portal/auth/change-email', { body: { action: 'verify', code: emailCode.trim() } });
+        await supabasePortal.auth.refreshSession();
+      }
+      setEmail(newEmail); setEmailMode('confirm'); setEmailNote('Email updated and verified.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'That code didn’t work.');
+    }
+    setBusy(false);
+  }
 
   async function saveProfile() {
     if (!fullName.trim()) { setError('Add your name so we know what to call you.'); return; }
@@ -244,6 +282,63 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
               <div className={s.actions}>
                 <button type="button" className={`${s.btn} ${s.btnLight}`} onClick={() => go(1)} autoFocus>Get Started</button>
               </div>
+            </>
+          )}
+
+          {cur.kind === 'email' && (
+            <>
+              <Badge icon="send" tone={s.bBlue} />
+              {emailMode === 'confirm' && (
+                <>
+                  <h1 className={s.title}>Is This the Best Email?</h1>
+                  <p className={s.lead}>It’s how you sign in, and where we’ll send proposals, invoices and updates.</p>
+                  <div className={`${s.content} ${s.narrow}`}>
+                    <div className={s.emailRow}>
+                      <span className={s.emailAddr}>{email}</span>
+                      <span className={s.verified}>Verified</span>
+                    </div>
+                    {emailNote && <p className={s.ok} role="status">{emailNote}</p>}
+                  </div>
+                  <div className={s.actions}>
+                    <button type="button" className={`${s.btn} ${s.btnDark}`} onClick={() => go(step + 1)}>That’s Me</button>
+                    <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => { setNewEmail(''); setError(''); setEmailNote(''); setEmailMode('change'); }}>Use a different email</button>
+                  </div>
+                </>
+              )}
+              {emailMode === 'change' && (
+                <>
+                  <h1 className={s.title}>Which Email Should We Use?</h1>
+                  <p className={s.lead}>We’ll send a 6-digit code there to make sure it’s yours. Once it’s confirmed, you’ll sign in with it too.</p>
+                  <div className={`${s.content} ${s.narrow}`}>
+                    <label className={s.field}>New email
+                      <input className={s.input} type="email" inputMode="email" autoComplete="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="you@yourbusiness.com" autoFocus onKeyDown={(e) => e.key === 'Enter' && sendEmailCode()} />
+                    </label>
+                    {error && <p className={s.error} role="alert">{error}</p>}
+                  </div>
+                  <div className={s.actions}>
+                    <button type="button" className={`${s.btn} ${s.btnDark}`} disabled={busy} onClick={sendEmailCode}>{busy ? 'Sending…' : 'Send Code'}</button>
+                    <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => { setError(''); setEmailMode('confirm'); }}>Keep {email}</button>
+                  </div>
+                </>
+              )}
+              {emailMode === 'code' && (
+                <>
+                  <h1 className={s.title}>Check Your Inbox</h1>
+                  <p className={s.lead}>We sent a 6-digit code to <strong className={s.strong}>{newEmail}</strong>. It works for 15 minutes.</p>
+                  <div className={`${s.content} ${s.narrow}`}>
+                    <input className={`${s.input} ${s.code}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={emailCode}
+                      onChange={(e) => setEmailCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" aria-label="6-digit code" autoFocus
+                      onKeyDown={(e) => e.key === 'Enter' && verifyEmailCode()} />
+                    {emailNote && <p className={s.note}>{emailNote}</p>}
+                    {error && <p className={s.error} role="alert">{error}</p>}
+                  </div>
+                  <div className={s.actions}>
+                    <button type="button" className={`${s.btn} ${s.btnDark}`} disabled={busy || emailCode.length !== 6} onClick={verifyEmailCode}>{busy ? 'Checking…' : 'Verify'}</button>
+                    <button type="button" className={`${s.btn} ${s.btnGhost}`} disabled={busy} onClick={sendEmailCode}>Send a new code</button>
+                    <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => { setError(''); setEmailMode('change'); }}>Use a different email</button>
+                  </div>
+                </>
+              )}
             </>
           )}
 
