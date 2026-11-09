@@ -1069,3 +1069,18 @@
 
 .openBalance { display: inline-flex; align-items: center; gap: 6px; }
 .openBalance input { width: 150px !important; padding: 5px 10px !important; }
+
+/* Send estimate dialog. */
+.sendDialog {
+  display: grid;
+  gap: 12px;
+  width: min(460px, 100%);
+  padding: 22px;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  letter-spacing: var(--a-track, normal);
+}
+
+.sendDialog .stepHint { margin: -4px 0 0; }
+.sendActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }

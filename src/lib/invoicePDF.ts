@@ -61,7 +61,8 @@ async function fetchImageAsBase64(src: string): Promise<{ data: string; w: numbe
   });
 }
 
-export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: string | null) {
+/** Downloads the PDF; with { output: 'base64' } returns it instead (for emailing). */
+export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: string | null, opts: { output?: 'save' | 'base64' } = {}): Promise<string | void> {
   const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -352,5 +353,6 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
   doc.setTextColor('#808080');
   doc.text('thrivecreativestudios.org', W - M - 7, footerY + 7, { align: 'right' });
 
+  if (opts.output === 'base64') return doc.output('datauristring').split(',')[1] ?? '';
   doc.save(`${isEstimate ? 'Estimate' : 'Invoice'}-${invoice.invoice_number}.pdf`);
 }

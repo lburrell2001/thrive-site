@@ -250,7 +250,9 @@ export async function graph<T>(db: SupabaseClient, path: string, init: RequestIn
  * default). It lands in that mailbox's Sent Items and replies come back to it.
  * Another mailbox needs "Send as" for Lauren in Exchange.
  */
-export async function sendFromOutlook(db: SupabaseClient, mail: { to: string; subject: string; html: string }) {
+export type MailAttachment = { filename: string; content: string /* base64 */; contentType: string };
+
+export async function sendFromOutlook(db: SupabaseClient, mail: { to: string; subject: string; html: string; attachments?: MailAttachment[] }) {
   const conn = await loadConnection(db);
   if (!conn) throw new OutlookError('Outlook is not connected');
   const base = mailboxPath(conn, conn.send_from ?? conn.account_email);
@@ -261,6 +263,11 @@ export async function sendFromOutlook(db: SupabaseClient, mail: { to: string; su
         subject: mail.subject,
         body: { contentType: 'HTML', content: mail.html },
         toRecipients: [{ emailAddress: { address: mail.to } }],
+        ...(mail.attachments?.length ? {
+          attachments: mail.attachments.map((a) => ({
+            '@odata.type': '#microsoft.graph.fileAttachment', name: a.filename, contentType: a.contentType, contentBytes: a.content,
+          })),
+        } : {}),
       },
       saveToSentItems: true,
     }),

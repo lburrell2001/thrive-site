@@ -11,7 +11,7 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { sendSms, smsConfigured } from '@/lib/sms';
-import { outlookReady, sendFromOutlook } from '@/lib/outlook';
+import { outlookReady, sendFromOutlook, type MailAttachment } from '@/lib/outlook';
 import { brandEmail, button, greeting, note as noteBlock, panel, paragraph, signoff } from '@/lib/emailLayout';
 
 export interface Contact {
@@ -212,14 +212,14 @@ export async function deliver(
   message: ClientMessage,
   channels: { email: boolean; sms: boolean },
   /** Reminders and quick messages Lauren sends go from her Outlook when it's connected. */
-  opts: { fromInbox?: boolean } = {},
+  opts: { fromInbox?: boolean; attachments?: MailAttachment[] } = {},
 ): Promise<DeliveryReport> {
   const emailTask = async (): Promise<ChannelReport> => {
     if (!channels.email) return SKIPPED;
     if (!contact.email) return { status: 'skipped', to: null, error: 'No email address on file' };
     if (opts.fromInbox && await outlookReady(db)) {
       try {
-        await sendFromOutlook(db, { to: contact.email, subject: message.subject, html: emailHtml(contact, message) });
+        await sendFromOutlook(db, { to: contact.email, subject: message.subject, html: emailHtml(contact, message), attachments: opts.attachments });
         return { status: 'sent', to: contact.email, error: null };
       } catch (error) {
         return { status: 'failed', to: contact.email, error: error instanceof Error ? error.message : 'Outlook could not send it' };
@@ -237,6 +237,7 @@ export async function deliver(
         subject: message.subject,
         html: emailHtml(contact, message),
         text: emailText(contact, message),
+        ...(opts.attachments?.length ? { attachments: opts.attachments.map((a) => ({ filename: a.filename, content: a.content, contentType: a.contentType })) } : {}),
       });
       if (error) return { status: 'failed', to: contact.email, error: error.message };
       return { status: 'sent', to: contact.email, error: null };

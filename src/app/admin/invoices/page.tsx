@@ -155,6 +155,8 @@ export default function InvoiceBuilder() {
   const [projectOther, setProjectOther] = useState(false);
   // "Open balance" on a held deposit invoice: which row, and the balance's due date.
   const [opening, setOpening] = useState<{ id: string; due: string } | null>(null);
+  // "Send" on an estimate: the email dialog.
+  const [sending, setSending] = useState<{ est: Estimate; email: string; note: string; loading: boolean } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
@@ -508,6 +510,39 @@ export default function InvoiceBuilder() {
     setBusy(false);
   }
 
+  /** Opens the Send dialog with their email filled in when it's on file. */
+  async function startSend(est: Estimate) {
+    setSending({ est, email: '', note: '', loading: true });
+    try {
+      const r = await apiGet<{ email: string }>(`/api/estimates/${est.id}/send`);
+      setSending((cur) => (cur && cur.est.id === est.id ? { ...cur, email: cur.email || r.email, loading: false } : cur));
+    } catch {
+      setSending((cur) => (cur ? { ...cur, loading: false } : cur));
+    }
+  }
+
+  /** Emails the estimate PDF (made here, exactly as the PDF button makes it). */
+  async function sendEstimate() {
+    if (!sending) return;
+    const est = sending.est;
+    setSending({ ...sending, loading: true });
+    try {
+      const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+      const pdf = await generateInvoicePDF({
+        kind: 'estimate', invoice_number: est.estimate_number, project_name: est.title, amount_cents: est.total_cents,
+        invoice_date: est.issue_date, due_date: est.valid_until ?? '', status: est.status, line_items: est.line_items,
+        notes: est.notes, totals_only: est.totals_only ?? false,
+      }, est.client_name || null, { output: 'base64' });
+      await apiSend(`/api/estimates/${est.id}/send`, 'POST', { email: sending.email, note: sending.note, pdf });
+      setSending(null);
+      show(`${est.estimate_number} sent to ${sending.email}.`);
+      await load();
+    } catch (e) {
+      setSending((cur) => (cur ? { ...cur, loading: false } : cur));
+      show(e instanceof Error ? e.message : 'Could not send it', 'error');
+    }
+  }
+
   async function setStatus(est: Estimate, status: EstimateStatus) {
     try {
       await apiSend(`/api/estimates/${est.id}`, 'PATCH', { status });
@@ -715,6 +750,9 @@ export default function InvoiceBuilder() {
                           {(['draft', 'sent', 'accepted', 'declined'] as const).map((v) => <option key={v} value={v}>{STATUS_STYLE[v].label}</option>)}
                         </select>
                       )}
+                      <button type="button" className={`${p.btn} ${p.btnSmall} ${est.status === 'draft' ? p.btnPrimary : ''}`} onClick={() => startSend(est)}>
+                        {est.status === 'draft' ? 'Send' : 'Send again'}
+                      </button>
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => estimatePdf(est)}>PDF</button>
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
                       {est.status !== 'invoiced' && (
@@ -776,6 +814,17 @@ export default function InvoiceBuilder() {
           )
         )}
         {tab === 'invoices' && invoices.length > 0 && <p className={s.listFoot}>The 30 most recent. Open a client to see all of theirs, record payments or send a reminder.</p>}
+      {sending && (
+        <SendDialog
+          number={sending.est.estimate_number}
+          email={sending.email}
+          note={sending.note}
+          loading={sending.loading}
+          onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
+          onSend={sendEstimate}
+          onClose={() => setSending(null)}
+        />
+      )}
         <Toast toast={toast} />
       </div>
     );
@@ -1042,8 +1091,14 @@ export default function InvoiceBuilder() {
         <div className={s.barActions}>
           <button type="button" className={`${p.btn} ${s.previewBtn}`} onClick={() => setPreviewOpen(true)}>Preview</button>
           <button type="button" className={p.btn} disabled={!canSave} onClick={draftPdf}>PDF</button>
-          <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={primaryDisabled}
-            onClick={isInvoice ? addToPortal : saveEstimate}>{primaryLabel}</button>
+          {!isInvoice && editingEstimate && !dirty ? (
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => startSend(editingEstimate)}>
+              {editingEstimate.status === 'draft' ? 'Send to client' : 'Send again'}
+            </button>
+          ) : (
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={primaryDisabled}
+              onClick={isInvoice ? addToPortal : saveEstimate}>{primaryLabel}</button>
+          )}
         </div>
       </div>
 
@@ -1055,6 +1110,17 @@ export default function InvoiceBuilder() {
           </div>
           <Preview draft={draft} items={items} total={total} depositCents={depositCents} />
         </div>
+      )}
+      {sending && (
+        <SendDialog
+          number={sending.est.estimate_number}
+          email={sending.email}
+          note={sending.note}
+          loading={sending.loading}
+          onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
+          onSend={sendEstimate}
+          onClose={() => setSending(null)}
+        />
       )}
       {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insertItems} onClose={() => setDrawer(false)} />}
       <div className={s.toastLift}><Toast toast={toast} /></div>
@@ -1247,6 +1313,39 @@ function DepositFields({ draft, total, depositCents, problem, onChange }: {
           {problem && total > 0 && <p className={s.warn}>{problem}</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+/** "Send estimate": to whom, an optional note, and Send. The PDF goes attached. */
+function SendDialog({ number, email, note, loading, onChange, onSend, onClose }: {
+  number: string; email: string; note: string; loading: boolean;
+  onChange: (patch: { email?: string; note?: string }) => void; onSend: () => void; onClose: () => void;
+}) {
+  const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  return (
+    <div className={s.drawerBackdrop} style={{ alignItems: 'center', justifyContent: 'center', padding: 16 }}
+      onMouseDown={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}>
+      <div className={s.sendDialog} role="dialog" aria-modal="true" aria-labelledby="send-title">
+        <h2 id="send-title" className={s.drawerTitle}>Send {number}</h2>
+        <p className={s.stepHint}>They get a short email with the estimate attached as a PDF. It’s marked Sent and logged on their timeline.</p>
+        <label>
+          <span className={p.label}>To</span>
+          <input className={p.input} type="email" value={email} placeholder={loading ? 'Looking up their email…' : 'name@business.com'}
+            onChange={(e) => onChange({ email: e.target.value })} autoFocus />
+        </label>
+        <label>
+          <span className={p.label}>Note (optional)</span>
+          <textarea className={p.textarea} rows={3} value={note} placeholder="A line from you, e.g. Let me know if you have any questions."
+            onChange={(e) => onChange({ note: e.target.value })} />
+        </label>
+        <div className={s.sendActions}>
+          <button type="button" className={p.btn} onClick={onClose} disabled={loading}>Cancel</button>
+          <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!valid || loading} onClick={onSend}>
+            {loading ? 'Sending…' : 'Send estimate'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
