@@ -1045,3 +1045,27 @@
 .switchSm:checked { background: #e50586; }
 .switchSm:checked::after { transform: translateX(12px); }
 .switchSm:focus-visible { outline: 3px solid #3943b7; outline-offset: 2px; }
+
+/* Deposit: the switch in Details, the preview's two lines, Open balance on a row. */
+.deposit { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee; }
+.depositFields { display: grid; gap: 10px; margin-top: 12px; }
+.depositAmount { display: inline-flex; gap: 6px; align-items: center; }
+.depositAmount input { width: 90px !important; padding-top: 6px !important; padding-bottom: 6px !important; }
+.depositAmount select { width: auto !important; padding-top: 6px !important; padding-bottom: 6px !important; }
+.depositSum { margin: 0; font-size: 13px; }
+
+.depositBox {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 10px 10px;
+  border: 1.5px solid #0a0a0a;
+  font-size: 13px;
+}
+
+.depositBox > div { display: flex; justify-content: space-between; gap: 12px; }
+.depositBox > div:first-child strong { color: #e50586; }
+.depositBox span { color: #444; }
+
+.openBalance { display: inline-flex; align-items: center; gap: 6px; }
+.openBalance input { width: 150px !important; padding: 5px 10px !important; }

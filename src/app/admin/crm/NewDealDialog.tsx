@@ -1,7 +1,9 @@
 'use client';
 
 // A new piece of work: with someone already in the CRM, or with a new
-// contact created at the same time.
+// contact created at the same time. "Add to Clients with a project" (on by
+// default) also makes them a portal client with a project named after the
+// deal (POST /api/crm/deals/[id]/project; nothing is sent to them).
 
 import { useEffect, useMemo, useState } from 'react';
 import p from '../proposals/proposals.module.css';
@@ -36,6 +38,9 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
   const [months, setMonths] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [addToClients, setAddToClients] = useState(true);
+  // The deal went in but the Clients step didn't: say why, then close on Done.
+  const [doneWith, setDoneWith] = useState<{ contactId: string; dealId: string | null } | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -60,20 +65,33 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
     if (retainer && term !== null && (!Number.isInteger(term) || term < 1 || term > 120)) { setError('Months: a whole number from 1 to 120'); return; }
     if (retainer && value_cents === null) { setError('Enter the monthly price'); return; }
     if (mode === 'existing' && !contactId) { setError('Choose who the deal is with'); return; }
+    if (addToClients && mode === 'new' && !preset && !email.trim()) { setError('Add their email (it’s their portal login), or turn off Add to Clients'); return; }
     setSaving(true); setError('');
     const deal = retainer
       ? { title: title.trim(), stage, monthly_cents: value_cents, term_months: term }
       : { title: title.trim(), stage, value_cents };
     try {
+      let made: { contactId: string; dealId: string | null };
       if (mode === 'existing') {
         const created = await apiSend<CrmDeal>('/api/crm/deals', 'POST', { contact_id: contactId, ...deal });
-        onCreated(contactId, created.id);
+        made = { contactId, dealId: created.id };
       } else {
         const created = await apiSend<{ contact: CrmContact; deal_id: string | null }>('/api/crm/contacts', 'POST', {
           name, company, job_title: jobTitle.trim() || undefined, email, phone, source: source.trim() || 'manual', deal,
         });
-        onCreated(created.contact.id, created.deal_id);
+        made = { contactId: created.contact.id, dealId: created.deal_id };
       }
+      if (addToClients && made.dealId) {
+        try {
+          await apiSend(`/api/crm/deals/${made.dealId}/project`, 'POST');
+        } catch (err) {
+          setError(`The deal is in, but they weren’t added to Clients: ${err instanceof Error ? err.message : 'something went wrong'}`);
+          setDoneWith(made);
+          setSaving(false);
+          return;
+        }
+      }
+      onCreated(made.contactId, made.dealId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add deal');
       setSaving(false);
@@ -177,12 +195,26 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
           )}
         </div>
 
+        <label className={s.addClient}>
+          <input type="checkbox" checked={addToClients} onChange={(e) => setAddToClients(e.target.checked)} disabled={!!doneWith} />
+          <span>
+            <strong>Add to Clients with a project{title.trim() ? ` called “${title.trim()}”` : ''}</strong>
+            <small>Gives them a portal login (nothing is sent to them) and a project named after this deal.</small>
+          </span>
+        </label>
+
         {error && <p className={s.error}>{error}</p>}
         <div className={s.modalActions}>
-          <button type="button" className={p.btn} onClick={onClose}>Cancel</button>
-          <button type="submit" className={`${p.btn} ${p.btnPrimary}`} disabled={saving || !title.trim() || (mode === 'new' && !preset && !name.trim())}>
-            {saving ? 'Adding…' : 'Add deal'}
-          </button>
+          {doneWith ? (
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => onCreated(doneWith.contactId, doneWith.dealId)}>Done</button>
+          ) : (
+            <>
+              <button type="button" className={p.btn} onClick={onClose}>Cancel</button>
+              <button type="submit" className={`${p.btn} ${p.btnPrimary}`} disabled={saving || !title.trim() || (mode === 'new' && !preset && !name.trim())}>
+                {saving ? 'Adding…' : 'Add deal'}
+              </button>
+            </>
+          )}
         </div>
       </form>
     </>

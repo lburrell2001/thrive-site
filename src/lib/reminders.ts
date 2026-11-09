@@ -8,6 +8,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
+import { dueNow, type DepositFields } from './invoiceDeposit';
 import {
   crmContact,
   deliver,
@@ -104,36 +105,41 @@ function day(value: string) {
 async function prepare(db: SupabaseClient, target: ReminderTarget, site: string): Promise<Prepared> {
   switch (target.kind) {
     case 'invoice': {
-      const { data: inv } = await db
-        .from('portal_invoices')
-        .select('id, client_id, invoice_number, project_name, amount_cents, due_date, status')
-        .eq('id', target.id)
-        .maybeSingle();
+      const pick = (cols: string) => db.from('portal_invoices').select(cols).eq('id', target.id).maybeSingle();
+      let found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
+      if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status');
+      const inv = found.data as unknown as (DepositFields & { id: string; client_id: string; invoice_number: string; project_name: string }) | null;
       if (!inv) throw new ReminderError('Invoice not found');
       if (inv.status === 'paid') throw new ReminderError('That invoice is already paid');
+      // A deposit invoice is chased for the part due now; a balance on hold isn't due.
+      const due = dueNow(inv);
+      if (due.kind === 'held') throw new ReminderError('The deposit is paid and the balance isn’t open yet, so nothing is due');
+      if (due.kind !== 'pay') throw new ReminderError('That invoice is already paid');
       const contact = await portalContact(db, inv.client_id);
       if (!contact) throw new ReminderError('Client not found');
 
-      const overdue = inv.status === 'overdue' || inv.due_date < new Date().toISOString().slice(0, 10);
-      const amount = money(inv.amount_cents);
-      const when = overdue ? `was due ${day(inv.due_date)}` : `is due ${day(inv.due_date)}`;
+      const dueDate = due.dueDate ?? inv.due_date;
+      const overdue = dueDate < new Date().toISOString().slice(0, 10);
+      const partWord = due.part === 'deposit' ? 'the deposit on ' : due.part === 'balance' ? 'the balance on ' : '';
+      const amount = money(due.cents);
+      const when = overdue ? `was due ${day(dueDate)}` : `is due ${day(dueDate)}`;
       return {
         contact,
         targetType: 'invoice',
         targetId: inv.id,
-        summary: `Invoice ${inv.invoice_number} · ${amount} ${overdue ? 'overdue' : `due ${day(inv.due_date)}`}`,
+        summary: `${partWord ? `${partWord[4].toUpperCase()}${partWord.slice(5)}` : ''}Invoice ${inv.invoice_number} · ${amount} ${overdue ? 'overdue' : `due ${day(dueDate)}`}`,
         message: {
           subject: overdue
-            ? `Past due: invoice ${inv.invoice_number} — ${amount}`
-            : `Reminder: invoice ${inv.invoice_number} — ${amount} due ${day(inv.due_date)}`,
+            ? `Past due: ${partWord}invoice ${inv.invoice_number} — ${amount}`
+            : `Reminder: ${partWord}invoice ${inv.invoice_number} — ${amount} due ${day(dueDate)}`,
           eyebrow: 'Friendly reminder',
-          headline: `Invoice ${inv.invoice_number} for ${amount} ${when}. You can pay it securely in your portal.`,
-          detail: [inv.project_name && `Project: ${inv.project_name}`, `Amount: ${amount}`, `Due: ${day(inv.due_date)}`]
+          headline: `${partWord ? `${partWord[0].toUpperCase()}${partWord.slice(1)}` : ''}${partWord ? 'invoice' : 'Invoice'} ${inv.invoice_number} for ${amount} ${when}. You can pay it securely in your portal.`,
+          detail: [inv.project_name && `Project: ${inv.project_name}`, `Amount: ${amount}`, `Due: ${day(dueDate)}`]
             .filter(Boolean)
             .join('\n'),
           ctaUrl: `${site}/portal/invoices`,
           ctaLabel: 'Pay invoice',
-          sms: `Friendly reminder, invoice ${inv.invoice_number} for ${amount} ${when}. Pay here:`,
+          sms: `Friendly reminder, ${partWord}invoice ${inv.invoice_number} for ${amount} ${when}. Pay here:`,
         },
       };
     }

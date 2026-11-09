@@ -60,12 +60,15 @@ interface SubscriptionRow {
 // Mark any invoice that is still 'due' and whose due_date has passed as 'overdue'.
 // Returns the number of rows updated. Safe to call frequently.
 export async function markOverdueInvoices(admin: SupabaseClient, today = new Date().toISOString().slice(0, 10)) {
-  const { data, error } = await admin
-    .from('portal_invoices')
-    .update({ status: 'overdue' })
-    .eq('status', 'due')
-    .lt('due_date', today)
-    .select('id');
+  // A deposit invoice is overdue only once its balance is open (the deposit
+  // carries its own date, which the portal and reminders read).
+  const sweep = (withDeposits: boolean) => {
+    let q = admin.from('portal_invoices').update({ status: 'overdue' }).eq('status', 'due').lt('due_date', today);
+    if (withDeposits) q = q.eq('balance_open', true).is('deposit_cents', null);
+    return q.select('id');
+  };
+  let { data, error } = await sweep(true);
+  if (error && /balance_open|deposit_cents/.test(error.message)) ({ data, error } = await sweep(false));
   if (error) return { ok: false, error: error.message, updated: 0 };
   return { ok: true, updated: (data ?? []).length };
 }

@@ -3,10 +3,12 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
 
 interface DbInvoice {
   id: string; invoice_number: string; project_name: string;
   amount_cents: number; invoice_date: string; due_date: string; status: string;
+  deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
 }
 
 const F = {
@@ -20,13 +22,40 @@ function fmtCurrency(c: number) {
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
+// With a deposit (migration 048) the part due now has its own amount and date;
+// once the deposit is paid the balance waits ("held") until Thrive opens it.
 function effectiveStatus(inv: DbInvoice): string {
-  if (inv.status === 'due' && inv.due_date && inv.due_date < new Date().toISOString().slice(0, 10)) return 'overdue';
-  return inv.status;
+  const due = dueNow(inv);
+  if (due.kind === 'paid') return 'paid';
+  if (due.kind === 'held') return 'held';
+  if (due.dueDate && due.dueDate < new Date().toISOString().slice(0, 10)) return 'overdue';
+  return 'due';
 }
-const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586' };
-const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8' };
-const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue' };
+/** What the Pay button pays right now. */
+function payNow(inv: DbInvoice): { cents: number; label: string; date: string } | null {
+  const due = dueNow(inv);
+  if (due.kind !== 'pay') return null;
+  return { cents: due.cents, label: due.part === 'deposit' ? 'deposit' : due.part === 'balance' ? 'balance' : '', date: due.dueDate ?? inv.due_date };
+}
+function statusLabel(inv: DbInvoice): string {
+  const es = effectiveStatus(inv);
+  const part = payNow(inv)?.label;
+  if (es === 'held') return 'Deposit paid';
+  if (part && es !== 'paid') return `${part[0].toUpperCase()}${part.slice(1)} ${es === 'overdue' ? 'overdue' : 'due'}`;
+  return STATUS_LABEL[es] ?? es;
+}
+/** The line under the amount: what's due when, or that the rest comes later. */
+function depositNote(inv: DbInvoice): string | null {
+  if (!inv.deposit_cents || inv.status === 'paid') return null;
+  const due = dueNow(inv);
+  if (due.kind === 'pay' && due.part === 'deposit') return `Deposit ${fmtCurrency(due.cents)} due ${fmtDate(due.dueDate ?? inv.due_date)} · the rest later`;
+  if (due.kind === 'held') return `Deposit received · ${fmtCurrency(due.cents)} balance, we’ll let you know when it’s ready`;
+  if (due.kind === 'pay' && due.part === 'balance') return `Deposit received · ${fmtCurrency(due.cents)} balance due ${fmtDate(due.dueDate ?? inv.due_date)}`;
+  return null;
+}
+const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586', held:'#0a0a0a' };
+const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8', held:'#f1f0ef' };
+const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue', held:'Deposit paid' };
 
 export default function InvoicesPage() {
   const searchParams = useSearchParams();
@@ -48,15 +77,16 @@ export default function InvoicesPage() {
     const { data } = await supabasePortal.from('portal_invoices').select('*').eq('client_id', user.id).order('invoice_date', { ascending: false });
     const rows: DbInvoice[] = data ?? [];
     setInvoices(rows);
-    const totalPaid   = rows.filter(i=>effectiveStatus(i)==='paid').reduce((s,i)=>s+i.amount_cents,0);
-    const outstanding = rows.filter(i=>effectiveStatus(i)==='due').reduce((s,i)=>s+i.amount_cents,0);
-    const overdue     = rows.filter(i=>effectiveStatus(i)==='overdue').reduce((s,i)=>s+i.amount_cents,0);
-    const nextDue     = rows.filter(i=>effectiveStatus(i)==='due').sort((a,b)=>new Date(a.due_date).getTime()-new Date(b.due_date).getTime())[0];
+    // Paid so far (paid deposits too), what's payable now, and what's late.
+    const totalPaid   = rows.reduce((s,i)=>s+(i.amount_cents-remainingCents(i)),0);
+    const outstanding = rows.filter(i=>effectiveStatus(i)==='due').reduce((s,i)=>s+(payNow(i)?.cents ?? 0),0);
+    const overdue     = rows.filter(i=>effectiveStatus(i)==='overdue').reduce((s,i)=>s+(payNow(i)?.cents ?? 0),0);
+    const nextDue     = rows.filter(i=>effectiveStatus(i)==='due').sort((a,b)=>(payNow(a)?.date ?? '').localeCompare(payNow(b)?.date ?? ''))[0];
     setStatCards([
       { label:'Total Paid',  value:fmtCurrency(totalPaid),   color:'#0cf574' },
       { label:'Outstanding', value:fmtCurrency(outstanding), color:'#fd6100' },
       { label:'Overdue',     value:fmtCurrency(overdue),     color:'#e40586' },
-      { label:'Next Due',    value:nextDue ? fmtDate(nextDue.due_date) : '—', color:'#1e3add' },
+      { label:'Next Due',    value:nextDue ? fmtDate(payNow(nextDue)?.date ?? nextDue.due_date) : '—', color:'#1e3add' },
     ]);
     setDueInvoice(nextDue ?? null);
     setLoading(false);
@@ -191,14 +221,14 @@ export default function InvoicesPage() {
         )}
 
         {/* Filtered-empty */}
-        {!loading && invoices.length > 0 && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter).length === 0 && (
+        {!loading && invoices.length > 0 && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter || (filter === 'due' && effectiveStatus(i) === 'held')).length === 0 && (
           <div style={{ padding:'40px 24px', textAlign:'center' }}>
             <p style={{ fontFamily:F.inter, fontSize:14, color:'#808080', margin:0 }}>No {filter} invoices.</p>
           </div>
         )}
 
         {/* Rows */}
-        {!loading && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter).map((inv, i) => {
+        {!loading && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter || (filter === 'due' && effectiveStatus(i) === 'held')).map((inv, i) => {
           const es     = effectiveStatus(inv);
           const sc     = STATUS_COLOR[es] ?? '#808080';
           const sbg    = STATUS_BG[es]    ?? '#f1f0ef';
@@ -210,11 +240,14 @@ export default function InvoicesPage() {
               <div className="inv-table-row" style={{ background:i%2===0?'#fff':'#fafafa' }}>
                 <span style={{ fontFamily:F.inter, fontSize:14, fontWeight:700, color:'#0a0a0a' }}>{inv.invoice_number}</span>
                 <span style={{ fontFamily:F.inter, fontSize:14, color:'#0a0a0a' }}>{inv.project_name}</span>
-                <span style={{ fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#0a0a0a' }}>{fmtCurrency(inv.amount_cents)}</span>
+                <span style={{ fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#0a0a0a' }}>
+                  {fmtCurrency(inv.amount_cents)}
+                  {depositNote(inv) && <span style={{ display:'block', fontSize:11, fontWeight:500, color:'#808080', marginTop:2 }}>{depositNote(inv)}</span>}
+                </span>
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.invoice_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.due_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, color:sc, background:sbg, padding:'3px 8px', borderRadius:999, width:'fit-content' }}>
-                  {STATUS_LABEL[es] ?? es}
+                  {statusLabel(inv)}
                 </span>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={() => handleExportPDF(inv)}
@@ -224,7 +257,7 @@ export default function InvoicesPage() {
                   {canPay && (
                     <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
                       style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:8, padding:'6px 16px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
-                      {payLoading ? '…' : 'PAY'}
+                      {payLoading ? '…' : payNow(inv)?.label ? `PAY ${payNow(inv)!.label.toUpperCase()}` : 'PAY'}
                     </button>
                   )}
                 </div>
@@ -238,14 +271,14 @@ export default function InvoicesPage() {
                     <div style={{ fontFamily:F.inter, fontSize:13, color:'#808080', marginTop:2 }}>{inv.project_name}</div>
                   </div>
                   <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, color:sc, background:sbg, padding:'3px 10px', borderRadius:999, flexShrink:0 }}>
-                    {STATUS_LABEL[es] ?? es}
+                    {statusLabel(inv)}
                   </span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
                   <div>
                     <div style={{ fontFamily:F.bungee, fontSize:22, color:'#0a0a0a' }}>{fmtCurrency(inv.amount_cents)}</div>
                     <div style={{ fontFamily:F.inter, fontSize:12, color:'#bfbfbf', marginTop:2 }}>
-                      Issued {fmtDate(inv.invoice_date)} · Due {fmtDate(inv.due_date)}
+                      {depositNote(inv) ?? `Issued ${fmtDate(inv.invoice_date)} · Due ${fmtDate(inv.due_date)}`}
                     </div>
                   </div>
                   <div style={{ display:'flex', gap:8, flexShrink:0 }}>
@@ -256,7 +289,7 @@ export default function InvoicesPage() {
                     {canPay && (
                       <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
                         style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
-                        {payLoading ? '…' : 'PAY NOW'}
+                        {payLoading ? '…' : payNow(inv)?.label ? `PAY ${payNow(inv)!.label.toUpperCase()} ${fmtCurrency(payNow(inv)!.cents)}` : 'PAY NOW'}
                       </button>
                     )}
                   </div>
@@ -278,17 +311,17 @@ export default function InvoicesPage() {
         <div style={{ background:'#0a0a0a', borderRadius:16, borderLeft:'4px solid #e40586', padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16 }}>
           <div>
             <h3 style={{ fontFamily:F.bungee, fontSize:18, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>
-              INVOICE {dueInvoice.invoice_number} IS DUE {fmtDate(dueInvoice.due_date).toUpperCase()}
+              {payNow(dueInvoice)?.label ? `${payNow(dueInvoice)!.label.toUpperCase()} ON ` : ''}INVOICE {dueInvoice.invoice_number} IS DUE {fmtDate(payNow(dueInvoice)?.date ?? dueInvoice.due_date).toUpperCase()}
             </h3>
             <p style={{ fontFamily:F.inter, fontSize:14, color:'#bfbfbf', margin:0 }}>
-              {fmtCurrency(dueInvoice.amount_cents)} outstanding — pay now to keep your project on track
+              {fmtCurrency(payNow(dueInvoice)?.cents ?? dueInvoice.amount_cents)} due now — pay now to keep your project on track
             </p>
           </div>
           <button
             onClick={() => handlePay(dueInvoice.id, dueInvoice.amount_cents, `Invoice ${dueInvoice.invoice_number} — ${dueInvoice.project_name}`)}
             disabled={payLoading}
             style={{ fontFamily:F.inter, fontSize:14, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'12px 24px', cursor:'pointer', flexShrink:0, opacity:payLoading?0.6:1, width:'100%', maxWidth:320 }}>
-            {payLoading ? 'Loading…' : `PAY ${fmtCurrency(dueInvoice.amount_cents)} NOW`}
+            {payLoading ? 'Loading…' : `PAY ${fmtCurrency(payNow(dueInvoice)?.cents ?? dueInvoice.amount_cents)} NOW`}
           </button>
         </div>
       )}

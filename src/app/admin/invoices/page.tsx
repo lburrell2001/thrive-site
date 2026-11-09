@@ -24,6 +24,7 @@ import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import { proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
+import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
 
 type Mode = 'estimate' | 'invoice';
 
@@ -33,6 +34,7 @@ interface InvoiceRow {
   id: string; client_id: string; invoice_number: string; project_name: string; amount_cents: number;
   invoice_date: string; due_date: string; status: string; line_items?: LineItem[] | null; notes?: string | null;
   totals_only?: boolean | null;
+  deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
 }
 interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
 interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[] }
@@ -50,6 +52,11 @@ interface Draft {
   notes: string;
   /** The client's PDF shows category subtotals, not each line. */
   totalsOnly: boolean;
+  /** Invoices: ask for a deposit first; the rest waits until Lauren opens it. */
+  depositOn?: boolean;
+  depositMode?: 'percent' | 'amount';
+  depositValue?: string;
+  depositDue?: string;
 }
 
 const DRAFT_KEY = 'thrive-billing-draft';
@@ -85,7 +92,8 @@ function addDays(date: string, days: number): string {
 
 function blankDraft(mode: Mode = 'estimate'): Draft {
   const t = today();
-  return { mode, client: '', clientName: '', title: '', number: '', issueDate: t, dueDate: addDays(t, mode === 'invoice' ? 14 : 30), text: '', notes: '', totalsOnly: true };
+  return { mode, client: '', clientName: '', title: '', number: '', issueDate: t, dueDate: addDays(t, mode === 'invoice' ? 14 : 30), text: '', notes: '', totalsOnly: true,
+    depositOn: false, depositMode: 'percent', depositValue: '50', depositDue: t };
 }
 
 function storedDraft(): Draft {
@@ -101,11 +109,25 @@ function storedDraft(): Draft {
 const clientLabel = (c: PortalClient) => c.company_name || c.full_name || 'Unnamed client';
 const contactLabel = (c: Contact) => [c.name, c.company].filter(Boolean).join(' · ') || c.email || 'Unnamed contact';
 
-/** Paid, overdue (due date gone by) or due. */
+/** Paid, overdue, due — or for a deposit invoice, which part is due (or on hold). */
 function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
-  if (inv.status === 'paid') return { cls: s.stAccepted, label: 'Paid' };
-  if (inv.status === 'overdue' || (inv.due_date && inv.due_date < today())) return { cls: s.stDeclined, label: 'Overdue' };
-  return { cls: s.stSent, label: 'Due' };
+  const due = dueNow(inv);
+  if (due.kind === 'paid') return { cls: s.stAccepted, label: 'Paid' };
+  if (due.kind === 'held') return { cls: s.stDraft, label: 'Balance on hold' };
+  const late = inv.status === 'overdue' || (!!due.dueDate && due.dueDate < today());
+  const what = due.part === 'deposit' ? 'Deposit' : due.part === 'balance' ? 'Balance' : '';
+  if (late) return { cls: s.stDeclined, label: what ? `${what} overdue` : 'Overdue' };
+  return { cls: s.stSent, label: what ? `${what} due` : 'Due' };
+}
+
+/** "deposit $500 due Nov 16", "deposit paid · $1,500 on hold", "due Nov 23"… */
+function invoiceMeta(inv: InvoiceRow): string {
+  if (inv.status === 'paid') return `issued ${formatDate(inv.invoice_date)}`;
+  const due = dueNow(inv);
+  if (due.kind === 'pay' && due.part === 'deposit') return `${formatLineMoney(due.cents)} deposit due ${formatDate(due.dueDate ?? inv.due_date)}`;
+  if (due.kind === 'held') return `deposit paid · ${formatLineMoney(due.cents)} on hold`;
+  if (due.kind === 'pay' && due.part === 'balance') return `deposit paid · ${formatLineMoney(due.cents)} due ${formatDate(due.dueDate ?? inv.due_date)}`;
+  return `due ${formatDate(inv.due_date)}`;
 }
 
 export default function InvoiceBuilder() {
@@ -130,6 +152,8 @@ export default function InvoiceBuilder() {
   const [customError, setCustomError] = useState('');
   // The Project dropdown's "Something else…": type a name instead.
   const [projectOther, setProjectOther] = useState(false);
+  // "Open balance" on a held deposit invoice: which row, and the balance's due date.
+  const [opening, setOpening] = useState<{ id: string; due: string } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
@@ -177,6 +201,10 @@ export default function InvoiceBuilder() {
                 ...blankDraft('invoice'), client: key,
                 clientName: portalClient ? clientLabel(portalClient) : (pr.client?.company || pr.client?.name || ''),
                 title: pr.proposal.title, text: proposalInvoiceText(part, pr.proposal, pr.lineItems), totalsOnly: part === 'full',
+                // The whole proposal on one invoice, with its deposit first.
+                ...(part === 'full' && pr.proposal.deposit_percent > 0 && pr.proposal.deposit_percent < 100
+                  ? { depositOn: true, depositMode: 'percent' as const, depositValue: String(pr.proposal.deposit_percent) }
+                  : {}),
               });
               setView('edit');
               if (portalClient) {
@@ -227,6 +255,9 @@ export default function InvoiceBuilder() {
   const { items, problems } = parseLineItems(draft.text);
   const total = totalCents(items);
   const split = splitTotals(items);
+  const depositCents = isDepositOn(draft) ? depositFor(draft, total) : 0;
+  const depositProblem = isDepositOn(draft) && (depositCents <= 0 || depositCents >= total)
+    ? 'The deposit must be more than $0 and less than the total' : '';
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }));
   const isInvoice = draft.mode === 'invoice';
   const dirty = editingId ? JSON.stringify(draft) !== snapshot : false;
@@ -396,7 +427,10 @@ export default function InvoiceBuilder() {
   async function addToPortal() {
     if (!portalId) return;
     if (!draft.number.trim()) { show('Add an invoice number.', 'error'); return; }
-    if (!window.confirm(`Add invoice ${draft.number} for ${formatLineMoney(total)} to ${draft.clientName || 'this client'}'s portal? They'll get an email (and a text if they've opted in).`)) return;
+    const what = depositCents
+      ? `invoice ${draft.number} for ${formatLineMoney(total)}, with a ${formatLineMoney(depositCents)} deposit due ${formatDate(draft.depositDue ?? '')} (the rest stays locked until you open it),`
+      : `invoice ${draft.number} for ${formatLineMoney(total)}`;
+    if (!window.confirm(`Add ${what} to ${draft.clientName || 'this client'}'s portal? They'll get an email (and a text if they've opted in).`)) return;
     setBusy(true);
     try {
       const inv = await apiSend<InvoiceRow>('/api/admin', 'POST', {
@@ -410,6 +444,7 @@ export default function InvoiceBuilder() {
         line_items: items,
         notes: draft.notes,
         totals_only: draft.totalsOnly,
+        ...(depositCents ? { deposit_cents: depositCents, deposit_due_date: draft.depositDue } : {}),
       });
       if (fromEstimateId) {
         await apiSend(`/api/estimates/${fromEstimateId}`, 'PATCH', { status: 'invoiced', invoice_id: inv.id }).catch(() => undefined);
@@ -431,17 +466,35 @@ export default function InvoiceBuilder() {
   async function downloadPdf(doc: {
     kind: Mode; number: string; title: string; total: number; issue: string; due: string;
     status: string; lines: LineItem[]; notes: string | null; client: string; totalsOnly: boolean;
+    deposit?: { cents: number; due: string; paidAt: string | null; balanceOpen: boolean } | null;
   }) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
     await generateInvoicePDF({
       kind: doc.kind, invoice_number: doc.number || 'DRAFT', project_name: doc.title, amount_cents: doc.total,
       invoice_date: doc.issue, due_date: doc.due, status: doc.status, line_items: doc.lines, notes: doc.notes,
       totals_only: doc.totalsOnly,
+      ...(doc.deposit ? { deposit_cents: doc.deposit.cents, deposit_due_date: doc.deposit.due, deposit_paid_at: doc.deposit.paidAt, balance_open: doc.deposit.balanceOpen } : {}),
     }, doc.client || null);
   }
 
-  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly });
+  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly,
+    deposit: depositCents ? { cents: depositCents, due: draft.depositDue ?? '', paidAt: null, balanceOpen: false } : null });
   const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, totalsOnly: est.totals_only ?? false });
+
+  /** Turns on the rest of a deposit invoice; the client is emailed (and texted if opted in). */
+  async function openBalance() {
+    if (!opening) return;
+    setBusy(true);
+    try {
+      await apiSend('/api/admin', 'POST', { action: 'open_balance', id: opening.id, due_date: opening.due });
+      setOpening(null);
+      show('The balance is open and the client has been told.');
+      await load();
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not open the balance', 'error');
+    }
+    setBusy(false);
+  }
 
   async function setStatus(est: Estimate, status: EstimateStatus) {
     try {
@@ -545,7 +598,7 @@ export default function InvoiceBuilder() {
   }
 
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
-  const canSave = items.length > 0 && problems.length === 0 && missing.length === 0;
+  const canSave = items.length > 0 && problems.length === 0 && missing.length === 0 && !depositProblem;
   const editingEstimate = editingId ? data.estimates.find((e) => e.id === editingId) : undefined;
 
   // ── List view ─────────────────────────────────────────────────────────────
@@ -556,9 +609,10 @@ export default function InvoiceBuilder() {
     const open = data.estimates.filter((e) => e.status === 'draft' || e.status === 'sent');
     const accepted = data.estimates.filter((e) => e.status === 'accepted');
     const unpaid = data.invoices.filter((i) => i.status !== 'paid');
-    const overdue = unpaid.filter((i) => invoiceState(i).label === 'Overdue');
+    const overdue = unpaid.filter((i) => /overdue/i.test(invoiceState(i).label));
     const sumEst = (xs: Estimate[]) => xs.reduce((n, x) => n + x.total_cents, 0);
-    const sumInv = (xs: InvoiceRow[]) => xs.reduce((n, x) => n + x.amount_cents, 0);
+    // What's still owed (a paid deposit taken off).
+    const sumInv = (xs: InvoiceRow[]) => xs.reduce((n, x) => n + remainingCents(x), 0);
 
     return (
       <div className={w.page}>
@@ -682,12 +736,24 @@ export default function InvoiceBuilder() {
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
                       </span>
                       <span className={s.docWho}>{client || 'Client'}</span>
-                      <span className={s.docMeta}>{[inv.project_name, inv.status === 'paid' ? `issued ${formatDate(inv.invoice_date)}` : `due ${formatDate(inv.due_date)}`].filter(Boolean).join(' · ')}</span>
+                      <span className={s.docMeta}>{[inv.project_name, invoiceMeta(inv)].filter(Boolean).join(' · ')}</span>
                     </Link>
                     <span className={s.docAmount}>{formatLineMoney(inv.amount_cents)}</span>
                     <div className={s.docActions}>
+                      {dueNow(inv).kind === 'held' && (opening?.id === inv.id ? (
+                        <span className={s.openBalance}>
+                          <input type="date" className={p.input} aria-label="Balance due" value={opening.due}
+                            onChange={(e) => setOpening({ id: inv.id, due: e.target.value })} />
+                          <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} disabled={busy || !opening.due} onClick={openBalance}>Open</button>
+                          <button type="button" className={s.iconBtn} aria-label="Cancel" onClick={() => setOpening(null)}>×</button>
+                        </span>
+                      ) : (
+                        <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`}
+                          onClick={() => setOpening({ id: inv.id, due: addDays(today(), 14) })}>Open balance</button>
+                      ))}
                       <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                        onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client, totalsOnly: inv.totals_only ?? false })}>
+                        onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client, totalsOnly: inv.totals_only ?? false,
+                          deposit: inv.deposit_cents ? { cents: inv.deposit_cents, due: inv.deposit_due_date ?? '', paidAt: inv.deposit_paid_at ?? null, balanceOpen: inv.balance_open !== false } : null })}>
                         PDF
                       </button>
                     </div>
@@ -714,6 +780,7 @@ export default function InvoiceBuilder() {
   const blocker = items.length === 0 ? 'Add at least one item'
     : problems.length ? `Fix line ${problems[0].line}`
     : missing.length ? `${missing[0].required.name} is required`
+    : depositProblem ? depositProblem
     : isInvoice && !portalId ? 'Pick a portal client to send it'
     : '';
 
@@ -780,7 +847,7 @@ export default function InvoiceBuilder() {
                 <input type="date" className={p.input} value={draft.issueDate} onChange={(e) => set('issueDate', e.target.value)} />
               </label>
               <label>
-                <span className={p.label}>{isInvoice ? 'Due' : 'Good until'}</span>
+                <span className={p.label}>{isInvoice ? (isDepositOn(draft) ? 'Balance due' : 'Due') : 'Good until'}</span>
                 <input type="date" className={p.input} value={draft.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
               </label>
             </div>
@@ -790,6 +857,10 @@ export default function InvoiceBuilder() {
                   onClick={() => set('dueDate', addDays(draft.issueDate, days))}>{label}</button>
               ))}
             </div>
+            {isInvoice && (
+              <DepositFields draft={draft} total={total} depositCents={depositCents} problem={depositProblem}
+                onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
+            )}
           </section>
 
           <section className={s.step}>
@@ -943,7 +1014,7 @@ export default function InvoiceBuilder() {
         </div>
 
         <aside className={s.previewCol}>
-          <Preview draft={draft} items={items} total={total} />
+          <Preview draft={draft} items={items} total={total} depositCents={depositCents} />
         </aside>
       </div>
 
@@ -953,7 +1024,7 @@ export default function InvoiceBuilder() {
           <span className={s.barValue}>
             {isInvoice || !split.monthly ? formatLineMoney(total) : amountText(split.oneTime, split.monthly)}
           </span>
-          <span className={s.barMeta}>{blocker || `${items.length} item${items.length === 1 ? '' : 's'}${isInvoice && split.monthly ? ` · first month of ${formatLineMoney(split.monthly)}/mo included` : ''}`}</span>
+          <span className={s.barMeta}>{blocker || `${items.length} item${items.length === 1 ? '' : 's'}${depositCents ? ` · ${formatLineMoney(depositCents)} deposit first` : ''}${isInvoice && split.monthly ? ` · first month of ${formatLineMoney(split.monthly)}/mo included` : ''}`}</span>
         </div>
         <div className={s.barActions}>
           <button type="button" className={`${p.btn} ${s.previewBtn}`} onClick={() => setPreviewOpen(true)}>Preview</button>
@@ -969,7 +1040,7 @@ export default function InvoiceBuilder() {
             <strong>Preview</strong>
             <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setPreviewOpen(false)}>Done</button>
           </div>
-          <Preview draft={draft} items={items} total={total} />
+          <Preview draft={draft} items={items} total={total} depositCents={depositCents} />
         </div>
       )}
       {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insertItems} onClose={() => setDrawer(false)} />}
@@ -1099,6 +1170,68 @@ function ProjectField({ projects, value, other, onOther, onChange }: {
   );
 }
 
+const isDepositOn = (d: Draft) => d.mode === 'invoice' && !!d.depositOn;
+
+/** The deposit in cents: a percent of the total, or a dollar amount. */
+function depositFor(d: Draft, total: number): number {
+  const v = Number.parseFloat((d.depositValue ?? '').replace(/[$,%\s]/g, ''));
+  if (!Number.isFinite(v) || v <= 0) return 0;
+  return d.depositMode === 'amount' ? Math.round(v * 100) : Math.round((total * Math.min(v, 100)) / 100);
+}
+
+/** Invoices: "Ask for a deposit first" — amount, its date, and what happens to the rest. */
+function DepositFields({ draft, total, depositCents, problem, onChange }: {
+  draft: Draft; total: number; depositCents: number; problem: string; onChange: (patch: Partial<Draft>) => void;
+}) {
+  const on = !!draft.depositOn;
+  return (
+    <div className={s.deposit}>
+      <label className={s.switchRow}>
+        <span className={s.switchText}>
+          <strong>Ask for a deposit first</strong>
+          <small>The client pays the deposit now. The rest stays locked in their portal until you open it.</small>
+        </span>
+        <input type="checkbox" role="switch" className={s.switch} checked={on} onChange={(e) => onChange({ depositOn: e.target.checked })} />
+      </label>
+      {on && (
+        <div className={s.depositFields}>
+          <div className={s.quickDates}>
+            {['25', '50'].map((pct) => (
+              <button key={pct} type="button" className={`${s.chip} ${draft.depositMode !== 'amount' && draft.depositValue === pct ? s.chipOn : ''}`}
+                onClick={() => onChange({ depositMode: 'percent', depositValue: pct })}>{pct}%</button>
+            ))}
+            <span className={s.depositAmount}>
+              <input className={p.input} inputMode="decimal" aria-label="Deposit amount" value={draft.depositValue ?? ''}
+                onChange={(e) => onChange({ depositValue: e.target.value })} />
+              <select className={p.select} aria-label="Percent or dollars" value={draft.depositMode ?? 'percent'}
+                onChange={(e) => onChange({ depositMode: e.target.value as 'percent' | 'amount' })}>
+                <option value="percent">%</option>
+                <option value="amount">$</option>
+              </select>
+            </span>
+          </div>
+          <label>
+            <span className={p.label}>Deposit due</span>
+            <input type="date" className={p.input} value={draft.depositDue ?? ''} onChange={(e) => onChange({ depositDue: e.target.value })} />
+          </label>
+          <div className={s.quickDates}>
+            {([['On receipt', 0], ['7 days', 7], ['14 days', 14]] as const).map(([label, days]) => (
+              <button key={label} type="button" className={`${s.chip} ${draft.depositDue === addDays(draft.issueDate, days) ? s.chipOn : ''}`}
+                onClick={() => onChange({ depositDue: addDays(draft.issueDate, days) })}>{label}</button>
+            ))}
+          </div>
+          {total > 0 && !problem && (
+            <p className={s.depositSum}>
+              <strong>{formatLineMoney(depositCents)}</strong> deposit now · <strong>{formatLineMoney(total - depositCents)}</strong> when you open the balance
+            </p>
+          )}
+          {problem && total > 0 && <p className={s.warn}>{problem}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StepHead({ n, title, hint }: { n: number; title: string; hint?: string }) {
   return (
     <div className={s.stepHead}>
@@ -1194,7 +1327,7 @@ function ClientPicker({ data, value, name, onPick, onType }: {
   );
 }
 
-function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; total: number }) {
+function Preview({ draft, items, total, depositCents }: { draft: Draft; items: LineItem[]; total: number; depositCents: number }) {
   const isInvoice = draft.mode === 'invoice';
   const groups = categoryTotals(items);
   const grouped = items.some((it) => it.category);
@@ -1221,7 +1354,7 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
       </div>
 
       {draft.totalsOnly && items.length > 0 && (
-        <p className={s.paperFlag}>Totals only: the client doesn’t see what’s in grey. Categories with two or more items show as one subtotal.</p>
+        <p className={s.paperFlag}>Totals only: categories with two or more items show as one subtotal. The client doesn’t see what’s in grey.</p>
       )}
       <table className={s.table}>
         <thead>
@@ -1251,7 +1384,7 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
                   <td>
                     <div className={s.lineName}>{it.name}</div>
                     {it.description && (
-                      <div className={`${s.lineDesc} ${(draft.totalsOnly && !collapsed) || it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
+                      <div className={`${s.lineDesc} ${it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
                     )}
                   </td>
                   {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
@@ -1283,6 +1416,12 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
         <div className={s.total}>
           <span className={s.totalLabel}>{isInvoice ? 'TOTAL DUE' : 'ESTIMATE TOTAL'}</span>
           <span className={s.totalValue}>{formatLineMoney(total)}</span>
+        </div>
+      )}
+      {isInvoice && depositCents > 0 && (
+        <div className={s.depositBox}>
+          <div><span>Deposit due {formatDate(draft.depositDue ?? '')}</span><strong>{formatLineMoney(depositCents)}</strong></div>
+          <div><span>Balance, due when we let you know</span><strong>{formatLineMoney(total - depositCents)}</strong></div>
         </div>
       )}
       {isInvoice && split.monthly !== 0 && (

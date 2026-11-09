@@ -631,14 +631,9 @@ function SignedBanner({
         {signature.ip_address ? ` · ${signature.ip_address}` : ''}
       </p>
       <div className={pb.bannerActions}>
-        {split ? (
-          <>
-            <Link href={`/admin/invoices?proposal=${proposalId}&part=deposit`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Invoice the deposit</Link>
-            <Link href={`/admin/invoices?proposal=${proposalId}&part=balance`} className={`${s.btn} ${s.btnSmall}`}>Invoice the balance</Link>
-          </>
-        ) : (
-          <Link href={`/admin/invoices?proposal=${proposalId}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Make the invoice</Link>
-        )}
+        <Link href={`/admin/invoices?proposal=${proposalId}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>
+          {split ? `Make the invoice (${depositPercent}% deposit first)` : 'Make the invoice'}
+        </Link>
       </div>
       <p className={pb.bannerSmall}>
         Editing changes the live document only. What was signed is frozen on the signature record.

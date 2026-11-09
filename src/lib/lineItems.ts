@@ -260,8 +260,9 @@ export type ClientRow = { name: string; description: string; hours: number | nul
 /**
  * The rows the client sees. Every line normally; with "Totals only", one row
  * per category — except that a line with no category, or the only line in
- * its category, shows under its own name (a lone "Other — $125" tells the
- * client nothing).
+ * its category, shows under its own name and with its description (a lone
+ * "Other — $125" tells the client nothing). "Show description" off leaves a
+ * description out either way.
  */
 export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] {
   const one = (it: LineItem): ClientRow => ({
@@ -275,7 +276,8 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
   if (!totalsOnly) return items.map(one);
   return categoryTotals(items).flatMap((g): ClientRow[] => {
     const uncategorised = g.items.every((it) => !it.category?.trim());
-    if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), description: '', hours: null }));
+    // Shown on its own: keeps its description unless "Show description" is off.
+    if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
     return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true }];
   });
 }

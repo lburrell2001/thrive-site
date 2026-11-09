@@ -689,3 +689,20 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* New deal: "Add to Clients with a project". */
+.addClient {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f5f5f5;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.addClient input { margin-top: 2px; width: 16px; height: 16px; accent-color: #e50586; flex: none; }
+.addClient span { display: grid; gap: 2px; }
+.addClient small { font-size: 12px; color: #6b6b6b; line-height: 1.45; }

@@ -211,14 +211,10 @@ export default function ProposalsListPage() {
                   {(row.status === 'sent' || row.status === 'viewed') && (
                     <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={() => setReminding(row)}>Remind</button>
                   )}
-                  {row.status === 'signed' && (pct > 0 && pct < 100 ? (
-                    <>
-                      <Link href={`/admin/invoices?proposal=${row.id}&part=deposit`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Invoice deposit</Link>
-                      <Link href={`/admin/invoices?proposal=${row.id}&part=balance`} className={`${s.btn} ${s.btnSmall}`}>Invoice balance</Link>
-                    </>
-                  ) : (
-                    <Link href={`/admin/invoices?proposal=${row.id}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>Invoice</Link>
-                  ))}
+                  {row.status === 'signed' && (
+                    <Link href={`/admin/invoices?proposal=${row.id}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
+                      title={pct > 0 && pct < 100 ? `One invoice: the ${pct}% deposit first, the rest when you open it` : undefined}>Invoice</Link>
+                  )}
                   <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={busyId === row.id} onClick={() => duplicate(row.id)}>Duplicate</button>
                   {row.status !== 'signed' && (
                     <button type="button" className={b.iconBtn} aria-label={`Delete ${row.title}`} title="Delete" disabled={busyId === row.id} onClick={() => remove(row)}>×</button>

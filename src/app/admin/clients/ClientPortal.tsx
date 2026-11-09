@@ -14,6 +14,7 @@ import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import QuestionnairesSection from './QuestionnairesSection';
 import { formatPhone } from '@/lib/phone';
 import { adminHeaders } from '@/lib/adminSession';
+import { depositLabel, dueNow } from '@/lib/invoiceDeposit';
 
 const F = {
   inter: 'var(--a-font)',
@@ -56,7 +57,7 @@ interface Client { id: string; full_name: string; company_name: string; initials
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
-interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; }
+interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
@@ -1127,6 +1128,7 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
                 {inv.project_name && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>{inv.project_name}</span>}
                 {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
                 <Badge status={inv.status} />
+                {depositLabel(inv) && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#fff', background: dueNow(inv).kind === 'held' ? DARK : '#fd6100', padding: '2px 8px', borderRadius: 999 }}>{depositLabel(inv)}</span>}
                 {inv.subscription_id && <RecurringBadge />}
               </div>
             ))}
@@ -1596,6 +1598,22 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
     setMarkingPaid(null); onRefresh();
   }
 
+  // Deposit invoices (migration 048): a deposit paid some other way, and turning on the rest.
+  async function handleDepositPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    await api({ action: 'mark_deposit_paid', id: inv.id });
+    setMarkingPaid(null); onRefresh();
+  }
+
+  async function handleOpenBalance(inv: Invoice) {
+    const d = new Date(); d.setDate(d.getDate() + 14);
+    const due = window.prompt('When is the balance due? (YYYY-MM-DD)\nThe client gets an email (and a text if opted in) saying it’s ready to pay.', d.toISOString().slice(0, 10));
+    if (!due) return;
+    const r = await api({ action: 'open_balance', id: inv.id, due_date: due.trim() }) as { error?: string };
+    if (r.error) { alert(r.error); return; }
+    onRefresh();
+  }
+
   async function handleMakeRecurring(inv: Invoice) {
     const presetKey = window.prompt(
       `Set up recurring schedule for ${fmtAmount(inv.amount_cents)}.\nFrequency:\n  w = Weekly\n  2w = Every 2 weeks\n  m = Monthly\n  2m = Every 2 months\n  q = Quarterly\n  6m = Every 6 months\n  y = Yearly\n\nEnter shortcut:`,
@@ -1654,15 +1672,26 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
               <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(inv.amount_cents)}</span>
               {inv.due_date && <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Due {fmtDate(inv.due_date)}</span>}
               <Badge status={inv.status} />
+              {depositLabel(inv) && (
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#fff', background: dueNow(inv).kind === 'held' ? DARK : '#fd6100', padding: '2px 8px', borderRadius: 999 }}>
+                  {depositLabel(inv)}{dueNow(inv).kind === 'pay' && inv.deposit_cents && !inv.deposit_paid_at ? ` · ${fmtAmount(inv.deposit_cents)} by ${fmtDate(inv.deposit_due_date ?? inv.due_date)}` : ''}
+                </span>
+              )}
               {inv.subscription_id && <RecurringBadge />}
               {inv.status !== 'paid' && lastRemindedLabel(data.reminders, 'invoice', inv.id) && (
                 <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(data.reminders, 'invoice', inv.id)}</span>
               )}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {inv.status !== 'paid' && (
-                  <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark Paid'}</Btn>
+                {inv.deposit_cents && !inv.deposit_paid_at && inv.status !== 'paid' && (
+                  <Btn onClick={() => handleDepositPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark deposit paid'}</Btn>
+                )}
+                {dueNow(inv).kind === 'held' && (
+                  <Btn onClick={() => handleOpenBalance(inv)} style={{ padding: '3px 8px', fontSize: 11, background: PINK, color: '#fff' }}>Open balance</Btn>
                 )}
                 {inv.status !== 'paid' && (
+                  <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : inv.deposit_cents ? 'Mark all paid' : 'Mark Paid'}</Btn>
+                )}
+                {inv.status !== 'paid' && dueNow(inv).kind !== 'held' && (
                   <Btn variant="ghost" onClick={() => remind({ kind: 'invoice', id: inv.id }, `Remind about ${inv.invoice_number}`)} style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(data.reminders, 'invoice', inv.id) ?? 'Not reminded yet'}>Remind</Btn>
                 )}
                 {!inv.subscription_id && (

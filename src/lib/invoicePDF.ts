@@ -1,4 +1,5 @@
 import { amountText, clientRows, formatLineMoney, splitTotals, type LineItem } from './lineItems';
+import { dueNow } from './invoiceDeposit';
 
 export interface InvoiceForPDF {
   invoice_number: string;
@@ -14,6 +15,11 @@ export interface InvoiceForPDF {
   kind?: 'invoice' | 'estimate';
   /** Category subtotals instead of every line (migration 047). */
   totals_only?: boolean | null;
+  /** A deposit first (migration 048). */
+  deposit_cents?: number | null;
+  deposit_due_date?: string | null;
+  deposit_paid_at?: string | null;
+  balance_open?: boolean | null;
 }
 
 type Row = { name: string; description: string; hours: number | null; amount: string };
@@ -235,6 +241,29 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
   });
 
   let after = totalY + 15 * totals.length + 7;
+
+  // A deposit first: what's due now and what comes later.
+  if (!isEstimate && invoice.deposit_cents && invoice.deposit_cents > 0) {
+    const dep = invoice.deposit_cents;
+    const bal = invoice.amount_cents - dep;
+    const rows: [string, string, boolean][] = [
+      [invoice.deposit_paid_at ? `Deposit — paid ${fmtDate(invoice.deposit_paid_at.slice(0, 10))}` : `Deposit — due ${fmtDate(invoice.deposit_due_date ?? '')}`, fmtMoney(dep), !invoice.deposit_paid_at],
+      [invoice.balance_open === false ? 'Balance — due when we let you know' : `Balance — due ${fmtDate(invoice.due_date)}`, fmtMoney(bal), !!invoice.deposit_paid_at && invoice.balance_open !== false],
+    ];
+    doc.setDrawColor('#0a0a0a');
+    doc.setLineWidth(0.4);
+    doc.rect(M, after - 4, tableW, 18);
+    rows.forEach(([label, value, now], i) => {
+      const ry2 = after + 2 + i * 7.5;
+      doc.setFont('helvetica', now ? 'bold' : 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(now ? '#e40586' : '#333333');
+      doc.text(label, M + 5, ry2);
+      doc.text(value, M + tableW - 5, ry2, { align: 'right' });
+    });
+    after += 22;
+  }
+
   if (!isEstimate && split.monthly) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
@@ -278,7 +307,13 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
       due:     { bg: '#fd6100', text: '#ffffff', label: 'PAYMENT DUE' },
       overdue: { bg: '#e40586', text: '#ffffff', label: 'OVERDUE' },
     };
-    const badge = statusMap[invoice.status] ?? { bg: '#808080', text: '#ffffff', label: invoice.status.toUpperCase() };
+    // A deposit invoice says which part is due.
+    const due = dueNow(invoice);
+    const depositBadge = due.kind === 'pay' && due.part === 'deposit' ? { bg: '#fd6100', text: '#ffffff', label: 'DEPOSIT DUE' }
+      : due.kind === 'held' ? { bg: '#0cf574', text: '#0a0a0a', label: 'DEPOSIT PAID' }
+      : due.kind === 'pay' && due.part === 'balance' ? { bg: '#fd6100', text: '#ffffff', label: 'BALANCE DUE' }
+      : null;
+    const badge = depositBadge ?? statusMap[invoice.status] ?? { bg: '#808080', text: '#ffffff', label: invoice.status.toUpperCase() };
 
     const badgePadding = 12;
     doc.setFont('helvetica', 'bold');
@@ -295,7 +330,12 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
       doc.setFont('helvetica', 'italic');
       doc.setFontSize(9);
       doc.setTextColor('#808080');
-      doc.text('Please remit payment by the due date. Thank you for your business!', M, badgeY + 20);
+      doc.text(
+        due.kind === 'held'
+          ? 'Thank you, your deposit is in. We’ll let you know when the balance is ready to pay.'
+          : 'Please remit payment by the due date. Thank you for your business!',
+        M, badgeY + 20,
+      );
     }
   }
 

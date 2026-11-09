@@ -20,7 +20,8 @@ export async function GET(req: Request) {
 
   // Lines and notes only exist once 039 is in.
   const recent = (columns: string) => db.from('portal_invoices').select(columns).order('created_at', { ascending: false }).limit(30);
-  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only`);
+  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only, deposit_cents, deposit_due_date, deposit_paid_at, balance_open`);
+  if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only`);
   if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes`);
   if (invoices.error) invoices = await recent(INVOICE_COLUMNS);
 

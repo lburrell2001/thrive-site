@@ -359,7 +359,7 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_invoice': {
-        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only } = params as Record<string, unknown>;
+        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only, deposit_cents, deposit_due_date } = params as Record<string, unknown>;
         let { amount_cents } = params as Record<string, unknown>;
         const row: Record<string, unknown> = { client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status };
         if (subscription_id) row.subscription_id = subscription_id;
@@ -374,22 +374,45 @@ export async function POST(req: NextRequest) {
           row.notes = typeof notes === 'string' && notes.trim() ? notes.trim().slice(0, 4000) : null;
           if (typeof totals_only === 'boolean') row.totals_only = totals_only;
         }
+        // A deposit (migration 048): only it is payable until the balance is opened.
+        if (deposit_cents !== undefined && deposit_cents !== null) {
+          const dep = Math.round(Number(deposit_cents));
+          if (!(dep > 0) || dep >= Number(row.amount_cents)) return err('The deposit must be more than $0 and less than the total');
+          if (typeof deposit_due_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(deposit_due_date)) return err('Add a date for the deposit');
+          row.deposit_cents = dep;
+          row.deposit_due_date = deposit_due_date;
+          row.balance_open = false;
+        }
         let { data, error } = await admin.from('portal_invoices').insert(row).select().single();
         // Before migration 047 there's no totals_only column.
         if (error && /totals_only/.test(error.message)) {
           delete row.totals_only;
           ({ data, error } = await admin.from('portal_invoices').insert(row).select().single());
         }
-        if (error) return err(/line_items|notes/.test(error.message) ? 'Run migration 039 in Supabase to save invoice lines.' : error.message);
-        const fmtAmt = ((Number(amount_cents)) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-        logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);
-        notifyClient(
-          admin, clientId as string,
-          `Invoice ${invoice_number} — ${fmtAmt} due`,
-          `A new invoice has been added to your portal.`,
-          project_name ? `Project: ${project_name as string}\nAmount: ${fmtAmt}` : `Amount: ${fmtAmt}`,
-          { sms: `new invoice ${invoice_number} for ${fmtAmt}. View and pay:`, path: '/portal/invoices', ctaLabel: 'View invoice' },
-        );
+        if (error) return err(/deposit|balance_open/.test(error.message) ? 'Run migration 048 in Supabase to add deposits.' : /line_items|notes/.test(error.message) ? 'Run migration 039 in Supabase to save invoice lines.' : error.message);
+        const usd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+        const fmtAmt = usd(Number(amount_cents));
+        if (row.deposit_cents) {
+          const dep = usd(row.deposit_cents as number);
+          const by = new Date(`${row.deposit_due_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${dep} deposit due ${by} (${fmtAmt} total)`, '#1e3add', project_name as string | null);
+          notifyClient(
+            admin, clientId as string,
+            `Invoice ${invoice_number} — ${dep} deposit due ${by}`,
+            `A new invoice has been added to your portal. The deposit is due now; the rest will be ready to pay later.`,
+            [project_name && `Project: ${project_name as string}`, `Deposit: ${dep} due ${by}`, `Total: ${fmtAmt}`].filter(Boolean).join('\n'),
+            { sms: `new invoice ${invoice_number}: ${dep} deposit due ${by}. View and pay:`, path: '/portal/invoices', ctaLabel: 'Pay the deposit' },
+          );
+        } else {
+          logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);
+          notifyClient(
+            admin, clientId as string,
+            `Invoice ${invoice_number} — ${fmtAmt} due`,
+            `A new invoice has been added to your portal.`,
+            project_name ? `Project: ${project_name as string}\nAmount: ${fmtAmt}` : `Amount: ${fmtAmt}`,
+            { sms: `new invoice ${invoice_number} for ${fmtAmt}. View and pay:`, path: '/portal/invoices', ctaLabel: 'View invoice' },
+          );
+        }
         return NextResponse.json({ ok: true, data });
       }
 
@@ -403,6 +426,41 @@ export async function POST(req: NextRequest) {
         if (amount_cents   !== undefined) update.amount_cents   = Number(amount_cents);
         if (due_date       !== undefined) update.due_date       = due_date;
         const { error } = await admin.from('portal_invoices').update(update).eq('id', id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Turn on the rest of a deposit invoice: payable now, due by due_date.
+      case 'open_balance': {
+        const { id, due_date } = params as { id?: string; due_date?: string };
+        if (!id || !due_date || !/^\d{4}-\d{2}-\d{2}$/.test(due_date)) return err('Pick a due date for the balance');
+        const { data: inv } = await admin.from('portal_invoices')
+          .select('id, client_id, invoice_number, project_name, amount_cents, deposit_cents, deposit_paid_at, balance_open, status').eq('id', id).maybeSingle();
+        if (!inv) return err('Invoice not found');
+        if (inv.status === 'paid') return err('That invoice is already paid');
+        if (!inv.deposit_cents) return err('That invoice has no deposit');
+        if (inv.balance_open) return err('The balance is already open');
+        const { error } = await admin.from('portal_invoices').update({ balance_open: true, due_date, status: 'due' }).eq('id', id);
+        if (error) return err(error.message);
+        const balance = ((inv.amount_cents - inv.deposit_cents) / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+        const by = new Date(`${due_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        logActivity(admin, inv.client_id, `Invoice ${inv.invoice_number}: balance of ${balance} is ready to pay, due ${by}`, '#1e3add', inv.project_name);
+        notifyClient(
+          admin, inv.client_id,
+          `Invoice ${inv.invoice_number} — ${balance} balance due ${by}`,
+          `The rest of your invoice is ready to pay.`,
+          [inv.project_name && `Project: ${inv.project_name}`, `Balance: ${balance} due ${by}`].filter(Boolean).join('\n'),
+          { sms: `the balance on invoice ${inv.invoice_number} (${balance}) is ready, due ${by}. Pay here:`, path: '/portal/invoices', ctaLabel: 'Pay the balance' },
+        );
+        return NextResponse.json({ ok: true });
+      }
+
+      // A deposit paid some other way (cash, Zelle, check).
+      case 'mark_deposit_paid': {
+        const { id } = params as { id?: string };
+        if (!id) return err('Missing invoice');
+        const { error } = await admin.from('portal_invoices').update({ deposit_paid_at: new Date().toISOString() })
+          .eq('id', id).not('deposit_cents', 'is', null).is('deposit_paid_at', null);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }

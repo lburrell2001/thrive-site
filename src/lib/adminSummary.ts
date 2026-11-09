@@ -4,6 +4,7 @@
 // weekly digest email are both built from this, so they always agree.
 
 import 'server-only';
+import { dueNow, type DepositFields, type DueNow } from './invoiceDeposit';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { buildReport } from '@/lib/analyticsReport';
 import { markOverdueInvoices } from '@/lib/invoiceHelpers';
@@ -55,10 +56,14 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
       .or('email_status.eq.sent,sms_status.eq.sent')
       .order('created_at', { ascending: false }),
     db.from('portal_proposals').select('id, name, client_id, created_at').eq('status', 'pending').order('created_at'),
+    // Deposit columns (migration 048) when they exist.
     db.from('portal_invoices')
-      .select('id, invoice_number, project_name, amount_cents, due_date, status, client_id')
+      .select('id, invoice_number, project_name, amount_cents, due_date, status, client_id, deposit_cents, deposit_due_date, deposit_paid_at, balance_open')
       .neq('status', 'paid')
-      .order('due_date'),
+      .order('due_date')
+      .then(async (r) => (r.error
+        ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, client_id').neq('status', 'paid').order('due_date')
+        : r)),
     db.from('portal_clients').select('id, full_name, company_name'),
     buildReport(db, 7, paths, search).catch(() => null),
     db.from('reviews').select('id, display_name, rating, body, submitted_at').eq('status', 'submitted').order('submitted_at', { ascending: false }),
@@ -106,13 +111,18 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
     if (stage === 'won' && d.stage_changed_at.slice(0, 10) >= monthStart) wonThisMonth += d.value_cents ?? 0;
   }
 
-  const unpaid = (invoices.data ?? []).map((inv) => ({
+  // What's payable now: a deposit, an open balance or the whole invoice. A
+  // balance on hold isn't due, so it isn't listed.
+  const unpaid = ((invoices.data ?? []) as unknown as (DepositFields & { id: string; invoice_number: string; project_name: string; client_id: string })[])
+    .map((inv) => ({ inv, due: dueNow(inv) }))
+    .filter((x): x is { inv: typeof x.inv; due: Extract<DueNow, { kind: 'pay' }> } => x.due.kind === 'pay')
+    .map(({ inv, due }) => ({
     id: inv.id,
-    invoice_number: inv.invoice_number,
+    invoice_number: due.part === 'full' ? inv.invoice_number : `${inv.invoice_number} (${due.part})`,
     project_name: inv.project_name,
-    amount_cents: inv.amount_cents,
-    due_date: inv.due_date,
-    overdue: inv.status === 'overdue' || inv.due_date < today,
+    amount_cents: due.cents,
+    due_date: due.dueDate ?? inv.due_date,
+    overdue: inv.status === 'overdue' || (due.dueDate ?? inv.due_date) < today,
     client_id: inv.client_id,
     client_name: clientName.get(inv.client_id) ?? 'Client',
     last_reminded_at: lastReminded.get(inv.id) ?? null,

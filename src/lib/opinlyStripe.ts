@@ -9,5 +9,8 @@ import { trackPurchase } from '@/lib/opinly';
 export function trackPaidSession(session: Stripe.Checkout.Session, invoiceId: string): Promise<void> {
   if (session.payment_status !== 'paid' || !session.amount_total) return Promise.resolve();
   const email = session.customer_details?.email ?? session.customer_email ?? null;
-  return trackPurchase(`invoice-${invoiceId}`, session.amount_total, session.currency ?? 'usd', { email });
+  // A deposit and its balance are two purchases; the whole invoice is one.
+  const part = session.metadata?.part;
+  const key = part && part !== 'full' ? `invoice-${invoiceId}-${part}` : `invoice-${invoiceId}`;
+  return trackPurchase(key, session.amount_total, session.currency ?? 'usd', { email });
 }
