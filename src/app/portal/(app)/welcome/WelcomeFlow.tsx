@@ -217,26 +217,29 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
     router.replace('/portal/dashboard');
   }
 
-  if (!ready) return <div className={`${s.screen} ${preview ? s.screenPreview : ''}`}><div className={`${s.card} ${s.dark}`} /></div>;
+  if (!ready) return <div className={`${s.screen} ${s.dark} ${preview ? s.screenPreview : ''}`} />;
 
   const tone = cur.kind === 'welcome' ? s.dark : '';
 
   return (
-    <div className={`${s.screen} ${preview ? s.screenPreview : ''}`}>
-      <main className={`${s.card} ${tone}`} aria-live="polite">
+    <main className={`${s.screen} ${tone} ${preview ? s.screenPreview : ''}`} aria-live="polite">
         {cur.kind !== 'welcome' && (
-          <div className={s.top}>
-            {cur.kind !== 'done' ? <button type="button" className={s.back} onClick={() => go(step - 1)}>← Back</button> : <span />}
-            <div className={s.bar} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${pct}%` }} /></div>
-            {cur.kind !== 'done' ? <button type="button" className={s.skip} onClick={skipAll}>Skip setup</button> : <span />}
-          </div>
+          <>
+            <div className={s.line} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${pct}%` }} /></div>
+            <div className={s.top}>
+              {cur.kind !== 'done' ? <button type="button" className={s.back} onClick={() => go(step - 1)}>‹ Back</button> : <span />}
+              {cur.kind !== 'done' ? <button type="button" className={s.skip} onClick={skipAll}>Skip setup</button> : <span />}
+            </div>
+          </>
         )}
 
-        <div key={step} className={`${s.body} ${back ? s.bodyBack : ''} ${cur.kind === 'welcome' || cur.kind === 'done' ? s.center : ''}`}>
+        <div key={step} className={`${s.body} ${back ? s.bodyBack : ''} ${cur.kind === 'welcome' || cur.kind === 'done' ? s.center : ''} ${cur.kind === 'welcome' ? s.wide : ''}`}>
           {cur.kind === 'welcome' && (
             <>
-              <img src="/new-thrive/logo-white.svg" alt="Thrive Creative Studios" className={s.logo} />
-              <h1 className={s.title}>Welcome{firstName ? <>, <em>{firstName}</em></> : ''}.</h1>
+              <h1 className={s.hello}>
+                <span className={s.helloRow}>Welcome to<img src="/new-thrive/logo-white.svg" alt="Thrive" className={s.helloLogo} /></span>
+                {firstName && <span className={s.helloName}>{firstName}.</span>}
+              </h1>
               <p className={s.lead}>This is your client portal: your project, files, questionnaires and invoices in one place. Let’s get you set up — it only takes a few minutes.</p>
               <div className={s.actions}>
                 <button type="button" className={`${s.btn} ${s.btnLight}`} onClick={() => go(1)} autoFocus>Get Started</button>
@@ -249,7 +252,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
               <Badge icon="person" tone={s.bMagenta} />
               <h1 className={s.title}>First, Who Are We Talking To?</h1>
               <p className={s.lead}>This is how your name and business show up on proposals, invoices and messages from us.</p>
-              <div className={s.content}>
+              <div className={`${s.content} ${s.narrow}`}>
                 <label className={s.field}>Your name
                   <input className={s.input} value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" placeholder="Jordan Smith" autoFocus />
                 </label>
@@ -269,7 +272,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
               <Badge icon="social" tone={s.bBlue} />
               <h1 className={s.title}>Want Updates by Text?</h1>
               <p className={s.lead}>We’ll text you when there’s something to look at — a proposal, an invoice, new files. Never marketing. You can change this any time in Settings.</p>
-              <div className={s.content}>
+              <div className={`${s.content} ${s.narrow}`}>
                 <label className={s.field}>Mobile number
                   <input className={s.input} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" />
                 </label>
@@ -312,11 +315,11 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
                 <p className={s.kicker}>Questionnaire {cur.qi + 1} of {qs.length}</p>
                 <h1 className={s.title}>{q.title}</h1>
                 <p className={s.lead}>{q.questionnaire.description || 'A few questions so we can get your project started on the right foot.'}</p>
-                <div className={`${s.content} ${s.qList}`}>
+                <div className={`${s.content} ${s.list}`}>
                   {q.questionnaire.sections.map((sec, i) => (
-                    <div key={sec.id} className={s.qItem}>
-                      <span className={s.qNum}>{i + 1}</span>
-                      <div><p className={s.qName}>{sec.title}</p><p className={s.qMeta}>{sec.questions.length} question{sec.questions.length === 1 ? '' : 's'}</p></div>
+                    <div key={sec.id} className={s.listItem}>
+                      <span className={s.listNum}>{i + 1}</span>
+                      <div><p className={s.listName}>{sec.title}</p><p className={s.listMeta}>{sec.questions.length} question{sec.questions.length === 1 ? '' : 's'}</p></div>
                     </div>
                   ))}
                 </div>
@@ -371,8 +374,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
             </>
           )}
         </div>
-      </main>
-    </div>
+    </main>
   );
 }
 
