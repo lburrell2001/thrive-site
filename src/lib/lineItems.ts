@@ -14,7 +14,9 @@
 // that starts with a space, "-", "•" or "*" continues the description above.
 // Lines starting with // are ignored. A line starting with "# " is a heading:
 // the lines under it belong to that category (for the "Totals only" PDF's
-// subtotals). A description ending in "/mo" marks a monthly line.
+// subtotals). A description ending in "/mo" marks a monthly line. A
+// description starting with "~" is kept for Lauren but left off the client's
+// PDF ("Show description" off).
 
 import { z } from 'zod';
 
@@ -26,6 +28,8 @@ export type LineItem = {
   amount_cents: number;
   /** From a "# Heading" line above it; absent when typed without one. */
   category?: string;
+  /** "Show description" off: the PDF leaves the description out. Only set when true. */
+  hide_description?: boolean;
 };
 
 export type LineProblem = { line: number; message: string };
@@ -118,6 +122,9 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
 
     const name = words.shift() ?? '';
     if (!name) { problems.push({ line, message: 'Add a name for this item' }); return; }
+    // "~description": hidden from the client.
+    const hidden = words.length > 0 && words[0].startsWith('~');
+    if (hidden) words[0] = words[0].replace(/^~\s*/, '');
 
     let amount: number;
     if (money.rate !== undefined) {
@@ -139,6 +146,7 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       rate_cents: money.rate ?? null,
       amount_cents: amount,
       ...(category ? { category } : {}),
+      ...(hidden ? { hide_description: true } : {}),
     });
   });
 
@@ -182,6 +190,16 @@ function money(c: number): string {
 }
 
 /** Back to the typed form, for editing a saved estimate or invoice. */
+/** One item as typed lines (its "-" lines included, no heading). */
+export function lineText(it: LineItem): string {
+  const [first = '', ...more] = it.description ? it.description.split('\n') : [];
+  const price = it.hours !== null && it.rate_cents !== null
+    ? `${it.hours}h @ ${money(it.rate_cents)}`
+    : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
+  const main = [it.name, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
+  return [main, ...more.map((d) => `  - ${d}`)].join('\n');
+}
+
 export function lineItemsToText(items: LineItem[]): string {
   let category = '';
   return items.map((it) => {
@@ -191,12 +209,7 @@ export function lineItemsToText(items: LineItem[]): string {
       // A line with no category after a heading can't get back out from under it.
       head = category ? `# ${category}\n` : '# Other\n';
     }
-    const [first = '', ...more] = it.description ? it.description.split('\n') : [];
-    const price = it.hours !== null && it.rate_cents !== null
-      ? `${it.hours}h @ ${money(it.rate_cents)}`
-      : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
-    const main = [it.name, first, price].filter(Boolean).join(' | ');
-    return head + [main, ...more.map((d) => `  - ${d}`)].join('\n');
+    return head + lineText(it);
   }).join('\n');
 }
 
@@ -253,7 +266,7 @@ export type ClientRow = { name: string; description: string; hours: number | nul
 export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] {
   const one = (it: LineItem): ClientRow => ({
     name: it.name,
-    description: it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, ''),
+    description: it.hide_description ? '' : it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, ''),
     hours: it.hours,
     oneTime: isMonthly(it) ? 0 : it.amount_cents,
     monthly: isMonthly(it) ? it.amount_cents : 0,
@@ -285,6 +298,7 @@ export const lineItemSchema = z.object({
   rate_cents: z.number().int().min(-100_000_000).max(100_000_000).nullable(),
   amount_cents: z.number().int().min(-100_000_000).max(100_000_000),
   category: z.string().trim().max(120).optional(),
+  hide_description: z.boolean().optional(),
 });
 
 export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200);

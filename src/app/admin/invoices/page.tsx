@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lineItemsToText, parseLineItems, splitTotals, totalCents, type LineBlock, type LineItem } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, splitTotals, totalCents, type LineBlock, type LineItem } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -510,6 +510,16 @@ export default function InvoiceBuilder() {
     set('text', kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, ''));
   }
 
+  /** "Show description" on one line: rewrites just that item's lines. */
+  function toggleDescription(b: LineBlock) {
+    if (!b.item) return;
+    const lines = draft.text.split('\n');
+    const next: LineItem = { ...b.item, hide_description: !b.item.hide_description };
+    if (!next.hide_description) delete next.hide_description;
+    lines.splice(b.start, b.end - b.start + 1, ...lineText(next).split('\n'));
+    set('text', lines.join('\n'));
+  }
+
   /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
   function setBlockQty(b: LineBlock, item: PriceItem, qty: number) {
     const lines = draft.text.split('\n');
@@ -795,7 +805,7 @@ export default function InvoiceBuilder() {
               </div>
             ) : (
               <>
-                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} />
+                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription} />
                 <div className={s.itemsTools}>
                   <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
                     title={catalog ? undefined : 'Run migration 047 to use the price list'}>
@@ -871,7 +881,7 @@ export default function InvoiceBuilder() {
                     <li>A line starting with <code>-</code> adds to the description above</li>
                     <li><code>Included</code> for $0, <code>-$100</code> for a discount</li>
                     <li><code># Website</code> starts a group, for the category totals</li>
-                    <li>A description ending in <code>/mo</code> is monthly</li>
+                    <li>A description ending in <code>/mo</code> is monthly; starting it with <code>~</code> hides it from the client</li>
                     <li>Pasting from a spreadsheet works too</li>
                   </ul>
                 )}
@@ -969,9 +979,10 @@ export default function InvoiceBuilder() {
 }
 
 /** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
-function ItemRows({ blocks, catalog, onRemove, onQty }: {
+function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
   blocks: LineBlock[]; catalog: Catalog | null;
   onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
+  onToggleDescription: (b: LineBlock) => void;
 }) {
   const valid = blocks.filter((b): b is LineBlock & { item: LineItem } => b.item !== null);
   const names = valid.map((b) => b.item.name);
@@ -1008,7 +1019,18 @@ function ItemRows({ blocks, catalog, onRemove, onQty }: {
                     {optional && <span className={s.badgeOptional}>Optional</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                   </span>
-                  {b.item.description && <span className={s.itemRowDesc}>{b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</span>}
+                  {b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '') && (
+                    <>
+                      <span className={`${s.itemRowDesc} ${b.item.hide_description ? s.descHidden : ''}`}>
+                        {b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}
+                      </span>
+                      <label className={s.descSwitch}>
+                        <input type="checkbox" role="switch" className={s.switchSm} checked={!b.item.hide_description}
+                          onChange={() => onToggleDescription(b)} />
+                        {b.item.hide_description ? 'Description hidden from client' : 'Show description'}
+                      </label>
+                    </>
+                  )}
                   {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
                 </div>
                 {cat?.unit && cat.price_type !== 'hourly' ? (
@@ -1229,7 +1251,7 @@ function Preview({ draft, items, total }: { draft: Draft; items: LineItem[]; tot
                   <td>
                     <div className={s.lineName}>{it.name}</div>
                     {it.description && (
-                      <div className={`${s.lineDesc} ${draft.totalsOnly && !collapsed ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
+                      <div className={`${s.lineDesc} ${(draft.totalsOnly && !collapsed) || it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
                     )}
                   </td>
                   {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
