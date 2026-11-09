@@ -23,7 +23,7 @@ const FIRST_TOUCH_KEY = 'thrive_first_touch';
 const NO_TRACK_KEY = 'thrive_no_track';
 const SESSION_IDLE_MS = 30 * 60_000;
 
-const EXCLUDED = /^\/(admin|portal|p\/|api\/)/;
+const EXCLUDED = /^\/(admin|portal|p\/|e\/|api\/)/;
 
 export interface FirstTouch {
   ref: string | null;

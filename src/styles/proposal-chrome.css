@@ -379,3 +379,98 @@
 @media (max-width: 400px) {
   .signButtonDecline { width: 100%; }
 }
+
+/* ---------------------------------------------------------- estimate page (/e/…) and the estimate inside a proposal */
+
+.estimatePaper {
+  max-width: 860px;
+  margin: 28px auto 40px;
+  padding: clamp(22px, 5vw, 48px);
+  border-radius: 6px;
+  background: #fff;
+  color: #0a0a0a;
+  font-family: var(--font-proposal), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+  box-shadow: inset -8px 0 0 #e50586;
+}
+
+@media (max-width: 900px) {
+  .estimatePaper { margin: 20px 16px 32px; }
+}
+
+.estimateHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 3px solid #e50586;
+}
+
+.estimateLogo { height: 30px; width: auto; }
+
+.estimateKind {
+  margin: 0;
+  font-size: clamp(28px, 6vw, 44px);
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.estimateMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 20px 0 26px;
+}
+
+.estimateMeta > div { display: grid; gap: 2px; }
+.estimateMeta span { margin-top: 8px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #808080; }
+.estimateMeta span:first-child { margin-top: 0; }
+.estimateMeta strong { font-size: 15px; }
+.estimateMetaRight { text-align: right; }
+
+.estimateRows { list-style: none; margin: 0; padding: 0; border-top: 1px solid #e5e5e5; }
+
+.estimateRows li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.estimateRows strong { font-size: 15px; }
+.estimateRows p { margin: 4px 0 0; font-size: 13px; line-height: 1.5; color: #555; white-space: pre-line; }
+.estimateRows li > span { font-size: 15px; font-weight: 700; white-space: nowrap; }
+
+.estimateTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: #0a0a0a;
+  color: #fff;
+}
+
+.estimateTotal span { font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #9a9a9a; }
+.estimateTotal strong { font-size: clamp(22px, 4vw, 30px); }
+.estimateTotalSub { margin-top: 2px; }
+.estimateNotes { margin: 18px 0 0; font-size: 13px; line-height: 1.6; color: #333; white-space: pre-line; }
+
+.estimateSectionTitle {
+  max-width: 860px;
+  margin: 40px auto -12px;
+  padding: 0 clamp(20px, 6vw, 0px);
+  font-family: var(--font-proposal), 'Bai Jamjuree', ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #0cf574;
+}
+
+button.proposalFooterAction { font-family: inherit; }

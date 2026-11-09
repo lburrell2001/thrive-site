@@ -46,7 +46,7 @@ const engageSchema = z.object({
 const bodySchema = z.discriminatedUnion('t', [pageviewSchema, engageSchema]);
 
 // Pages that are private or not part of the marketing site.
-const EXCLUDED = /^\/(admin|portal|p\/|api\/|_next\/)/;
+const EXCLUDED = /^\/(admin|portal|p\/|e\/|api\/|_next\/)/;
 
 function visitorHash(ip: string, ua: string) {
   const day = new Date().toISOString().slice(0, 10);

@@ -90,6 +90,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   const [tab, setTab] = useState<'details' | 'pricing' | 'pages'>('pages');
   // Its estimate (migration 050), rebuilt from the pricing on every save.
   const [estimate, setEstimate] = useState<LinkedEstimate | null>(null);
+  // "Send": the email dialog.
+  const [sending, setSending] = useState<{ email: string; note: string; busy: boolean } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [publishing, setPublishing] = useState(false);
@@ -319,6 +321,34 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
     setPublishing(false);
   }
 
+  /** Opens the Send dialog with their email filled in. */
+  async function startSend() {
+    setSending({ email: '', note: '', busy: true });
+    try {
+      const r = await apiGet<{ email: string }>(`/api/proposals/${id}/email`);
+      setSending((cur) => (cur ? { ...cur, email: cur.email || r.email, busy: false } : cur));
+    } catch {
+      setSending((cur) => (cur ? { ...cur, busy: false } : cur));
+    }
+  }
+
+  /** Publishes and emails the client a button to the proposal. */
+  async function sendProposal() {
+    if (!sending) return;
+    setSending({ ...sending, busy: true });
+    try {
+      const r = await apiSend<{ to: string }>(`/api/proposals/${id}/email`, 'POST', { email: sending.email, note: sending.note });
+      setMeta((current) => (current && (current.status === 'draft' || current.status === 'declined') ? { ...current, status: 'sent' } : current));
+      setDeclineReason(null);
+      setDeclinedAt(null);
+      setSending(null);
+      show(`Sent to ${r.to}.`);
+    } catch (error) {
+      setSending((cur) => (cur ? { ...cur, busy: false } : cur));
+      show(error instanceof Error ? error.message : 'Could not send it', 'error');
+    }
+  }
+
   /**
    * The PDF route needs the admin passcode in a header, which a plain link
    * cannot send — so fetch the bytes and hand the browser a blob.
@@ -428,13 +458,14 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
               <details className={pb.more}>
                 <summary className={`${s.btn} ${s.btnSmall}`}>More</summary>
                 <div className={pb.menu}>
+                  <button type="button" onClick={publish} disabled={publishing}>{meta.status === 'draft' ? 'Publish & copy the client link' : 'Copy the client link'}</button>
                   <button type="button" onClick={toggleCover}>{hasCover ? 'Hide the cover page' : 'Add a cover page'}</button>
                   <Link href={`/admin/crm/proposals/${id}/tune`}>Tune the design</Link>
                   <Link href={`/admin/crm/proposals/templates?from=${id}`}>Save as a template</Link>
                 </div>
               </details>
-              <button type="button" className={`${s.btn} ${s.btnSmall} ${s.btnPrimary} ${pb.primary}`} disabled={publishing} onClick={publish}>
-                {publishing ? 'Publishing…' : publishLabel(meta.status)}
+              <button type="button" className={`${s.btn} ${s.btnSmall} ${s.btnPrimary} ${pb.primary}`} disabled={!!sending} onClick={startSend}>
+                {publishLabel(meta.status)}
               </button>
             </div>
           </div>
@@ -614,6 +645,31 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
+      {sending && (
+        <div className={pb.sendBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget && !sending.busy) setSending(null); }}>
+          <div className={pb.sendDialog} role="dialog" aria-modal="true" aria-labelledby="send-proposal-title">
+            <h2 id="send-proposal-title" className={pb.sendTitle}>Send “{doc.title}”</h2>
+            <p className={s.hint}>They get an email with a button to the proposal. Their estimate is inside it, with Save as PDF and Approve and sign at the bottom. Signing makes their invoice{doc.depositPercent > 0 && doc.depositPercent < 100 ? ` (${doc.depositPercent}% deposit first)` : ''} and wins the deal.</p>
+            <label>
+              <span className={s.label}>To</span>
+              <input className={s.input} type="email" value={sending.email} placeholder={sending.busy ? 'Looking up their email…' : 'name@business.com'}
+                onChange={(e) => setSending({ ...sending, email: e.target.value })} autoFocus />
+            </label>
+            <label>
+              <span className={s.label}>Note (optional)</span>
+              <textarea className={s.textarea} rows={3} value={sending.note} placeholder="A line from you"
+                onChange={(e) => setSending({ ...sending, note: e.target.value })} />
+            </label>
+            <div className={pb.sendActions}>
+              <button type="button" className={s.btn} onClick={() => setSending(null)} disabled={sending.busy}>Cancel</button>
+              <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={sendProposal}
+                disabled={sending.busy || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(sending.email.trim())}>
+                {sending.busy ? 'Sending…' : 'Send proposal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Toast toast={toast} />
     </BuilderProvider>
   );
@@ -691,7 +747,7 @@ function DeclinedBanner({ reason, declinedAt }: { reason: string | null; decline
  * this is pressed.
  */
 function publishLabel(status: ProposalStatus): string {
-  if (status === 'draft') return 'Publish';
-  if (status === 'declined') return 'Publish again';
-  return 'Copy client link';
+  if (status === 'draft') return 'Send';
+  if (status === 'signed') return 'Email it again';
+  return 'Send again';
 }

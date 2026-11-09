@@ -17,6 +17,8 @@ import { textAgency } from '@/lib/sms';
 import { pdfFilename } from '@/lib/proposalPdf';
 import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/proposalUrls';
 import { formatMoney } from '@/components/proposal/context';
+import { syncProposalEstimate } from '@/lib/proposalEstimate';
+import { invoiceForEstimate } from '@/lib/estimateInvoice';
 
 /**
  * Fetch the proposal PDF over HTTP rather than rendering it in this function.
@@ -135,12 +137,26 @@ export async function POST(
     return fail('We could not record your approval. Please try again.', 500);
   }
 
+  // Its estimate, brought up to date before it's frozen as accepted.
+  const synced = await syncProposalEstimate(db, row.id);
+  const estimateId = synced.ok ? synced.estimate?.id ?? null : null;
+
   const { error: statusError } = await db
     .from('proposals')
     .update({ status: 'signed', signed_at: signedAt.toISOString() })
     .eq('id', row.id);
 
   if (statusError) console.error('Signature saved but status not updated:', statusError.message);
+
+  // Signed: the estimate is accepted and becomes an invoice in their project
+  // folder — the deposit due now, the rest when Lauren opens it.
+  let invoiceReady = false;
+  if (estimateId) {
+    await db.from('estimates').update({ accepted_at: signedAt.toISOString(), accepted_by: input.signerName, accepted_ip: ipAddress }).eq('id', estimateId).is('accepted_at', null);
+    const inv = await invoiceForEstimate(db, estimateId, { depositPercent: renderable.depositPercent });
+    invoiceReady = inv.ok;
+    if (!inv.ok) console.error('[sign] invoice not made', row.id, inv.error);
+  }
 
   await db.from('proposal_events').insert({
     proposal_id: row.id,
@@ -198,6 +214,7 @@ export async function POST(
       depositLabel: formatMoney(depositCents, renderable.currency),
       depositPercent: renderable.depositPercent,
       portalPath: '/portal/invoices',
+      invoiceReady,
       receiptEmail: input.signerEmail,
     },
   });

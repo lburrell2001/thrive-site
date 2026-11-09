@@ -2,67 +2,16 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { syncProposalEstimate } from '@/lib/proposalEstimate';
+import { publishProposal } from '@/lib/proposalPublish';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/**
- * Publish: mark the proposal sent and hand back its client link.
- *
- * Emailing the link to the client is Phase 4, alongside the signing
- * receipts. Until then this marks the proposal live and returns the URL to
- * copy — which also means view tracking starts working, since views are not
- * logged while a proposal is still a draft.
- */
+/** Publish and hand back the client link to copy ("Copy client link"). Emailing it is /email. */
 export async function POST(req: Request, { params }: Ctx) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
-
   const { id } = await params;
-
-  const { data: proposal, error } = await auth.db
-    .from('proposals')
-    .select('slug, access_token, status, sent_at, declined_at')
-    .eq('id', id)
-    .maybeSingle();
-
-  if (error) return badRequest(error.message);
-  if (!proposal) return badRequest('Proposal not found', 404);
-
-  // Every proposal goes out with its estimate, which comes from its pricing.
-  if (proposal.status === 'draft' || proposal.status === 'declined') {
-    const { count } = await auth.db.from('proposal_line_items').select('id', { count: 'exact', head: true }).eq('proposal_id', id);
-    if (!count) return badRequest('Add pricing first: every proposal goes out with its estimate.');
-    const synced = await syncProposalEstimate(auth.db, id);
-    if (!synced.ok) return badRequest(synced.error);
-  }
-
-  // A signed proposal keeps its status; the caller just wants the link.
-  // Re-publishing an already-sent proposal keeps its original sent_at and
-  // does not knock a 'viewed' status back to 'sent'.
-  //
-  // A declined proposal is the exception: publishing again is how a revised
-  // version is sent, so it reopens on the same link and clears the decline.
-  // The 'declined' event stays in the log.
-  if (proposal.status === 'draft' || proposal.status === 'declined') {
-    const { error: updateError } = await auth.db
-      .from('proposals')
-      .update({
-        status: 'sent',
-        sent_at: proposal.sent_at ?? new Date().toISOString(),
-        declined_at: null,
-        decline_reason: null,
-      })
-      .eq('id', id);
-    if (updateError) return badRequest(updateError.message);
-  }
-
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? '';
-  return NextResponse.json({
-    ok: true,
-    data: {
-      url: `${site}/p/${proposal.slug}?t=${proposal.access_token}`,
-      path: `/p/${proposal.slug}?t=${proposal.access_token}`,
-    },
-  });
+  const result = await publishProposal(auth.db, id);
+  if (!result.ok) return badRequest(result.error, result.status);
+  return NextResponse.json({ ok: true, data: { url: result.url, path: result.path } });
 }

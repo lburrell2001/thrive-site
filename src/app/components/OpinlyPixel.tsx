@@ -17,7 +17,7 @@ import { useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 import { isBrowserExcluded } from './SiteTracker';
 
-const EXCLUDED = /^\/(admin|portal|p\/|review\/|book\/|newsletter\/unsubscribe)/;
+const EXCLUDED = /^\/(admin|portal|p\/|e\/|review\/|book\/|newsletter\/unsubscribe)/;
 
 const noSubscribe = () => () => {};
 

@@ -18,8 +18,9 @@ import {
 import { depositCents } from '@/lib/proposalRepo';
 import { formatMoney } from '@/components/proposal/context';
 import { ProposalFooter } from './ProposalFooter';
-import { clientRows, type LineItem } from '@/lib/lineItems';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
+import { estimateForClientPdf } from '@/lib/estimateAccess';
+import { EstimatePaper } from '@/components/estimate/EstimatePaper';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -118,6 +119,13 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         clientName={renderable.client?.name}
       />
 
+      {estimate && (
+        <section aria-label="Your estimate">
+          <h2 className="estimateSectionTitle">Your estimate</h2>
+          <EstimatePaper pdf={estimate} clientName={renderable.client?.company || renderable.client?.name || null} />
+        </section>
+      )}
+
       <ProposalFooter
         slug={slug}
         token={token ?? ''}
@@ -135,37 +143,14 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   );
 }
 
-/**
- * The proposal's estimate as the client may see it: the rows its PDF prints
- * (category subtotals when it's totals-only), already collapsed here so the
- * page never carries a line price the proposal hides.
- */
+/** The proposal's estimate as the client may see it (rows already collapsed). */
 async function estimateForClient(id: string | null): Promise<InvoiceForPDF | null> {
   if (!id) return null;
   const { data: est } = await proposalServiceClient().from('estimates')
     .select('estimate_number, title, line_items, notes, total_cents, issue_date, valid_until, totals_only')
     .eq('id', id).maybeSingle();
   if (!est || !Array.isArray(est.line_items) || !est.line_items.length) return null;
-  const rows = clientRows(est.line_items as LineItem[], !!est.totals_only);
-  return {
-    kind: 'estimate',
-    invoice_number: est.estimate_number,
-    project_name: est.title,
-    amount_cents: est.total_cents,
-    invoice_date: est.issue_date,
-    due_date: est.valid_until ?? '',
-    status: 'sent',
-    notes: est.notes,
-    totals_only: false,
-    line_items: rows.map((r) => ({
-      name: r.name,
-      // A monthly row keeps its "/mo", so the PDF still shows it apart.
-      description: r.monthly && !r.oneTime ? `${r.description} /mo`.trim() : r.description,
-      hours: r.hours,
-      rate_cents: null,
-      amount_cents: r.oneTime + r.monthly,
-    })),
-  };
+  return estimateForClientPdf(est as Parameters<typeof estimateForClientPdf>[0]);
 }
 
 function Notice({

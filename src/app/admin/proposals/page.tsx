@@ -16,6 +16,7 @@ import { Toast, useToast } from './Toast';
 import type { ProposalStatus } from '@/types/proposal';
 import type { ReminderPreview, ReminderResult } from '@/lib/reminders';
 import { ReminderDialog } from '../ReminderDialog';
+import { adminHeaders } from '@/lib/adminSession';
 
 interface ProposalRow {
   id: string;
@@ -105,6 +106,27 @@ export default function ProposalsListPage() {
       show(error instanceof Error ? error.message : 'Could not duplicate', 'error');
       setBusyId(null);
     }
+  }
+
+  /** The proposal's PDF (the route needs the admin sign-in, so fetch it and hand over a blob). */
+  async function downloadPdf(row: ProposalRow) {
+    setBusyId(row.id);
+    try {
+      const res = await fetch(`/api/proposals/${row.id}/pdf`, { headers: await adminHeaders() });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Could not build the PDF (${res.status})`);
+      }
+      const href = URL.createObjectURL(await res.blob());
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'proposal.pdf';
+      link.click();
+      URL.revokeObjectURL(href);
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'Could not build the PDF', 'error');
+    }
+    setBusyId(null);
   }
 
   async function remove(row: ProposalRow) {
@@ -215,6 +237,7 @@ export default function ProposalsListPage() {
                     <Link href={`/admin/invoices?proposal=${row.id}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
                       title={pct > 0 && pct < 100 ? `One invoice: the ${pct}% deposit first, the rest when you open it` : undefined}>Invoice</Link>
                   )}
+                  <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={busyId === row.id} onClick={() => downloadPdf(row)}>{busyId === row.id ? '…' : 'PDF'}</button>
                   <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={busyId === row.id} onClick={() => duplicate(row.id)}>Duplicate</button>
                   {row.status !== 'signed' && (
                     <button type="button" className={b.iconBtn} aria-label={`Delete ${row.title}`} title="Delete" disabled={busyId === row.id} onClick={() => remove(row)}>×</button>
