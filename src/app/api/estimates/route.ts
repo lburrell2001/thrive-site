@@ -24,9 +24,15 @@ export async function GET(req: Request) {
   if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes`);
   if (invoices.error) invoices = await recent(INVOICE_COLUMNS);
 
+  // Each portal client's projects, for the Project dropdown.
+  const projectQuery = (columns: string) => db.from('portal_projects').select(columns).order('created_at', { ascending: false });
+  let projects = await projectQuery('id, client_id, name, status, archived');
+  if (projects.error) projects = await projectQuery('id, client_id, name, status');
+
   return NextResponse.json({
     ok: true,
     data: {
+      projects: projects.data ?? [],
       ready: !estimates.error,
       estimates: estimates.data ?? [],
       invoices: invoices.data ?? [],

@@ -34,7 +34,8 @@ interface InvoiceRow {
   invoice_date: string; due_date: string; status: string; line_items?: LineItem[] | null; notes?: string | null;
   totals_only?: boolean | null;
 }
-interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[] }
+interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
+interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[] }
 
 interface Draft {
   mode: Mode;
@@ -127,6 +128,8 @@ export default function InvoiceBuilder() {
   const [textOpen, setTextOpen] = useState(false);
   const [custom, setCustom] = useState({ name: '', description: '', price: '', monthly: false });
   const [customError, setCustomError] = useState('');
+  // The Project dropdown's "Something else…": type a name instead.
+  const [projectOther, setProjectOther] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
@@ -246,8 +249,22 @@ export default function InvoiceBuilder() {
     } catch { /* the number can be typed */ }
   }
 
+  /** The chosen client's portal projects, active ones first. */
+  function projectsOf(client: string): ProjectRow[] {
+    const id = portalIdOf(client);
+    if (!id) return [];
+    return (data!.projects ?? []).filter((pr) => pr.client_id === id && pr.name.trim())
+      .sort((x, y) => Number(!!x.archived) - Number(!!y.archived));
+  }
+
   function pickClient(value: string, name: string) {
-    setDraft((d) => ({ ...d, client: value, clientName: name, number: d.mode === 'invoice' ? '' : d.number }));
+    // One active project: that's almost certainly the one.
+    const active = projectsOf(value).filter((pr) => !pr.archived);
+    setProjectOther(false);
+    setDraft((d) => ({
+      ...d, client: value, clientName: name, number: d.mode === 'invoice' ? '' : d.number,
+      title: !d.title.trim() && active.length === 1 ? active[0].name : d.title,
+    }));
     if (draft.mode === 'invoice') void fillInvoiceNumber(value);
   }
 
@@ -736,10 +753,13 @@ export default function InvoiceBuilder() {
           <section className={s.step}>
             <StepHead n={2} title="Details" />
             <div className={s.fields}>
-              <label className={s.wide}>
-                <span className={p.label}>Project</span>
-                <input className={p.input} value={draft.title} onChange={(e) => set('title', e.target.value)} placeholder="Website redesign" />
-              </label>
+              <ProjectField
+                projects={projectsOf(draft.client)}
+                value={draft.title}
+                other={projectOther}
+                onOther={setProjectOther}
+                onChange={(title) => set('title', title)}
+              />
               <label>
                 <span className={p.label}>{isInvoice ? 'Invoice number' : 'Estimate number'}</span>
                 <input className={p.input} value={draft.number} onChange={(e) => set('number', e.target.value)}
@@ -1009,6 +1029,51 @@ function ItemRows({ blocks, catalog, onRemove, onQty }: {
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * Project: a dropdown of the client's portal projects (an invoice filed under
+ * a project's name joins that project's deal), or a typed name for anyone
+ * else and for "Something else…".
+ */
+function ProjectField({ projects, value, other, onOther, onChange }: {
+  projects: ProjectRow[]; value: string; other: boolean;
+  onOther: (v: boolean) => void; onChange: (title: string) => void;
+}) {
+  const known = projects.some((pr) => pr.name === value);
+  const typing = projects.length === 0 || other || (value.trim() !== '' && !known);
+  const active = projects.filter((pr) => !pr.archived);
+  const finished = projects.filter((pr) => pr.archived);
+  return (
+    <label className={s.wide}>
+      <span className={p.label}>Project</span>
+      {projects.length > 0 && (
+        <select className={p.select} value={typing ? '__other' : value}
+          onChange={(e) => {
+            if (e.target.value === '__other') { onOther(true); onChange(''); return; }
+            onOther(false);
+            onChange(e.target.value);
+          }}>
+          <option value="">Choose a project…</option>
+          {active.length > 0 && (
+            <optgroup label="Projects">
+              {active.map((pr) => <option key={pr.id} value={pr.name}>{pr.name}</option>)}
+            </optgroup>
+          )}
+          {finished.length > 0 && (
+            <optgroup label="Finished">
+              {finished.map((pr) => <option key={pr.id} value={pr.name}>{pr.name}</option>)}
+            </optgroup>
+          )}
+          <option value="__other">Something else…</option>
+        </select>
+      )}
+      {typing && (
+        <input className={p.input} style={projects.length ? { marginTop: 8 } : undefined} value={value} autoFocus={other && !value}
+          onChange={(e) => onChange(e.target.value)} placeholder={projects.length ? 'Name it' : 'Website redesign'} />
+      )}
+    </label>
   );
 }
 
