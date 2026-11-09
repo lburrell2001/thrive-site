@@ -1,7 +1,7 @@
 /* Newsletter confirm / unsubscribe, in the site's design system. */
 .page { padding: clamp(120px, 13vw, 180px) var(--gutter, 24px) clamp(70px, 9vw, 130px); min-height: 60vh; }
 .card { max-width: 620px; margin: 0 auto; border: 2px solid var(--ink, #141414); border-radius: var(--radius, 24px); padding: clamp(28px, 4vw, 56px); }
-.title { margin: 0 0 14px; font-weight: 700; letter-spacing: var(--track, -0.1em); word-spacing: var(--word, 0.12em); font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 0.92; }
+.title { margin: 0 0 14px; font-weight: 700; letter-spacing: var(--track, -0.08em); word-spacing: var(--word, 0.12em); font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 0.92; }
 .text { margin: 0 0 18px; font-size: 1.05rem; line-height: 1.55; color: #333; }
 .text a { color: var(--ink, #141414); font-weight: 600; text-decoration: underline; text-decoration-color: #e50586; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .button { border: none; border-radius: 999px; background: var(--ink, #141414); color: #fff; padding: 0.95em 1.7em; font: inherit; font-weight: 600; cursor: pointer; transition: background 0.2s; }

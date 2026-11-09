@@ -4,7 +4,7 @@
 .title { font-size: clamp(4rem, 15vw, 16rem); line-height: 0.82; }
 .count {
   font-size: 0.22em;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.04em;
   vertical-align: top;
   margin-left: 0.12em;
   position: relative;

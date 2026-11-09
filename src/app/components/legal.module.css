@@ -38,7 +38,7 @@
 .page li {
   font-size: 1.04rem;
   line-height: 1.7;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   word-spacing: normal;
   color: #222;
 }

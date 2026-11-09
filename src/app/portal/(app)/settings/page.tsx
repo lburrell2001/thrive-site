@@ -85,7 +85,7 @@ export default function SettingsPage() {
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
         <div style={{ height: 3, background: '#e40586' }} />
         <div style={{ padding: '20px 24px 24px' }}>
-          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '-0.01em', marginBottom: 4 }}>PROFILE</div>
+          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>PROFILE</div>
           <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', marginBottom: 20 }}>Update your name, company, and contact information.</div>
 
           {loading ? (

@@ -3,7 +3,7 @@
    every admin stylesheet reads (proposals.module.css, workspace.module.css
    and the rest use var(--a-…) so the whole admin looks like one product).
    Since Nov 2026 it follows the public site (src/app/_site): Poppins only
-   (Bold at −100 for page titles, −85 for smaller headings, Medium at −75 for
+   (Bold at −80 for page titles, −65 for smaller headings, Medium at −55 for
    text), Thrive's brand colours only — magenta, orange, blue, green, purple,
    black, white — on a white work area, black pill buttons that turn magenta,
    big rounded cards, Title Case. The black sidebar matches the site's footer.
@@ -34,7 +34,7 @@
   --font-inter: var(--rd-sans);
   --font-bungee: var(--rd-sans);
   /* The site's regular-text tracking, applied by the page frames and sidebar. */
-  --a-track: -0.075em;
+  --a-track: -0.055em;
   --a-word: 0.1em;
 
   display: grid;
@@ -79,7 +79,7 @@
   font-size: 11px;
   font-weight: 600;
   color: #bdbdbd;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
 }
 
 .search {

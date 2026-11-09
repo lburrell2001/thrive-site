@@ -1,6 +1,6 @@
 /* The portal welcome (/portal/welcome): a step-by-step setup with the calm of
    a new iPhone's. The whole screen, no card: a thin progress line, quiet Back
-   and Skip, one centred column, big Poppins titles (Bold −100), Medium −75
+   and Skip, one centred column, big Poppins titles (Bold −80), Medium −55
    text, the main button at the bottom. Thrive's brand colours only; the site's
    own logo, logo mark and line icons. The welcome step is black, the rest white. */
 
@@ -16,7 +16,7 @@
   color: var(--ink);
   font-family: var(--rd-sans), system-ui, sans-serif;
   font-weight: 500;
-  letter-spacing: -0.075em;
+  letter-spacing: -0.055em;
   word-spacing: 0.1em;
   -webkit-font-smoothing: antialiased;
   transition: background 0.6s ease, color 0.6s ease;
@@ -32,7 +32,7 @@
 .line { position: absolute; inset: 0 0 auto; height: 3px; background: rgba(20, 20, 20, 0.08); }
 .line span { position: absolute; inset: 0 auto 0 0; background: #e50586; transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .top { display: flex; justify-content: space-between; align-items: center; padding: 22px 28px 0; min-height: 44px; }
-.back, .skip { border: 0; background: none; padding: 8px 4px; font: inherit; font-size: 15px; font-weight: 500; letter-spacing: -0.03em; color: inherit; cursor: pointer; opacity: 0.55; transition: opacity 0.2s; }
+.back, .skip { border: 0; background: none; padding: 8px 4px; font: inherit; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: inherit; cursor: pointer; opacity: 0.55; transition: opacity 0.2s; }
 .back:hover, .skip:hover { opacity: 1; }
 .back:focus-visible, .skip:focus-visible, .btn:focus-visible, .choice:focus-visible { outline: 3px solid #3943b7; outline-offset: 3px; border-radius: 999px; }
 
@@ -66,15 +66,15 @@
 .bOrange { background: #fd6100; color: #141414; }
 .bGreen { background: #0cf574; color: #141414; }
 
-.kicker { margin: 0 0 12px; font-size: 15px; font-weight: 600; letter-spacing: -0.03em; color: #e50586; }
-.title { margin: 0; font-weight: 700; font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1; letter-spacing: -0.1em; word-spacing: 0.12em; }
+.kicker { margin: 0 0 12px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: #e50586; }
+.title { margin: 0; font-weight: 700; font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1; letter-spacing: -0.08em; word-spacing: 0.12em; }
 .titleSm { font-size: clamp(2rem, 4.4vw, 2.9rem); }
 .lead { margin: 18px auto 0; max-width: 44ch; font-size: 17px; line-height: 1.5; color: var(--muted); }
 
 /* "Welcome to [logo]" and the name */
 .wide { max-width: 1040px; }
 .helloRow { display: inline-block; white-space: nowrap; }
-.hello { margin: 0; font-weight: 700; font-size: clamp(2.1rem, 6.4vw, 5.2rem); line-height: 1.04; letter-spacing: -0.1em; word-spacing: 0.12em; }
+.hello { margin: 0; font-weight: 700; font-size: clamp(2.1rem, 6.4vw, 5.2rem); line-height: 1.04; letter-spacing: -0.08em; word-spacing: 0.12em; }
 .helloLogo { display: inline-block; height: 0.9em; width: auto; vertical-align: -0.12em; margin-left: 0.2em; animation: pop 0.7s 0.15s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
 .helloName { display: block; margin-top: 0.08em; color: #e50586; animation: in 0.7s 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 
@@ -84,7 +84,7 @@
 .narrow { max-width: 440px; }
 
 /* Fields */
-.field { display: grid; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; }
+.field { display: grid; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
 .input {
   width: 100%;
   box-sizing: border-box;
@@ -103,16 +103,16 @@
 .input::placeholder { color: #9a9a9a; }
 .input:focus { outline: none; background: #fff; box-shadow: 0 0 0 2px #141414; }
 .textarea { min-height: 128px; resize: vertical; line-height: 1.5; }
-.consent { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 14px; background: #f2f2f2; font-size: 12.5px; font-weight: 500; line-height: 1.5; letter-spacing: -0.02em; word-spacing: normal; color: var(--muted); cursor: pointer; }
+.consent { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; border-radius: 14px; background: #f2f2f2; font-size: 12.5px; font-weight: 500; line-height: 1.5; letter-spacing: 0em; word-spacing: normal; color: var(--muted); cursor: pointer; }
 .consent input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #e50586; flex-shrink: 0; }
 .consentOff { opacity: 0.55; cursor: default; }
-.error { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; color: #e50586; text-align: center; }
+.error { margin: 0; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; color: #e50586; text-align: center; }
 
 /* Email: the address with a Verified mark, and the code box */
 .emailRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-radius: 14px; background: #f2f2f2; }
-.emailAddr { font-size: 17px; font-weight: 600; letter-spacing: -0.03em; word-spacing: normal; overflow-wrap: anywhere; }
-.verified { flex-shrink: 0; padding: 4px 11px; border-radius: 999px; background: #0cf574; color: #141414; font-size: 13px; font-weight: 600; letter-spacing: -0.02em; }
-.ok { margin: 0; text-align: center; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; }
+.emailAddr { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; word-spacing: normal; overflow-wrap: anywhere; }
+.verified { flex-shrink: 0; padding: 4px 11px; border-radius: 999px; background: #0cf574; color: #141414; font-size: 13px; font-weight: 600; letter-spacing: 0em; }
+.ok { margin: 0; text-align: center; font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
 .code { text-align: center; font-size: 30px; font-weight: 700; letter-spacing: 0.35em; padding: 18px; }
 .strong { color: var(--ink); font-weight: 600; }
 
@@ -123,7 +123,7 @@
 .tile:nth-child(3) { animation-delay: 0.12s; }
 .tile:nth-child(4) { animation-delay: 0.18s; }
 .tile svg { width: 30px; height: 30px; }
-.tileName { margin: 0; font-weight: 700; font-size: 19px; letter-spacing: -0.085em; line-height: 1.05; }
+.tileName { margin: 0; font-weight: 700; font-size: 19px; letter-spacing: -0.065em; line-height: 1.05; }
 .tileText { margin: 5px 0 0; font-size: 13.5px; line-height: 1.35; opacity: 0.85; }
 
 /* A questionnaire's sections, as a grouped list */
@@ -131,7 +131,7 @@
 .listItem { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
 .listItem + .listItem { box-shadow: inset 0 1px 0 #e6e6e6; }
 .listNum { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #141414; color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0; flex-shrink: 0; }
-.listName { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -0.05em; }
+.listName { margin: 0; font-weight: 600; font-size: 16px; letter-spacing: -0.03em; }
 .listMeta { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
 .note { margin: 16px 0 0; font-size: 14px; line-height: 1.45; color: var(--muted); text-align: center; }
 
@@ -140,11 +140,11 @@
 .question { display: grid; gap: 10px; }
 .questionMissing .input { box-shadow: 0 0 0 2px #e50586; }
 .questionMissing .choice { border-color: #e50586; }
-.prompt { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.055em; }
+.prompt { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: -0.035em; }
 .req { color: #e50586; }
 .help { margin: 0; font-size: 14px; color: var(--muted); }
 .choices { display: flex; flex-wrap: wrap; gap: 8px; }
-.choice { min-height: 46px; padding: 11px 18px; border: 1.5px solid #e0e0e0; border-radius: 999px; background: #fff; font: inherit; font-size: 15px; font-weight: 500; letter-spacing: -0.03em; color: #141414; cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s; }
+.choice { min-height: 46px; padding: 11px 18px; border: 1.5px solid #e0e0e0; border-radius: 999px; background: #fff; font: inherit; font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: #141414; cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.1s; }
 .choice:hover { border-color: #141414; }
 .choice:active { transform: scale(0.97); }
 .choiceOn, .choiceOn:hover { background: #141414; border-color: #141414; color: #fff; }
@@ -170,7 +170,7 @@
   font: inherit;
   font-size: 17px;
   font-weight: 600;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.02em;
   cursor: pointer;
   text-decoration: none;
   display: inline-flex;

@@ -148,7 +148,7 @@ export default function InvoicesPage() {
       {/* Invoice list */}
       <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', overflow:'hidden' }}>
         <div style={{ padding:'20px 24px 8px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-          <h2 style={{ fontFamily:F.bungee, fontSize:13, color:'#0a0a0a', letterSpacing:'-0.01em', margin:0 }}>INVOICES &amp; PAYMENTS</h2>
+          <h2 style={{ fontFamily:F.bungee, fontSize:13, color:'#0a0a0a', letterSpacing:'0em', margin:0 }}>INVOICES &amp; PAYMENTS</h2>
           <div role="tablist" aria-label="Filter invoices" style={{ display:'flex', gap:4, background:'#f1f0ef', borderRadius:999, padding:3 }}>
             {([
               { key:'all',     label:'All',      count: invoices.length },
@@ -277,7 +277,7 @@ export default function InvoicesPage() {
       {!loading && dueInvoice && (
         <div style={{ background:'#0a0a0a', borderRadius:16, borderLeft:'4px solid #e40586', padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16 }}>
           <div>
-            <h3 style={{ fontFamily:F.bungee, fontSize:18, color:'#fff', margin:'0 0 4px', letterSpacing:'-0.02em' }}>
+            <h3 style={{ fontFamily:F.bungee, fontSize:18, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>
               INVOICE {dueInvoice.invoice_number} IS DUE {fmtDate(dueInvoice.due_date).toUpperCase()}
             </h3>
             <p style={{ fontFamily:F.inter, fontSize:14, color:'#bfbfbf', margin:0 }}>

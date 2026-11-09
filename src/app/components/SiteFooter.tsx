@@ -78,7 +78,7 @@ export default function SiteFooter() {
         .nf-nav { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
         .nf-navlink {
           font-family: var(--font-bungee, sans-serif);
-          font-size: 12px; letter-spacing: -0.01em;
+          font-size: 12px; letter-spacing: 0em;
           padding: 6px 14px; border-radius: 999px;
           text-decoration: none; color: #000;
           transition: opacity .15s;

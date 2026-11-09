@@ -176,7 +176,7 @@ export default function OnboardingPage() {
       {/* Help banner */}
       <div style={{ background:'#0a0a0a', borderRadius:16, padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16, marginTop:8 }}>
         <div>
-          <h3 style={{ fontFamily:F.bungee, fontSize:16, color:'#fff', margin:'0 0 4px', letterSpacing:'-0.02em' }}>NEED HELP WITH ONBOARDING?</h3>
+          <h3 style={{ fontFamily:F.bungee, fontSize:16, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>NEED HELP WITH ONBOARDING?</h3>
           <p style={{ fontFamily:F.inter, fontSize:13, color:'#808080', margin:0 }}>Our team is here to help you get started smoothly.</p>
         </div>
         <Link href="/contact" style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#f6f5f4', borderRadius:8, padding:'10px 20px', textDecoration:'none', flexShrink:0 }}>

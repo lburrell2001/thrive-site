@@ -40,7 +40,7 @@
   font-size: clamp(2rem, 3.4vw, 3rem);
   font-weight: 700;
   line-height: 0.95;
-  letter-spacing: -0.1em;
+  letter-spacing: -0.08em;
   word-spacing: 0.12em;
 }
 
@@ -193,7 +193,7 @@
   padding: 3px 10px;
   font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   text-transform: capitalize;
 }
 
@@ -272,7 +272,7 @@
   margin: 0 0 4px;
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: -0.085em;
+  letter-spacing: -0.065em;
   word-spacing: 0.1em;
 }
 

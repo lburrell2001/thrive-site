@@ -182,7 +182,7 @@ body {
   font-size: 30px;
   line-height: 1.15;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   margin: 0 0 14px;
 }
 
@@ -1043,7 +1043,7 @@ body {
 .gallery-title {
   font-size: 22px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   margin: 0 0 6px;
   line-height: 1.08;
 }
@@ -1332,7 +1332,7 @@ body {
 .services-title {
   font-size: clamp(2.2rem, 3vw + 1.6rem, 3.4rem);
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   margin: 0 0 18px;
   font-weight: 900;
 }
@@ -1420,7 +1420,7 @@ body {
 .pill-title {
   font-size: 24px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   line-height: 1.05;
 }
 
@@ -1593,7 +1593,7 @@ body {
 .mosaic-title {
   font-size: 22px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   line-height: 1.05;
 }
 
@@ -1680,7 +1680,7 @@ body {
   margin: 0;
   font-size: 22px;
   font-weight: 900;
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
 }
 
 .process-desc {

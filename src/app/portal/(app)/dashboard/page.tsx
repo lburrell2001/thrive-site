@@ -107,7 +107,7 @@ export default function DashboardPage() {
     background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', overflow: 'hidden',
   };
   const sectionTitle: React.CSSProperties = {
-    fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '-0.01em', margin: 0,
+    fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '0em', margin: 0,
   };
   const divider: React.CSSProperties = { height: 1, background: '#f1f0ef', margin: '0 24px' };
 

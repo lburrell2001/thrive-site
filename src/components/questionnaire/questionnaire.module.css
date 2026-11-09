@@ -4,7 +4,7 @@
 
 .wrap { padding: 24px; display: flex; flex-direction: column; gap: 16px; background: #f6f5f4; min-height: 100%; font-family: var(--font-inter), 'Bai Jamjuree', sans-serif; color: #0a0a0a; }
 .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 16px; padding: 20px 24px; }
-.h2 { font-family: var(--font-bungee), 'Bungee', sans-serif; font-size: 18px; letter-spacing: -0.02em; margin: 0 0 4px; }
+.h2 { font-family: var(--font-bungee), 'Bungee', sans-serif; font-size: 18px; letter-spacing: 0em; margin: 0 0 4px; }
 .muted { color: #6b6b6b; font-size: 13px; margin: 0; }
 .err { background: #fff0f8; border: 1px solid #e40586; color: #b0005f; border-radius: 12px; padding: 12px 16px; font-size: 14px; }
 
@@ -40,7 +40,7 @@
 .saving::before { background: #fd6100; }
 .saveError { color: #b0005f; }
 .saveError::before { background: #e40586; }
-.secHead { margin: 0 0 4px; font-family: var(--font-bungee), 'Bungee', sans-serif; font-size: clamp(18px, 3vw, 24px); letter-spacing: -0.02em; }
+.secHead { margin: 0 0 4px; font-family: var(--font-bungee), 'Bungee', sans-serif; font-size: clamp(18px, 3vw, 24px); letter-spacing: 0em; }
 .questions { display: grid; gap: 14px; margin-top: 16px; }
 .q { background: #fff; border: 1px solid #e5e5e5; border-radius: 14px; padding: 18px 20px; }
 .qMissing { border-color: #e40586; box-shadow: 0 0 0 3px rgba(228, 5, 134, 0.12); }

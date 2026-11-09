@@ -1,7 +1,7 @@
 /* The client review form, in the site's design system. */
 .page { padding: clamp(120px, 13vw, 180px) var(--gutter, 24px) clamp(70px, 9vw, 130px); min-height: 70vh; }
 .card { max-width: 680px; margin: 0 auto; border: 2px solid var(--ink, #141414); border-radius: var(--radius, 24px); padding: clamp(28px, 4vw, 56px); }
-.title { margin: 0 0 14px; font-weight: 700; letter-spacing: var(--track, -0.1em); word-spacing: var(--word, 0.12em); font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 0.92; }
+.title { margin: 0 0 14px; font-weight: 700; letter-spacing: var(--track, -0.08em); word-spacing: var(--word, 0.12em); font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 0.92; }
 .lede { margin: 0 0 24px; font-size: 1.05rem; line-height: 1.55; color: #333; }
 .form { display: grid; gap: 18px; }
 .stars { border: none; margin: 0; padding: 0; }
@@ -25,6 +25,6 @@
 .submit:disabled { opacity: 0.6; cursor: wait; }
 .google { background: #e50586; color: #fff; }
 .google:hover { background: var(--ink, #141414); }
-.thanksTitle { margin: 0 0 10px; font-weight: 700; letter-spacing: var(--track-sm, -0.085em); font-size: 1.6rem; }
+.thanksTitle { margin: 0 0 10px; font-weight: 700; letter-spacing: var(--track-sm, -0.065em); font-size: 1.6rem; }
 .srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (max-width: 640px) { .row { grid-template-columns: 1fr; } .star { font-size: 28px; } }

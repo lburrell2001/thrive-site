@@ -28,7 +28,7 @@
 .sectionBody { padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .sectionBody > *, .qBody > *, .editor > * { min-width: 0; }
 .grip { cursor: grab; color: #8a8a8a; padding: 4px; user-select: none; font-size: 16px; line-height: 1; }
-.titleInput { flex: 1; min-width: 0; border: 1.5px solid transparent; border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 700; font-size: 17px; letter-spacing: -0.085em; word-spacing: 0.1em; background: transparent; }
+.titleInput { flex: 1; min-width: 0; border: 1.5px solid transparent; border-radius: 999px; padding: 6px 12px; font: inherit; font-weight: 700; font-size: 17px; letter-spacing: -0.065em; word-spacing: 0.1em; background: transparent; }
 .titleInput:hover, .titleInput:focus { border-color: var(--a-border, #d9d9d9); background: #fff; outline: none; }
 .iconBtn { border: 1.5px solid var(--a-border-strong); background: #fff; border-radius: 999px; min-width: 32px; height: 32px; cursor: pointer; font-size: 13px; color: #141414; }
 .iconBtn:hover:not(:disabled) { border-color: #141414; }
@@ -61,7 +61,7 @@
 /* Responses */
 .respHead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: start; }
 .respSection { margin-top: 18px; }
-.respSection h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.085em; word-spacing: 0.1em; margin: 0 0 8px; }
+.respSection h2 { font-size: 19px; font-weight: 700; letter-spacing: -0.065em; word-spacing: 0.1em; margin: 0 0 8px; }
 .answer { padding: 12px 0; border-top: 1px solid #f0f0f0; }
 .answer:first-of-type { border-top: 0; }
 .answerQ { font-size: 13px; font-weight: 700; color: #2b2b2b; margin: 0 0 4px; }

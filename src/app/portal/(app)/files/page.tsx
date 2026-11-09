@@ -92,7 +92,7 @@ export default function FilesPage() {
       {/* Proposals section */}
       {(loading || proposals.length > 0) && (
         <div>
-          <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: '0 0 12px', letterSpacing: '-0.01em' }}>PROPOSALS</h2>
+          <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: '0 0 12px', letterSpacing: '0em' }}>PROPOSALS</h2>
           {loading ? (
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f0ef', flexShrink: 0 }} />
@@ -178,7 +178,7 @@ export default function FilesPage() {
 
       {/* Files section heading */}
       {!loading && files.length > 0 && (
-        <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: 0, letterSpacing: '-0.01em' }}>FILES & ASSETS</h2>
+        <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: 0, letterSpacing: '0em' }}>FILES & ASSETS</h2>
       )}
 
       {/* Loading skeleton */}
@@ -214,7 +214,7 @@ export default function FilesPage() {
             </svg>
           </div>
           <div>
-            <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 24, color: '#0a0a0a', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 24, color: '#0a0a0a', margin: '0 0 8px', letterSpacing: '0em' }}>
               NO FILES YET
             </h2>
             <p style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, color: '#808080', margin: 0, maxWidth: 320, lineHeight: 1.6 }}>

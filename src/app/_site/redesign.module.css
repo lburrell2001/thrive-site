@@ -1,16 +1,16 @@
 /* The site's design system (Nov 2026 redesign). One family, Poppins: Bold for
-   headings (−100 on big display type, −85 on smaller headings) and Medium at
-   −75 for regular text. Pastel panels, with Thrive's own colours for the loud
+   headings (−80 on big display type, −65 on smaller headings) and Medium at
+   −55 for regular text. Pastel panels, with Thrive's own colours for the loud
    bits (cursor tags, process cards, the slider, the sticker). */
 
 .page {
   --ink: #141414;
   --paper: #ffffff;
   --muted: #6b6b6b;
-  --track: -0.1em; /* −100 */
-  --word: 0.12em;  /* gives back the space −100 takes out between words */
-  --track-sm: -0.085em; /* −85: smaller headings, for readability */
-  --track-body: -0.075em; /* −75: regular text, Poppins Medium */
+  --track: -0.08em; /* −80 */
+  --word: 0.12em;  /* gives back the space −80 takes out between words */
+  --track-sm: -0.065em; /* −65: smaller headings, for readability */
+  --track-body: -0.055em; /* −55: regular text, Poppins Medium */
   --word-body: 0.1em;
   --gutter: clamp(16px, 3.4vw, 56px);
   --radius: clamp(18px, 2vw, 28px);
@@ -18,7 +18,7 @@
   background: var(--paper);
   color: var(--ink);
   font-family: var(--rd-sans), system-ui, sans-serif;
-  /* Regular text: Poppins Medium at −75 (headings set their own −100 / −85). */
+  /* Regular text: Poppins Medium at −55 (headings set their own −80 / −65). */
   font-weight: 500;
   letter-spacing: var(--track-body);
   word-spacing: var(--word-body);
@@ -74,7 +74,7 @@
   margin: 0;
 }
 
-/* Every heading is Poppins Bold: −100 on the big display type, −85 on smaller
+/* Every heading is Poppins Bold: −80 on the big display type, −65 on smaller
    headings like these (the serif is for statements and quotes). */
 .smallHead, .leadHead, .tagline, .cardTitle, .workTitle, .stepTitle {
   font-family: var(--rd-sans), sans-serif !important;

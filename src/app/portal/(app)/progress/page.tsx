@@ -254,7 +254,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: dimAccent, flexShrink: 0 }} />
-            <span style={{ fontFamily: F.bungee, fontSize: 16, color: archived ? '#808080' : '#0a0a0a', letterSpacing: '-0.02em', lineHeight: 1.2 }}>{proj.name}</span>
+            <span style={{ fontFamily: F.bungee, fontSize: 16, color: archived ? '#808080' : '#0a0a0a', letterSpacing: '0em', lineHeight: 1.2 }}>{proj.name}</span>
             {archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '1px 7px', borderRadius: 999 }}>ARCHIVED</span>}
           </div>
           {/* Mini progress bar */}

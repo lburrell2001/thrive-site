@@ -1,5 +1,5 @@
 /* The Journal (and the Opinly blog, which reuses these classes), in the site's
-   design system: Poppins Bold headings (−100 big, −85 small), Medium −75 for
+   design system: Poppins Bold headings (−80 big, −65 small), Medium −55 for
    short text, brand colours only. Long-form article text is Poppins at a
    reading size with gentler tracking, so whole articles stay comfortable. */
 
@@ -42,7 +42,7 @@
 .cover { margin: clamp(24px, 3vw, 40px) 0 0; border-radius: var(--radius); overflow: hidden; }
 .cover img { width: 100%; height: auto; display: block; }
 
-.prose { margin-top: clamp(28px, 3.4vw, 48px); font-size: 1.12rem; line-height: 1.7; letter-spacing: -0.02em; word-spacing: normal; color: #222; }
+.prose { margin-top: clamp(28px, 3.4vw, 48px); font-size: 1.12rem; line-height: 1.7; letter-spacing: 0em; word-spacing: normal; color: #222; }
 .prose p { margin: 0 0 1.2em; }
 .prose h2 { margin: 1.8em 0 0.5em; font-weight: 700; letter-spacing: var(--track-sm); word-spacing: var(--word); font-size: clamp(1.7rem, 2.6vw, 2.3rem); line-height: 1.05; color: var(--ink); }
 .prose h3 { margin: 1.5em 0 0.4em; font-weight: 700; letter-spacing: var(--track-sm); word-spacing: var(--word); font-size: clamp(1.3rem, 1.9vw, 1.6rem); line-height: 1.1; color: var(--ink); }

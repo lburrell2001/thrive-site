@@ -224,7 +224,7 @@ export default function LoginPage() {
           padding: 15px 0;
           cursor: pointer;
           transition: opacity .15s;
-          letter-spacing: -0.03em;
+          letter-spacing: -0.01em;
         }
         .portal-btn-primary:disabled { opacity: 0.45; cursor: default; }
         .portal-btn-primary:not(:disabled):hover { opacity: 0.88; }
@@ -246,7 +246,7 @@ export default function LoginPage() {
               lineHeight: 1.05,
               marginTop: 36,
               marginBottom: 0,
-              letterSpacing: '-0.02em',
+              letterSpacing: '0em',
             }}>
               YOUR CREATIVE<br />WORKSPACE<br />AWAITS.
             </h2>
@@ -288,7 +288,7 @@ export default function LoginPage() {
             {/* Heading */}
             {step === 'contact' ? (
               <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontFamily: F.bungee, fontSize: 40, color: '#0A0A0A', margin: 0, letterSpacing: '-0.02em', lineHeight: 1 }}>
+                <h1 style={{ fontFamily: F.bungee, fontSize: 40, color: '#0A0A0A', margin: 0, letterSpacing: '0em', lineHeight: 1 }}>
                   SIGN IN
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>
@@ -297,7 +297,7 @@ export default function LoginPage() {
               </div>
             ) : (
               <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontFamily: F.bungee, fontSize: 36, color: '#0A0A0A', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                <h1 style={{ fontFamily: F.bungee, fontSize: 36, color: '#0A0A0A', margin: 0, letterSpacing: '0em', lineHeight: 1.1 }}>
                   {sentTo.email ? <>CHECK YOUR<br />EMAIL</> : <>CHECK YOUR<br />TEXTS</>}
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>

@@ -93,7 +93,7 @@ export default function SecurityDashboard({ version }: { version: number }) {
         <p style={sub}>Run live against the database, storage and website. The “public” checks use the same key every visitor’s browser has, so they show exactly what an outsider could reach.</p>
         {groups.map((g) => (
           <div key={g} style={{ marginTop: 14 }}>
-            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#141414', letterSpacing: '-0.085em', wordSpacing: '0.1em' }}>{g}</h3>
+            <h3 style={{ margin: '0 0 6px', fontSize: 15, fontWeight: 700, color: '#141414', letterSpacing: '-0.065em', wordSpacing: '0.1em' }}>{g}</h3>
             {report.checks.filter((c) => c.group === g).sort((a, b) => order[a.status] - order[b.status]).map((c) => (
               <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '56px 1fr', gap: 12, padding: '10px 0', borderTop: '1px solid #eee' }}>
                 <div><Pill status={c.status} /></div>

@@ -38,7 +38,7 @@
 .servicePhoto span { position: absolute; left: 10px; bottom: 10px; padding: 5px 11px; border-radius: 999px; background: #141414; color: #fff; font-weight: 600; font-size: 0.8rem; }
 .servicePhoto:hover span { background: #fff; color: #141414; }
 .orange .servicePhoto span { background: #141414; color: #fff; }
-.serviceBody p { margin: 0 0 1em; font-size: clamp(1rem, 1.2vw, 1.12rem); line-height: 1.6; letter-spacing: -0.03em; }
+.serviceBody p { margin: 0 0 1em; font-size: clamp(1rem, 1.2vw, 1.12rem); line-height: 1.6; letter-spacing: -0.01em; }
 .serviceBody a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
 
 /* Pricing */
@@ -49,7 +49,7 @@
 .priceRows { list-style: none; margin: 0 0 16px; padding: 0; border-top: 2px solid var(--ink); }
 .priceRows li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid rgba(20, 20, 20, 0.15); }
 .priceName { font-weight: 700; }
-.priceAmt { font-weight: 800; letter-spacing: -0.06em; }
+.priceAmt { font-weight: 800; letter-spacing: -0.04em; }
 .priceNote { grid-column: 1 / -1; color: #6b6b6b; font-size: 0.88rem; }
 .priceMore { margin-top: auto; color: var(--ink); font-weight: 700; text-decoration: underline; text-decoration-color: #e50586; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .priceFoot { margin: 16px 0 0; color: #6b6b6b; font-size: 0.92rem; }
@@ -69,8 +69,8 @@
 
 /* Hometown story */
 .story { margin-top: clamp(70px, 9vw, 130px); max-width: 820px; }
-.prose p { margin: 0 0 1.1em; font-size: 1.1rem; line-height: 1.7; letter-spacing: -0.02em; word-spacing: normal; color: #222; }
-.prose .signoff { font-weight: 700; color: #e50586; letter-spacing: -0.04em; }
+.prose p { margin: 0 0 1.1em; font-size: 1.1rem; line-height: 1.7; letter-spacing: 0em; word-spacing: normal; color: #222; }
+.prose .signoff { font-weight: 700; color: #e50586; letter-spacing: -0.02em; }
 .storyToggle { margin-top: 4px; padding: 0.8em 1.5em; border: none; border-radius: 999px; background: var(--ink); color: #fff; font: inherit; font-weight: 600; cursor: pointer; transition: background 0.2s; }
 .storyToggle:hover { background: #e50586; }
 .storyToggle:active { transform: translateY(1px); }
@@ -83,7 +83,7 @@
 .faqQ::-webkit-details-marker { display: none; }
 .faqQ::after { content: '+'; flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 1.3rem; line-height: 1; letter-spacing: 0; transition: background 0.2s; }
 .faqItem[open] .faqQ::after { content: '–'; background: #e50586; }
-.faqA { margin: 0 0 clamp(18px, 2vw, 26px); max-width: 70ch; font-size: 1.02rem; line-height: 1.6; letter-spacing: -0.03em; }
+.faqA { margin: 0 0 clamp(18px, 2vw, 26px); max-width: 70ch; font-size: 1.02rem; line-height: 1.6; letter-spacing: -0.01em; }
 
 @media (max-width: 900px) {
   .hero, .service, .workGrid { grid-template-columns: 1fr; }

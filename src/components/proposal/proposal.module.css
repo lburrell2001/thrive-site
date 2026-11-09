@@ -132,7 +132,7 @@
    * one locked-together mark while both lines stay perfectly legible.
    */
   line-height: var(--heading-overlap);
-  letter-spacing: -0.02em;
+  letter-spacing: 0em;
   text-transform: uppercase;
   white-space: nowrap;
 }

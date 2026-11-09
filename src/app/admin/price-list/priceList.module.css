@@ -29,7 +29,7 @@
   font-family: var(--a-display);
   font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.085em;
+  letter-spacing: -0.065em;
 }
 
 .catNote { margin: 4px 0 0; max-width: 720px; font-size: 12.5px; line-height: 1.5; color: #666; }

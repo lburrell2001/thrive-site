@@ -206,7 +206,7 @@ const NEXT_CSS = `
   .wp-next-title {
     font-family: var(--font-bungee, 'Bungee', sans-serif);
     font-size: clamp(22px, 3.2vw, 38px);
-    letter-spacing: -0.03em;
+    letter-spacing: -0.01em;
     line-height: 1;
     margin: 0 0 8px;
   }
@@ -493,7 +493,7 @@ export default async function ProjectSlugPage({
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(32px, 4.8vw, 58px);
           color: #fff;
-          letter-spacing: -0.03em;
+          letter-spacing: -0.01em;
           line-height: 1;
           margin: 0 0 14px;
         }
@@ -502,7 +502,7 @@ export default async function ProjectSlugPage({
           font-size: clamp(16px, 2vw, 22px);
           color: #e50586;
           margin: 0 0 24px;
-          letter-spacing: -0.01em;
+          letter-spacing: 0em;
         }
         .wp-hero-year-row {
           display: flex;
@@ -574,7 +574,7 @@ export default async function ProjectSlugPage({
         .wp-overview-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(29px, 4vw, 42px);
-          letter-spacing: -0.04em;
+          letter-spacing: -0.02em;
           line-height: 1;
           margin: 0 0 24px;
         }
@@ -612,7 +612,7 @@ export default async function ProjectSlugPage({
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: 30px;
           color: #e50586;
-          letter-spacing: -0.02em;
+          letter-spacing: 0em;
           line-height: 1;
         }
         .wp-stat-label {
@@ -683,7 +683,7 @@ export default async function ProjectSlugPage({
         .wp-deliv-heading {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(29px, 4vw, 42px);
-          letter-spacing: -0.04em;
+          letter-spacing: -0.02em;
           line-height: 1;
           margin: 0 0 78px;
         }
@@ -701,7 +701,7 @@ export default async function ProjectSlugPage({
         .wp-deliv-card-name {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: 18px;
-          letter-spacing: -0.02em;
+          letter-spacing: 0em;
           margin: 0 0 10px;
         }
         .wp-deliv-card-desc {
@@ -750,7 +750,7 @@ export default async function ProjectSlugPage({
           font-family: var(--font-bungee, 'Bungee', sans-serif);
           font-size: clamp(18px, 2.5vw, 22px);
           color: #fff;
-          letter-spacing: -0.02em;
+          letter-spacing: 0em;
           line-height: 1.5;
           margin: 0 0 20px;
         }

@@ -4,8 +4,8 @@
 // follows the TURNSTUDIO reference — pill buttons, a giant wordmark, floating
 // cursor tags, a round sticker, tilted pastel cards, a process row, a dark
 // numbers card, quote cards and a full-screen menu of coloured panels — in
-// Thrive's logo, Poppins Bold for headings (−100 large, −85 small) and
-// Poppins Medium at −75 for everything else. Everything on it is real: photos are client work, quotes are
+// Thrive's logo, Poppins Bold for headings (−80 large, −65 small) and
+// Poppins Medium at −55 for everything else. Everything on it is real: photos are client work, quotes are
 // the ones already on the site, and the numbers are counted from the
 // portfolio.
 

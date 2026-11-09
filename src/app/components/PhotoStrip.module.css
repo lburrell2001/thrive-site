@@ -3,7 +3,7 @@
 .strip { padding: clamp(60px, 8vw, 110px) var(--gutter, 20px); overflow-x: clip; }
 .dark { background: #141414; color: #fff; }
 .head { margin-bottom: clamp(18px, 2.4vw, 32px); }
-.title { margin: 0; font-weight: 700; letter-spacing: -0.1em; word-spacing: 0.12em; font-size: clamp(2.4rem, 6vw, 6rem); line-height: 0.95; }
+.title { margin: 0; font-weight: 700; letter-spacing: -0.08em; word-spacing: 0.12em; font-size: clamp(2.4rem, 6vw, 6rem); line-height: 0.95; }
 .row { display: flex; gap: clamp(8px, 1vw, 14px); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .row::-webkit-scrollbar { display: none; }
 .print { position: relative; flex: 0 0 62%; scroll-snap-align: start; display: block; text-decoration: none; color: inherit; border-radius: clamp(12px, 1.3vw, 18px); overflow: hidden; background: #141414; }

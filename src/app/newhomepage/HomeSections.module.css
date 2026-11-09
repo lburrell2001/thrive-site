@@ -12,7 +12,7 @@
 .sectionH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(27px, 8.8vw, 38px); line-height: .95; letter-spacing: -0.03em;
+  font-size: clamp(27px, 8.8vw, 38px); line-height: .95; letter-spacing: -0.01em;
   text-transform: uppercase;
   text-wrap: balance;
 }
@@ -41,13 +41,13 @@
 .aboutH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(30px, 10vw, 43px); line-height: .92; letter-spacing: -0.03em;
+  font-size: clamp(30px, 10vw, 43px); line-height: .92; letter-spacing: -0.01em;
   text-transform: uppercase;
 }
 .almost {
   display: inline-block;
   font-family: var(--font-bai), sans-serif; font-style: italic; font-weight: 700;
-  text-transform: lowercase; letter-spacing: -0.04em;
+  text-transform: lowercase; letter-spacing: -0.02em;
   color: #e50586;
   transform: rotate(-4deg);
 }
@@ -107,7 +107,7 @@
 .beliefLine {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(18px, 5.92vw, 27px); line-height: 1; letter-spacing: -0.02em;
+  font-size: clamp(18px, 5.92vw, 27px); line-height: 1; letter-spacing: 0em;
   text-transform: uppercase;
 }
 .beliefText { margin: 12px 0 0; font-size: 16px; line-height: 1.5; font-weight: 600; }
@@ -145,7 +145,7 @@
 .notForH {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(29px, 9.2vw, 42px); line-height: .95; letter-spacing: -0.03em;
+  font-size: clamp(29px, 9.2vw, 42px); line-height: .95; letter-spacing: -0.01em;
   text-transform: uppercase;
 }
 .notForH span {
@@ -193,7 +193,7 @@
 .cardName {
   margin: 0;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(24px, 7.6vw, 32px); line-height: 1; letter-spacing: -0.02em;
+  font-size: clamp(24px, 7.6vw, 32px); line-height: 1; letter-spacing: 0em;
 }
 .cardSub {
   margin: 8px 0 0;
@@ -323,7 +323,7 @@
   margin: 0;
   display: flex; flex-direction: column; align-items: center;
   font-family: var(--font-bungee), sans-serif; font-weight: 400;
-  font-size: clamp(30px, 10vw, 45px); line-height: .92; letter-spacing: -0.03em;
+  font-size: clamp(30px, 10vw, 45px); line-height: .92; letter-spacing: -0.01em;
   text-transform: uppercase;
   text-shadow: 3px 3px 0 #000;
 }

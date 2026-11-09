@@ -83,7 +83,7 @@
   font-size: clamp(27px, 2.56vw, 38px);
   line-height: 1.05;
   margin: 0 0 12px;
-  letter-spacing: -0.9px;
+  letter-spacing: -0.3px;
 }
 
 .tagline {

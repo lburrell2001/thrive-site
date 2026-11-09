@@ -19,7 +19,7 @@ export default function SiteHeader() {
         .nh-pills { display: flex; gap: 10px; align-items: center; }
         .nh-pill {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: 14px; letter-spacing: -0.02em;
+          font-size: 14px; letter-spacing: 0em;
           padding: 9px 18px; border-radius: 10px;
           text-decoration: none; color: #000;
           transition: opacity .15s, transform .12s;
@@ -42,7 +42,7 @@ export default function SiteHeader() {
         }
         .nh-drawer a {
           font-family: var(--font-bungee, 'Bungee', sans-serif);
-          font-size: 28px; letter-spacing: -0.03em;
+          font-size: 28px; letter-spacing: -0.01em;
           color: #000; text-decoration: none;
           padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,.08);
           display: block;

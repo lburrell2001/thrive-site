@@ -221,7 +221,7 @@ export default function VaultPage() {
           </svg>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#fff', letterSpacing: '-0.01em', marginBottom: 5 }}>
+          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#fff', letterSpacing: '0em', marginBottom: 5 }}>
             ENCRYPTED BEFORE IT&apos;S STORED
           </div>
           <p style={{ fontFamily: F.inter, fontSize: 13, color: '#a0a0a0', margin: 0, lineHeight: 1.6 }}>
@@ -244,7 +244,7 @@ export default function VaultPage() {
         <div style={{ padding: '18px 24px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '-0.01em', marginBottom: 4 }}>
+              <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>
                 {editingId ? 'EDIT CREDENTIAL' : 'ADD A CREDENTIAL'}
               </div>
               <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>
