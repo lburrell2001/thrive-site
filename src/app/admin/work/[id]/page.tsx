@@ -40,6 +40,8 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
   const [newTask, setNewTask] = useState('');
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<{ email: string; note: string; next: string; close: boolean } | null>(null);
+  // Which invoices the report covers; null = all of them.
+  const [chosen, setChosen] = useState<string[] | null>(null);
   const { toast, show } = useToast();
 
   const load = useCallback(async () => {
@@ -98,8 +100,13 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
   const pct = tasks.length ? Math.round((done / tasks.length) * 100) : project.progress;
   const social = project.kind === 'social';
   const clientName = client.company_name || client.full_name || 'Client';
-  const invoiced = data.invoices.reduce((n, i) => n + i.amount_cents, 0);
-  const paid = data.invoices.reduce((n, i) => n + i.paid_cents, 0);
+  const included = data.invoices.filter((i) => chosen === null || chosen.includes(i.id));
+  const invoiced = included.reduce((n, i) => n + i.amount_cents, 0);
+  const paid = included.reduce((n, i) => n + i.paid_cents, 0);
+  const toggleInvoice = (invId: string) => {
+    const now = chosen ?? data.invoices.map((i) => i.id);
+    setChosen(now.includes(invId) ? now.filter((x) => x !== invId) : [...now, invId]);
+  };
   const unusedEstimates = data.estimates.filter((e) => e.lines > 0 && !tasks.some((t) => t.estimate_id === e.id));
 
   function reportData(): ReportData {
@@ -112,6 +119,7 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
       social: social ? accounts.map((a) => ({ platform: a.platform, handle: a.handle, start_on: a.start_captured_on, end_on: a.end_captured_on, metrics: a.metrics })) : [],
       invoiced_cents: invoiced,
       paid_cents: paid,
+      invoices: included.map((i) => ({ number: i.invoice_number, amount_cents: i.amount_cents, paid_cents: i.paid_cents })),
       next_step: report!.next,
       note: report!.note,
     };
@@ -236,6 +244,20 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
           {social && <span>{hasEndingStats(accounts) ? 'Ending stats are in' : <strong style={{ color: '#fd6100' }}>Add the ending stats for the growth section</strong>}</span>}
         </div>
         <div className={k.reportFields}>
+          {data.invoices.length > 0 && (
+            <fieldset className={k.invoicePick}>
+              <legend className={p.label}>Invoices on this report</legend>
+              {data.invoices.map((i) => (
+                <label key={i.id} className={k.check}>
+                  <input type="checkbox" checked={chosen === null || chosen.includes(i.id)} onChange={() => toggleInvoice(i.id)} />
+                  {i.invoice_number} · {i.project_name} · {formatLineMoney(i.amount_cents)} · {i.status === 'paid' ? 'paid' : i.paid_cents > 0 ? `${formatLineMoney(i.paid_cents)} paid` : 'not paid yet'}
+                </label>
+              ))}
+              <span className={w.muted} style={{ fontSize: 12.5 }}>
+                {included.length ? `The report shows ${formatLineMoney(invoiced)} invoiced, ${formatLineMoney(paid)} paid.` : 'No invoices: the report leaves out the Investment section.'}
+              </span>
+            </fieldset>
+          )}
           <label>
             <span className={p.label}>What’s next (shown on the report)</span>
             <textarea className={p.textarea} rows={3} value={report.next} onChange={(e) => setReport({ ...report, next: e.target.value })} />

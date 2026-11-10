@@ -16,6 +16,8 @@ export type ReportData = {
   social: { platform: string; handle: string; start_on: string | null; end_on: string | null; metrics: Metric[] }[];
   invoiced_cents: number;
   paid_cents: number;
+  /** The invoices the totals cover (older reports have none listed). */
+  invoices?: { number: string; amount_cents: number; paid_cents: number }[];
   next_step: string;
   note: string;
 };
@@ -151,6 +153,16 @@ export async function generateReportPDF(data: ReportData, opts: { output?: 'save
   // Investment.
   if (data.invoiced_cents > 0) {
     heading('Investment');
+    // Each invoice the report covers, then the totals.
+    for (const inv of data.invoices ?? []) {
+      need(7);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor('#555555');
+      const state = inv.paid_cents >= inv.amount_cents ? 'paid' : inv.paid_cents > 0 ? `${formatLineMoney(inv.paid_cents)} paid` : 'not paid yet';
+      doc.text(`Invoice ${inv.number} · ${state}`, M, y);
+      doc.text(formatLineMoney(inv.amount_cents), R, y, { align: 'right' });
+      y += 5.5;
+    }
+    if (data.invoices?.length) { doc.setDrawColor('#e5e5e5'); doc.line(M, y - 2, R, y - 2); y += 4; }
     need(8);
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor('#0a0a0a');
     doc.text('Invoiced', M, y); doc.text(formatLineMoney(data.invoiced_cents), R, y, { align: 'right' }); y += 6;
