@@ -99,12 +99,17 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
         words.forEach((w, i) => w.toggleAttribute('data-on', i < on));
       }
       // The logo mark rides the bar under the steps as they scroll through.
+      // On phones the bar runs down the side of the stacked steps, so the mark
+      // keeps level with the step being read (a little below mid-screen).
       const steps = stepsRef.current;
       const slider = sliderRef.current;
       if (steps && slider) {
         const r = steps.getBoundingClientRect();
-        const p = Math.min(1, Math.max(0, (vh * 0.9 - r.top) / (r.height + vh * 0.4)));
-        slider.style.setProperty('--p', p.toFixed(3));
+        const side = window.matchMedia('(max-width: 720px)').matches;
+        const p = side
+          ? (vh * 0.6 - r.top) / r.height
+          : (vh * 0.9 - r.top) / (r.height + vh * 0.4);
+        slider.style.setProperty('--p', Math.min(1, Math.max(0, p)).toFixed(3));
       }
     };
     const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
@@ -181,10 +186,11 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
           </h2>
           <div id="services" className={s.cards}>
             {SERVICES.map((svc, i) => (
-              <Link key={svc.href} href={rd(svc.href)} className={`${s.card} ${svc.tone} ${s.rise}`} style={{ '--tilt': `${[-4, 3, -2, 4, -3][i]}deg`, '--d': `${i * 70}ms` } as React.CSSProperties}>
+              <Link key={svc.href} href={rd(svc.href)} className={`${s.card} ${svc.tone} ${s.rise}`} style={{ '--tilt': `${[-4, 3, -2, 4, -3][i]}deg`, '--d': `${i * 70}ms`, '--float': `${i * -1.3}s`, '--from': i % 2 ? '1' : '-1' } as React.CSSProperties}>
                 <ThriveIcon name={svc.icon} className={s.cardIcon} />
                 <h3 className={s.cardTitle}>{svc.title}</h3>
-                <ul>{svc.items.map((it) => <li key={it}>{it}</li>)}</ul>
+                <ul>{svc.items.map((it, j) => <li key={it} style={{ '--j': j } as React.CSSProperties}>{it}</li>)}</ul>
+                <span className={s.cardGo} aria-hidden>→</span>
               </Link>
             ))}
           </div>
@@ -196,6 +202,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
             <h2 className={`${s.display} ${s.rise}`}>How We Work</h2>
             <p className={`${s.processLead} ${s.rise}`}>Four steps, one team, and you see the price before anything starts.</p>
           </div>
+          <div className={s.stepsWrap}>
           <ol ref={stepsRef} className={s.steps}>
             {STEPS.map((st, i) => (
               <li key={st.title} className={`${s.step} ${st.tone} ${s.rise}`} style={{ '--d': `${i * 90}ms` } as React.CSSProperties}>
@@ -211,6 +218,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
             <div className={s.sliderFill}>
               <img src="/new-thrive/logo-mark-blk.svg" alt="" className={s.sliderMark} />
             </div>
+          </div>
           </div>
         </section>
 
