@@ -1656,6 +1656,7 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
       {dialog}
       <SubSectionHead title="Invoices" action={
         <span style={{ display: 'flex', gap: 6 }}>
+          <Link href={`/admin/work/${project.id}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }} title="Checklist, social growth and the completion report">Checklist &amp; report</Link>
           <Link href={`/admin/invoices?mode=estimate&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }}>+ Estimate</Link>
           <Link href={`/admin/invoices?mode=invoice&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={`${p.btn} ${p.btnPrimary}`} style={{ padding: '3px 8px', fontSize: 11 }}>+ Invoice</Link>
         </span>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { portalApi } from '@/lib/portalApi';
+import type { ReportData } from '@/lib/reportPDF';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
 
@@ -71,6 +73,8 @@ export default function ProgressPage() {
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  // Completion reports Thrive has sent (migration 052), newest first.
+  const [reports, setReports] = useState<{ project_id: string; sent_at: string; data: ReportData }[]>([]);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabasePortal.auth.getUser();
@@ -94,6 +98,8 @@ export default function ProgressPage() {
     setRequests(reqRes.data ?? []);
     setActivity(actRes.data ?? []);
     setLoading(false);
+    portalApi<{ reports: { project_id: string; sent_at: string; data: ReportData }[] }>('/api/portal/reports')
+      .then((r) => setReports(r.reports)).catch(() => { /* none yet */ });
   }, []);
 
   // Load after the first paint (setting state straight from an effect re-renders synchronously).
@@ -107,6 +113,7 @@ export default function ProgressPage() {
       milestones: milestones.filter(m => m.project_name === proj.name),
       requests:   requests.filter(r => r.project_name === proj.name),
       activity:   activity.filter(a => a.project_name === proj.name),
+      report:     reports.find(r => r.project_id === proj.id)?.data ?? null,
     };
   }
 
@@ -190,10 +197,11 @@ export default function ProgressPage() {
 }
 
 // ── Project Card ──────────────────────────────────────────────────────────────
-function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, files, proposals, milestones, requests, activity }: {
+function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, files, proposals, milestones, requests, activity, report }: {
   proj: DbProject; archived?: boolean; userId: string | null; onRefresh: () => void;
   invoices: DbInvoice[]; files: DbFile[]; proposals: DbProposal[];
   milestones: DbMilestone[]; requests: DbRequest[]; activity: DbActivity[];
+  report: ReportData | null;
 }) {
   const [expanded, setExpanded]     = useState(false);
   const [payingId, setPayingId]     = useState<string | null>(null);
@@ -256,6 +264,15 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: dimAccent, flexShrink: 0 }} />
             <span style={{ fontFamily: F.bungee, fontSize: 16, color: archived ? '#808080' : '#0a0a0a', letterSpacing: '0em', lineHeight: 1.2 }}>{proj.name}</span>
             {archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '1px 7px', borderRadius: 999 }}>ARCHIVED</span>}
+            {report && (
+              <button
+                type="button"
+                onClick={async (e) => { e.stopPropagation(); const { generateReportPDF } = await import('@/lib/reportPDF'); await generateReportPDF(report); }}
+                style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#0a0a0a', background: '#0cf574', border: 'none', borderRadius: 999, padding: '3px 10px', cursor: 'pointer' }}
+              >
+                Completion report (PDF)
+              </button>
+            )}
           </div>
           {/* Mini progress bar */}
           <div style={{ height: 4, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden', maxWidth: 240 }}>

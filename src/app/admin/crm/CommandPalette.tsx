@@ -21,6 +21,7 @@ const ACTIONS = [
   { label: 'Estimates & invoices', hint: 'Type a list, get a PDF or a portal invoice', href: '/admin/invoices' },
   { label: 'Price list', hint: 'Services, add-ons and fees for estimates', href: '/admin/price-list' },
   { label: 'Clients', hint: 'Portal logins, projects, files', href: '/admin/clients' },
+  { label: 'Work in progress', hint: 'Checklists, social growth, completion reports', href: '/admin/work' },
   { label: 'Questionnaires', hint: 'Onboarding questionnaires and responses', href: '/admin/questionnaires' },
   { label: 'Portal welcome', hint: 'Preview what new clients see first', href: '/admin/welcome-preview' },
   { label: 'Emails', hint: 'Newsletters, outreach, templates', href: '/admin/crm/emails' },

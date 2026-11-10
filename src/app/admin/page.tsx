@@ -18,6 +18,7 @@ import { MeetingLink } from './crm/MeetingLink';
 import { STAGE_COLOR, avatarColor, initials, timeAgo } from './crm/shared';
 import type { ReminderPreview, ReminderResult, ReminderTarget } from '@/lib/reminders';
 import type { AdminSummary } from '@/types/adminSummary';
+import { WorkLine, type WorkRow } from './work/WorkLine';
 import { CRM_STAGES, STAGE_LABEL, type CrmToday } from '@/types/crm';
 
 function greeting() {
@@ -47,6 +48,14 @@ export default function AdminHome() {
   const [reminding, setReminding] = useState<Reminding | null>(null);
   const [sendingDigest, setSendingDigest] = useState(false);
   const [waitingQs, setWaitingQs] = useState<WaitingQuestionnaire[]>([]);
+  const [work, setWork] = useState<WorkRow[]>([]);
+
+  // Work in progress (migration 052): open projects with a checklist.
+  useEffect(() => {
+    apiGet<{ projects: WorkRow[] }>('/api/work')
+      .then((d) => setWork(d.projects.filter((r) => !r.completed_at)))
+      .catch(() => { /* not set up yet */ });
+  }, []);
 
   // Questionnaires assigned but not submitted (empty until migration 046 is run).
   useEffect(() => {
@@ -255,6 +264,10 @@ export default function AdminHome() {
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
                 </div>
               ))}
+            </Card>
+
+            <Card id="work" title="Work in progress" count={work.length} hot={work.some((r) => r.needs_start_stats)} note="Accepted work, as checklists" link={{ href: '/admin/work', label: 'All work' }} empty={work.length ? null : 'Nothing in progress. Accepted estimates and signed proposals show up here.'}>
+              {work.map((r) => <WorkLine key={r.id} row={r} />)}
             </Card>
 
             <Card id="questionnaires" title="Questionnaires waiting" count={waitingQs.length} note="Assigned, not submitted" link={{ href: '/admin/questionnaires', label: 'Questionnaires' }} empty={waitingQs.length ? null : 'No questionnaires waiting on clients.'}>

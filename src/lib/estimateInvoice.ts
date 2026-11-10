@@ -19,6 +19,7 @@ import { nextInvoiceNumberFor } from './invoiceHelpers';
 import { notifyPortalClient } from './clientNotify';
 import { formatLineMoney, type LineItem } from './lineItems';
 import { SITE_URL } from './seo';
+import { projectChecklistFromEstimate } from './projectWork';
 
 type Result = { ok: true; invoiceId: string; portalId: string; created: boolean } | { ok: false; error: string };
 
@@ -70,14 +71,22 @@ export async function invoiceForEstimate(
   const projectName = (est.title ?? '').trim() || `Estimate ${est.estimate_number}`;
   const { data: projects } = await db.from('portal_projects').select('id, name').eq('client_id', portalId);
   const project = (projects ?? []).find((p) => p.name.trim().toLowerCase() === projectName.toLowerCase());
+  let projectId: string | null = project?.id ?? null;
   if (!project) {
     if (est.crm_deal_id) {
-      const { error } = await db.rpc('create_deal_project', { p_client: portalId, p_deal: est.crm_deal_id, p_name: projectName });
+      const { data: pid, error } = await db.rpc('create_deal_project', { p_client: portalId, p_deal: est.crm_deal_id, p_name: projectName });
       if (error) return { ok: false, error: error.message };
+      projectId = pid as string;
     } else {
-      const { error } = await db.from('portal_projects').insert({ client_id: portalId, name: projectName, status: 'kickoff', progress: 0 });
+      const { data: made, error } = await db.from('portal_projects').insert({ client_id: portalId, name: projectName, status: 'kickoff', progress: 0 }).select('id').single();
       if (error) return { ok: false, error: error.message };
+      projectId = made.id;
     }
+  }
+  // The agreed lines become the project's checklist (migration 052).
+  if (projectId) {
+    try { await projectChecklistFromEstimate(db, estimateId, projectId); }
+    catch (e) { console.error('[estimate invoice] checklist not made', e); }
   }
 
   // 3. The invoice.
