@@ -11,6 +11,8 @@ import { deliver, portalContact } from '@/lib/clientNotify';
 import { closeDeal } from '@/lib/dealClose';
 import { remainingCents } from '@/lib/invoiceDeposit';
 import { GOOGLE_REVIEW_URL } from '@/lib/googleReview';
+import { SITE_URL } from '@/lib/seo';
+import { randomBytes } from 'node:crypto';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -150,13 +152,37 @@ export async function POST(req: Request, { params }: Ctx) {
       const found = await portalContact(db, project.client_id);
       if (!found) return badRequest('Client not found');
       const contact = { ...found, email: body.email };
+
+      // A review request goes with it (Google first, then the same words for the
+      // site): the deal's open request if there is one, else a new one.
+      const { data: deal0 } = project.crm_deal_id
+        ? await db.from('crm_deals').select('contact_id').eq('id', project.crm_deal_id).maybeSingle()
+        : { data: null };
+      const { data: crm0 } = deal0?.contact_id ? { data: { id: deal0.contact_id } } : await db.from('crm_contacts').select('id').eq('portal_client_id', project.client_id).maybeSingle();
+      let reviewUrl: string = GOOGLE_REVIEW_URL;
+      let reviewId: string | null = null;
+      if (crm0?.id) {
+        const { data: open } = await db.from('reviews').select('id, token').eq('crm_contact_id', crm0.id).eq('status', 'requested')
+          .match(project.crm_deal_id ? { crm_deal_id: project.crm_deal_id } : {}).order('requested_at', { ascending: false }).limit(1).maybeSingle();
+        let token = open?.token as string | undefined;
+        reviewId = open?.id ?? null;
+        if (!token) {
+          token = randomBytes(24).toString('base64url');
+          const { data: made } = await db.from('reviews').insert({
+            token, crm_contact_id: crm0.id, crm_deal_id: project.crm_deal_id ?? null,
+            display_name: found.name || null, status: 'requested', requested_at: new Date().toISOString(),
+          }).select('id').single();
+          reviewId = made?.id ?? null;
+        }
+        if (reviewId) reviewUrl = `${SITE_URL}/review/${token}`;
+      }
       const report = await deliver(db, contact, {
         subject: `${project.name}: your completion report`,
         eyebrow: 'Project complete',
         headline: `${project.name} is complete. Thank you for working with Thrive! Your completion report is attached: what we delivered, the timeline${(body.data as { social?: unknown[] }).social?.length ? ', your growth' : ''}, and what comes next.`,
         note: body.note?.trim() || null,
-        detail: 'If you were happy with the work, a short Google review means the world to a small studio — it’s how other businesses find us.',
-        ctaUrl: GOOGLE_REVIEW_URL, ctaLabel: 'Leave us a Google review', sms: null,
+        detail: 'If you were happy with the work, would you leave a short review? It takes two minutes on Google — it’s how other businesses find a small studio like mine — and with your okay it goes on our website too.',
+        ctaUrl: reviewUrl, ctaLabel: 'Leave a review', sms: null,
       }, { email: true, sms: false }, {
         fromInbox: true,
         attachments: [{ filename: `${project.name.replace(/[^\w\- ]+/g, '').trim() || 'Project'} - Completion report.pdf`, content: body.pdf, contentType: 'application/pdf' }],
@@ -164,6 +190,13 @@ export async function POST(req: Request, { params }: Ctx) {
       if (report.email.status !== 'sent') return badRequest(report.email.error ?? 'The email did not send');
 
       await db.from('project_reports').insert({ project_id: id, client_id: project.client_id, sent_to: body.email, data: body.data });
+      // Logged like any review request, so Home stops suggesting one for this deal.
+      if (reviewId) {
+        await db.from('client_reminders').insert({
+          target_type: 'review', target_id: reviewId, portal_client_id: project.client_id,
+          subject: `${project.name}: your completion report`, email_status: 'sent', email_to: body.email, sms_status: 'skipped',
+        });
+      }
       await db.from('portal_projects').update({ status: 'completed', progress: 100, completed_at: new Date().toISOString() }).eq('id', id);
       await db.from('portal_activity').insert({ client_id: project.client_id, text: `${project.name} complete — completion report sent`, dot_color: '#0cf574', project_name: project.name });
       if (project.crm_deal_id) {

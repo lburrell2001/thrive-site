@@ -5,6 +5,7 @@
 
 import { formatLineMoney } from './lineItems';
 import { growth, type Metric } from './projectWork';
+import { GOOGLE_REVIEW_URL } from './googleReview';
 
 export type ReportData = {
   project: string;
@@ -170,6 +171,19 @@ export async function generateReportPDF(data: ReportData, opts: { output?: 'save
       y += lines.length * 5 + 2;
     }
   }
+
+  // The review ask.
+  need(30);
+  y += 6;
+  doc.setFillColor('#0a0a0a');
+  doc.roundedRect(M, y, R - M, 24, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor('#ffffff');
+  doc.text('Loved working together?', M + 7, y + 9);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor('#d4d4d4');
+  doc.text('A short Google review helps other businesses find us. It takes two minutes.', M + 7, y + 15.5);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor('#0cf574');
+  doc.textWithLink('Leave a review on Google', M + 7, y + 21, { url: GOOGLE_REVIEW_URL });
+  y += 30;
 
   doc.setDrawColor('#e5e5e5'); doc.line(M, 280, R, 280);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor('#0a0a0a'); doc.text('Thrive Creative Studios', M, 286);
