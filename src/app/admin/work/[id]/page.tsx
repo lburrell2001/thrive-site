@@ -126,7 +126,7 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
     if (!report) return;
     const left = tasks.length - done;
     if (left > 0 && !window.confirm(`${left} item${left === 1 ? ' is' : 's are'} not ticked off. They’ll show as in progress on the report. Send it anyway?`)) return;
-    if (!window.confirm(`Email the completion report to ${report.email}? The project will be marked complete${report.close && data!.deal?.stage === 'won' && !data!.deal.closed_at ? ' and the deal closed (work finished)' : ''}.`)) return;
+    if (!window.confirm(`Email the completion report to ${report.email}? The project will be marked complete (100%) and archived on their profile${report.close && data!.deal?.stage === 'won' && !data!.deal.closed_at ? ' and the deal closed (work finished)' : ''}.`)) return;
     setBusy(true);
     try {
       const { generateReportPDF } = await import('@/lib/reportPDF');
