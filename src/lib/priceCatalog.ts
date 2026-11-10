@@ -13,11 +13,11 @@
 
 import { z } from 'zod';
 
-export const PRICE_TYPES = ['flat', 'hourly', 'included', 'monthly'] as const;
+export const PRICE_TYPES = ['flat', 'hourly', 'included', 'monthly', 'percent'] as const;
 export type PriceType = (typeof PRICE_TYPES)[number];
 
 export const PRICE_TYPE_LABEL: Record<PriceType, string> = {
-  flat: 'Flat', hourly: 'Hourly', included: 'Included', monthly: 'Monthly',
+  flat: 'Flat', hourly: 'Hourly', included: 'Included', monthly: 'Monthly', percent: 'Percent off',
 };
 
 export type PriceCategory = { id: string; name: string; description: string; sort_order: number };
@@ -74,7 +74,7 @@ export function dollars(n: number): string {
 
 /** What one of the item costs, in cents (hourly = hours × rate). */
 export function unitCents(item: Pick<PriceItem, 'price' | 'price_type' | 'hours'>): number {
-  if (item.price_type === 'included' || item.price === null) return 0;
+  if (item.price_type === 'included' || item.price_type === 'percent' || item.price === null) return 0;
   if (item.price_type === 'hourly') return Math.round((item.hours ?? 1) * item.price * 100);
   return Math.round(item.price * 100);
 }
@@ -84,6 +84,7 @@ export function priceLabel(item: Pick<PriceItem, 'price' | 'price_type' | 'hours
   if (item.price_type === 'included' || item.price === null) return 'Included';
   if (item.price_type === 'hourly') return `${item.hours ?? 1}h @ ${dollars(item.price)}`;
   if (item.price_type === 'monthly') return `${dollars(item.price)}/mo`;
+  if (item.price_type === 'percent') return `${item.price}% off`;
   return dollars(item.price);
 }
 
@@ -96,13 +97,15 @@ export function itemLine(item: PriceItem, qty = 1): string {
   const q = Math.max(1, Math.floor(qty) || 1);
   let name = clean(item.name);
   // Hourly lines carry the quantity in their hours.
-  if (q > 1 && item.price_type !== 'hourly') name += ` (x${q})`;
+  if (q > 1 && item.price_type !== 'hourly' && item.price_type !== 'percent') name += ` (x${q})`;
   if (item.is_optional) name += ' (Optional)';
   let desc = clean(item.description);
   if (item.price_type === 'monthly') desc = desc ? `${desc} /mo` : '/mo';
 
   let price: string;
   if (item.price_type === 'included' || item.price === null) price = 'Included';
+  // A percentage discount: its amount comes from the other lines (lineItems.ts applyPercents).
+  else if (item.price_type === 'percent') price = `${item.price}% off`;
   else if (item.price_type === 'hourly') price = `${(item.hours ?? 1) * q}h @ ${dollars(item.price)}`;
   else price = dollars((unitCents(item) * q) / 100);
 
@@ -194,6 +197,7 @@ export function exportCatalog(catalog: Catalog, opts: { includeInactive?: boolea
       const marked = monthlyCat || /per month/i.test(i.description);
       const price = i.price_type === 'included' || i.price === null ? 'Included'
         : i.price_type === 'hourly' ? `${i.hours ?? 1}h @ ${dollars(i.price)}`
+        : i.price_type === 'percent' ? `${i.price}% off`
         : i.price_type === 'monthly' && !marked ? `${dollars(i.price)}/mo`
         : dollars(i.price);
       out.push([name, i.description, price].filter(Boolean).join(' | '));
@@ -226,6 +230,8 @@ export function parsePriceList(text: string): ParsedCatalogCategory[] {
     let m: RegExpMatchArray | null;
     if (/^included$/i.test(priceText)) {
       cats[cats.length - 1].items.push({ name, description, price: 0, price_type: 'included', hours: null, is_optional });
+    } else if ((m = priceText.match(/^([\d.]+)\s*%\s*off$/i))) {
+      cat.items.push({ name, description, price: parseFloat(m[1]), price_type: 'percent', hours: null, is_optional });
     } else if ((m = priceText.match(/^([\d.]+)\s*h\s*@\s*\$([\d,.]+)$/i))) {
       cat.items.push({ name, description, price: parseFloat(m[2].replace(/,/g, '')), price_type: 'hourly', hours: parseFloat(m[1]), is_optional });
     } else if ((m = priceText.match(/^\$([\d,.]+)(\s*\/\s*mo)?$/i))) {
@@ -252,6 +258,7 @@ export function categoryTitle(heading: string): string {
     'UX/UI DESIGN': 'UX/UI design',
     'PHOTOGRAPHY': 'Photography',
     'SEO + LOCAL SEARCH': 'SEO + local search',
+    'DISCOUNTS': 'Discounts',
   };
   return named[heading.toUpperCase()] ?? heading.charAt(0) + heading.slice(1).toLowerCase();
 }

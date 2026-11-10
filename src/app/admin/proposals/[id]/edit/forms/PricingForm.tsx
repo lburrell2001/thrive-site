@@ -262,7 +262,8 @@ export function PricingForm({
         <TextArea label="Fine print under the total" value={c.footnote ?? ''} rows={2} onChange={(v) => set({ footnote: v || undefined })} />
       </div>
 
-      {drawer && catalog && <PriceListDrawer catalog={catalog} onInsert={insert} onClose={() => setDrawer(false)} />}
+      {/* Percentage discounts go on the estimate or invoice; proposal lines can't be negative. */}
+      {drawer && catalog && <PriceListDrawer catalog={{ ...catalog, items: catalog.items.filter((i) => i.price_type !== 'percent') }} onInsert={insert} onClose={() => setDrawer(false)} />}
     </>
   );
 }

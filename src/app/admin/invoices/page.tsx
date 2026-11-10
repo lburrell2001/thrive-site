@@ -1331,6 +1331,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
                     {name}
                     {optional && <span className={s.badgeOptional}>Optional</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
+                    {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
                   {b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '') && (
                     <>

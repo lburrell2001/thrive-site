@@ -8,6 +8,7 @@
 //     - Three rounds of revisions                      → adds to the line above
 //   Hosting setup | Included                           → $0, shows "Included"
 //   Returning client discount | -$100
+//   Friends & family discount | 50% off                → minus 50% of the one-time total
 //
 // Fields split on | or a tab (so a pasted spreadsheet works). The price is the
 // line total; "@ $100" or "$100/hr" makes it a rate times the hours. A line
@@ -16,7 +17,10 @@
 // the lines under it belong to that category (for the "Totals only" PDF's
 // subtotals). A description ending in "/mo" marks a monthly line. A
 // description starting with "~" is kept for Lauren but left off the client's
-// PDF ("Show description" off).
+// PDF ("Show description" off). A price of "50% off" (or "-50%") is a
+// percentage discount: its amount is worked out from the one-time lines that
+// aren't discounts (monthly lines and other discounts don't count), so it
+// stays right when items change (applyPercents).
 
 import { z } from 'zod';
 
@@ -30,6 +34,8 @@ export type LineItem = {
   category?: string;
   /** "Show description" off: the PDF leaves the description out. Only set when true. */
   hide_description?: boolean;
+  /** A percentage discount ("50% off"): amount_cents is minus this share of the base. Only set on those lines. */
+  percent?: number;
 };
 
 export type LineProblem = { line: number; message: string };
@@ -43,12 +49,14 @@ const RE_HOURS = new RegExp(String.raw`^(${NUM})\s*${HOURS_WORD}$`, 'i');
 const RE_RATE = new RegExp(String.raw`^@?\s*${MONEY}\s*\/\s*${HOURS_WORD}$`, 'i');
 const RE_PRICE = new RegExp(String.raw`^${MONEY}$`);
 const RE_INCLUDED = /^(included|free|no charge|n\/a)$/i;
+const RE_PERCENT = new RegExp(String.raw`^-?\s*(${NUM})\s*%(?:\s*off)?$`, 'i');
 
 // The same, at the end of a line typed without bars.
 const RE_TAIL_HOURS_AT = new RegExp(String.raw`\s(${NUM}\s*${HOURS_WORD}\s*(?:@|x|×|at)\s*-?\s*\$?\s*-?\s*${NUM}(?:\s*\/\s*${HOURS_WORD})?)$`, 'i');
 const RE_TAIL_RATE = new RegExp(String.raw`\s(@?\s*-?\s*\$\s*-?\s*${NUM}\s*\/\s*${HOURS_WORD})$`, 'i');
 const RE_TAIL_PRICE = new RegExp(String.raw`\s(-?\s*\$\s*-?\s*${NUM}|-?${NUM})$`);
 const RE_TAIL_INCLUDED = /\s(included|free|no charge)$/i;
+const RE_TAIL_PERCENT = new RegExp(String.raw`\s(-?\s*${NUM}\s*%(?:\s*off)?)$`, 'i');
 const RE_TAIL_HOURS = new RegExp(String.raw`\s(${NUM}\s*${HOURS_WORD})$`, 'i');
 
 function cents(minus1: string | undefined, minus2: string | undefined, n: string): number {
@@ -58,7 +66,7 @@ function cents(minus1: string | undefined, minus2: string | undefined, n: string
 
 const hoursOf = (n: string) => Math.round(parseFloat(n.replace(/,/g, '')) * 100) / 100;
 
-type Money = { hours?: number; rate?: number; price?: number; included?: boolean };
+type Money = { hours?: number; rate?: number; price?: number; included?: boolean; percent?: number };
 
 /** What a field says about money or time, or null if it's words. */
 function readField(field: string): Money | null {
@@ -68,6 +76,7 @@ function readField(field: string): Money | null {
   if ((m = field.match(RE_RATE))) return { rate: cents(m[1], m[2], m[3]) };
   if ((m = field.match(RE_PRICE))) return { price: cents(m[1], m[2], m[3]) };
   if (RE_INCLUDED.test(field)) return { included: true };
+  if ((m = field.match(RE_PERCENT))) return { percent: parseFloat(m[1].replace(/,/g, '')) };
   return null;
 }
 
@@ -75,7 +84,7 @@ function readField(field: string): Money | null {
 function splitLoose(line: string): string[] {
   let rest = line;
   const tail: string[] = [];
-  for (const re of [RE_TAIL_HOURS_AT, RE_TAIL_RATE, RE_TAIL_PRICE, RE_TAIL_INCLUDED]) {
+  for (const re of [RE_TAIL_PERCENT, RE_TAIL_HOURS_AT, RE_TAIL_RATE, RE_TAIL_PRICE, RE_TAIL_INCLUDED]) {
     const m = rest.match(re);
     if (m) { tail.unshift(m[1].trim()); rest = rest.slice(0, m.index).trimEnd(); break; }
   }
@@ -127,7 +136,10 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
     if (hidden) words[0] = words[0].replace(/^~\s*/, '');
 
     let amount: number;
-    if (money.rate !== undefined) {
+    if (money.percent !== undefined) {
+      if (!(money.percent > 0 && money.percent <= 100)) { problems.push({ line, message: `"${name}": a discount is between 1% and 100%` }); return; }
+      amount = 0; // worked out below, from the other lines
+    } else if (money.rate !== undefined) {
       if (money.hours === undefined) { problems.push({ line, message: `"${name}" has a rate but no hours (try 4h @ $100)` }); return; }
       amount = Math.round(money.hours * money.rate);
     } else if (money.price !== undefined) {
@@ -147,10 +159,22 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       amount_cents: amount,
       ...(category ? { category } : {}),
       ...(hidden ? { hide_description: true } : {}),
+      ...(money.percent !== undefined ? { percent: money.percent } : {}),
     });
   });
 
-  return { items, problems };
+  return { items: applyPercents(items), problems };
+}
+
+/**
+ * Sets each percentage discount's amount: minus that share of the one-time
+ * lines that aren't discounts (monthly charges and other discounts aren't
+ * discounted). Discounts don't stack on each other.
+ */
+export function applyPercents<T extends LineItem>(items: T[]): T[] {
+  if (!items.some((it) => it.percent)) return items;
+  const base = items.reduce((sum, it) => (it.percent || isMonthly(it) || it.amount_cents <= 0 ? sum : sum + it.amount_cents), 0);
+  return items.map((it) => (it.percent ? { ...it, hours: null, rate_cents: null, amount_cents: -Math.round((base * it.percent) / 100) } : it));
 }
 
 /** One item in the typed text: its line, any "-" lines under it, and what it reads as. */
@@ -180,6 +204,11 @@ export function lineBlocks(text: string): LineBlock[] {
     const own = lines.slice(b.start, b.end + 1).filter((l, j) => j === 0 || /^(\s+|[-•*]\s)/.test(l)).join('\n');
     const item = parseLineItems(own).items[0] ?? null;
     return { start: b.start, end: b.end, item: item ? { ...item, ...(b.category ? { category: b.category } : {}) } : null };
+  }).map((b, _i, all) => {
+    // A percentage discount read on its own has nothing to take off: use every row.
+    if (!b.item?.percent) return b;
+    const items = applyPercents(all.map((x) => x.item).filter((x): x is LineItem => Boolean(x)));
+    return { ...b, item: items.find((x) => x.percent === b.item!.percent && x.name === b.item!.name) ?? b.item };
   });
 }
 
@@ -193,7 +222,8 @@ function money(c: number): string {
 /** One item as typed lines (its "-" lines included, no heading). */
 export function lineText(it: LineItem): string {
   const [first = '', ...more] = it.description ? it.description.split('\n') : [];
-  const price = it.hours !== null && it.rate_cents !== null
+  const price = it.percent ? `${it.percent}% off`
+    : it.hours !== null && it.rate_cents !== null
     ? `${it.hours}h @ ${money(it.rate_cents)}`
     : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
   const main = [it.name, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
@@ -301,6 +331,8 @@ export const lineItemSchema = z.object({
   amount_cents: z.number().int().min(-100_000_000).max(100_000_000),
   category: z.string().trim().max(120).optional(),
   hide_description: z.boolean().optional(),
+  percent: z.number().gt(0).max(100).optional(),
 });
 
-export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200);
+/** Percentage discounts are worked out again on the server, so a saved total always matches its lines. */
+export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200).transform((items) => applyPercents(items));

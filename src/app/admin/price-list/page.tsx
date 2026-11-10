@@ -36,7 +36,7 @@ const blankForm = (category_id: string): ItemForm => ({
 });
 
 function itemBody(f: ItemForm) {
-  const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[$,]/g, '')));
+  const num = (v: string) => (v.trim() === '' ? null : Number(v.replace(/[$,%]/g, '')));
   return {
     category_id: f.category_id,
     name: f.name.trim(),
@@ -286,7 +286,8 @@ function ItemEditor({ item, categoryId, catalog, categories, busy, onSave, onCan
   const set = <K extends keyof ItemForm>(k: K, v: ItemForm[K]) => setF((x) => ({ ...x, [k]: v }));
 
   const needsPrice = f.price_type !== 'included';
-  const priceOk = !needsPrice || (f.price.trim() !== '' && !Number.isNaN(Number(f.price.replace(/[$,]/g, ''))));
+  const priceNum = Number(f.price.replace(/[$,%]/g, ''));
+  const priceOk = !needsPrice || (f.price.trim() !== '' && !Number.isNaN(priceNum) && (f.price_type !== 'percent' || (priceNum > 0 && priceNum <= 100)));
   const valid = f.name.trim() && !/[|]/.test(f.name + f.description) && priceOk;
 
   const rules = item ? catalog.rules.filter((r) => r.item_id === item.id) : [];
@@ -311,9 +312,12 @@ function ItemEditor({ item, categoryId, catalog, categories, busy, onSave, onCan
       </label>
       {needsPrice && (
         <label>
-          <span className={p.label}>{f.price_type === 'hourly' ? 'Rate per hour ($)' : f.price_type === 'monthly' ? 'Price per month ($)' : 'Price ($)'}</span>
+          <span className={p.label}>{f.price_type === 'hourly' ? 'Rate per hour ($)' : f.price_type === 'monthly' ? 'Price per month ($)' : f.price_type === 'percent' ? 'Percent off (1–100)' : 'Price ($)'}</span>
           <input className={p.input} inputMode="decimal" value={f.price} onChange={(e) => set('price', e.target.value)} />
         </label>
+      )}
+      {f.price_type === 'percent' && (
+        <p className={pl.full} style={{ margin: 0, fontSize: 12.5, color: '#6b6b6b' }}>Takes this share off the one-time total of the estimate or invoice (monthly charges aren’t discounted), and updates when items change. Not offered in proposal pricing.</p>
       )}
       {f.price_type === 'hourly' && (
         <label><span className={p.label}>Hours</span><input className={p.input} inputMode="decimal" value={f.hours} placeholder="1" onChange={(e) => set('hours', e.target.value)} /></label>

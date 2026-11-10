@@ -152,3 +152,10 @@ Q&A content | 5 answers to common customer questions | $180
 Monthly SEO | Ongoing updates and reporting, per month | $270
 Google reviews plan | Review request link, templates, and process | $90
 Google Ads setup | Campaign and conversion tracking setup | $270
+
+=== DISCOUNTS ===
+Note: Percent off the one-time total of an estimate or invoice. Monthly charges are not discounted.
+Friends & family discount | 50% off for friends and family | 50% off
+Project spotlight discount | 15% off for featuring the project in the Thrive portfolio | 15% off
+Teacher & veteran discount | 20% off for teachers and veterans | 20% off
+HBCU graduate discount | 20% off for HBCU graduates | 20% off
