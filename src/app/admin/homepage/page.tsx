@@ -8,6 +8,8 @@
 // - The three photos above the statement and the two inside the services
 //   heading. Left on Automatic, they show projects that aren't in the mosaic.
 // - The photo strips on About, Contact and Book a call (Automatic = a mix by service).
+// - The link preview: the picture shown when the homepage link is texted or
+//   posted (cropped to 1200×630 by /share-image). Default: Classic Rollers Car Club.
 // Only case-study images are offered, so every photo is real client work.
 
 import { useEffect, useState } from 'react';
@@ -22,7 +24,8 @@ import s from './homepage.module.css';
 type Pick = { slug: string; src: string };
 type Placed = Pick & Rect;
 type StripPage = 'about' | 'contact' | 'book';
-type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]> };
+type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]>; share: Pick | null };
+const DEFAULT_SHARE: Pick = { slug: 'classic-rollers-car-club', src: '/case-studies/classic-rollers-car-club/mockup-screens.webp' };
 const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] = [
   { page: 'about', label: 'About', hint: 'the row of five photos', href: '/about' },
   { page: 'contact', label: 'Contact', hint: 'the three beside “Ready to Thrive?”', href: '/contact' },
@@ -31,7 +34,7 @@ const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] =
 type Shown = { fan: string[]; inline: string[] };
 type Library = { slug: string; title: string; images: { src: string; url: string; alt: string }[] }[];
 type Data = { library: Library; config: Config; shown: Shown };
-type Target = { kind: 'tile'; i: number } | { kind: 'new'; rect: Rect } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number };
+type Target = { kind: 'tile'; i: number } | { kind: 'new'; rect: Rect } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number } | { kind: 'share' };
 
 const rectOf = ({ col, row, w: width, h }: Rect): Rect => ({ col, row, w: width, h });
 
@@ -89,6 +92,8 @@ export default function HomepageAdmin() {
       setTiles((t) => t.map((x, i) => (i === target.i ? { ...x, ...pk } : x)));
     } else if (target.kind === 'strip') {
       setStrip(target.page, target.i, pk);
+    } else if (target.kind === 'share') {
+      update((c) => ({ ...c, share: pk }));
     } else {
       const key = target.kind;
       update((c) => ({ ...c, [key]: c[key].map((x, i) => (i === target.i ? pk : x)) }));
@@ -143,6 +148,7 @@ export default function HomepageAdmin() {
     : target.kind === 'tile' ? `${layout === 'phone' ? 'Phone' : 'Desktop'} tile ${target.i + 1} is selected. Pick a photo below to change it.`
     : target.kind === 'fan' ? `Statement photo ${target.i + 1} is selected. Pick a photo below.`
     : target.kind === 'inline' ? `Heading photo ${target.i + 1} is selected. Pick a photo below.`
+    : target.kind === 'share' ? 'The link preview is selected. Pick a photo below.'
     : `${STRIPS.find((x) => x.page === target.page)?.label} photo ${target.i + 1} is selected. Pick a photo below.`;
 
   return (
@@ -238,6 +244,31 @@ export default function HomepageAdmin() {
           ))}
         </div>
         <p className={w.muted} style={{ margin: '10px 0 0', fontSize: 13 }}>Automatic photos are projects that aren’t in the mosaic, so they change when the mosaic does.</p>
+      </section>
+
+      <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
+        <h2 className={s.sectionTitle}>Link preview</h2>
+        <p className={w.muted} style={{ margin: '2px 0 12px', fontSize: 13 }}>The picture that shows when you text or post a link to the homepage. It’s cropped to the preview’s wide shape, as below.</p>
+        {(() => {
+          const im = find(config.share) ?? find(DEFAULT_SHARE);
+          const on = target.kind === 'share';
+          return (
+            <div className={s.share}>
+              <button type="button" className={`${s.shareCard} ${on ? s.tileOn : ''}`} onClick={() => setTarget({ kind: 'share' })} aria-pressed={on}>
+                <span className={s.shareImg}>{im && <img src={im.url} alt="" />}</span>
+                <span className={s.shareText}>
+                  <strong>Thrive Creative Studios</strong>
+                  <span>thrivecreativestudios.org</span>
+                </span>
+              </button>
+              <div className={s.shareSide}>
+                <p style={{ margin: 0, fontSize: 13 }}><strong>{im?.title ?? 'Classic Rollers Car Club'}</strong>{config.share ? '' : ' · the default'}</p>
+                <p className={w.muted} style={{ margin: '4px 0 0', fontSize: 12.5 }}>Click the preview, then a photo below. Apps keep the picture of a link already sent, so the new one shows on links sent after you save.</p>
+                {config.share && <button type="button" className={p.btn} style={{ marginTop: 10 }} onClick={() => update((c) => ({ ...c, share: null }))}>Back to the default</button>}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>

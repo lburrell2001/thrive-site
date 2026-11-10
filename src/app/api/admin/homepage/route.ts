@@ -31,6 +31,7 @@ const schema = z.object({
     contact: z.array(pick.nullable()).length(PAGE_STRIPS.contact),
     book: z.array(pick.nullable()).length(PAGE_STRIPS.book),
   }),
+  share: pick.nullable().default(null),
 });
 
 export async function PATCH(req: Request) {

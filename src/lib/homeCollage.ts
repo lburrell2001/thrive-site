@@ -1,13 +1,15 @@
 // The homepage photos chosen in admin (Website → Homepage), saved in
 // admin_config under `home_collage`:
 //   { mosaic: { desktop: [{ slug, src, col, row, w, h }], phone: [...] },
-//     fan: [pick ×3], inline: [pick ×2], pages: { about, contact, book } }
+//     fan: [pick ×3], inline: [pick ×2], pages: { about, contact, book }, share: pick | null }
 // `mosaic` is the hero: its own tiles for desktop (6 columns) and phones (2),
 // each placed where Lauren dragged it (src/lib/collageLayout.ts). `fan` is the three photos
 // above the statement, `inline` the two inside "We're a … Full-Service …
 // Creative Studio"; a null there means "pick automatically". `pages` holds
 // the photo strips on other pages (About, Contact, Book a call), same rule:
-// null = the automatic pick (mixedPhotos). Only case-study
+// null = the automatic pick (mixedPhotos). `share` is the picture in the
+// homepage's link preview (texts, social posts; cropped to 1200×630 by
+// /share-image); null = the Classic Rollers Car Club site. Only case-study
 // images can be chosen, so every photo is real client work with real alt
 // text. Older saves (a plain array of seven picks, then `tiles` with named
 // sizes) still read: they're packed into a desktop layout and a phone one made from it.
@@ -36,6 +38,7 @@ export type HomeConfig = {
   fan: (CollagePick | null)[];
   inline: (CollagePick | null)[];
   pages: Record<StripPage, (CollagePick | null)[]>;
+  share: CollagePick | null;
 };
 export type HomePhotos = { collage: Record<Layout, CollageTile[]>; fan: string[]; inline: string[] };
 export type LibraryProject = { slug: string; title: string; images: { src: string; url: string; alt: string }[] };
@@ -95,6 +98,9 @@ const DEFAULT_PICKS: CollagePick[] = [
   { slug: 'dallas-derby-day', src: '/case-studies/dallas-derby-day/post-perfect-pair.webp' },
 ];
 
+/** The link-preview picture until one is chosen: the Classic Rollers Car Club site. */
+export const DEFAULT_SHARE: CollagePick = { slug: 'classic-rollers-car-club', src: '/case-studies/classic-rollers-car-club/mockup-screens.webp' };
+
 const withPhone = (desktop: PlacedPick[]): Mosaic => {
   const phone = phoneFrom(desktop);
   return { desktop, phone: desktop.map((p, i) => ({ slug: p.slug, src: p.src, ...phone[i] })) };
@@ -129,7 +135,7 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
   let raw: unknown = null;
   try { raw = JSON.parse(value ?? 'null'); } catch { raw = null; }
   const obj = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as {
-    mosaic?: Partial<Record<Layout, unknown>>; tiles?: unknown; fan?: unknown; inline?: unknown; pages?: Record<string, unknown>;
+    mosaic?: Partial<Record<Layout, unknown>>; tiles?: unknown; fan?: unknown; inline?: unknown; pages?: Record<string, unknown>; share?: unknown;
   };
   let mosaic: Mosaic | null = null;
   if (obj.mosaic) {
@@ -149,7 +155,7 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
   }
   const list = (v: unknown, n: number) => Array.from({ length: n }, (_, i) => validPick(Array.isArray(v) ? v[i] : null));
   const pages = Object.fromEntries(STRIP_PAGES.map((k) => [k, list(obj.pages?.[k], PAGE_STRIPS[k])])) as HomeConfig['pages'];
-  return { mosaic: mosaic ?? DEFAULT_MOSAIC, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT), pages };
+  return { mosaic: mosaic ?? DEFAULT_MOSAIC, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT), pages, share: validPick(obj.share) };
 }
 
 export async function loadConfig(db: SupabaseClient): Promise<HomeConfig> {
@@ -194,6 +200,18 @@ export function stripPhotos(config: HomeConfig, page: StripPage): WorkPhoto[] {
 export async function loadStripPhotos(db: SupabaseClient | null, page: StripPage): Promise<WorkPhoto[]> {
   const config = db ? await loadConfig(db).catch(() => parseConfig(null)) : parseConfig(null);
   return stripPhotos(config, page);
+}
+
+/** The homepage's link-preview picture: the chosen one, else the default. */
+export function shareImage(config: HomeConfig): { src: string; url: string; alt: string; title: string } {
+  const found = imageFor(config.share) ?? imageFor(DEFAULT_SHARE);
+  if (!found) return { src: '/hero-thrive-desk.jpg', url: '/hero-thrive-desk.jpg', alt: 'Thrive Creative Studios', title: 'Thrive Creative Studios' };
+  return { src: found.im.src, url: caseImageUrl(found.im.src, 2000), alt: found.im.alt, title: found.cs.client };
+}
+
+export async function loadShareImage(db: SupabaseClient | null) {
+  const config = db ? await loadConfig(db).catch(() => parseConfig(null)) : parseConfig(null);
+  return shareImage(config);
 }
 
 export async function saveConfig(db: SupabaseClient, config: HomeConfig) {
