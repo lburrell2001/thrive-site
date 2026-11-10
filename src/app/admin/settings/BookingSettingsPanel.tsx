@@ -60,16 +60,19 @@ export function BookingSettingsPanel() {
     return <p className={p.empty}>{failed || 'Loading…'}</p>;
   }
 
-  const dirty = JSON.stringify(settings) !== JSON.stringify(data.settings);
+  const dirty = JSON.stringify({ ...settings, enabled: null }) !== JSON.stringify({ ...data.settings, enabled: null });
   const set = <K extends keyof BookingSettings>(key: K, value: BookingSettings[K]) => setSettings((s) => (s ? { ...s, [key]: value } : s));
   const setDay = (day: Weekday, windows: HoursWindow[]) => set('weekly_hours', { ...settings.weekly_hours, [day]: windows });
 
   async function save(patch: Partial<BookingSettings> = {}) {
     setSaving(true);
     try {
-      const { enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link, meeting_note, calendar_mailbox } = { ...settings!, ...patch };
+      const { title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link, meeting_note, calendar_mailbox } = { ...settings!, ...patch };
       await apiSend('/api/bookings', 'PATCH', {
-        enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link: meeting_link ?? '', meeting_note,
+        // Open/closed changes only from its own switch: a page loaded before
+        // someone else flipped it would otherwise send the old value back.
+        ...('enabled' in patch ? { enabled: patch.enabled } : {}),
+        title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link: meeting_link ?? '', meeting_note,
         // Only once migration 054 has added the column (the key is missing before it).
         ...(calendar_mailbox !== undefined ? { calendar_mailbox: calendar_mailbox ?? '' } : {}),
       });
