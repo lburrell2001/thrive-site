@@ -17,6 +17,8 @@ import { ProposalRenderer } from '@/components/proposal/ProposalRenderer';
 import { proposalFontClass } from '@/lib/proposalFonts';
 import { emptyBlock } from '@/lib/proposalSchemas';
 import { adminHeaders } from '@/lib/adminSession';
+import SendLater, { laterAt, scheduledFor } from '../../../SendLater';
+import { formatWhen } from '@/lib/scheduleTime';
 import type {
   AccentName,
   BlockType,
@@ -91,7 +93,15 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
   // Its estimate (migration 050), rebuilt from the pricing on every save.
   const [estimate, setEstimate] = useState<LinkedEstimate | null>(null);
   // "Send": the email dialog.
-  const [sending, setSending] = useState<{ email: string; note: string; busy: boolean } | null>(null);
+  const [sending, setSending] = useState<{ email: string; note: string; busy: boolean; when: string | null } | null>(null);
+  // A scheduled send of this proposal (migration 053), if there is one.
+  const [scheduledSend, setScheduledSend] = useState<{ id: string; send_at: string; status: string; error: string | null; label: string } | null>(null);
+  const loadScheduled = useCallback(() => {
+    apiGet<{ sends: { id: string; kind: string; target_id: string | null; send_at: string; status: string; error: string | null; label: string }[] }>('/api/scheduled-sends')
+      .then((r) => setScheduledSend(r.sends.find((x) => x.kind === 'proposal' && x.target_id === id) ?? null))
+      .catch(() => setScheduledSend(null));
+  }, [id]);
+  useEffect(() => { loadScheduled(); }, [loadScheduled]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [publishing, setPublishing] = useState(false);
@@ -323,7 +333,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
 
   /** Opens the Send dialog with their email filled in. */
   async function startSend() {
-    setSending({ email: '', note: '', busy: true });
+    setSending({ email: '', note: '', busy: true, when: null });
     try {
       const r = await apiGet<{ email: string }>(`/api/proposals/${id}/email`);
       setSending((cur) => (cur ? { ...cur, email: cur.email || r.email, busy: false } : cur));
@@ -337,12 +347,25 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
     if (!sending) return;
     setSending({ ...sending, busy: true });
     try {
+      const later = laterAt(sending.when);
+      if (later) {
+        if (later.problem) throw new Error(later.problem);
+        await apiSend('/api/scheduled-sends', 'POST', {
+          kind: 'proposal', target_id: id, label: `Proposal “${doc?.title ?? 'Untitled'}” to ${sending.email}`,
+          payload: { email: sending.email, note: sending.note }, send_at: later.iso,
+        });
+        setSending(null);
+        show(`“${doc?.title ?? 'The proposal'}” to ${sending.email}: ${scheduledFor(later.iso)} It’s published then.`);
+        loadScheduled();
+        return;
+      }
       const r = await apiSend<{ to: string }>(`/api/proposals/${id}/email`, 'POST', { email: sending.email, note: sending.note });
       setMeta((current) => (current && (current.status === 'draft' || current.status === 'declined') ? { ...current, status: 'sent' } : current));
       setDeclineReason(null);
       setDeclinedAt(null);
       setSending(null);
       show(`Sent to ${r.to}.`);
+      loadScheduled();
     } catch (error) {
       setSending((cur) => (cur ? { ...cur, busy: false } : cur));
       show(error instanceof Error ? error.message : 'Could not send it', 'error');
@@ -474,6 +497,22 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
             <SignedBanner signature={signatures[0]} currency={meta.currency} proposalId={id} depositPercent={doc.depositPercent} />
           )}
           {meta.status === 'declined' && <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />}
+          {scheduledSend && (
+            <div className={pb.scheduled} role="status">
+              <span>
+                {scheduledSend.status === 'failed'
+                  ? <>The scheduled send didn’t go: {scheduledSend.error}</>
+                  : <>Scheduled: {scheduledSend.label.replace(/^Proposal “.*” to /, 'to ')} on <strong>{formatWhen(scheduledSend.send_at)}</strong>. Edits until then go out with it.</>}
+              </span>
+              {scheduledSend.status !== 'sending' && (
+                <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={async () => {
+                  if (scheduledSend.status === 'scheduled' && !window.confirm('Cancel the scheduled send? Nothing is sent.')) return;
+                  try { await apiSend(`/api/scheduled-sends?id=${scheduledSend.id}`, 'DELETE'); show(scheduledSend.status === 'failed' ? 'Dismissed.' : 'Cancelled. Nothing was sent.'); loadScheduled(); }
+                  catch (e) { show(e instanceof Error ? e.message : 'Could not cancel it', 'error'); }
+                }}>{scheduledSend.status === 'failed' ? 'Dismiss' : 'Cancel send'}</button>
+              )}
+            </div>
+          )}
 
           <div className={pb.tabs} role="tablist" aria-label="Edit">
             {([['details', 'Details'], ['pricing', 'Pricing'], ['pages', 'Pages']] as const).map(([value, label]) => (
@@ -660,11 +699,12 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
               <textarea className={s.textarea} rows={3} value={sending.note} placeholder="A line from you"
                 onChange={(e) => setSending({ ...sending, note: e.target.value })} />
             </label>
+            <SendLater when={sending.when} onChange={(v) => setSending({ ...sending, when: v })} disabled={sending.busy} />
             <div className={pb.sendActions}>
               <button type="button" className={s.btn} onClick={() => setSending(null)} disabled={sending.busy}>Cancel</button>
               <button type="button" className={`${s.btn} ${s.btnPrimary}`} onClick={sendProposal}
                 disabled={sending.busy || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(sending.email.trim())}>
-                {sending.busy ? 'Sending…' : 'Send proposal'}
+                {sending.busy ? (sending.when ? 'Scheduling…' : 'Sending…') : sending.when ? 'Schedule' : 'Send proposal'}
               </button>
             </div>
           </div>

@@ -1,5 +1,6 @@
-// Sends whatever is due: audience emails (newsletters) and one-to-one drafts
-// with a scheduled_at in the past. Vercel Cron calls this every five minutes
+// Sends whatever is due: audience emails (newsletters), one-to-one drafts
+// with a scheduled_at in the past, and scheduled proposals, estimates and
+// invoices (src/lib/scheduledSends.ts, migration 053). Vercel Cron calls this every five minutes
 // (/api/cron/scheduled-emails). Each send claims its row first, so an
 // overlapping run, or Lauren clicking Send at the same moment, can't send
 // twice. A failure leaves the email marked failed with the reason, and
@@ -11,6 +12,7 @@ import { Resend } from 'resend';
 import { BRAND, brandEmail, button, esc, paragraph } from '@/lib/emailLayout';
 import { sendNewsletter } from '@/lib/newsletter';
 import { sendProspectDraft } from '@/lib/prospects';
+import { sendDueScheduled } from '@/lib/scheduledSends';
 
 interface Failure { what: string; error: string; href: string }
 
@@ -40,6 +42,14 @@ export async function sendDueEmails(db: SupabaseClient, site: string) {
     }
   }
 
+  try {
+    const more = await sendDueScheduled(db, site);
+    sent += more.sent;
+    failures.push(...more.failures);
+  } catch (e) {
+    console.error('[scheduled sends]', e);
+  }
+
   if (failures.length) await tellLauren(failures, site).catch(() => {});
   return { sent, failed: failures.length };
 }
@@ -49,17 +59,17 @@ async function tellLauren(failures: Failure[], site: string) {
   const from = process.env.CONTACT_NOTIFY_FROM;
   const to = process.env.CONTACT_NOTIFY_TO;
   if (!key || !from || !to) return;
-  const subject = failures.length === 1 ? 'A scheduled email didn’t send' : `${failures.length} scheduled emails didn’t send`;
+  const subject = failures.length === 1 ? 'A scheduled send didn’t go out' : `${failures.length} scheduled sends didn’t go out`;
   const html = brandEmail({
     title: subject,
     preheader: failures[0].error,
-    eyebrow: 'Scheduled email',
+    eyebrow: 'Scheduled send',
     accent: 'orange',
     heading: subject,
     body: [
       ...failures.map((f) => paragraph(`<strong>${esc(f.what)}</strong><br>${esc(f.error)} — <a href="${esc(f.href)}" style="color:${BRAND.magenta};">open it</a>`, { html: true })),
       paragraph('Fix it, then schedule it again or send it now.'),
-      button(`${site}/admin/crm/emails`, 'Open Emails'),
+      button(failures[0].href, 'Open it'),
     ].join('\n'),
   });
   const text = `${subject}\n\n${failures.map((f) => `${f.what}: ${f.error}\n${f.href}`).join('\n\n')}`;

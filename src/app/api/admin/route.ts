@@ -10,7 +10,8 @@ import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { DOC_BUCKET, docRef, isDocPath, removeDoc, signDocs } from '@/lib/clientDocs';
-import { lineItemsSchema, totalCents } from '@/lib/lineItems';
+
+import { createPortalInvoice } from '@/lib/invoiceCreate';
 import {
   ADMIN_ROLE, MIN_PASSCODE_LENGTH, adminFromToken, bearerToken, checkAdminAccess, forgetPasscodeMode,
   forgetVerifiedPasscodes, hashPasscode, passcodeFailure, passcodeRetired,
@@ -380,63 +381,10 @@ export async function POST(req: NextRequest) {
       }
 
       case 'add_invoice': {
-        const { clientId, invoice_number, project_name, invoice_date, due_date, status, subscription_id, line_items, notes, totals_only, deposit_cents, deposit_due_date, crm_deal_id } = params as Record<string, unknown>;
-        let { amount_cents } = params as Record<string, unknown>;
-        const row: Record<string, unknown> = { client_id: clientId, invoice_number, project_name, amount_cents: Number(amount_cents), invoice_date, due_date, status };
-        if (subscription_id) row.subscription_id = subscription_id;
-        // From an estimate on a deal: the invoice joins the same deal.
-        if (typeof crm_deal_id === 'string' && /^[0-9a-f-]{36}$/i.test(crm_deal_id)) row.crm_deal_id = crm_deal_id;
-        // From the invoice builder: the lines set the total.
-        if (line_items !== undefined) {
-          const lines = lineItemsSchema.safeParse(line_items);
-          if (!lines.success) return err(lines.error.issues[0]?.message ?? 'Check the invoice lines');
-          amount_cents = totalCents(lines.data);
-          if (Number(amount_cents) <= 0) return err('The invoice total must be more than $0');
-          row.amount_cents = amount_cents;
-          row.line_items = lines.data;
-          row.notes = typeof notes === 'string' && notes.trim() ? notes.trim().slice(0, 4000) : null;
-          if (typeof totals_only === 'boolean') row.totals_only = totals_only;
-        }
-        // A deposit (migration 048): only it is payable until the balance is opened.
-        if (deposit_cents !== undefined && deposit_cents !== null) {
-          const dep = Math.round(Number(deposit_cents));
-          if (!(dep > 0) || dep >= Number(row.amount_cents)) return err('The deposit must be more than $0 and less than the total');
-          if (typeof deposit_due_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(deposit_due_date)) return err('Add a date for the deposit');
-          row.deposit_cents = dep;
-          row.deposit_due_date = deposit_due_date;
-          row.balance_open = false;
-        }
-        let { data, error } = await admin.from('portal_invoices').insert(row).select().single();
-        // Before migration 047 there's no totals_only column.
-        if (error && /totals_only/.test(error.message)) {
-          delete row.totals_only;
-          ({ data, error } = await admin.from('portal_invoices').insert(row).select().single());
-        }
-        if (error) return err(/deposit|balance_open/.test(error.message) ? 'Run migration 048 in Supabase to add deposits.' : /line_items|notes/.test(error.message) ? 'Run migration 039 in Supabase to save invoice lines.' : error.message);
-        const usd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
-        const fmtAmt = usd(Number(amount_cents));
-        if (row.deposit_cents) {
-          const dep = usd(row.deposit_cents as number);
-          const by = new Date(`${row.deposit_due_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${dep} deposit due ${by} (${fmtAmt} total)`, '#1e3add', project_name as string | null);
-          notifyClient(
-            admin, clientId as string,
-            `Invoice ${invoice_number} — ${dep} deposit due ${by}`,
-            `A new invoice has been added to your portal. The deposit is due now; the rest will be ready to pay later.`,
-            [project_name && `Project: ${project_name as string}`, `Deposit: ${dep} due ${by}`, `Total: ${fmtAmt}`].filter(Boolean).join('\n'),
-            { sms: `new invoice ${invoice_number}: ${dep} deposit due ${by}. View and pay:`, path: '/portal/invoices', ctaLabel: 'Pay the deposit' },
-          );
-        } else {
-          logActivity(admin, clientId as string, `Invoice ${invoice_number} sent — ${fmtAmt} due`, '#1e3add', project_name as string | null);
-          notifyClient(
-            admin, clientId as string,
-            `Invoice ${invoice_number} — ${fmtAmt} due`,
-            `A new invoice has been added to your portal.`,
-            project_name ? `Project: ${project_name as string}\nAmount: ${fmtAmt}` : `Amount: ${fmtAmt}`,
-            { sms: `new invoice ${invoice_number} for ${fmtAmt}. View and pay:`, path: '/portal/invoices', ctaLabel: 'View invoice' },
-          );
-        }
-        return NextResponse.json({ ok: true, data });
+        const made = await createPortalInvoice(admin, params as Record<string, unknown>);
+        if (!made.ok) return err(made.error);
+        after(() => notifyPortalClient(admin, made.clientId, made.notice));
+        return NextResponse.json({ ok: true, data: made.invoice });
       }
 
       case 'update_invoice': {

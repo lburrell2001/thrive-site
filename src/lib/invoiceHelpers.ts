@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { scheduledInvoiceNumbers } from './scheduledSends';
 
 export type IntervalUnit = 'week' | 'month' | 'year';
 
@@ -14,7 +15,9 @@ export async function nextInvoiceNumberFor(
     .from('portal_invoices')
     .select('invoice_number')
     .eq('client_id', clientId);
-  const rows = (data ?? []) as { invoice_number: string }[];
+  // Numbers already given to invoices scheduled to send later count too.
+  const scheduled = await scheduledInvoiceNumbers(admin, clientId).catch(() => [] as string[]);
+  const rows = [...((data ?? []) as { invoice_number: string }[]), ...scheduled.map((n) => ({ invoice_number: n }))];
   const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-(\\d+)$`, 'i');
   let max = 0;
   for (const r of rows) {

@@ -23,6 +23,8 @@ import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lin
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
+import SendLater, { laterAt, scheduledFor } from '../SendLater';
+import { formatWhen } from '@/lib/scheduleTime';
 import { proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
 import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
 
@@ -38,6 +40,7 @@ interface InvoiceRow {
 }
 interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
 interface DealRow { id: string; contact_id: string; title: string; stage: string }
+type Scheduled = { id: string; kind: 'proposal' | 'estimate' | 'invoice'; target_id: string | null; label: string; send_at: string; status: string; error: string | null; client_id?: string | null; invoice_number?: string | null; amount_cents?: number | null; project_name?: string | null };
 interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[]; deals?: DealRow[]; proposalLinks?: { id: string; title: string; estimate_id: string }[] }
 
 interface Draft {
@@ -158,7 +161,11 @@ export default function InvoiceBuilder() {
   // "Open balance" on a held deposit invoice: which row, and the balance's due date.
   const [opening, setOpening] = useState<{ id: string; due: string } | null>(null);
   // "Send" on an estimate: the email dialog.
-  const [sending, setSending] = useState<{ est: Estimate; email: string; note: string; loading: boolean } | null>(null);
+  const [sending, setSending] = useState<{ est: Estimate; email: string; note: string; loading: boolean; when: string | null } | null>(null);
+  // Scheduled sends (migration 053): estimates waiting to go, invoices not created yet.
+  const [scheduled, setScheduled] = useState<Scheduled[]>([]);
+  // The invoice builder's "Send later" time; null = send now.
+  const [invoiceWhen, setInvoiceWhen] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   // The portal client this was opened from (a project's "+ Invoice" / "+ Estimate").
   const [returnClient, setReturnClient] = useState<string | null>(null);
@@ -172,16 +179,22 @@ export default function InvoiceBuilder() {
       .catch(() => { /* the builder works without the catalog */ });
   }, []);
 
+  const loadScheduled = useCallback(() => {
+    apiGet<{ sends: Scheduled[] }>('/api/scheduled-sends').then((r) => setScheduled(r.sends)).catch(() => setScheduled([]));
+  }, []);
+
   const load = useCallback(async () => {
+    loadScheduled();
     try {
       setData(await apiGet<BillingData>('/api/estimates'));
     } catch (e) {
       setFailed(e instanceof Error ? e.message : 'Could not load');
     }
-  }, []);
+  }, [loadScheduled]);
 
   useEffect(() => {
     let cancelled = false;
+    loadScheduled();
     apiGet<BillingData>('/api/estimates')
       .then((d) => {
         if (cancelled) return;
@@ -262,7 +275,7 @@ export default function InvoiceBuilder() {
       })
       .catch((e) => { if (!cancelled) setFailed(e instanceof Error ? e.message : 'Could not load'); });
     return () => { cancelled = true; };
-  }, []);
+  }, [loadScheduled]);
 
   // Keep the list typed so far if the tab closes.
   useEffect(() => {
@@ -463,10 +476,14 @@ export default function InvoiceBuilder() {
     const what = depositCents
       ? `invoice ${draft.number} for ${formatLineMoney(total)}, with a ${formatLineMoney(depositCents)} deposit due ${formatDate(draft.depositDue ?? '')} (the rest stays locked until you open it),`
       : `invoice ${draft.number} for ${formatLineMoney(total)}`;
-    if (!window.confirm(`Add ${what} to ${draft.clientName || 'this client'}'s portal? They'll get an email (and a text if they've opted in).`)) return;
+    const later = laterAt(invoiceWhen);
+    if (later?.problem) { show(later.problem, 'error'); return; }
+    if (!window.confirm(later
+      ? `Schedule ${what} for ${draft.clientName || 'this client'}? It's added to their portal at ${formatWhen(later.iso)}, when they get an email (and a text if they've opted in). Until then they can't see it.`
+      : `Add ${what} to ${draft.clientName || 'this client'}'s portal? They'll get an email (and a text if they've opted in).`)) return;
     setBusy(true);
     try {
-      const inv = await apiSend<InvoiceRow>('/api/admin', 'POST', {
+      const params = {
         action: 'add_invoice',
         clientId: portalId,
         invoice_number: draft.number.trim(),
@@ -479,7 +496,25 @@ export default function InvoiceBuilder() {
         totals_only: draft.totalsOnly,
         ...(depositCents ? { deposit_cents: depositCents, deposit_due_date: draft.depositDue } : {}),
         ...(fromEstimateId && fromDealId ? { crm_deal_id: fromDealId } : {}),
-      });
+      };
+      if (later) {
+        await apiSend('/api/scheduled-sends', 'POST', {
+          kind: 'invoice', label: `Invoice ${draft.number.trim()} for ${draft.clientName || 'a client'}`,
+          payload: { params, from_estimate_id: fromEstimateId }, send_at: later.iso,
+        });
+        localStorage.removeItem(DRAFT_KEY);
+        setFromEstimateId(null);
+        setInvoiceWhen(null);
+        setDraft(blankDraft('invoice'));
+        setView('list');
+        setTab('invoices');
+        scrollTop();
+        show(`Invoice ${draft.number.trim()}: ${scheduledFor(later.iso)}`);
+        await load();
+        setBusy(false);
+        return;
+      }
+      const inv = await apiSend<InvoiceRow>('/api/admin', 'POST', params);
       if (fromEstimateId) {
         await apiSend(`/api/estimates/${fromEstimateId}`, 'PATCH', { status: 'invoiced', invoice_id: inv.id }).catch(() => undefined);
       }
@@ -530,9 +565,23 @@ export default function InvoiceBuilder() {
     setBusy(false);
   }
 
+  /** Cancels a scheduled send (or dismisses one that failed). */
+  async function cancelScheduled(row: Scheduled) {
+    const what = row.kind === 'invoice' ? `invoice ${row.invoice_number ?? ''}`.trim() : row.label || 'this send';
+    if (row.status === 'scheduled' && !window.confirm(`Cancel the scheduled ${what}? Nothing is sent.`)) return;
+    try {
+      await apiSend(`/api/scheduled-sends?id=${row.id}`, 'DELETE');
+      show(row.status === 'failed' ? 'Dismissed.' : 'Cancelled. Nothing was sent.');
+      loadScheduled();
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not cancel it', 'error');
+    }
+  }
+  const scheduledFor_ = (kind: Scheduled['kind'], id: string) => scheduled.find((r) => r.kind === kind && r.target_id === id);
+
   /** Opens the Send dialog with their email filled in when it's on file. */
   async function startSend(est: Estimate) {
-    setSending({ est, email: '', note: '', loading: true });
+    setSending({ est, email: '', note: '', loading: true, when: null });
     try {
       const r = await apiGet<{ email: string }>(`/api/estimates/${est.id}/send`);
       setSending((cur) => (cur && cur.est.id === est.id ? { ...cur, email: cur.email || r.email, loading: false } : cur));
@@ -553,6 +602,18 @@ export default function InvoiceBuilder() {
         invoice_date: est.issue_date, due_date: est.valid_until ?? '', status: est.status, line_items: est.line_items,
         notes: est.notes, totals_only: est.totals_only ?? false,
       }, est.client_name || null, { output: 'base64' });
+      const later = laterAt(sending.when);
+      if (later) {
+        if (later.problem) throw new Error(later.problem);
+        await apiSend('/api/scheduled-sends', 'POST', {
+          kind: 'estimate', target_id: est.id, label: `Estimate ${est.estimate_number} to ${sending.email}`,
+          payload: { email: sending.email, note: sending.note, pdf }, send_at: later.iso,
+        });
+        setSending(null);
+        show(`${est.estimate_number} to ${sending.email}: ${scheduledFor(later.iso)}`);
+        await load();
+        return;
+      }
       await apiSend(`/api/estimates/${est.id}/send`, 'POST', { email: sending.email, note: sending.note, pdf });
       setSending(null);
       show(`${est.estimate_number} sent to ${sending.email}.`);
@@ -688,6 +749,7 @@ export default function InvoiceBuilder() {
     const q = query.trim().toLowerCase();
     const estimates = data.estimates.filter((e) => !q || `${e.estimate_number} ${e.client_name} ${e.title}`.toLowerCase().includes(q));
     const invoices = data.invoices.filter((i) => !q || `${i.invoice_number} ${clientNameById.get(i.client_id) ?? ''} ${i.project_name}`.toLowerCase().includes(q));
+    const scheduledInvoices = scheduled.filter((r) => r.kind === 'invoice' && (!q || `${r.invoice_number ?? ''} ${(r.client_id && clientNameById.get(r.client_id)) || ''} ${r.project_name ?? ''}`.toLowerCase().includes(q)));
     const open = data.estimates.filter((e) => e.status === 'draft' || e.status === 'sent');
     const accepted = data.estimates.filter((e) => e.status === 'accepted');
     const unpaid = data.invoices.filter((i) => i.status !== 'paid');
@@ -774,6 +836,12 @@ export default function InvoiceBuilder() {
                         <span className={s.docNumber}>{est.estimate_number}</span>
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
                         {proposalOf(est.id) && <span className={`${s.status} ${s.stDraft}`}>With a proposal</span>}
+                        {(() => {
+                          const sch = scheduledFor_('estimate', est.id);
+                          return sch && <span className={`${s.status} ${sch.status === 'failed' ? s.stDeclined : s.stSent}`} title={sch.error ?? undefined}>
+                            {sch.status === 'failed' ? 'Scheduled send failed' : `Sends ${formatWhen(sch.send_at)}`}
+                          </span>;
+                        })()}
                       </span>
                       <span className={s.docWho}>{est.client_name || 'No client'}</span>
                       <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
@@ -786,9 +854,15 @@ export default function InvoiceBuilder() {
                           {(['draft', 'sent', 'accepted', 'declined'] as const).map((v) => <option key={v} value={v}>{STATUS_STYLE[v].label}</option>)}
                         </select>
                       )}
-                      <button type="button" className={`${p.btn} ${p.btnSmall} ${est.status === 'draft' ? p.btnPrimary : ''}`} onClick={() => startSend(est)}>
-                        {est.status === 'draft' ? 'Send' : 'Send again'}
-                      </button>
+                      {scheduledFor_('estimate', est.id) ? (
+                        <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => cancelScheduled(scheduledFor_('estimate', est.id)!)}>
+                          {scheduledFor_('estimate', est.id)!.status === 'failed' ? 'Dismiss' : 'Cancel send'}
+                        </button>
+                      ) : (
+                        <button type="button" className={`${p.btn} ${p.btnSmall} ${est.status === 'draft' ? p.btnPrimary : ''}`} onClick={() => startSend(est)}>
+                          {est.status === 'draft' ? 'Send' : 'Send again'}
+                        </button>
+                      )}
                       <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => estimatePdf(est)}>PDF</button>
                       {proposalOf(est.id) ? (
                         <Link href={`/admin/crm/proposals/${proposalOf(est.id)!.id}/edit`} className={`${p.btn} ${p.btnSmall}`}>Open proposal</Link>
@@ -807,6 +881,33 @@ export default function InvoiceBuilder() {
           )
         )}
 
+        {tab === 'invoices' && scheduledInvoices.length > 0 && (
+          <>
+            <h2 className={s.listGroup}>Scheduled</h2>
+            <ul className={s.docList} style={{ marginBottom: 18 }}>
+              {scheduledInvoices.map((row) => (
+                <li key={row.id} className={s.doc}>
+                  <div className={s.docMain}>
+                    <span className={s.docTop}>
+                      <span className={s.docNumber}>{row.invoice_number ?? 'Invoice'}</span>
+                      <span className={`${s.status} ${row.status === 'failed' ? s.stDeclined : s.stSent}`} title={row.error ?? undefined}>
+                        {row.status === 'failed' ? 'Didn’t send' : row.status === 'sending' ? 'Sending' : `Sends ${formatWhen(row.send_at)}`}
+                      </span>
+                    </span>
+                    <span className={s.docWho}>{(row.client_id && clientNameById.get(row.client_id)) || 'Client'}</span>
+                    <span className={s.docMeta}>{row.status === 'failed' ? row.error : [row.project_name, 'not in their portal yet'].filter(Boolean).join(' · ')}</span>
+                  </div>
+                  <span className={s.docAmount}>{row.amount_cents != null ? formatLineMoney(row.amount_cents) : ''}</span>
+                  <div className={s.docActions}>
+                    {row.status !== 'sending' && (
+                      <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => cancelScheduled(row)}>{row.status === 'failed' ? 'Dismiss' : 'Cancel'}</button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         {tab === 'invoices' && (
           invoices.length === 0 ? (
             <div className={s.emptyCard}>
@@ -863,6 +964,7 @@ export default function InvoiceBuilder() {
           email={sending.email}
           note={sending.note}
           loading={sending.loading}
+          when={sending.when}
           onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
           onSend={sendEstimate}
           onClose={() => setSending(null)}
@@ -876,7 +978,7 @@ export default function InvoiceBuilder() {
   // ── Editor ────────────────────────────────────────────────────────────────
   const heading = editingId ? `Edit ${draft.number}` : fromEstimateId ? 'Invoice from estimate' : `New ${isInvoice ? 'invoice' : 'estimate'}`;
   const primaryLabel = isInvoice
-    ? (busy ? 'Sending…' : 'Send to client portal')
+    ? (busy ? (invoiceWhen ? 'Scheduling…' : 'Sending…') : invoiceWhen ? 'Schedule' : 'Send to client portal')
     : (busy ? 'Saving…' : editingId ? (dirty ? 'Save changes' : 'Saved') : 'Save estimate');
   const primaryDisabled = isInvoice
     ? !canSave || !portalId || busy || !data.ready
@@ -1110,6 +1212,13 @@ export default function InvoiceBuilder() {
               <textarea className={p.textarea} rows={3} value={draft.notes} onChange={(e) => set('notes', e.target.value)}
                 placeholder={isInvoice ? 'Payment terms, thank-you note…' : 'What’s not included, timeline, next steps…'} />
             </label>
+            {isInvoice && !editingId && (
+              <div style={{ display: 'grid', gap: 6, marginTop: 16 }}>
+                <span className={p.label}>When it goes to their portal</span>
+                <SendLater when={invoiceWhen} onChange={setInvoiceWhen} disabled={busy} />
+                {invoiceWhen && <span className={w.muted} style={{ fontSize: 12.5 }}>The invoice is created at that time, so they can’t see it before then. It waits under Scheduled on the Invoices tab, where you can cancel it.</span>}
+              </div>
+            )}
             {editingEstimate && (
               <div className={s.finishLinks}>
                 {linkedProposal ? (
@@ -1170,6 +1279,7 @@ export default function InvoiceBuilder() {
           email={sending.email}
           note={sending.note}
           loading={sending.loading}
+          when={sending.when}
           onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
           onSend={sendEstimate}
           onClose={() => setSending(null)}
@@ -1371,9 +1481,9 @@ function DepositFields({ draft, total, depositCents, problem, onChange }: {
 }
 
 /** "Send estimate": to whom, an optional note, and Send. The PDF goes attached. */
-function SendDialog({ number, email, note, loading, onChange, onSend, onClose }: {
-  number: string; email: string; note: string; loading: boolean;
-  onChange: (patch: { email?: string; note?: string }) => void; onSend: () => void; onClose: () => void;
+function SendDialog({ number, email, note, loading, when, onChange, onSend, onClose }: {
+  number: string; email: string; note: string; loading: boolean; when: string | null;
+  onChange: (patch: { email?: string; note?: string; when?: string | null }) => void; onSend: () => void; onClose: () => void;
 }) {
   const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
   return (
@@ -1392,10 +1502,11 @@ function SendDialog({ number, email, note, loading, onChange, onSend, onClose }:
           <textarea className={p.textarea} rows={3} value={note} placeholder="A line from you, e.g. Let me know if you have any questions."
             onChange={(e) => onChange({ note: e.target.value })} />
         </label>
+        <SendLater when={when} onChange={(v) => onChange({ when: v })} disabled={loading} />
         <div className={s.sendActions}>
           <button type="button" className={p.btn} onClick={onClose} disabled={loading}>Cancel</button>
           <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!valid || loading} onClick={onSend}>
-            {loading ? 'Sending…' : 'Send estimate'}
+            {loading ? (when ? 'Scheduling…' : 'Sending…') : when ? 'Schedule' : 'Send estimate'}
           </button>
         </div>
       </div>
