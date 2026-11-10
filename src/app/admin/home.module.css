@@ -1,0 +1,134 @@
+/* Admin Home: a stats strip, then what needs Lauren (left) beside her week at
+   a glance (right). Empty sections collapse into one "all clear" line. */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-bottom: 24px;
+  border: 1px solid var(--a-border, #e6e6e6);
+  border-radius: 22px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.stat {
+  display: grid;
+  gap: 2px;
+  padding: 16px 20px;
+  border-right: 1px solid var(--a-border, #e6e6e6);
+  color: inherit;
+  text-decoration: none;
+}
+
+.stat:last-child { border-right: 0; }
+.stat:hover { background: var(--a-surface-2, #f5f5f5); }
+.statLabel { font-size: 12.5px; font-weight: 600; color: var(--a-muted, #6b6b6b); }
+.statValue { font-size: 26px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.05em; }
+.statHot { color: #e50586; }
+.statNote { font-size: 12px; color: var(--a-muted, #6b6b6b); }
+
+@media (max-width: 760px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat { border-right: 0; border-bottom: 1px solid var(--a-border, #e6e6e6); }
+  .stat:nth-child(odd) { border-right: 1px solid var(--a-border, #e6e6e6); }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+}
+
+.column { display: grid; gap: 16px; min-width: 0; }
+
+.columnTitle {
+  margin: 0 0 -4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--a-muted, #6b6b6b);
+}
+
+.clear {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border: 1.5px dashed var(--a-border-strong, #d4d4d4);
+  border-radius: 22px;
+  font-size: 13px;
+  color: var(--a-muted, #6b6b6b);
+}
+
+.clear strong { color: #141414; }
+
+.chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--a-surface-2, #f2f2f2);
+  font-size: 12px;
+  font-weight: 600;
+  color: #141414;
+}
+
+.allClear {
+  display: grid;
+  gap: 10px;
+  padding: 26px 22px;
+  border-radius: 22px;
+  background: #0cf574;
+  color: #141414;
+}
+
+.allClear h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.08em; word-spacing: 0.12em; }
+.allClear p { margin: 0; font-size: 14px; }
+.allClear div { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Work in progress, compact for the side column. */
+.work { display: grid; }
+
+.workRow {
+  display: grid;
+  gap: 6px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--a-border, #e6e6e6);
+  color: inherit;
+  text-decoration: none;
+}
+
+.workRow:first-child { border-top: 0; }
+.workRow:hover { background: var(--a-surface-2, #f5f5f5); }
+.workTop { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.workTop strong { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workTop span { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.workSub { font-size: 12px; color: var(--a-muted, #6b6b6b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { height: 6px; border-radius: 999px; background: #eee; overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: 999px; background: #e50586; }
+.flag { justify-self: start; padding: 1px 8px; border-radius: 999px; background: #fd6100; color: #fff; font-size: 11px; font-weight: 700; }
+.flagGreen { justify-self: start; padding: 1px 8px; border-radius: 999px; background: #0cf574; color: #141414; font-size: 11px; font-weight: 700; }
+
+/* Pipeline as bars. */
+.stages { display: grid; gap: 10px; padding: 14px 18px 16px; }
+
+.stage {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 12.5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.stageBar { height: 10px; border-radius: 999px; background: #f0f0f0; overflow: hidden; }
+.stageBar > span { display: block; height: 100%; border-radius: 999px; min-width: 4px; }
+.stageValue { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.traffic { display: grid; gap: 4px; padding: 14px 18px 16px; font-size: 13px; }
+.trafficBig { font-size: 26px; font-weight: 700; letter-spacing: -0.05em; }
+.idea { margin-top: 8px; padding: 10px 12px; border-radius: 14px; background: var(--a-surface-2, #f5f5f5); }

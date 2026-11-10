@@ -177,7 +177,7 @@ One app (2026-11-04). After sign-in, `AdminShell.tsx` renders `AdminWorkspace.ts
 
 ### Admin home and weekly digest
 
-`/admin` is Home: replies to answer, follow-ups, new inquiries, upcoming calls, proposals awaiting signature and unpaid invoices (with Remind), deals gone quiet, reviews, the pipeline and this week's traffic. People open in the contact panel. It reads `GET /api/dashboard` and `GET /api/crm/today`.
+`/admin` is Home (2026-11-09 layout: a stats strip, then "Needs you" — only the sections with something in them, the empty ones listed on one "Nothing waiting on" line — beside "Your week": calls, work in progress, pipeline bars, traffic): replies to answer, follow-ups, new inquiries, upcoming calls, proposals awaiting signature and unpaid invoices (with Remind), deals gone quiet, reviews, the pipeline and this week's traffic. People open in the contact panel. It reads `GET /api/dashboard` and `GET /api/crm/today`.
 
 - Both the home page (`GET /api/dashboard`) and the Monday digest read `buildAdminSummary()` in `src/lib/adminSummary.ts`, so they always agree. Days are Dallas days.
 - The digest (`src/lib/weeklyDigest.ts`) emails `CONTACT_NOTIFY_TO` and texts `CONTACT_NOTIFY_PHONE` if set. Vercel Cron calls `GET /api/cron/weekly-digest` at 13:00 UTC Mondays with `Bearer CRON_SECRET`; "Send me the weekly digest" on the home page calls `POST /api/dashboard/digest`.

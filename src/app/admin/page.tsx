@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import p from './proposals/proposals.module.css';
 import w from './crm/workspace.module.css';
+import h from './home.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from './proposals/adminApi';
 import { useCrm } from './crm/CrmContext';
 import { ReminderDialog } from './ReminderDialog';
@@ -18,7 +19,7 @@ import { MeetingLink } from './crm/MeetingLink';
 import { STAGE_COLOR, avatarColor, initials, timeAgo } from './crm/shared';
 import type { ReminderPreview, ReminderResult, ReminderTarget } from '@/lib/reminders';
 import type { AdminSummary } from '@/types/adminSummary';
-import { WorkLine, type WorkRow } from './work/WorkLine';
+import type { WorkRow } from './work/WorkLine';
 import { CRM_STAGES, STAGE_LABEL, type CrmToday } from '@/types/crm';
 
 function greeting() {
@@ -108,11 +109,16 @@ export default function AdminHome() {
   const overdue = dueNow.filter((t) => t.overdue).length;
   const replies = today?.replies ?? [];
 
+  // Everything under "Needs you", in a line.
   const line = d && today ? [
     replies.length && plural(replies.length, 'reply', 'replies') + ' to answer',
     dueNow.length && plural(dueNow.length, 'follow-up', 'follow-ups') + ' due',
     d.newInquiries.length && plural(d.newInquiries.length, 'new inquiry', 'new inquiries'),
-    d.unpaidTotals.overdue_cents > 0 && `${formatMoneyCents(d.unpaidTotals.overdue_cents)} overdue`,
+    d.proposalsAwaiting.length && plural(d.proposalsAwaiting.length, 'proposal', 'proposals') + ' to be signed',
+    d.unpaidInvoices.length && plural(d.unpaidInvoices.length, 'unpaid invoice', 'unpaid invoices') + (d.unpaidTotals.overdue_cents > 0 ? ` (${formatMoneyCents(d.unpaidTotals.overdue_cents)} overdue)` : ''),
+    waitingQs.length && plural(waitingQs.length, 'questionnaire', 'questionnaires') + ' out',
+    today.quiet.length && plural(today.quiet.length, 'deal', 'deals') + ' gone quiet',
+    d.reviewCandidates.length && plural(d.reviewCandidates.length, 'review', 'reviews') + ' to ask for',
   ].filter(Boolean).join(' · ') || 'Nothing waiting on you. A good day to reach out to a few prospects.' : null;
 
   return (
@@ -134,20 +140,23 @@ export default function AdminHome() {
         </div>
       </div>
 
-      {d && today && (
-        <>
-          <div className={w.statRow}>
-            <Stat label="Follow-ups due" value={String(dueNow.length)} note={overdue ? `${overdue} overdue` : upcoming.length ? `${upcoming.length} more this week` : 'all clear'} hot={overdue > 0} href="#follow-ups" />
-            <Stat label="New inquiries" value={String(d.newInquiries.length)} hot={d.newInquiries.length > 0} href="#inquiries" />
-            <Stat label="Awaiting signature" value={String(d.proposalsAwaiting.length)} href="#signatures" />
-            <Stat label="Overdue invoices" value={formatMoneyCents(d.unpaidTotals.overdue_cents)} hot={d.unpaidTotals.overdue_cents > 0} note={d.unpaidTotals.due_cents ? `${formatMoneyCents(d.unpaidTotals.due_cents)} not yet due` : undefined} href="#invoices" />
-            <Stat label="Open pipeline" value={formatMoneyCents(d.pipeline.open_value_cents)} note={`${formatMoneyCents(d.pipeline.won_this_month_cents)} won this month`} href="/admin/crm/pipeline" />
-            {d.traffic && <Stat label="Visits this week" value={d.traffic.visits.toLocaleString()} note={change(d.traffic.visits, d.traffic.previous_visits) ?? undefined} href="/admin/analytics" />}
-          </div>
-
-          <div className={w.grid2}>
-            {replies.length > 0 && (
-              <Card id="replies" title="Replies" count={replies.length} hot wide>
+      {d && today && (() => {
+        // What needs her, in order; only the ones with something in them show.
+        const needs = [
+          { id: 'replies', title: 'Replies', count: replies.length, hot: true },
+          { id: 'follow-ups', title: 'Follow-ups', count: d.followUps.length, hot: overdue > 0 },
+          { id: 'inquiries', title: 'New inquiries', count: d.newInquiries.length, hot: true },
+          { id: 'signatures', title: 'Waiting on a signature', count: d.proposalsAwaiting.length, link: { href: '/admin/crm/proposals', label: 'Proposals' } },
+          { id: 'invoices', title: 'Unpaid invoices', count: d.unpaidInvoices.length, hot: d.unpaidTotals.overdue_cents > 0, link: { href: '/admin/invoices', label: 'Invoices' } },
+          { id: 'questionnaires', title: 'Questionnaires waiting', count: waitingQs.length, link: { href: '/admin/questionnaires', label: 'Questionnaires' } },
+          { id: 'quiet', title: 'Gone quiet', count: today.quiet.length, note: 'Open deals, nothing in 2+ weeks' },
+          { id: 'reviews', title: 'Reviews', count: d.reviewsToApprove.length + d.reviewCandidates.length, link: { href: '/admin/reviews', label: 'Reviews' } },
+        ];
+        const showing = needs.filter((n) => n.count > 0);
+        const clear = needs.filter((n) => n.count === 0 && n.id !== 'replies');
+        const maxStage = Math.max(1, ...CRM_STAGES.map((st) => d.pipeline.stages[st].value_cents ?? 0));
+        const bodies: Record<string, React.ReactNode> = {
+          replies: (<>
                 {replies.map((r) => (
                   <div key={r.id} className={w.item} style={{ cursor: 'default' }}>
                     <span className={w.avatar} style={{ background: r.contact_id ? avatarColor(r.contact_id) : '#8a8a8a' }}>{initials(r.name)}</span>
@@ -162,10 +171,8 @@ export default function AdminHome() {
                     </span>
                   </div>
                 ))}
-              </Card>
-            )}
-
-            <Card id="follow-ups" title="Follow-ups" count={dueNow.length} empty={d.followUps.length ? null : 'Nothing due this week.'}>
+                        </>),
+          'follow-ups': (<>
               {[...dueNow, ...upcoming].map((t) => (
                 <div key={t.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
                   <input type="checkbox" className={w.check} aria-label={`Mark "${t.title}" done`} onChange={() => act(() => apiSend(`/api/crm/tasks/${t.id}`, 'PATCH', { completed: true }), 'Done.')} />
@@ -178,9 +185,8 @@ export default function AdminHome() {
                   </span>
                 </div>
               ))}
-            </Card>
-
-            <Card id="inquiries" title="New inquiries" count={d.newInquiries.length} hot empty={d.newInquiries.length ? null : 'No unread inquiries.'}>
+                      </>),
+          inquiries: (<>
               {d.newInquiries.map((i) => (
                 <button key={i.id} type="button" className={w.item} onClick={() => i.contact_id && openContact(i.contact_id, i.deal_id)}>
                   <span className={w.avatar} style={{ background: avatarColor(i.contact_id ?? i.id) }}>{initials(i.name)}</span>
@@ -191,9 +197,126 @@ export default function AdminHome() {
                   <span className={w.itemWhen}>{timeAgo(i.created_at)}</span>
                 </button>
               ))}
-            </Card>
+                      </>),
+          signatures: (<>
+              {d.proposalsAwaiting.map((pr) => (
+                <div key={`${pr.kind}:${pr.id}`} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <div className={w.itemMain}>
+                    {pr.kind === 'builder'
+                      ? <Link href={`/admin/crm/proposals/${pr.id}/edit`} className={w.itemTitle} style={{ color: 'inherit', textDecoration: 'none' }}>{pr.title}</Link>
+                      : <button type="button" className={w.itemTitle} style={{ all: 'unset', cursor: 'pointer', fontWeight: 700 }} onClick={() => openClient(pr.client_id)}>{pr.title}</button>}
+                    <p className={w.itemSub}>
+                      {[
+                        pr.client_name,
+                        pr.total_cents != null && formatMoneyCents(pr.total_cents, pr.currency),
+                        pr.kind === 'builder' ? (pr.viewed ? 'opened' : 'not opened yet') : 'uploaded PDF',
+                        pr.since && `sent ${timeAgo(pr.since)}`,
+                        pr.last_reminded_at && `reminded ${timeAgo(pr.last_reminded_at)}`,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
+                  </div>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({
+                    title: 'Remind about proposal',
+                    target: pr.kind === 'builder' ? { kind: 'proposal', id: pr.id } : { kind: 'portal_proposal', id: pr.id },
+                  })}>Remind</button>
+                </div>
+              ))}
+                      </>),
+          invoices: (<>
+              {d.unpaidInvoices.map((inv) => (
+                <div key={inv.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => openClient(inv.client_id)}>
+                    <span className={w.itemTitle}>{inv.client_name} · {formatMoneyCents(inv.amount_cents)}</span>
+                    <span className={w.itemSub}>{[inv.invoice_number, inv.project_name, inv.last_reminded_at && `reminded ${timeAgo(inv.last_reminded_at)}`].filter(Boolean).join(' · ')}</span>
+                  </button>
+                  <span className={w.itemWhen} style={inv.overdue ? { color: 'var(--a-danger)', fontWeight: 700 } : undefined}>{inv.overdue ? 'Overdue' : 'Due'} {formatDate(inv.due_date)}</span>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
+                </div>
+              ))}
+                      </>),
+          questionnaires: (<>
+              {waitingQs.map((a) => (
+                <div key={a.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <Link href={`/admin/questionnaires/responses/${a.id}`} className={w.itemMain} style={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
+                    <span className={w.itemTitle}>{a.company_name || a.client_name || 'Client'} · {a.title}</span>
+                    <span className={w.itemSub}>{a.status === 'not_started' ? 'Not started' : a.status === 'reopened' ? 'Reopened' : 'In progress'} · {a.answered} of {a.total} answered</span>
+                  </Link>
+                  <span className={w.itemWhen}>{timeAgo(a.assigned_at)}</span>
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: `Remind about ${a.title}`, target: { kind: 'questionnaire', id: a.id } })}>Remind</button>
+                </div>
+              ))}
+                      </>),
+          quiet: (<>
+              {today.quiet.map((q) => (
+                <button key={q.id} type="button" className={w.item} onClick={() => openContact(q.contact_id, q.id)}>
+                  <span className={w.avatar} style={{ background: avatarColor(q.contact_id) }}>{initials(q.name)}</span>
+                  <span className={w.itemMain}>
+                    <span className={w.itemTitle}>{q.title}</span>
+                    <span className={w.itemSub}>{q.name} · {STAGE_LABEL[q.stage]}</span>
+                  </span>
+                  <span className={w.itemWhen}>{timeAgo(q.last_touch_at)}</span>
+                </button>
+              ))}
+                      </>),
+          reviews: (<>
+              {d.reviewsToApprove.map((r) => (
+                <Link key={r.id} href="/admin/reviews" className={w.item} style={{ color: 'inherit', textDecoration: 'none' }}>
+                  <span className={w.itemMain}>
+                    <span className={w.itemTitle}>{r.display_name ?? 'Client'}{r.rating ? ` · ${'★'.repeat(r.rating)}` : ''}: approve?</span>
+                    {r.body && <span className={w.itemSub}>“{r.body.length > 110 ? `${r.body.slice(0, 110)}…` : r.body}”</span>}
+                  </span>
+                  <span className={w.itemWhen}>{timeAgo(r.submitted_at)}</span>
+                </Link>
+              ))}
+              {d.reviewCandidates.map((c) => (
+                <button key={c.deal_id} type="button" className={w.item} onClick={() => openContact(c.contact_id, c.deal_id)}>
+                  <span className={w.itemMain}>
+                    <span className={w.itemTitle}>Ask {c.contact_name} for a review</span>
+                    <span className={w.itemSub}>{c.deal_title} · won {timeAgo(c.won_at)}</span>
+                  </span>
+                </button>
+              ))}
+                      </>),
+        };
+        return (
+          <>
+            <div className={h.strip}>
+              <Stat label="Follow-ups due" value={String(dueNow.length)} note={overdue ? `${overdue} overdue` : upcoming.length ? `${upcoming.length} more this week` : 'all clear'} hot={overdue > 0} href="#follow-ups" />
+              <Stat label="New inquiries" value={String(d.newInquiries.length)} hot={d.newInquiries.length > 0} href="#inquiries" />
+              <Stat label="Awaiting signature" value={String(d.proposalsAwaiting.length)} href="#signatures" />
+              <Stat label="Overdue invoices" value={formatMoneyCents(d.unpaidTotals.overdue_cents)} hot={d.unpaidTotals.overdue_cents > 0} note={d.unpaidTotals.due_cents ? `${formatMoneyCents(d.unpaidTotals.due_cents)} not yet due` : undefined} href="#invoices" />
+              <Stat label="Open pipeline" value={formatMoneyCents(d.pipeline.open_value_cents)} note={`${formatMoneyCents(d.pipeline.won_this_month_cents)} won this month`} href="/admin/crm/pipeline" />
+              {d.traffic && <Stat label="Visits this week" value={d.traffic.visits.toLocaleString()} note={change(d.traffic.visits, d.traffic.previous_visits) ?? undefined} href="/admin/analytics" />}
+            </div>
 
-            <Card id="calls" title="Calls & meetings" count={d.upcomingCalls.length} link={{ href: '/admin/crm/calls', label: 'Calls' }} empty={d.upcomingCalls.length ? null : 'Nothing booked or on your calendar this week.'}>
+            <div className={h.layout}>
+              <div className={h.column}>
+                <h2 className={h.columnTitle}>Needs you</h2>
+                {showing.length === 0 ? (
+                  <div className={h.allClear}>
+                    <h2>All clear</h2>
+                    <p>Nothing is waiting on you. A good moment to reach out to a few prospects or post something new.</p>
+                    <div>
+                      <Link href="/admin/crm/prospects" className={`${p.btn} ${p.btnPrimary}`}>Prospects</Link>
+                      <Link href="/admin/crm/emails" className={p.btn}>Write an email</Link>
+                    </div>
+                  </div>
+                ) : showing.map((n) => (
+                  <Card key={n.id} id={n.id} title={n.title} count={n.count} hot={n.hot} note={n.note} link={n.link}>
+                    {bodies[n.id]}
+                  </Card>
+                ))}
+                {showing.length > 0 && clear.length > 0 && (
+                  <p className={h.clear}>
+                    <strong>Nothing waiting on:</strong>
+                    {clear.map((n) => <span key={n.id} className={h.chip}>{n.title}</span>)}
+                  </p>
+                )}
+              </div>
+
+              <div className={h.column}>
+                <h2 className={h.columnTitle}>Your week</h2>
+                <Card id="calls" title="Calls & meetings" count={d.upcomingCalls.length} link={{ href: '/admin/crm/calls', label: 'Calls' }} empty={d.upcomingCalls.length ? null : 'Nothing booked or on your calendar this week.'}>
               {d.upcomingCalls.map((c) => {
                 const time = new Date(c.starts_at).toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', hour: 'numeric', minute: '2-digit' });
                 if (c.kind !== 'meeting') return (
@@ -226,134 +349,61 @@ export default function AdminHome() {
                   </div>
                 );
               })}
-            </Card>
+                            </Card>
 
-            <Card id="signatures" title="Waiting on a signature" count={d.proposalsAwaiting.length} link={{ href: '/admin/crm/proposals', label: 'Proposals' }} empty={d.proposalsAwaiting.length ? null : 'Nothing out for signature.'}>
-              {d.proposalsAwaiting.map((pr) => (
-                <div key={`${pr.kind}:${pr.id}`} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
-                  <div className={w.itemMain}>
-                    {pr.kind === 'builder'
-                      ? <Link href={`/admin/crm/proposals/${pr.id}/edit`} className={w.itemTitle} style={{ color: 'inherit', textDecoration: 'none' }}>{pr.title}</Link>
-                      : <button type="button" className={w.itemTitle} style={{ all: 'unset', cursor: 'pointer', fontWeight: 700 }} onClick={() => openClient(pr.client_id)}>{pr.title}</button>}
-                    <p className={w.itemSub}>
-                      {[
-                        pr.client_name,
-                        pr.total_cents != null && formatMoneyCents(pr.total_cents, pr.currency),
-                        pr.kind === 'builder' ? (pr.viewed ? 'opened' : 'not opened yet') : 'uploaded PDF',
-                        pr.since && `sent ${timeAgo(pr.since)}`,
-                        pr.last_reminded_at && `reminded ${timeAgo(pr.last_reminded_at)}`,
-                      ].filter(Boolean).join(' · ')}
-                    </p>
+                <Card id="work" title="Work in progress" count={work.length} hot={work.some((r) => r.needs_start_stats)} link={{ href: '/admin/work', label: 'All' }} empty={work.length ? null : 'Accepted estimates, signed proposals and paid invoices show up here as checklists.'}>
+                  <div className={h.work}>
+                    {work.map((r) => {
+                      const pct = r.total ? Math.round((r.done / r.total) * 100) : r.progress;
+                      return (
+                        <Link key={r.id} href={`/admin/work/${r.id}`} className={h.workRow}>
+                          <span className={h.workTop}><strong>{r.name}</strong><span>{r.total ? `${r.done} of ${r.total}` : `${pct}%`}</span></span>
+                          <span className={h.workSub}>{r.client}{r.social ? ' · social media' : ''}</span>
+                          <span className={h.bar}><span style={{ width: `${pct}%` }} /></span>
+                          {r.needs_start_stats && <span className={h.flag}>Add starting stats</span>}
+                          {r.total === 0 && <span className={h.flag}>No checklist yet</span>}
+                          {r.total > 0 && r.done === r.total && <span className={h.flagGreen}>Done · send the report</span>}
+                        </Link>
+                      );
+                    })}
                   </div>
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({
-                    title: 'Remind about proposal',
-                    target: pr.kind === 'builder' ? { kind: 'proposal', id: pr.id } : { kind: 'portal_proposal', id: pr.id },
-                  })}>Remind</button>
-                </div>
-              ))}
-            </Card>
+                </Card>
 
-            <Card id="invoices" title="Unpaid invoices" count={d.unpaidInvoices.length} link={{ href: '/admin/invoices', label: 'Invoices' }} empty={d.unpaidInvoices.length ? null : 'Everything is paid.'}>
-              {d.unpaidInvoices.map((inv) => (
-                <div key={inv.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
-                  <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => openClient(inv.client_id)}>
-                    <span className={w.itemTitle}>{inv.client_name} · {formatMoneyCents(inv.amount_cents)}</span>
-                    <span className={w.itemSub}>{[inv.invoice_number, inv.project_name, inv.last_reminded_at && `reminded ${timeAgo(inv.last_reminded_at)}`].filter(Boolean).join(' · ')}</span>
-                  </button>
-                  <span className={w.itemWhen} style={inv.overdue ? { color: 'var(--a-danger)', fontWeight: 700 } : undefined}>{inv.overdue ? 'Overdue' : 'Due'} {formatDate(inv.due_date)}</span>
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
-                </div>
-              ))}
-            </Card>
-
-            <Card id="work" title="Work in progress" count={work.length} hot={work.some((r) => r.needs_start_stats)} note="Accepted work, as checklists" link={{ href: '/admin/work', label: 'All work' }} empty={work.length ? null : 'Nothing in progress. Accepted estimates and signed proposals show up here.'}>
-              {work.map((r) => <WorkLine key={r.id} row={r} />)}
-            </Card>
-
-            <Card id="questionnaires" title="Questionnaires waiting" count={waitingQs.length} note="Assigned, not submitted" link={{ href: '/admin/questionnaires', label: 'Questionnaires' }} empty={waitingQs.length ? null : 'No questionnaires waiting on clients.'}>
-              {waitingQs.map((a) => (
-                <div key={a.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
-                  <Link href={`/admin/questionnaires/responses/${a.id}`} className={w.itemMain} style={{ flex: 1, minWidth: 0, color: 'inherit', textDecoration: 'none' }}>
-                    <span className={w.itemTitle}>{a.company_name || a.client_name || 'Client'} · {a.title}</span>
-                    <span className={w.itemSub}>{a.status === 'not_started' ? 'Not started' : a.status === 'reopened' ? 'Reopened' : 'In progress'} · {a.answered} of {a.total} answered</span>
-                  </Link>
-                  <span className={w.itemWhen}>{timeAgo(a.assigned_at)}</span>
-                  <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: `Remind about ${a.title}`, target: { kind: 'questionnaire', id: a.id } })}>Remind</button>
-                </div>
-              ))}
-            </Card>
-
-            <Card id="quiet" title="Gone quiet" note="Open deals, nothing in 2+ weeks" empty={today.quiet.length ? null : 'Every open deal has been touched recently.'}>
-              {today.quiet.map((q) => (
-                <button key={q.id} type="button" className={w.item} onClick={() => openContact(q.contact_id, q.id)}>
-                  <span className={w.avatar} style={{ background: avatarColor(q.contact_id) }}>{initials(q.name)}</span>
-                  <span className={w.itemMain}>
-                    <span className={w.itemTitle}>{q.title}</span>
-                    <span className={w.itemSub}>{q.name} · {STAGE_LABEL[q.stage]}</span>
-                  </span>
-                  <span className={w.itemWhen}>{timeAgo(q.last_touch_at)}</span>
-                </button>
-              ))}
-            </Card>
-
-            <Card id="reviews" title="Reviews" link={{ href: '/admin/reviews', label: 'Reviews' }} empty={d.reviewsToApprove.length || d.reviewCandidates.length ? null : 'Nothing to approve, and no recent wins waiting for a review request.'}>
-              {d.reviewsToApprove.map((r) => (
-                <Link key={r.id} href="/admin/reviews" className={w.item} style={{ color: 'inherit', textDecoration: 'none' }}>
-                  <span className={w.itemMain}>
-                    <span className={w.itemTitle}>{r.display_name ?? 'Client'}{r.rating ? ` · ${'★'.repeat(r.rating)}` : ''}: approve?</span>
-                    {r.body && <span className={w.itemSub}>“{r.body.length > 110 ? `${r.body.slice(0, 110)}…` : r.body}”</span>}
-                  </span>
-                  <span className={w.itemWhen}>{timeAgo(r.submitted_at)}</span>
-                </Link>
-              ))}
-              {d.reviewCandidates.map((c) => (
-                <button key={c.deal_id} type="button" className={w.item} onClick={() => openContact(c.contact_id, c.deal_id)}>
-                  <span className={w.itemMain}>
-                    <span className={w.itemTitle}>Ask {c.contact_name} for a review</span>
-                    <span className={w.itemSub}>{c.deal_title} · won {timeAgo(c.won_at)}</span>
-                  </span>
-                </button>
-              ))}
-            </Card>
-
-            <Card id="pipeline" title="Pipeline" link={{ href: '/admin/crm/pipeline', label: 'Board' }} empty={null}>
-              {CRM_STAGES.map((stage) => {
-                const row = d.pipeline.stages[stage];
-                return (
-                  <Link key={stage} href="/admin/crm/pipeline" className={w.item} style={{ color: 'inherit', textDecoration: 'none', alignItems: 'center' }}>
-                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: STAGE_COLOR[stage], flexShrink: 0 }} aria-hidden="true" />
-                    <span className={w.itemMain}><span className={w.itemTitle} style={{ fontWeight: 600 }}>{STAGE_LABEL[stage]}</span></span>
-                    <span className={w.itemWhen} style={{ fontVariantNumeric: 'tabular-nums' }}>{row.count} · {row.value_cents ? formatMoneyCents(row.value_cents) : '—'}</span>
-                  </Link>
-                );
-              })}
-            </Card>
-
-            <Card id="traffic" title="This week on the site" link={{ href: '/admin/analytics', label: 'Analytics' }} empty={d.traffic ? null : 'Analytics could not load.'}>
-              {d.traffic && (
-                <>
-                  <div className={w.item} style={{ cursor: 'default' }}>
-                    <span className={w.itemMain}>
-                      <span className={w.itemTitle}>{d.traffic.visits.toLocaleString()} visits · {plural(d.traffic.inquiries, 'inquiry', 'inquiries')}</span>
-                      <span className={w.itemSub}>
-                        {[change(d.traffic.visits, d.traffic.previous_visits), d.traffic.top_source && `most from ${d.traffic.top_source.source} (${d.traffic.top_source.visits})`].filter(Boolean).join(' · ') || 'Last 7 days'}
-                      </span>
-                    </span>
+                <Card id="pipeline" title="Pipeline" link={{ href: '/admin/crm/pipeline', label: 'Board' }}>
+                  <div className={h.stages}>
+                    {CRM_STAGES.map((stage) => {
+                      const row = d.pipeline.stages[stage];
+                      return (
+                        <Link key={stage} href="/admin/crm/pipeline" className={h.stage}>
+                          <span>{STAGE_LABEL[stage]}</span>
+                          <span className={h.stageBar}><span style={{ width: `${((row.value_cents ?? 0) / maxStage) * 100}%`, background: STAGE_COLOR[stage] }} /></span>
+                          <span className={h.stageValue}>{row.count} · {row.value_cents ? formatMoneyCents(row.value_cents) : '—'}</span>
+                        </Link>
+                      );
+                    })}
                   </div>
-                  {d.traffic.top_insight && (
-                    <div className={w.item} style={{ cursor: 'default', background: 'var(--a-surface-2)' }}>
-                      <span className={w.itemMain}>
-                        <span className={w.itemTitle}>Idea: {d.traffic.top_insight.title}</span>
-                        {d.traffic.top_insight.actions[0] && <span className={w.itemSub}>{d.traffic.top_insight.actions[0]}</span>}
-                      </span>
+                </Card>
+
+                <Card id="traffic" title="This week on the site" link={{ href: '/admin/analytics', label: 'Analytics' }} empty={d.traffic ? null : 'Analytics could not load.'}>
+                  {d.traffic && (
+                    <div className={h.traffic}>
+                      <span className={h.trafficBig}>{d.traffic.visits.toLocaleString()} visits</span>
+                      <span>{plural(d.traffic.inquiries, 'inquiry', 'inquiries')}{change(d.traffic.visits, d.traffic.previous_visits) ? ` · ${change(d.traffic.visits, d.traffic.previous_visits)}` : ''}</span>
+                      {d.traffic.top_source && <span className={w.muted}>Most from {d.traffic.top_source.source} ({d.traffic.top_source.visits})</span>}
+                      {d.traffic.top_insight && (
+                        <span className={h.idea}>
+                          <strong>Idea: {d.traffic.top_insight.title}</strong>
+                          {d.traffic.top_insight.actions[0] && <span style={{ display: 'block', marginTop: 2 }}>{d.traffic.top_insight.actions[0]}</span>}
+                        </span>
+                      )}
                     </div>
                   )}
-                </>
-              )}
-            </Card>
-          </div>
-        </>
-      )}
+                </Card>
+              </div>
+            </div>
+          </>
+        );
+      })()}
 
       {reminding && (
         <ReminderDialog
@@ -376,15 +426,15 @@ export default function AdminHome() {
 
 function Stat({ label, value, note, hot, href }: { label: string; value: string; note?: string; hot?: boolean; href: string }) {
   return (
-    <a href={href} className={w.stat} style={{ color: 'inherit', textDecoration: 'none', borderColor: hot ? '#f6b3d6' : undefined }}>
-      <p className={w.statLabel}>{label}</p>
-      <p className={w.statValue} style={hot ? { color: 'var(--a-accent)' } : undefined}>{value}</p>
-      {note && <p className={w.statNote}>{note}</p>}
+    <a href={href} className={h.stat}>
+      <span className={h.statLabel}>{label}</span>
+      <span className={`${h.statValue} ${hot ? h.statHot : ''}`}>{value}</span>
+      {note && <span className={h.statNote}>{note}</span>}
     </a>
   );
 }
 
-function Card({ id, title, count, hot, note, link, empty, wide, children }: {
+function Card({ id, title, count, hot, note, link, empty, children }: {
   id: string;
   title: string;
   count?: number;
@@ -392,11 +442,10 @@ function Card({ id, title, count, hot, note, link, empty, wide, children }: {
   note?: string;
   link?: { href: string; label: string };
   empty?: string | null;
-  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className={w.card} style={wide ? { gridColumn: '1 / -1' } : undefined}>
+    <section id={id} className={w.card}>
       <div className={w.cardHead}>
         <h2 className={w.cardTitle}>{title}</h2>
         {count ? <span className={`${w.cardCount} ${hot ? w.cardHot : ''}`}>{count}</span> : null}
