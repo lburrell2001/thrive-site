@@ -8,6 +8,7 @@ import 'server-only';
 import type Stripe from 'stripe';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { dueNow, type DepositFields, type PayPart } from './invoiceDeposit';
+import { projectChecklistFromInvoice } from './projectWork';
 
 export type PaidResult =
   | { ok: true; invoiceId: string }
@@ -50,5 +51,7 @@ export async function markInvoicePaid(db: SupabaseClient, session: Stripe.Checko
     console.error('[stripe] could not record the payment', invoiceId, error.message);
     return { ok: false, reason: 'update failed' };
   }
+  // Paid: the work starts — its lines become the project's checklist if it has none.
+  await projectChecklistFromInvoice(db, invoiceId).catch((e) => console.error('[stripe] checklist not made', e));
   return { ok: true, invoiceId };
 }

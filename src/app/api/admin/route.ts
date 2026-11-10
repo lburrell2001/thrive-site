@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server';
+import { projectChecklistFromInvoice } from '@/lib/projectWork';
 import { needsWelcome, welcomeDoneAt } from '@/lib/portalWelcome';
 import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
@@ -449,6 +450,8 @@ export async function POST(req: NextRequest) {
         if (due_date       !== undefined) update.due_date       = due_date;
         const { error } = await admin.from('portal_invoices').update(update).eq('id', id);
         if (error) return err(error.message);
+        // Marked paid: its lines start the project's checklist if it has none.
+        if (status === 'paid') await projectChecklistFromInvoice(admin, id as string).catch(() => undefined);
         return NextResponse.json({ ok: true });
       }
 
@@ -484,6 +487,7 @@ export async function POST(req: NextRequest) {
         const { error } = await admin.from('portal_invoices').update({ deposit_paid_at: new Date().toISOString() })
           .eq('id', id).not('deposit_cents', 'is', null).is('deposit_paid_at', null);
         if (error) return err(error.message);
+        await projectChecklistFromInvoice(admin, id).catch(() => undefined);
         return NextResponse.json({ ok: true });
       }
 

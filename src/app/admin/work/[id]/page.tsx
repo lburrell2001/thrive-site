@@ -21,7 +21,7 @@ type Data = {
   tasks: ProjectTask[];
   accounts: SocialAccount[];
   reports: { id: string; sent_at: string; sent_to: string | null }[];
-  invoices: { id: string; invoice_number: string; amount_cents: number; status: string; paid_cents: number }[];
+  invoices: { id: string; invoice_number: string; amount_cents: number; status: string; paid_cents: number; lines: number; project_name: string }[];
   estimates: { id: string; estimate_number: string; title: string; total_cents: number; status: string; accepted_at: string | null; lines: number }[];
   deal: { id: string; title: string; stage: string; closed_at: string | null; monthly_cents: number | null } | null;
   started_at: string;
@@ -183,6 +183,17 @@ export default function ProjectWorkPage({ params }: { params: Promise<{ id: stri
             <input className={p.input} value={newTask} onChange={(e) => setNewTask(e.target.value)} placeholder="Add a task, e.g. Collect logo files" aria-label="New task" />
             <button type="submit" className={`${p.btn} ${p.btnSmall}`} disabled={busy || !newTask.trim()}>Add</button>
           </form>
+          {data.invoices.some((i) => i.lines > 0) && (
+            <div className={k.addRow} style={{ marginTop: 10 }}>
+              <select className={p.select} defaultValue="" aria-label="Fill from an invoice"
+                onChange={(e) => { if (e.target.value) void act({ action: 'from_invoice', invoice_id: e.target.value }, 'Added the invoice’s items.'); e.target.value = ''; }}>
+                <option value="">Fill from an invoice…</option>
+                {data.invoices.filter((i) => i.lines > 0).map((i) => (
+                  <option key={i.id} value={i.id}>{i.invoice_number} · {i.project_name} · {formatLineMoney(i.amount_cents)} · {i.status === 'paid' ? 'paid' : i.paid_cents ? 'deposit paid' : 'unpaid'}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {unusedEstimates.length > 0 && (
             <div className={k.addRow} style={{ marginTop: 10 }}>
               <select className={p.select} defaultValue="" aria-label="Fill from an estimate"

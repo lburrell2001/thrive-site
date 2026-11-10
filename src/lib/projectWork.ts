@@ -113,3 +113,40 @@ export async function projectChecklistFromEstimate(db: SupabaseClient, estimateI
     }
   }
 }
+
+/** The client's open project an invoice belongs to: same deal first, then same name. */
+export async function projectForInvoice(db: SupabaseClient, inv: { client_id: string; project_name: string | null; crm_deal_id?: string | null }): Promise<string | null> {
+  const { data: projects } = await db.from('portal_projects').select('id, name, crm_deal_id, archived, completed_at').eq('client_id', inv.client_id);
+  const open = (projects ?? []).filter((p) => !p.archived && !p.completed_at);
+  const byDeal = inv.crm_deal_id ? open.find((p) => p.crm_deal_id === inv.crm_deal_id) : undefined;
+  const byName = open.find((p) => p.name.trim().toLowerCase() === (inv.project_name ?? '').trim().toLowerCase());
+  return (byDeal ?? byName)?.id ?? null;
+}
+
+/**
+ * A paid invoice's lines as the project's checklist — when there was no
+ * estimate. Only for a project with no checklist yet (or when asked for).
+ */
+export async function projectChecklistFromInvoice(db: SupabaseClient, invoiceId: string, opts: { projectId?: string; onlyIfEmpty?: boolean } = {}): Promise<string | null> {
+  const { data: inv } = await db.from('portal_invoices').select('id, client_id, project_name, crm_deal_id, line_items').eq('id', invoiceId).maybeSingle();
+  if (!inv) return null;
+  const projectId = opts.projectId ?? await projectForInvoice(db, inv);
+  if (!projectId) return null;
+  const lines = ((inv.line_items ?? []) as LineItem[]).filter((l) => l.amount_cents >= 0);
+  if (!lines.length) return projectId;
+  const { data: existing } = await db.from('project_tasks').select('title, position').eq('project_id', projectId).order('position');
+  if (opts.onlyIfEmpty !== false && existing?.length) return projectId;
+  const have = new Set((existing ?? []).map((t) => t.title.trim().toLowerCase()));
+  const start = (existing?.at(-1)?.position ?? -1) + 1;
+  const fresh = lines.filter((l) => !have.has(l.name.replace(/\s*\(optional\)\s*$/i, '').trim().toLowerCase()));
+  if (fresh.length) {
+    await db.from('project_tasks').insert(fresh.map((l, i) => ({
+      project_id: projectId,
+      title: l.name.replace(/\s*\(optional\)\s*$/i, '').slice(0, 200),
+      description: l.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '').slice(0, 2000),
+      position: start + i,
+    })));
+    await syncProjectProgress(db, projectId);
+  }
+  return projectId;
+}

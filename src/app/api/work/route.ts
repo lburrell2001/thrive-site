@@ -1,7 +1,8 @@
 export const runtime = 'nodejs';
 
-// Work in progress (migration 052): portal projects with a checklist or a
-// social media package, with how far along they are. Admin Home and /admin/work.
+// Work in progress (migration 052): portal projects with a checklist, a social
+// media package, or a paid invoice (work under way with no estimate), with how
+// far along they are. Admin Home and /admin/work.
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
@@ -20,7 +21,19 @@ export async function GET(req: Request) {
     if (/project_tasks/.test(tasks.error.message)) return NextResponse.json({ ok: true, data: { ready: false, projects: [] } });
     return badRequest(tasks.error.message);
   }
-  const ids = [...new Set([...(tasks.data ?? []).map((t) => t.project_id), ...(accounts.data ?? []).map((a) => a.project_id)])];
+  // Open projects with a paid invoice (or a paid deposit), matched by deal or name.
+  const [openProjects, paidInvoices] = await Promise.all([
+    db.from('portal_projects').select('id, client_id, name, crm_deal_id, archived, completed_at'),
+    db.from('portal_invoices').select('client_id, project_name, crm_deal_id, status, deposit_paid_at'),
+  ]);
+  const paid = (paidInvoices.data ?? []).filter((i) => i.status === 'paid' || i.deposit_paid_at);
+  const paidCount = new Map<string, number>();
+  for (const p of openProjects.data ?? []) {
+    if (p.archived || p.completed_at) continue;
+    const n = paid.filter((i) => i.client_id === p.client_id && ((p.crm_deal_id && i.crm_deal_id === p.crm_deal_id) || i.project_name?.trim().toLowerCase() === p.name.trim().toLowerCase())).length;
+    if (n) paidCount.set(p.id, n);
+  }
+  const ids = [...new Set([...(tasks.data ?? []).map((t) => t.project_id), ...(accounts.data ?? []).map((a) => a.project_id), ...paidCount.keys()])];
   if (!ids.length) return NextResponse.json({ ok: true, data: { ready: true, projects: [] } });
 
   const [projects, reports] = await Promise.all([
@@ -37,6 +50,7 @@ export async function GET(req: Request) {
       done: t.filter((x) => x.done_at).length, total: t.length,
       social: p.kind === 'social', needs_start_stats: p.kind === 'social' && !hasStartingStats(a),
       report_sent_at: (reports.data ?? []).filter((r) => r.project_id === p.id).map((r) => r.sent_at).sort().pop() ?? null,
+      paid_invoices: paidCount.get(p.id) ?? 0,
     };
   });
   rows.sort((x, y) => Number(!!x.completed_at) - Number(!!y.completed_at) || y.created_at.localeCompare(x.created_at));

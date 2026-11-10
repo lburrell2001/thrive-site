@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { DEFAULT_METRICS, projectChecklistFromEstimate, syncProjectProgress } from '@/lib/projectWork';
+import { DEFAULT_METRICS, projectChecklistFromEstimate, projectChecklistFromInvoice, syncProjectProgress } from '@/lib/projectWork';
 import { deliver, portalContact } from '@/lib/clientNotify';
 import { closeDeal } from '@/lib/dealClose';
 import { remainingCents } from '@/lib/invoiceDeposit';
@@ -43,7 +43,7 @@ export async function GET(req: Request, { params }: Ctx) {
       tasks: tasks.data ?? [],
       accounts: accounts.data ?? [],
       reports: reports.data ?? [],
-      invoices: projectInvoices.map((inv) => ({ id: inv.id, invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, status: inv.status, paid_cents: inv.amount_cents - remainingCents(inv) })),
+      invoices: projectInvoices.map((inv) => ({ id: inv.id, invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, status: inv.status, paid_cents: inv.amount_cents - remainingCents(inv), lines: Array.isArray(inv.line_items) ? inv.line_items.length : 0, project_name: inv.project_name })),
       estimates: (estimates.data ?? []).map(({ line_items, ...e }) => ({ ...e, lines: Array.isArray(line_items) ? line_items.length : 0 })),
       deal: deal.data,
       started_at: started,
@@ -58,6 +58,7 @@ const action = z.discriminatedUnion('action', [
   z.object({ action: z.literal('delete_task'), task_id: z.string().uuid() }),
   z.object({ action: z.literal('reorder_tasks'), ids: z.array(z.string().uuid()).max(500) }),
   z.object({ action: z.literal('from_estimate'), estimate_id: z.string().uuid() }),
+  z.object({ action: z.literal('from_invoice'), invoice_id: z.string().uuid() }),
   z.object({ action: z.literal('set_social'), social: z.boolean() }),
   z.object({ action: z.literal('add_account') }),
   z.object({
@@ -110,6 +111,12 @@ export async function POST(req: Request, { params }: Ctx) {
     }
     case 'from_estimate': {
       await projectChecklistFromEstimate(db, body.estimate_id, id);
+      return ok({ progress: await syncProjectProgress(db, id) });
+    }
+    case 'from_invoice': {
+      const { data: inv } = await db.from('portal_invoices').select('client_id').eq('id', body.invoice_id).maybeSingle();
+      if (!inv || inv.client_id !== project.client_id) return badRequest('That invoice isn’t this client’s');
+      await projectChecklistFromInvoice(db, body.invoice_id, { projectId: id, onlyIfEmpty: false });
       return ok({ progress: await syncProjectProgress(db, id) });
     }
     case 'set_social': {

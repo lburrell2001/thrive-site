@@ -9,7 +9,7 @@ import k from './work.module.css';
 export type WorkRow = {
   id: string; name: string; client_id: string; client: string; kind: string | null; status: string; progress: number;
   archived: boolean; completed_at: string | null; created_at: string; done: number; total: number;
-  social: boolean; needs_start_stats: boolean; report_sent_at: string | null;
+  social: boolean; needs_start_stats: boolean; report_sent_at: string | null; paid_invoices?: number;
 };
 
 export function WorkLine({ row }: { row: WorkRow }) {
@@ -20,6 +20,7 @@ export function WorkLine({ row }: { row: WorkRow }) {
         <strong>{row.name}</strong>
         <span className={w.muted}>{row.client}{row.social ? ' · social media' : ''}</span>
         {row.needs_start_stats && <span className={k.flag}>Add starting stats</span>}
+        {row.total === 0 && <span className={k.flag}>No checklist yet{row.paid_invoices ? ' · paid invoice' : ''}</span>}
         {!row.completed_at && row.total > 0 && row.done === row.total && <span className={k.flagGreen}>Done · send the report</span>}
         {row.completed_at && <span className={k.flagDone}>Report sent</span>}
       </span>
