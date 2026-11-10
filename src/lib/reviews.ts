@@ -70,7 +70,7 @@ export async function requestReview(
       subject,
       eyebrow: 'Thank you',
       headline: `Thank you for trusting me with your ${service ?? 'project'}. It was a real pleasure working with you, and I hope we get to work together again soon.`,
-      detail: `If you have two minutes, would you leave a short review? It is one page: a rating and a sentence or two. With your okay I will share it on the website${process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL ? ', and you will get a link to post it on Google too' : ''} — that is how other businesses find a small studio like mine.`,
+      detail: `If you have two minutes, would you leave a short review on Google? That is how other businesses find a small studio like mine. The link walks you through it, and then asks you to paste the same words so, with your okay, I can share it on the website too.`,
       note: input.note || null,
       ctaUrl: link,
       ctaLabel: 'Leave a review',

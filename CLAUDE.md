@@ -35,7 +35,7 @@ CONTACT_NOTIFY_PHONE=            # Lauren's mobile, for texts on signings, decli
 GSC_SERVICE_ACCOUNT_JSON=        # Search Console (optional): the Google service account's JSON key, pasted whole
 GSC_SITE_URL=                    # e.g. sc-domain:thrivecreativestudios.org — the service account must be a user on this property
 ANALYTICS_SALT=                  # Optional key for the daily visitor hash; falls back to the service role key
-NEXT_PUBLIC_GOOGLE_REVIEW_URL=   # Optional: Google Business Profile "write a review" link, offered after a client submits a review
+NEXT_PUBLIC_GOOGLE_REVIEW_URL=   # Optional override; src/lib/googleReview.ts defaults to https://g.page/r/CVIue6V8HCJuEAI/review (copy-your-review-and-open-Google after a site review, and the completion report email)
 RESEND_INBOUND_DOMAIN=           # Optional: Resend receiving domain (e.g. mail.thrivecreativestudios.org). Set → emails get signed reply-… Reply-To addresses
 RESEND_WEBHOOK_SECRET=           # Signing secret of the Resend webhook for `email.received` → POST /api/email/inbound
 OPINLY_API_KEY=                  # Opinly secret key (sk-…): /blog content and server-side conversion events. Never commit it
@@ -271,7 +271,7 @@ A second blog at `/blog`, written and published in Opinly (the Journal at `/jour
 
 ### Reviews
 
-Requested from a won deal in the CRM (`POST /api/reviews/request`), submitted at `/review/[token]`, approved at `/admin/reviews` (migration `023`). A DB check refuses `approved` without `consent_publish`; anon can read only approved rows and only the display columns (column grants — the token is never readable). Approved reviews show on service pages via `ServiceTestimonials`. There is deliberately no Review/AggregateRating markup: Google ignores self-serving review stars.
+Requested from a won deal in the CRM (`POST /api/reviews/request`), submitted at `/review/[token]` (Google first: "Leave my review on Google" opens `GOOGLE_REVIEW_URL` from `src/lib/googleReview.ts`, then they paste the same words back for the site; "No Google account? Just leave it here" skips, and they are offered Google after), approved at `/admin/reviews` (migration `023`). A DB check refuses `approved` without `consent_publish`; anon can read only approved rows and only the display columns (column grants — the token is never readable). Approved reviews show on service pages via `ServiceTestimonials`. There is deliberately no Review/AggregateRating markup: Google ignores self-serving review stars.
 
 ### Book a call
 

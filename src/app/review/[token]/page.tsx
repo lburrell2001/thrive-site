@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { GOOGLE_REVIEW_URL } from '@/lib/googleReview';
 import { notFound } from 'next/navigation';
 import Shell from '../../_site/Shell';
 import { serviceClient } from '@/lib/adminAuth';
@@ -28,7 +29,7 @@ export default async function ReviewPage({ params }: Props) {
   if (!review) notFound();
 
   const service = review.service_slug ? SERVICE_SEO[review.service_slug as ServiceSlug]?.name : null;
-  const googleReviewUrl = process.env.NEXT_PUBLIC_GOOGLE_REVIEW_URL || null;
+  const googleReviewUrl = GOOGLE_REVIEW_URL;
 
   return (
     <Shell>
@@ -39,7 +40,7 @@ export default async function ReviewPage({ params }: Props) {
               <h1 className={s.title}>How did we do?</h1>
               <p className={s.lede}>
                 {service ? `A few words about your ${service.toLowerCase()} project` : 'A few words about working together'} help other
-                businesses decide whether we are the right fit. It takes two minutes.
+                businesses decide whether we are the right fit. It takes two minutes: first on Google, then the same words here.
               </p>
               <ReviewForm token={token} defaultName={review.display_name ?? ''} googleReviewUrl={googleReviewUrl} />
             </>

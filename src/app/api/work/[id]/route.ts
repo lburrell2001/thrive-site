@@ -10,6 +10,7 @@ import { DEFAULT_METRICS, projectChecklistFromEstimate, projectChecklistFromInvo
 import { deliver, portalContact } from '@/lib/clientNotify';
 import { closeDeal } from '@/lib/dealClose';
 import { remainingCents } from '@/lib/invoiceDeposit';
+import { GOOGLE_REVIEW_URL } from '@/lib/googleReview';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -154,7 +155,8 @@ export async function POST(req: Request, { params }: Ctx) {
         eyebrow: 'Project complete',
         headline: `${project.name} is complete. Thank you for working with Thrive! Your completion report is attached: what we delivered, the timeline${(body.data as { social?: unknown[] }).social?.length ? ', your growth' : ''}, and what comes next.`,
         note: body.note?.trim() || null,
-        ctaUrl: '', ctaLabel: '', sms: null,
+        detail: 'If you were happy with the work, a short Google review means the world to a small studio — it’s how other businesses find us.',
+        ctaUrl: GOOGLE_REVIEW_URL, ctaLabel: 'Leave us a Google review', sms: null,
       }, { email: true, sms: false }, {
         fromInbox: true,
         attachments: [{ filename: `${project.name.replace(/[^\w\- ]+/g, '').trim() || 'Project'} - Completion report.pdf`, content: body.pdf, contentType: 'application/pdf' }],
