@@ -6,7 +6,8 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { DEFAULT_METRICS, projectChecklistFromEstimate, projectChecklistFromInvoice, syncProjectProgress } from '@/lib/projectWork';
+import { DEFAULT_METRICS, projectChecklistFromEstimate, projectChecklistFromInvoice, projectInvoices, syncProjectProgress, taskTitle } from '@/lib/projectWork';
+import type { LineItem } from '@/lib/lineItems';
 import { remainingCents } from '@/lib/invoiceDeposit';
 import { sendCompletionReport } from '@/lib/completionReport';
 
@@ -24,13 +25,12 @@ export async function GET(req: Request, { params }: Ctx) {
     db.from('portal_clients').select('id, full_name, company_name').eq('id', project.client_id).maybeSingle(),
     db.from('project_tasks').select('*').eq('project_id', id).order('position'),
     db.from('project_social_accounts').select('*').eq('project_id', id).order('position'),
-    db.from('project_reports').select('id, sent_at, sent_to').eq('project_id', id).order('sent_at', { ascending: false }),
-    db.from('portal_invoices').select('*').eq('client_id', project.client_id),
+    db.from('project_reports').select('id, sent_at, sent_to, data').eq('project_id', id).order('sent_at', { ascending: false }),
+    projectInvoices(db, project),
     db.from('estimates').select('id, estimate_number, title, total_cents, status, accepted_at, line_items').eq('portal_client_id', project.client_id).order('created_at', { ascending: false }),
     project.crm_deal_id ? db.from('crm_deals').select('id, title, stage, closed_at, monthly_cents').eq('id', project.crm_deal_id).maybeSingle() : Promise.resolve({ data: null }),
     db.auth.admin.getUserById(project.client_id),
   ]);
-  const projectInvoices = (invoices.data ?? []).filter((inv) => (inv.crm_deal_id && inv.crm_deal_id === project.crm_deal_id) || inv.project_name?.trim().toLowerCase() === project.name.trim().toLowerCase());
   const taskEstimateIds = new Set((tasks.data ?? []).map((t) => t.estimate_id).filter(Boolean));
   const started = (estimates.data ?? []).filter((e) => taskEstimateIds.has(e.id)).map((e) => e.accepted_at).filter(Boolean).sort()[0] ?? project.created_at;
 
@@ -41,8 +41,17 @@ export async function GET(req: Request, { params }: Ctx) {
       client: { ...(client.data ?? {}), email: user.data.user?.email ?? null },
       tasks: tasks.data ?? [],
       accounts: accounts.data ?? [],
-      reports: reports.data ?? [],
-      invoices: projectInvoices.map((inv) => ({ id: inv.id, invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, status: inv.status, paid_cents: inv.amount_cents - remainingCents(inv), lines: Array.isArray(inv.line_items) ? inv.line_items.length : 0, project_name: inv.project_name })),
+      reports: (reports.data ?? []).map(({ data, ...r }) => ({ ...r, invoice_id: (data as { invoice_id?: string } | null)?.invoice_id ?? null })),
+      invoices: invoices.map((inv) => {
+        const lines = (Array.isArray(inv.line_items) ? inv.line_items as LineItem[] : []).filter((l) => l.amount_cents >= 0);
+        return {
+          id: inv.id, invoice_number: inv.invoice_number, amount_cents: inv.amount_cents, status: inv.status,
+          paid_cents: inv.amount_cents - remainingCents(inv), lines: lines.length, project_name: inv.project_name,
+          invoice_date: inv.invoice_date,
+          // What the report for this invoice lists. Older invoices have no lines: the project name is the one item.
+          items: lines.length ? lines.map((l) => taskTitle(l.name)) : [taskTitle(inv.project_name || 'Project work')],
+        };
+      }),
       estimates: (estimates.data ?? []).map(({ line_items, ...e }) => ({ ...e, lines: Array.isArray(line_items) ? line_items.length : 0 })),
       deal: deal.data,
       started_at: started,
@@ -68,6 +77,7 @@ const action = z.discriminatedUnion('action', [
   z.object({
     action: z.literal('send_report'), email: z.string().trim().email('Enter their email'), note: z.string().max(4000).optional(),
     pdf: z.string().min(100).max(4_000_000), data: z.record(z.string(), z.unknown()), close_deal: z.boolean().default(true),
+    invoice_id: z.string().uuid().nullable().default(null),
   }),
 ]);
 
@@ -145,9 +155,9 @@ export async function POST(req: Request, { params }: Ctx) {
       return ok();
     }
     case 'send_report': {
-      const sent = await sendCompletionReport(db, id, { email: body.email, note: body.note, pdf: body.pdf, data: body.data, closeDeal: body.close_deal });
+      const sent = await sendCompletionReport(db, id, { email: body.email, note: body.note, pdf: body.pdf, data: body.data, closeDeal: body.close_deal, invoiceId: body.invoice_id });
       if (!sent.ok) return badRequest(sent.error);
-      return ok({ to: body.email });
+      return ok({ to: body.email, completed: sent.completed });
     }
   }
 }

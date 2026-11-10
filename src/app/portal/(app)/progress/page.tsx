@@ -113,7 +113,10 @@ export default function ProgressPage() {
       milestones: milestones.filter(m => m.project_name === proj.name),
       requests:   requests.filter(r => r.project_name === proj.name),
       activity:   activity.filter(a => a.project_name === proj.name),
-      report:     reports.find(r => r.project_id === proj.id)?.data ?? null,
+      // One report per invoice (newest first, so a resend replaces the older copy).
+      reports:    reports.filter(r => r.project_id === proj.id)
+        .filter((r, i, all) => all.findIndex(o => o.project_id === r.project_id && (o.data.invoice_id ?? null) === (r.data.invoice_id ?? null)) === i)
+        .map(r => r.data),
     };
   }
 
@@ -197,11 +200,11 @@ export default function ProgressPage() {
 }
 
 // ── Project Card ──────────────────────────────────────────────────────────────
-function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, files, proposals, milestones, requests, activity, report }: {
+function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, files, proposals, milestones, requests, activity, reports }: {
   proj: DbProject; archived?: boolean; userId: string | null; onRefresh: () => void;
   invoices: DbInvoice[]; files: DbFile[]; proposals: DbProposal[];
   milestones: DbMilestone[]; requests: DbRequest[]; activity: DbActivity[];
-  report: ReportData | null;
+  reports: ReportData[];
 }) {
   const [expanded, setExpanded]     = useState(false);
   const [payingId, setPayingId]     = useState<string | null>(null);
@@ -264,15 +267,16 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: dimAccent, flexShrink: 0 }} />
             <span style={{ fontFamily: F.bungee, fontSize: 16, color: archived ? '#808080' : '#0a0a0a', letterSpacing: '0em', lineHeight: 1.2 }}>{proj.name}</span>
             {archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '1px 7px', borderRadius: 999 }}>ARCHIVED</span>}
-            {report && (
+            {reports.map((report) => (
               <button
+                key={report.invoice_id ?? 'project'}
                 type="button"
                 onClick={async (e) => { e.stopPropagation(); const { generateReportPDF } = await import('@/lib/reportPDF'); await generateReportPDF(report); }}
                 style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#0a0a0a', background: '#0cf574', border: 'none', borderRadius: 999, padding: '3px 10px', cursor: 'pointer' }}
               >
-                Completion report (PDF)
+                {report.invoice ? `${report.invoice} report (PDF)` : 'Completion report (PDF)'}
               </button>
-            )}
+            ))}
           </div>
           {/* Mini progress bar */}
           <div style={{ height: 4, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden', maxWidth: 240 }}>

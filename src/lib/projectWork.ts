@@ -88,7 +88,7 @@ export async function projectChecklistFromEstimate(db: SupabaseClient, estimateI
   await db.from('project_tasks').insert(lines.map((l, i) => ({
     project_id: projectId,
     estimate_id: estimateId,
-    title: l.name.replace(/\s*\(optional\)\s*$/i, '').slice(0, 200),
+    title: taskTitle(l.name),
     description: l.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '').slice(0, 2000),
     position: start + i,
   })));
@@ -138,15 +138,27 @@ export async function projectChecklistFromInvoice(db: SupabaseClient, invoiceId:
   if (opts.onlyIfEmpty !== false && existing?.length) return projectId;
   const have = new Set((existing ?? []).map((t) => t.title.trim().toLowerCase()));
   const start = (existing?.at(-1)?.position ?? -1) + 1;
-  const fresh = lines.filter((l) => !have.has(l.name.replace(/\s*\(optional\)\s*$/i, '').trim().toLowerCase()));
+  const fresh = lines.filter((l) => !have.has(titleKey(l.name)));
   if (fresh.length) {
     await db.from('project_tasks').insert(fresh.map((l, i) => ({
       project_id: projectId,
-      title: l.name.replace(/\s*\(optional\)\s*$/i, '').slice(0, 200),
+      title: taskTitle(l.name),
       description: l.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '').slice(0, 2000),
       position: start + i,
     })));
     await syncProjectProgress(db, projectId);
   }
   return projectId;
+}
+
+/** A checklist title for a line: the line's name without "(optional)". */
+export const taskTitle = (name: string) => name.replace(/\s*\(optional\)\s*$/i, '').slice(0, 200);
+/** For matching an invoice line to its checklist task. */
+export const titleKey = (s: string) => taskTitle(s).trim().toLowerCase();
+
+/** The project's invoices: filed under its deal, or under its name. */
+export async function projectInvoices(db: SupabaseClient, project: { client_id: string; name: string; crm_deal_id: string | null }) {
+  const { data } = await db.from('portal_invoices').select('*').eq('client_id', project.client_id).order('created_at');
+  return (data ?? []).filter((inv) => (inv.crm_deal_id && inv.crm_deal_id === project.crm_deal_id)
+    || inv.project_name?.trim().toLowerCase() === project.name.trim().toLowerCase());
 }

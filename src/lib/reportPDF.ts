@@ -18,6 +18,9 @@ export type ReportData = {
   paid_cents: number;
   /** The invoices the totals cover (older reports have none listed). */
   invoices?: { number: string; amount_cents: number; paid_cents: number }[];
+  /** The invoice this report is for (each invoice gets its own report); unset = the whole project. */
+  invoice_id?: string | null;
+  invoice?: string | null;
   next_step: string;
   note: string;
 };
@@ -98,8 +101,15 @@ export async function generateReportPDF(data: ReportData, opts: { output?: 'save
   y += 5;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor('#0a0a0a');
   doc.text(doc.splitTextToSize(data.client, 80) as string[], M, y);
-  doc.text(doc.splitTextToSize(data.project, R - 110) as string[], 110, y);
-  y += 12;
+  const projLines = doc.splitTextToSize(data.project, R - 110) as string[];
+  doc.text(projLines, 110, y);
+  const nameLines = (doc.splitTextToSize(data.client, 80) as string[]).length;
+  if (data.invoice) {
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor('#555555');
+    doc.text(`Invoice ${data.invoice}`, 110, y + projLines.length * 5.6);
+  }
+  y += Math.max(nameLines, projLines.length + (data.invoice ? 1 : 0)) * 5.6 + 6.5;
+  doc.setTextColor('#0a0a0a');
   label('Started'); label('Finished', 80); label('Timeline', 140);
   y += 5;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
@@ -202,5 +212,5 @@ export async function generateReportPDF(data: ReportData, opts: { output?: 'save
   doc.setFont('helvetica', 'normal'); doc.setTextColor('#808080'); doc.text('thrivecreativestudios.org', R, 286, { align: 'right' });
 
   if (opts.output === 'base64') return doc.output('datauristring').split(',')[1] ?? '';
-  doc.save(`${data.project.replace(/[^\w\- ]+/g, '').trim() || 'Project'} - Completion report.pdf`);
+  doc.save(`${(data.invoice ? `${data.project} ${data.invoice}` : data.project).replace(/[^\w\- ]+/g, '').trim() || 'Project'} - Completion report.pdf`);
 }
