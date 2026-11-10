@@ -584,6 +584,18 @@ export default function InvoiceBuilder() {
     }
   }
 
+  // An unpaid invoice can always be deleted (nothing paid on it: no deposit either).
+  async function removeInvoice(inv: InvoiceRow) {
+    if (!window.confirm(`Delete invoice ${inv.invoice_number}? It leaves the client’s portal too.`)) return;
+    try {
+      await apiSend('/api/admin', 'POST', { action: 'delete_invoice', id: inv.id });
+      await load();
+      show(`Deleted ${inv.invoice_number}.`);
+    } catch (e) {
+      show(e instanceof Error ? e.message : 'Could not delete', 'error');
+    }
+  }
+
   // Price list rules, read from what's in the box now (so deleting a line by hand counts).
   const lineNames = items.map((it) => it.name);
   const missing = catalog ? missingRequired(catalog, lineNames) : [];
@@ -834,6 +846,9 @@ export default function InvoiceBuilder() {
                           deposit: inv.deposit_cents ? { cents: inv.deposit_cents, due: inv.deposit_due_date ?? '', paidAt: inv.deposit_paid_at ?? null, balanceOpen: inv.balance_open !== false } : null })}>
                         PDF
                       </button>
+                      {inv.status !== 'paid' && !inv.deposit_paid_at && (
+                        <button type="button" className={s.iconBtn} aria-label={`Delete ${inv.invoice_number}`} title="Delete" onClick={() => removeInvoice(inv)}>×</button>
+                      )}
                     </div>
                   </li>
                 );
