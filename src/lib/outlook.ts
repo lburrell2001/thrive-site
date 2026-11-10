@@ -2,7 +2,8 @@
 //
 // She connects it once from Settings → Email: a Microsoft sign-in with
 // delegated permissions (Mail.Read, Mail.Send, their .Shared versions,
-// Calendars.Read, offline_access, User.Read), so the app reaches her own
+// Calendars.Read, Calendars.ReadWrite(.Shared) for putting /book calls on a
+// calendar, offline_access, User.Read), so the app reaches her own
 // mailbox and calendar plus any mailbox she has Full Access to (hello@), and
 // nothing else. The refresh
 // token is stored encrypted; every use refreshes an access token.
@@ -20,7 +21,10 @@ export class OutlookError extends Error {}
 const MAIL_SCOPES = 'offline_access User.Read Mail.Read Mail.Send Mail.Read.Shared Mail.Send.Shared';
 // Added 2026-11 (migration 043). Sign-ins from before it don't hold it.
 export const CALENDAR_SCOPE = 'Calendars.Read';
-const SCOPES = `${MAIL_SCOPES} ${CALENDAR_SCOPE}`;
+// Added 2026-11-10 (migration 054): /book calls are added to a calendar
+// (hers or hello@'s). Sign-ins from before it keep reading only.
+export const CALENDAR_WRITE_SCOPES = ['Calendars.ReadWrite', 'Calendars.ReadWrite.Shared'];
+const SCOPES = `${MAIL_SCOPES} ${CALENDAR_SCOPE} ${CALENDAR_WRITE_SCOPES.join(' ')}`;
 
 /** Microsoft returns Graph scopes as bare names or full URLs; keep bare names. */
 function normalizeScopes(scope: string | undefined): string | null {
@@ -37,8 +41,17 @@ function refreshScopes(granted: string | null | undefined): string {
   return [...new Set(['offline_access', ...have])].join(' ');
 }
 
-export const hasCalendarScope = (granted: string | null | undefined) =>
-  Boolean(granted?.split(' ').some((s) => s.toLowerCase() === CALENDAR_SCOPE.toLowerCase()));
+const grantedSet = (granted: string | null | undefined) => new Set((granted ?? '').split(' ').map((s) => s.toLowerCase()));
+/** Can read her calendar (ReadWrite includes reading). */
+export const hasCalendarScope = (granted: string | null | undefined) => {
+  const g = grantedSet(granted);
+  return g.has(CALENDAR_SCOPE.toLowerCase()) || g.has('calendars.readwrite');
+};
+/** Can add events: to her own calendar, and (with .Shared) to a mailbox she has access to. */
+export const hasCalendarWrite = (granted: string | null | undefined, shared = false) => {
+  const g = grantedSet(granted);
+  return shared ? g.has('calendars.readwrite.shared') : g.has('calendars.readwrite');
+};
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 // History pulled in on first connect, so timelines aren't empty.
 const BACKFILL_DAYS = 14;

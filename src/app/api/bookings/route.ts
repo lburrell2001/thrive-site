@@ -3,6 +3,8 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import { BookingError, loadSettings, settingsSchema } from '@/lib/booking';
+import { canWriteCalendar } from '@/lib/bookingCalendar';
+import { loadConnection, mailboxesOf } from '@/lib/outlook';
 
 /** Settings, blocked dates, and bookings from the last 30 days onward. */
 export async function GET(req: Request) {
@@ -11,15 +13,18 @@ export async function GET(req: Request) {
 
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   try {
-    const [settings, blackouts, bookings] = await Promise.all([
+    const [settings, blackouts, bookings, conn] = await Promise.all([
       loadSettings(auth.db),
       auth.db.from('booking_blackouts').select('*').gte('ends_on', new Date().toISOString().slice(0, 10)).order('starts_on'),
       auth.db.from('bookings')
         .select('id, starts_at, ends_at, status, name, email, company, phone, service_slug, notes, crm_contact_id, crm_deal_id, cancelled_by, created_at')
         .gte('starts_at', since)
         .order('starts_at'),
+      loadConnection(auth.db).catch(() => null),
     ]);
-    return NextResponse.json({ ok: true, data: { settings, blackouts: blackouts.data ?? [], bookings: bookings.data ?? [] } });
+    // Which Outlook calendars a booking can be added to (migration 054), and whether the sign-in allows it.
+    const calendars = conn ? mailboxesOf(conn).map((m) => ({ mailbox: m, writable: canWriteCalendar(conn, m) })) : [];
+    return NextResponse.json({ ok: true, data: { settings, blackouts: blackouts.data ?? [], bookings: bookings.data ?? [], calendars } });
   } catch (error) {
     if (error instanceof BookingError) return badRequest(`${error.message} — run migration 025.`, 503);
     throw error;

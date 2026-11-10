@@ -10,6 +10,7 @@
 // minutes), and taking a booking re-checks that one slot live in Outlook.
 
 import 'server-only';
+import { addBookingToCalendar, removeBookingFromCalendar } from './bookingCalendar';
 import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
@@ -52,6 +53,7 @@ export const settingsSchema = z.object({
   ),
   meeting_link: z.string().trim().url('Enter a full link, e.g. https://meet.google.com/…').nullable().or(z.literal('').transform(() => null)),
   meeting_note: z.string().trim().max(300),
+  calendar_mailbox: z.string().trim().toLowerCase().email().nullable().or(z.literal('').transform(() => null)),
 }).partial();
 
 export const bookSchema = z.object({
@@ -285,6 +287,9 @@ export async function createBooking(
     crm_task_id: taskId,
   }).eq('id', booking.id);
 
+  // On the Outlook calendar chosen in Settings → Booking (hello@'s), so it's there with everything else.
+  await addBookingToCalendar(db, { ...booking, crm_contact_id: inq?.crm_contact_id ?? null }, settings);
+
   // Emails with the invite, and a text to Lauren.
   const where = settings.meeting_link ?? settings.meeting_note;
   const manage = `${site}/book/${token}`;
@@ -336,6 +341,7 @@ export async function cancelBooking(
   if (!booking) throw new BookingError('That booking was not found or is already cancelled.');
 
   await db.from('bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_by: cancelledBy }).eq('id', booking.id);
+  await removeBookingFromCalendar(db, booking);
   if (booking.crm_task_id) await db.from('crm_tasks').delete().eq('id', booking.crm_task_id).is('completed_at', null);
   if (booking.crm_contact_id) {
     await db.from('crm_activities').insert({

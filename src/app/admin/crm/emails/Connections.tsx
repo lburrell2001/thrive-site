@@ -77,7 +77,10 @@ export function Connections({ status, onChange, notify }: {
 
   const conn = status?.connection ?? null;
   const broken = Boolean(conn?.last_error);
-  const calendarOn = Boolean(conn?.granted_scopes?.split(' ').some((x) => x.toLowerCase() === 'calendars.read'));
+  const scopes = new Set((conn?.granted_scopes ?? '').split(' ').map((x) => x.toLowerCase()));
+  const calendarOn = scopes.has('calendars.read') || scopes.has('calendars.readwrite');
+  // Adding /book calls to a calendar (migration 054): hers needs ReadWrite, a shared mailbox's ReadWrite.Shared.
+  const calendarWrite = scopes.has('calendars.readwrite') && scopes.has('calendars.readwrite.shared');
 
   return (
     <div className={w.grid2} style={{ marginTop: 16 }}>
@@ -127,12 +130,19 @@ export function Connections({ status, onChange, notify }: {
                   <span className={w.muted}>
                     — on. Meetings on your calendar for the next 60 days show on Home, Calls and the contact&apos;s timeline (matched by an invitee&apos;s email, or a contact&apos;s name in the title).
                     {conn.calendar_synced_at && ` Last read ${formatWhen(conn.calendar_synced_at)}.`}
+                    {calendarWrite ? ' Calls booked on /book are added to the calendar chosen in Settings → Booking.' : null}
                   </span>
                 ) : (
                   <>
                     <span className={w.muted}>— off. Reconnect once to let the CRM read your calendar too.</span>{' '}
                     <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} disabled={busy !== null} onClick={() => run('connect')}>Reconnect with calendar</button>
                   </>
+                )}
+                {calendarOn && !calendarWrite && (
+                  <span style={{ display: 'block', marginTop: 8 }}>
+                    <span className={w.muted}>To put calls booked on /book on your calendar (or hello@&apos;s), reconnect once and accept the calendar access.</span>{' '}
+                    <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} disabled={busy !== null} onClick={() => run('connect')}>Reconnect to add bookings</button>
+                  </span>
                 )}
               </div>
               <p className={w.muted} style={{ margin: '0 0 12px' }}>

@@ -20,6 +20,8 @@ export interface BookingSettings {
   weekly_hours: Partial<Record<Weekday, HoursWindow[]>>;
   meeting_link: string | null;
   meeting_note: string;
+  /** Whose Outlook calendar new bookings go on (migration 054); null = none. */
+  calendar_mailbox?: string | null;
 }
 
 export interface Blackout { starts_on: string; ends_on: string }

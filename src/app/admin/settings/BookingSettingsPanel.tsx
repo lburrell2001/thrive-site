@@ -26,7 +26,7 @@ interface BookingRow {
 
 interface Blackout { id: string; starts_on: string; ends_on: string; note: string | null }
 
-interface CallsData { settings: BookingSettings; blackouts: Blackout[]; bookings: BookingRow[] }
+interface CallsData { settings: BookingSettings; blackouts: Blackout[]; bookings: BookingRow[]; calendars?: { mailbox: string; writable: boolean }[] }
 
 const DAY_NAME: Record<Weekday, string> = { sun: 'Sunday', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday' };
 const ORDER: Weekday[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -67,8 +67,12 @@ export function BookingSettingsPanel() {
   async function save(patch: Partial<BookingSettings> = {}) {
     setSaving(true);
     try {
-      const { enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link, meeting_note } = { ...settings!, ...patch };
-      await apiSend('/api/bookings', 'PATCH', { enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link: meeting_link ?? '', meeting_note });
+      const { enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link, meeting_note, calendar_mailbox } = { ...settings!, ...patch };
+      await apiSend('/api/bookings', 'PATCH', {
+        enabled, title, duration_minutes, buffer_minutes, min_notice_hours, max_days_ahead, weekly_hours, meeting_link: meeting_link ?? '', meeting_note,
+        // Only once migration 054 has added the column (the key is missing before it).
+        ...(calendar_mailbox !== undefined ? { calendar_mailbox: calendar_mailbox ?? '' } : {}),
+      });
       show('Saved.');
       await load();
     } catch (e) {
@@ -123,6 +127,35 @@ export function BookingSettingsPanel() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginTop: 12 }}>
             <label><span className={p.label}>Meeting link (Zoom, Google Meet…)</span><input className={p.input} value={settings.meeting_link ?? ''} onChange={(e) => set('meeting_link', e.target.value || null)} placeholder="https://meet.google.com/abc-defg-hij" /></label>
             <label><span className={p.label}>Note shown to visitors</span><input className={p.input} value={settings.meeting_note} onChange={(e) => set('meeting_note', e.target.value)} /></label>
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <label style={{ display: 'block', maxWidth: 420 }}>
+              <span className={p.label}>Add booked calls to this Outlook calendar</span>
+              {settings.calendar_mailbox === undefined ? (
+                <span className={p.rowMeta} style={{ display: 'block', margin: 0 }}>Run migration 054 in Supabase to put bookings on your Outlook calendar.</span>
+              ) : (
+                <select className={p.select} value={settings.calendar_mailbox ?? ''} onChange={(e) => set('calendar_mailbox', e.target.value || null)}>
+                  <option value="">Don’t add them</option>
+                  {[...new Set([...(data.calendars ?? []).map((c) => c.mailbox), ...(settings.calendar_mailbox ? [settings.calendar_mailbox] : [])])].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              )}
+            </label>
+            {(() => {
+              const chosen = settings.calendar_mailbox;
+              if (!chosen) return null;
+              const cal = (data.calendars ?? []).find((c) => c.mailbox.toLowerCase() === chosen.toLowerCase());
+              const why = !data.calendars?.length ? 'Outlook isn’t connected. Connect it in the Email tab.'
+                : !cal ? `${chosen} isn’t one of your connected mailboxes. Add it under Email → Add mailbox.`
+                : !cal.writable ? 'Outlook needs permission to add events: in the Email tab, choose Reconnect and accept the calendar access.'
+                : null;
+              return (
+                <p className={p.rowMeta} style={{ margin: '6px 0 0', color: why ? '#e50586' : undefined }}>
+                  {why ?? 'Each booking appears there as a busy event with their details and the meeting link; cancelling the booking removes it.'}
+                </p>
+              );
+            })()}
           </div>
           <div style={{ marginTop: 14 }}>
             <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => save()} disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save settings'}</button>
