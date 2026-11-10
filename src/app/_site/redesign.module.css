@@ -560,7 +560,7 @@
   /* All four cursor tags on phones too, spread around the logo and tagline. */
   .cursorTag { font-size: 0.78rem; padding: 3px 8px; }
   .cursor svg { width: 18px; height: 18px; }
-  .cur1 { top: -30%; left: 4%; }
+  .cur1 { top: -16%; left: 6%; } /* low enough that the fixed header's button never covers it */
   .cur2 { left: 0; top: 74%; }
   .cur3 { right: 6%; left: auto; top: -22%; }
   .cur4 { left: 40%; top: 100%; }
@@ -569,8 +569,14 @@
   .card { min-height: 0; }
   /* How We Work: the steps stack, so the slider runs down their side and the
      logo mark rides it level with the step being read. */
-  .stepsWrap { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 0 20px; margin-top: 24px; }
-  .stepsWrap .steps { margin-top: 0; }
+  .stepsWrap { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 0 34px; margin-top: 24px; padding: 0 0 44px 22px; }
+  .stepsWrap .steps { margin-top: 0; gap: 10px; }
+  /* Smaller cards beside the bar, so the full-size logo mark has room. */
+  .stepsWrap .step { padding: 14px 14px 16px; border-radius: 16px; }
+  .stepsWrap .stepNo { font-size: 2.1rem; }
+  .stepsWrap .stepTitle { font-size: 1.1rem; margin-top: 10px; }
+  .stepsWrap .stepSub { font-size: 0.68rem; margin-bottom: 8px; }
+  .stepsWrap .stepText { font-size: 0.78rem; line-height: 1.45; }
   .slider { order: -1; height: auto; width: 12px; margin: 0; }
   .sliderFill {
     inset: 0 0 auto 0;
@@ -581,7 +587,7 @@
     background: linear-gradient(180deg, #e50586, #fd6100 33%, #3943b7 66%, #0cf574);
     background-size: 100% calc(100% / max(var(--p), 0.02));
   }
-  .sliderMark { right: auto; top: auto; left: 50%; bottom: -26px; height: 52px; transform: translateX(-50%) rotate(calc((var(--p) - 0.5) * 24deg)); }
+  .slider .sliderMark { right: auto; top: auto; left: 50%; bottom: -32px; height: 64px; max-width: none; transform: translateX(-50%) rotate(calc((var(--p) - 0.5) * 24deg)); }
   .headerLogo { display: none; }
 }
 
