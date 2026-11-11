@@ -23,7 +23,20 @@ export type CaseShowcase = {
 };
 
 /** One number that moved, e.g. followers 412 → 1,380. */
-export type GrowthStat = { label: string; start: number; end: number; unit?: string };
+export type GrowthStat = {
+  label: string; start: number; end: number; unit?: string;
+  /** The big number on its card: the % change (default when there's a start), the amount gained, or the end value. */
+  lead?: 'percent' | 'gain' | 'end';
+};
+/** Who the activity came from, at the start and end of the contract (Instagram Insights: "Followers / Non-followers").
+ *  Values are counts or percentages; the page shows each side's share. */
+export type GrowthSplit = {
+  label: string;
+  start: { followers: number; nonFollowers: number };
+  end: { followers: number; nonFollowers: number };
+  /** '%' when the values are already percentages; otherwise counts are shown beside the shares. */
+  unit?: '%';
+};
 /** A line chart: one measure over time, e.g. followers by month. */
 export type GrowthSeries = { label: string; unit?: string; points: { when: string; value: number }[] };
 export type GrowthAccount = {
@@ -33,6 +46,10 @@ export type GrowthAccount = {
   period?: string;
   stats: GrowthStat[];
   series?: GrowthSeries[];
+  splits?: GrowthSplit[];
+  /** What the two ends are called on the page; default "Start of contract" / "End of contract". */
+  startLabel?: string;
+  endLabel?: string;
 };
 export type CaseGrowth = {
   intro?: string;

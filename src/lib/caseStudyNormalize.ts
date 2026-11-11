@@ -30,8 +30,16 @@ function growth(v: unknown): CaseGrowth | undefined {
     const o = obj(a);
     const stats = arr(o.stats).map((s) => {
       const so = obj(s);
-      return { label: str(so.label), start: num(so.start), end: num(so.end), unit: str(so.unit) || undefined };
+      const lead = ['percent', 'gain', 'end'].includes(str(so.lead)) ? str(so.lead) as 'percent' : undefined;
+      return { label: str(so.label), start: num(so.start), end: num(so.end), unit: str(so.unit) || undefined, ...(lead ? { lead } : {}) };
     }).filter((s) => s.label && Number.isFinite(s.start) && Number.isFinite(s.end));
+    const side = (v: unknown) => ({ followers: num(obj(v).followers), nonFollowers: num(obj(v).nonFollowers) });
+    const okSide = (x: { followers: number; nonFollowers: number }) =>
+      Number.isFinite(x.followers) && Number.isFinite(x.nonFollowers) && x.followers >= 0 && x.nonFollowers >= 0 && x.followers + x.nonFollowers > 0;
+    const splits = arr(o.splits).map((sp) => {
+      const so = obj(sp);
+      return { label: str(so.label), start: side(so.start), end: side(so.end), ...(str(so.unit) === '%' ? { unit: '%' as const } : {}) };
+    }).filter((sp) => sp.label && okSide(sp.start) && okSide(sp.end));
     const series = arr(o.series).map((s) => {
       const so = obj(s);
       const points = arr(so.points).map((p) => ({ when: str(obj(p).when), value: num(obj(p).value) }))
@@ -41,8 +49,10 @@ function growth(v: unknown): CaseGrowth | undefined {
     return {
       platform: str(o.platform), handle: str(o.handle).replace(/^@/, '') || undefined, period: str(o.period) || undefined,
       stats, series: series.length ? series : undefined,
+      splits: splits.length ? splits : undefined,
+      startLabel: str(o.startLabel) || undefined, endLabel: str(o.endLabel) || undefined,
     };
-  }).filter((a) => a.platform && (a.stats.length || a.series));
+  }).filter((a) => a.platform && (a.stats.length || a.series || a.splits));
   const screenshots = images(g.screenshots);
   if (!accounts.length && !screenshots.length) return undefined;
   return {

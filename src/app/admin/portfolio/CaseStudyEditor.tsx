@@ -20,9 +20,11 @@ import { api, directUpload } from './portfolioApi';
 type Img = { src: string; alt: string; caption?: string };
 type Titled = { title: string; text: string };
 type Num = number | string;
-type Stat = { label: string; start: Num; end: Num; unit?: string };
+type Stat = { label: string; start: Num; end: Num; unit?: string; lead?: 'percent' | 'gain' | 'end' };
+type Side = { followers: Num; nonFollowers: Num };
+type Split = { label: string; start: Side; end: Side; unit?: '%' };
 type Series = { label: string; unit?: string; points: { when: string; value: Num }[] };
-type Account = { platform: string; handle?: string; period?: string; stats: Stat[]; series?: Series[] };
+type Account = { platform: string; handle?: string; period?: string; stats: Stat[]; series?: Series[]; splits?: Split[]; startLabel?: string; endLabel?: string };
 type Draft = {
   client?: string; headline?: string; lede?: string; liveUrl?: string;
   seo?: { title: string; description: string };
@@ -48,7 +50,21 @@ type Draft = {
 type Kind = 'web' | 'social' | 'other';
 
 const T = (n: number): Titled[] => Array.from({ length: n }, () => ({ title: '', text: '' }));
-const STAT_NAMES = ['Followers', 'Reach', 'Impressions', 'Engagement rate', 'Profile visits', 'Link clicks', 'Likes', 'Comments', 'Shares', 'Saves', 'Video views', 'Posts published'];
+const STAT_NAMES = ['Followers', 'Accounts reached', 'Views', 'Interactions', 'Accounts engaged', 'Engagement rate', 'Profile visits', 'Link clicks', 'Reel plays', 'Likes', 'Comments', 'Shares', 'Saves', 'Impressions', 'Posts published'];
+/** What Instagram Insights reports for a period, in the order that sells best. Blank rows are dropped on save. */
+const USUAL_STATS: Stat[] = [
+  { label: 'Followers', start: '', end: '', lead: 'gain' },
+  { label: 'Accounts reached', start: '', end: '' },
+  { label: 'Views', start: '', end: '' },
+  { label: 'Interactions', start: '', end: '' },
+  { label: 'Engagement rate', start: '', end: '', unit: '%' },
+  { label: 'Profile visits', start: '', end: '' },
+  { label: 'Link clicks', start: '', end: '' },
+  { label: 'Shares', start: '', end: '' },
+  { label: 'Saves', start: '', end: '' },
+];
+const SPLIT_NAMES = ['Interactions', 'Views', 'Accounts reached', 'Accounts engaged'];
+const blankSplit = (label: string): Split => ({ label, start: { followers: '', nonFollowers: '' }, end: { followers: '', nonFollowers: '' }, unit: '%' });
 const PLATFORMS = ['Instagram', 'TikTok', 'Facebook', 'LinkedIn', 'YouTube', 'X', 'Pinterest', 'Threads'];
 
 function template(kind: Kind, title: string): Draft {
@@ -78,7 +94,8 @@ function template(kind: Kind, title: string): Draft {
         intro: '',
         accounts: [{
           platform: 'Instagram', handle: '', period: '',
-          stats: [{ label: 'Followers', start: '', end: '' }, { label: 'Reach', start: '', end: '' }, { label: 'Engagement rate', start: '', end: '', unit: '%' }, { label: 'Profile visits', start: '', end: '' }],
+          stats: USUAL_STATS.map((x) => ({ ...x })),
+          splits: [blankSplit('Interactions'), blankSplit('Views')],
           series: [{ label: 'Followers', points: [] }],
         }],
         screenshots: [], screenshotsText: '',
@@ -137,6 +154,7 @@ function checks(d: Draft, kind: Kind): { label: string; done: boolean }[] {
       { label: 'Approach with 3+ steps', done: (d.approach?.steps ?? []).filter((s) => filled(s.title)).length >= 3 },
       { label: '2+ groups of posts', done: (d.showcase ?? []).filter((b) => b.images.length).length >= 2 },
       { label: 'Growth numbers (start → end)', done: accounts.some((a) => a.stats.filter((s) => filled(s.label) && ok(s.start) && ok(s.end)).length >= 2) },
+      { label: 'Followers vs non-followers', done: accounts.some((a) => (a.splits ?? []).some((sp) => [sp.start.followers, sp.start.nonFollowers, sp.end.followers, sp.end.nonFollowers].every(ok))) },
       { label: 'A growth chart (3+ points)', done: accounts.some((a) => (a.series ?? []).some((s) => s.points.filter((p) => filled(p.when) && ok(p.value)).length >= 3)) },
       { label: '2+ analytics screenshots', done: (d.growth?.screenshots ?? []).length >= 2 },
       ...tail,
@@ -354,26 +372,92 @@ function SeriesEditor({ s, set }: { s: Series; set: (v: Series) => void }) {
   );
 }
 
+function SplitEditor({ sp, set, startLabel, endLabel }: { sp: Split; set: (v: Split) => void; startLabel: string; endLabel: string }) {
+  const pctMode = sp.unit === '%';
+  const side = (k: 'start' | 'end', field: keyof Side, v: string) => {
+    const next = { ...sp[k], [field]: v };
+    // In percent mode the other side fills itself in (they add up to 100).
+    if (pctMode && v.trim() !== '' && Number.isFinite(Number(v))) {
+      const other = field === 'followers' ? 'nonFollowers' : 'followers';
+      next[other] = String(Math.max(0, Math.round((100 - Number(v)) * 10) / 10));
+    }
+    set({ ...sp, [k]: next });
+  };
+  const cell = (k: 'start' | 'end', field: keyof Side, ph: string) => (
+    <input style={input} value={String(sp[k][field])} placeholder={ph} inputMode="decimal" onChange={(e) => side(k, field, e.target.value)}
+      aria-label={`${k === 'start' ? startLabel : endLabel}: ${field === 'followers' ? 'followers' : 'non-followers'}`} />
+  );
+  return (
+    <div>
+      <div style={{ ...grid(160), marginBottom: 6 }}>
+        <input style={input} value={sp.label} placeholder="Interactions" list="growth-splits" onChange={(e) => set({ ...sp, label: e.target.value })} aria-label="What was split" />
+        <select style={input} value={sp.unit ?? ''} onChange={(e) => set({ ...sp, unit: e.target.value === '%' ? '%' : undefined })} aria-label="Values are">
+          <option value="%">Percentages (from Insights)</option><option value="">Counts</option>
+        </select>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(90px, 1.2fr) 1fr 1fr', gap: 6, alignItems: 'center', fontSize: 12.5 }}>
+        <span /><span style={label}>Followers</span><span style={label}>Non-followers</span>
+        <span>{startLabel}</span>{cell('start', 'followers', pctMode ? '70' : '1,200')}{cell('start', 'nonFollowers', pctMode ? '30' : '500')}
+        <span>{endLabel}</span>{cell('end', 'followers', pctMode ? '45' : '2,100')}{cell('end', 'nonFollowers', pctMode ? '55' : '2,600')}
+      </div>
+    </div>
+  );
+}
+
 function AccountEditor({ a, set }: { a: Account; set: (v: Account) => void }) {
+  const startLabel = a.startLabel || 'Start of contract';
+  const endLabel = a.endLabel || 'End of contract';
+  const have = new Set(a.stats.map((x) => x.label.trim().toLowerCase()));
+  const missing = USUAL_STATS.filter((x) => !have.has(x.label.toLowerCase()));
   return (
     <div>
       <div style={grid(150)}>
         <Txt l="Platform" v={a.platform} set={(platform) => set({ ...a, platform })} list="growth-platforms" />
         <Txt l="Handle" v={a.handle} set={(handle) => set({ ...a, handle })} ph="@client" />
-        <Txt l="Period" v={a.period} set={(period) => set({ ...a, period })} ph="Jan – Jun 2026" />
+        <Txt l="Contract dates" v={a.period} set={(period) => set({ ...a, period })} ph="Jan – Jun 2026" />
       </div>
-      <span style={label}>Numbers (start → end)</span>
+      <div style={grid(150)}>
+        <Txt l="Start is called" v={a.startLabel} set={(v) => set({ ...a, startLabel: v })} ph="Start of contract" />
+        <Txt l="End is called" v={a.endLabel} set={(v) => set({ ...a, endLabel: v })} ph="End of contract" />
+      </div>
+
+      <span style={label}>Numbers — {startLabel} → {endLabel}</span>
+      <p style={{ fontSize: 12, color: 'var(--a-muted)', margin: '0 0 8px' }}>
+        From Insights for the same length of time at each end (e.g. the 30 days before you started vs the last 30 days). Rows left blank don’t show.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 2fr) 1fr 1fr 70px 150px', gap: 6, fontSize: 11.5, color: 'var(--a-faint)', marginRight: 112 }}>
+        <span>Stat</span><span>{startLabel}</span><span>{endLabel}</span><span>Unit</span><span>Big number shows</span>
+      </div>
       <Rows inline items={a.stats} set={(stats) => set({ ...a, stats })} add="Number" blank={() => ({ label: '', start: '', end: '' })}
         render={(st, up) => (
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 2fr) 1fr 1fr 90px', gap: 6 }}>
-            <input style={input} value={st.label} placeholder="Followers" list="growth-stats" onChange={(e) => up({ ...st, label: e.target.value })} />
-            <input style={input} value={String(st.start)} placeholder="Start" inputMode="decimal" onChange={(e) => up({ ...st, start: e.target.value })} />
-            <input style={input} value={String(st.end)} placeholder="End" inputMode="decimal" onChange={(e) => up({ ...st, end: e.target.value })} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, 2fr) 1fr 1fr 70px 150px', gap: 6 }}>
+            <input style={input} value={st.label} placeholder="Followers" list="growth-stats" onChange={(e) => up({ ...st, label: e.target.value })} aria-label="Stat" />
+            <input style={input} value={String(st.start)} placeholder="Start" inputMode="decimal" onChange={(e) => up({ ...st, start: e.target.value })} aria-label={startLabel} />
+            <input style={input} value={String(st.end)} placeholder="End" inputMode="decimal" onChange={(e) => up({ ...st, end: e.target.value })} aria-label={endLabel} />
             <select style={input} value={st.unit ?? ''} onChange={(e) => up({ ...st, unit: e.target.value || undefined })} aria-label="Unit">
               <option value="">#</option><option value="%">%</option><option value="$">$</option>
             </select>
+            <select style={input} value={st.lead ?? ''} onChange={(e) => up({ ...st, lead: (e.target.value || undefined) as Stat['lead'] })} aria-label="Big number shows">
+              <option value="">Auto</option><option value="percent">% change</option><option value="gain">Amount gained</option><option value="end">End value</option>
+            </select>
           </div>
         )} />
+      {missing.length > 0 && (
+        <button type="button" className={`${ui.btn} ${ui.btnSmall}`} style={{ marginTop: 6 }}
+          onClick={() => set({ ...a, stats: [...a.stats, ...missing.map((x) => ({ ...x }))] })}>
+          + Add the usual Insights stats ({missing.map((x) => x.label).join(', ')})
+        </button>
+      )}
+
+      <div style={{ marginTop: 16 }}>
+        <span style={label}>Followers vs non-followers</span>
+        <p style={{ fontSize: 12, color: 'var(--a-muted)', margin: '0 0 8px' }}>
+          Insights shows this under Views and Interactions. A bigger non-follower share at the end means the content is reaching new people.
+        </p>
+        <Rows items={a.splits} set={(splits) => set({ ...a, splits })} add="Comparison" blank={() => blankSplit('')}
+          render={(sp, up) => <SplitEditor sp={sp} set={up} startLabel={startLabel} endLabel={endLabel} />} />
+      </div>
+
       <div style={{ marginTop: 14 }}>
         <span style={label}>Charts over time</span>
         <Rows items={a.series} set={(series) => set({ ...a, series })} add="Chart" blank={() => ({ label: '', points: [] })}
@@ -488,6 +572,7 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
   return (
     <div key={version}>
       <datalist id="growth-stats">{STAT_NAMES.map((x) => <option key={x} value={x} />)}</datalist>
+      <datalist id="growth-splits">{SPLIT_NAMES.map((x) => <option key={x} value={x} />)}</datalist>
       <datalist id="growth-platforms">{PLATFORMS.map((x) => <option key={x} value={x} />)}</datalist>
 
       {needsMigration && (
@@ -597,11 +682,11 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
       )}
 
       {(kind === 'social' || has('growth')) && (
-        <Section title="The growth" done={isDone('Growth numbers (start → end)') && isDone('A growth chart (3+ points)') && isDone('2+ analytics screenshots')}
-          hint="Each account's numbers from the start of the work to now (shown with the change and %), charts over time, and analytics screenshots shown in phone frames. Use the real numbers from Insights.">
+        <Section title="The growth" done={isDone('Growth numbers (start → end)') && isDone('Followers vs non-followers') && isDone('A growth chart (3+ points)') && isDone('2+ analytics screenshots')}
+          hint="Each account's numbers from the start of the contract to the end (shown with the change, % and before/after bars), followers vs non-followers, charts over time, and analytics screenshots in phone frames. Use the real numbers from Insights.">
           <Area l="Intro (optional)" v={d.growth?.intro} rows={2} set={(v) => up('growth', { accounts: [], ...d.growth, intro: v })} />
           <Rows items={d.growth?.accounts} set={(v) => up('growth', { ...d.growth, accounts: v })} add="Account"
-            blank={() => ({ platform: 'Instagram', stats: [{ label: 'Followers', start: '', end: '' }], series: [] })}
+            blank={() => ({ platform: 'Instagram', stats: USUAL_STATS.map((x) => ({ ...x })), splits: [blankSplit('Interactions'), blankSplit('Views')], series: [] })}
             render={(a, u) => <AccountEditor a={a} set={u} />} />
           <div style={{ marginTop: 16 }}>
             <span style={label}>Analytics screenshots (shown in phone frames)</span>
