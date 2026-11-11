@@ -56,7 +56,7 @@ const BRAND = {
 
 export const metadata: Metadata = {
   title: {
-    default: `Affordable Web Development & Branding in Dallas, TX | ${SITE_NAME}`,
+    default: `Affordable Web Design, Development & Branding in Dallas, TX | ${SITE_NAME}`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
@@ -174,7 +174,7 @@ export default function RootLayout({
       { "@type": "City", name: "Amarillo", containedInPlace: { "@type": "State", name: "Texas" } },
       { "@type": "Country", name: "United States" },
     ],
-    knowsAbout: ["Brand identity design", "Logo design", "Web development", "Custom website development", "UX design", "Social media management", "Brand photography"],
+    knowsAbout: ["Brand identity design", "Logo design", "Web design", "Web development", "Custom website development", "UX design", "Social media management", "Brand photography"],
     hasOfferCatalog: {
       "@type": "OfferCatalog",
       name: "Creative services",

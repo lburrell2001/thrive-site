@@ -88,9 +88,9 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
   'digital-design': {
     slug: 'digital-design',
     path: '/services/digital-design',
-    name: 'Web Development',
-    serviceType: 'Custom website development',
-    title: 'Custom Website Development in Dallas, TX',
+    name: 'Web Design & Development',
+    serviceType: 'Custom web design and development',
+    title: 'Custom Web Design & Development in Dallas, TX',
     description:
       'Custom websites for Dallas small businesses from $1,250, with Starter, Medium and Large packages and monthly care plans to keep your site secure and up to date.',
     remote: true,

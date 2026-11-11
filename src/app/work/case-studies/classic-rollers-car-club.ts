@@ -10,7 +10,7 @@ const study: CaseStudy = {
     "Unlimited Classic Rollers Car Club has been part of Amarillo since 1985. We designed and built its website from the ground up: online membership applications and donation forms, events that keep themselves current, and a custom admin so club officers can update the site without a developer.",
   liveUrl: "https://classicrollersamatx.org",
   seo: {
-    title: "Classic Rollers Car Club Website | Amarillo Web Development | Thrive Creative Studios",
+    title: "Classic Rollers Car Club Website | Amarillo Web Design & Development | Thrive Creative Studios",
     description:
       "How Thrive Creative Studios designed and built a website for an Amarillo car club and its scholarship fund, with online membership applications and a custom admin.",
   },

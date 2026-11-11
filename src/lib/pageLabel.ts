@@ -3,7 +3,7 @@
 const NAMED: Record<string, string> = {
   '/': 'Home',
   '/services': 'Services',
-  '/services/digital-design': 'Web Development',
+  '/services/digital-design': 'Web Design & Development',
   '/services/brand-design': 'Branding',
   '/services/ux-design': 'UX Design',
   '/services/social-media': 'Social Media',

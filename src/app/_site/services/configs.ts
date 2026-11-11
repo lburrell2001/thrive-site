@@ -26,7 +26,7 @@ export type ServiceConfig = {
 export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
   'digital-design': {
     slug: 'digital-design',
-    title: 'Web Development',
+    title: 'Web Design & Development',
     icon: 'web',
     tone: 'bMagenta',
     lede: 'We design and build: custom-coded from scratch, or on WordPress, Wix or Squarespace when that fits — in your colors and fonts, never a template. Care plans keep it running after launch.',

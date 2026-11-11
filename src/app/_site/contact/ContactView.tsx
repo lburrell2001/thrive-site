@@ -21,7 +21,7 @@ import c from './contact.module.css';
 // Values are what projects/inquiries store ("Digital Design" = the web service here).
 const SERVICES = [
   { value: 'Brand Design', label: 'Brand Design', tone: s.bBlue },
-  { value: 'Digital Design', label: 'Web Development', tone: s.bMagenta },
+  { value: 'Digital Design', label: 'Web Design & Development', tone: s.bMagenta },
   { value: 'Social Media', label: 'Social Media', tone: s.bMint },
   { value: 'UX Design', label: 'UX Design', tone: s.bOrange },
   { value: 'Photography', label: 'Photography', tone: s.bPurple },

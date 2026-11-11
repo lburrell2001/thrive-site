@@ -36,7 +36,7 @@ export type HomeService = {
 // Same colours as the hero stickers, so each service keeps its colour down the page.
 const SERVICE_TONES = [s.toPink, s.toGreen, s.toOrange, s.toBlue, s.toBlack];
 
-const TAPE = "BRING THE COLOR BACK ✦ BRANDING ✦ WEB DEVELOPMENT ✦ SOCIAL MEDIA ✦ UX/UI DESIGN ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ NO BEIGE HERE ✦ ";
+const TAPE = "BRING THE COLOR BACK ✦ BRANDING ✦ WEB DESIGN & DEVELOPMENT ✦ SOCIAL MEDIA ✦ UX/UI DESIGN ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ NO BEIGE HERE ✦ ";
 
 const STEPS = [
   { title: "Listen", text: "We start by listening. Deep dives into your brand, your audience, your goals — and the story only you can tell." },

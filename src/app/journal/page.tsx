@@ -10,7 +10,7 @@ import s from './journal.module.css';
 export const revalidate = 3600;
 
 export const metadata: Metadata = buildPageMetadata({
-  title: 'Journal — Branding, Web Development & Marketing Advice',
+  title: 'Journal — Branding, Web Design & Development, and Marketing Advice',
   description:
     'Straight answers on branding, websites, social media and photography for small businesses, from Thrive Creative Studios in Dallas.',
   path: '/journal',

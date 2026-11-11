@@ -52,7 +52,7 @@ const PROJECTS: ProjectData[] = [
     slug: "burrell-group",
     name: "The Burrell Group",
     category: "Website Redesign",
-    services: "Web Development, Brand Identity",
+    services: "Web Design & Development, Brand Identity",
     description:
       "The Burrell Group needed an identity and web presence as authoritative and forward-thinking as the work they do. We created a brand system and website built on confidence, clarity, and culture — one that immediately positions them as leaders in their space.",
     stats: [
@@ -60,7 +60,7 @@ const PROJECTS: ProjectData[] = [
       { value: "New", label: "Brand System" },
       { value: "100%", label: "Custom Build" },
     ],
-    deliverables: ["Web Development", "Logo Suite", "Color System", "Brand Guidelines"],
+    deliverables: ["Web Design & Development", "Logo Suite", "Color System", "Brand Guidelines"],
     quote: "The work they did set us apart immediately. Bold, intentional, and exactly right.",
     quoteAuthor: "The Burrell Group",
     next: "curl-co",
@@ -154,16 +154,16 @@ const PROJECTS: ProjectData[] = [
   {
     slug: "st-john",
     name: "St. John",
-    category: "Web Development",
-    services: "Web Development, Photography",
+    category: "Web Design & Development",
+    services: "Web Design & Development, Photography",
     description:
       "A refined web presence for a refined brand. St. John needed a digital home that matched the elegance and intentionality of everything they stand for — clean, elevated, and built to convert.",
     stats: [
-      { value: "Full", label: "Web Development" },
+      { value: "Full", label: "Web Design & Development" },
       { value: "New", label: "Visual Direction" },
       { value: "100%", label: "Custom Build" },
     ],
-    deliverables: ["Web Development", "Photography Direction", "Brand Styling", "Launch Assets"],
+    deliverables: ["Web Design & Development", "Photography Direction", "Brand Styling", "Launch Assets"],
     quote: "Thrive built us something we are genuinely proud to send people to.",
     quoteAuthor: "St. John",
     next: "tckt",

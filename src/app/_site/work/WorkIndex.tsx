@@ -20,11 +20,12 @@ export type WorkCaseStudy = { title: string; slug: string; category: string | nu
 // graphics work, not the web service — the label stays as it is.
 const FILTERS = [
   { label: 'All', tone: s.bBlack },
+  { label: 'Web Design & Development', tone: s.bMagenta },
   { label: 'Brand Design', tone: s.bBlue },
-  { label: 'Digital Design', tone: s.bMagenta },
+  { label: 'Digital Design', tone: s.bPurple },
   { label: 'UX Design', tone: s.bOrange },
   { label: 'Social Media', tone: s.bMint },
-  { label: 'Photography', tone: s.bPurple },
+  { label: 'Photography', tone: s.bBlue },
 ];
 // Hover colour per tile, round the brand palette.
 const TONES = [s.bMagenta, s.bOrange, s.bBlue, s.bMint, s.bPurple];

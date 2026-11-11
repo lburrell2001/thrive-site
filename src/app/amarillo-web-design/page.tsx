@@ -16,9 +16,9 @@ import s from "./amarillo.module.css";
 // service pages.
 
 const PATH = "/amarillo-web-design";
-const TITLE = "Amarillo Web Development, Branding & Social Media | Thrive Creative Studios";
+const TITLE = "Amarillo Web Design & Development, Branding & Social Media | Thrive Creative Studios";
 const DESCRIPTION =
-  "Web development, graphic design, and social media marketing for Amarillo small businesses. Starter websites from $1,250. Founded by an Amarillo native.";
+  "Web design & development, graphic design, and social media marketing for Amarillo small businesses. Starter websites from $1,250. Founded by an Amarillo native.";
 
 const base = buildPageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 export const metadata: Metadata = {
@@ -146,7 +146,7 @@ export default function AmarilloPage() {
         <section className={s.hero}>
           <div className={s.heroText}>
             <h1 className={s.h1}>
-              Web Development, Branding &amp; Social Media in <span className={s.accent}>Amarillo</span>, TX
+              Web Design & Development, Branding &amp; Social Media in <span className={s.accent}>Amarillo</span>, TX
             </h1>
             <p className={s.lead}>
               Our founder is from Amarillo, born and raised, Tascosa High School. Thrive is based in Dallas and works
@@ -176,7 +176,7 @@ export default function AmarilloPage() {
         <section className={s.services}>
           <article className={`${s.service} ${s.pink}`}>
             <div className={s.serviceHead}>
-              <h2 className={s.h2}>Web Development in Amarillo</h2>
+              <h2 className={s.h2}>Web Design & Development in Amarillo</h2>
               <ServicePhoto photo={PHOTOS.web} />
             </div>
             <div className={s.serviceBody}>

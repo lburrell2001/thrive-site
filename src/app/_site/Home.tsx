@@ -34,7 +34,7 @@ const CURSORS = [
 const SERVICES = [
   { title: 'Brand Design', href: '/services/brand-design', tone: s.bBlue, icon: 'brand' as const,
     items: ['Discovery call', 'Two logo concepts', 'Color & type', 'Full identity system', 'Ready in 4–6 weeks'] },
-  { title: 'Web Development', href: '/services/digital-design', tone: s.bMagenta, icon: 'web' as const,
+  { title: 'Web Design & Development', href: '/services/digital-design', tone: s.bMagenta, icon: 'web' as const,
     items: ['Custom-coded sites', 'WordPress, Wix & Squarespace', 'Your colors, never a template', 'Built by the designers', 'Care plans after launch'] },
   { title: 'Social Media', href: '/services/social-media', tone: s.bMint, icon: 'social' as const,
     items: ['Monthly content calendar', 'Designed graphics', 'Edited videos', 'Captions & hashtags', 'Scheduling & posting'] },
