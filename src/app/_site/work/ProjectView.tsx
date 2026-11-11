@@ -6,6 +6,7 @@
 // the work, growth (social accounts), features, design system, mobile, timeline, outcome and quote,
 // then the next project and the closing band.
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { caseImageUrl, projectCoverThumb } from '@/lib/storage';
 import type { CaseImage, CaseShowcase, CaseStudy } from '../../work/caseStudies';
@@ -40,6 +41,26 @@ function Phone({ img }: { img: CaseImage }) {
   return <div className={p.phone}><Media img={img} width={640} /></div>;
 }
 
+/** A tile in a grid/wide/posts group. A phone screenshot (tall and narrow) gets
+ *  a phone frame instead of being cropped. */
+function Tile({ img, layout }: { img: CaseImage; layout: string }) {
+  const [phone, setPhone] = useState(false);
+  const check = (el: HTMLImageElement) => { if (el.naturalWidth && el.naturalHeight / el.naturalWidth >= 1.6) setPhone(true); };
+  const url = caseImageUrl(img.src, layout === 'wide' ? 1800 : 1000);
+  const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(url);
+  return (
+    <figure className={`${p.tile} ${phone ? p.tilePhone : ''} ${s.rise}`}>
+      {isVideo ? <Media img={img} width={layout === 'wide' ? 1800 : 1000} /> : phone ? (
+        <span className={p.tilePhoneFrame}><img src={caseImageUrl(img.src, 640)} alt={img.alt} loading="lazy" decoding="async" /></span>
+      ) : (
+        <img src={url} alt={img.alt} loading="lazy" decoding="async"
+          onLoad={(e) => check(e.currentTarget)} ref={(el) => { if (el?.complete) check(el); }} />
+      )}
+      {img.caption && <figcaption>{img.caption}</figcaption>}
+    </figure>
+  );
+}
+
 function Showcase({ block }: { block: CaseShowcase }) {
   const layout = block.layout ?? 'grid';
   return (
@@ -54,12 +75,7 @@ function Showcase({ block }: { block: CaseShowcase }) {
         <div className={p.phones}>{block.images.map((img) => <Phone key={img.src} img={img} />)}</div>
       ) : (
         <div className={`${p.tiles} ${p[`tiles_${layout}`]}`}>
-          {block.images.map((img) => (
-            <figure key={img.src} className={`${p.tile} ${s.rise}`}>
-              <Media img={img} width={layout === 'wide' ? 1800 : 1000} />
-              {img.caption && <figcaption>{img.caption}</figcaption>}
-            </figure>
-          ))}
+          {block.images.map((img) => <Tile key={img.src} img={img} layout={layout} />)}
         </div>
       )}
     </div>

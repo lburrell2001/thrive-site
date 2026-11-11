@@ -7,6 +7,15 @@ type Item = { url: string; alt: string };
 
 export default function ProjectGallery({ items, title }: { items: Item[]; title: string }) {
   const [active, setActive] = useState<number | null>(null);
+  // Phone screenshots (tall and narrow) get a phone frame, like the case studies.
+  const [phones, setPhones] = useState<Set<string>>(new Set());
+  const check = (url: string, el: HTMLImageElement | null) => {
+    if (!el?.complete) return;
+    const { naturalWidth: w, naturalHeight: h } = el;
+    if (w && h / w >= 1.6) setPhones((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
+  };
+  // An image already loaded before hydration never fires onLoad, so check on mount too.
+  const onLoad = (url: string) => (e: React.SyntheticEvent<HTMLImageElement>) => check(url, e.currentTarget);
 
   const close = useCallback(() => setActive(null), []);
   const prev = useCallback(() => setActive(i => i === null ? null : (i - 1 + items.length) % items.length), [items.length]);
@@ -39,11 +48,17 @@ export default function ProjectGallery({ items, title }: { items: Item[]; title:
           <button
             key={img.url}
             type="button"
-            className={styles.galleryStackItem}
+            className={`${styles.galleryStackItem} ${phones.has(img.url) ? styles.galleryStackPhone : ''}`}
             onClick={() => setActive(i)}
             aria-label={`Open photo ${i + 1}`}
           >
-            <img src={img.url} alt={img.alt} className={styles.galleryStackImg} loading="lazy" />
+            {phones.has(img.url) ? (
+              <span className={styles.galleryPhone}>
+                <img src={img.url} alt={img.alt} loading="lazy" />
+              </span>
+            ) : (
+              <img src={img.url} alt={img.alt} className={styles.galleryStackImg} loading="lazy" onLoad={onLoad(img.url)} ref={(el) => check(img.url, el)} />
+            )}
           </button>
         ))}
       </div>

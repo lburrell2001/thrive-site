@@ -250,6 +250,21 @@
 }
 .galleryStackItem:hover { opacity: .85; }
 
+/* A box holding a phone is taller, so the phone reads at a useful size. */
+.galleryStackPhone { aspect-ratio: 4 / 5; }
+
+/* A phone screenshot in a phone frame (same look as the case-study phones). */
+.galleryPhone {
+  display: block;
+  height: 88%;
+  border: clamp(5px, 0.7vw, 10px) solid #141414;
+  border-radius: clamp(20px, 2.6vw, 36px);
+  overflow: hidden;
+  background: #141414;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+}
+.galleryPhone img { display: block; height: 100%; width: auto; }
+
 .galleryStackImg {
   display: block;
   width: 100%;
