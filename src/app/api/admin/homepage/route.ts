@@ -6,9 +6,9 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { FAN_COUNT, INLINE_COUNT, PAGE_STRIPS, QUOTE_COUNT, collageLibrary, loadConfig, photosFor, quotableReviews, saveConfig } from '@/lib/homeCollage';
+import { collageLibrary, loadConfig, photosFor, quotableReviews, saveConfig } from '@/lib/homeCollage';
+import { homepageSchema as schema } from '@/lib/homepageSchema';
 import { MAX_TILES } from '@/lib/collageLayout';
 
 /** Every case-study image to choose from, what's saved, and what the homepage shows now. */
@@ -18,29 +18,6 @@ export async function GET(req: Request) {
   const config = await loadConfig(auth.db);
   return NextResponse.json({ ok: true, data: { library: collageLibrary(), config, shown: photosFor(config), reviews: await quotableReviews(auth.db).catch(() => []) } });
 }
-
-const pick = z.object({ slug: z.string().max(200), src: z.string().max(500) });
-const cell = z.number().int().min(1).max(20);
-const placed = z.array(pick.extend({ col: cell, row: cell, w: cell, h: cell }));
-const schema = z.object({
-  mosaic: z.object({ desktop: placed.min(1).max(MAX_TILES), phone: placed.min(1).max(MAX_TILES) }),
-  fan: z.array(pick.nullable()).length(FAN_COUNT),
-  inline: z.array(pick.nullable()).length(INLINE_COUNT),
-  pages: z.object({
-    about: z.array(pick.nullable()).length(PAGE_STRIPS.about),
-    contact: z.array(pick.nullable()).length(PAGE_STRIPS.contact),
-    book: z.array(pick.nullable()).length(PAGE_STRIPS.book),
-  }),
-  share: pick.nullable().default(null),
-  quotes: z.array(z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('review'), id: z.string().uuid() }),
-    z.object({
-      kind: z.literal('custom'), text: z.string().trim().min(1, 'Type the quote, or pick a review').max(400), who: z.string().trim().max(80),
-      contact_id: z.string().uuid().nullable().optional(), service: z.enum(['brand-design', 'digital-design', 'ux-design', 'social-media', 'photography']).nullable().optional(),
-      review_id: z.string().uuid().nullable().optional(),
-    }),
-  ])).length(QUOTE_COUNT).optional(),
-});
 
 type Slot = NonNullable<Parameters<typeof saveConfig>[1]['quotes']>[number];
 
@@ -65,7 +42,16 @@ export async function PATCH(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const parsed = schema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return badRequest(`Give every tile a photo (1 to ${MAX_TILES} tiles)`);
+  if (!parsed.success) {
+    // Say what's actually wrong (a quote, a tile…), not one message for everything.
+    const issue = parsed.error.issues[0];
+    const where = issue?.path?.[0];
+    const msg = where === 'quotes' ? `Quote ${Number(issue.path[1] ?? 0) + 1}: ${issue.message}`
+      : where === 'mosaic' ? `Give every tile a photo (1 to ${MAX_TILES} tiles)`
+      : issue?.message ?? 'Could not save';
+    console.error('[homepage] save refused', JSON.stringify(parsed.error.issues.slice(0, 3)));
+    return badRequest(msg);
+  }
   try {
     // A typed quote with a client or a service is kept as an approved review: on their
     // timeline and the Reviews page, and on that service's page.
