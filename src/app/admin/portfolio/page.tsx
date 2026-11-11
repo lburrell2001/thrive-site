@@ -509,7 +509,7 @@ export default function PortfolioAdminPage() {
               Stored at <code style={{ color: 'var(--a-muted)' }}>course-media/work/{form.slug || '[slug]'}-cover.jpg</code>
             </p>
             <span className={w.pill} style={{ background: 'var(--a-bg)', color: 'var(--a-muted)' }}>
-              Recommended: 1600 × 1000px · Max 5 MB · JPG / PNG / WebP
+              At least 3000 × 1500 px, landscape · cropped to 2:1 on computers, 4:3 on phones · JPG
             </span>
           </div>
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
