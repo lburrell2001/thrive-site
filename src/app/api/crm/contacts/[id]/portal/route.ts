@@ -22,10 +22,13 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!contact) return badRequest('Contact not found', 404);
   if (contact.portal_client_id) return badRequest('This contact already has a portal account');
 
-  // A login on its own does not move the deal (migration 036): projects,
-  // proposals and invoices added in Clients move it to Quote sent, and a
-  // paid invoice wins it.
+  // Making them a client moves their open deal (the most recent one at New
+  // lead or Contacted) to Quote sent. Only a paid invoice wins it (036);
+  // stages never move backward. The stage trigger logs the change.
   const result = await makePortalClient(db, id);
   if (!result.ok) return badRequest(result.error);
-  return NextResponse.json({ ok: true, data: { portal_client_id: result.portalId } });
+  const { data: deal } = await db.from('crm_deals').select('id, title').eq('contact_id', id).in('stage', ['lead', 'contacted'])
+    .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+  if (deal) await db.from('crm_deals').update({ stage: 'proposal' }).eq('id', deal.id);
+  return NextResponse.json({ ok: true, data: { portal_client_id: result.portalId, moved_deal: deal?.title ?? null } });
 }

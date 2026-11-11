@@ -194,11 +194,11 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
   async function createPortal() {
     const c = detail?.contact;
     if (!c) return;
-    if (!window.confirm(`Create a portal login for ${c.email}? Their open deal will be marked Won.`)) return;
+    if (!window.confirm(`Create a portal login for ${c.email}? Their open deal moves to Quote sent; it's won when they pay an invoice. Nothing is emailed to them.`)) return;
     setBusy('portal');
     try {
-      await apiSend(`/api/crm/contacts/${id}/portal`, 'POST');
-      notify('Portal account created.');
+      const r = await apiSend<{ moved_deal: string | null }>(`/api/crm/contacts/${id}/portal`, 'POST');
+      notify(r.moved_deal ? `Portal account created. “${r.moved_deal}” moved to Quote sent.` : 'Portal account created.');
       await reload();
       onChanged();
     } catch (error) {
