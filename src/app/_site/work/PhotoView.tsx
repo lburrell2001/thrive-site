@@ -1,7 +1,9 @@
 'use client';
 
 // A photography project: just the photos. The name and a small line on top,
-// every photo whole (never cropped) in a masonry of columns, and a full-screen
+// every photo whole (never cropped) in a masonry of columns — laid out here,
+// each photo into the shortest column, because Safari's CSS columns leave
+// columns empty — and a full-screen
 // viewer with arrows, swipe and Esc. Then the next project and the closing band.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -28,6 +30,30 @@ export default function PhotoView({ title, line, photos, next }: {
   const step = useCallback((d: number) => setOpen((i) => (i === null ? null : (i + d + photos.length) % photos.length)), [photos.length]);
   const touch = useRef<number | null>(null);
 
+  // Columns: 3 on wide screens, 2 on phones. Each photo's height/width ratio is
+  // learned as it loads (portrait guessed until then) to keep columns even.
+  const [cols, setCols] = useState(3);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 600px)');
+    const set = () => setCols(mq.matches ? 2 : 3);
+    set();
+    mq.addEventListener('change', set);
+    return () => mq.removeEventListener('change', set);
+  }, []);
+  const [ratios, setRatios] = useState<Record<string, number>>({});
+  const learn = (src: string, el: HTMLImageElement | null) => {
+    if (!el?.complete || !el.naturalWidth) return;
+    const r = el.naturalHeight / el.naturalWidth;
+    setRatios((prev) => (Math.abs((prev[src] ?? 0) - r) < 0.001 ? prev : { ...prev, [src]: r }));
+  };
+  const columns: { ph: CaseImage; i: number }[][] = Array.from({ length: cols }, () => []);
+  const heights = new Array(cols).fill(0);
+  photos.forEach((ph, i) => {
+    const c = heights.indexOf(Math.min(...heights));
+    columns[c].push({ ph, i });
+    heights[c] += ratios[ph.src] ?? 1.3;
+  });
+
   useEffect(() => {
     if (open === null) return;
     const onKey = (e: KeyboardEvent) => {
@@ -48,10 +74,15 @@ export default function PhotoView({ title, line, photos, next }: {
       </section>
 
       <div className={g.masonry}>
-        {photos.map((ph, i) => (
-          <button key={ph.src} type="button" className={`${g.photo} ${s.rise}`} onClick={() => setOpen(i)} aria-label={`View larger: ${ph.alt || `photo ${i + 1}`}`}>
-            <img src={caseImageUrl(ph.src, 1200)} alt={ph.alt} loading={i < 4 ? 'eager' : 'lazy'} decoding="async" />
-          </button>
+        {columns.map((col, c) => (
+          <div key={c} className={g.col}>
+            {col.map(({ ph, i }) => (
+              <button key={ph.src} type="button" className={g.photo} onClick={() => setOpen(i)} aria-label={`View larger: ${ph.alt || `photo ${i + 1}`}`}>
+                <img src={caseImageUrl(ph.src, 1200)} alt={ph.alt} loading={i < 6 ? 'eager' : 'lazy'} decoding="async"
+                  ref={(el) => learn(ph.src, el)} onLoad={(e) => learn(ph.src, e.currentTarget)} />
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 
