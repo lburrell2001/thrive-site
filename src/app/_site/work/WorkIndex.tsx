@@ -23,9 +23,8 @@ const FILTERS = [
   { label: 'Web Design & Development', tone: s.bMagenta },
   { label: 'Brand Design', tone: s.bBlue },
   { label: 'Digital Design', tone: s.bPurple },
-  { label: 'UX Design', tone: s.bOrange },
   { label: 'Social Media', tone: s.bMint },
-  { label: 'Photography', tone: s.bBlue },
+  { label: 'Photography', tone: s.bOrange },
 ];
 // Hover colour per tile, round the brand palette.
 const TONES = [s.bMagenta, s.bOrange, s.bBlue, s.bMint, s.bPurple];

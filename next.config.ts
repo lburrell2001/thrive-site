@@ -28,6 +28,8 @@ const nextConfig: NextConfig = {
       // The old homepage address, and the Nov 2026 redesign's preview pages
       // (it's live now), go to the real pages.
       { source: "/newhomepage", destination: "/", permanent: true },
+      // UX design is part of Web Design & Development now (2026-11-11).
+      { source: "/services/ux-design", destination: "/services/digital-design", permanent: true },
       { source: "/redesign", destination: "/", permanent: true },
       { source: "/work", destination: "/portfolio", permanent: true },
       { source: "/redesign/work", destination: "/portfolio", permanent: true },

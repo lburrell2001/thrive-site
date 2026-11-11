@@ -104,7 +104,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE_NAME,
     description:
-      "Branding, web development, UX, and social media management with graphics creation for growing brands.",
+      "Branding, web design & development, and social media management with graphics creation for growing brands.",
     url: SITE_URL,
     siteName: SITE_NAME,
     locale: "en_US",
@@ -122,7 +122,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: SITE_NAME,
     description:
-      "Branding, web development, UX, social media management, and graphics creation.",
+      "Branding, web design & development, social media management, and graphics creation.",
     images: [DEFAULT_OG_IMAGE],
   },
 };
@@ -159,7 +159,7 @@ export default function RootLayout({
     logo: `${SITE_URL}/new-thrive/logomark.svg`,
     image: `${SITE_URL}${DEFAULT_OG_IMAGE}`,
     description:
-      "Dallas creative studio for brand identity, custom website development and design, UX design, social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
+      "Dallas creative studio for brand identity, web design & development (including app and website prototypes), social media management and brand photography — serving Dallas–Fort Worth in person and clients across the US remotely.",
     email: "hello@thrivecreativestudios.org",
     telephone: "+1-806-414-5241",
     founder: { "@type": "Person", name: "Lauren Burrell" },

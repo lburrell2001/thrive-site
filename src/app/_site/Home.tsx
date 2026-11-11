@@ -27,7 +27,7 @@ const CURSORS = [
   { label: 'Branding', tone: s.cOrange, spot: s.cur1 },
   { label: 'Web', tone: s.cMint, spot: s.cur2 },
   { label: 'Social', tone: s.cMagenta, spot: s.cur3 },
-  { label: 'UX/UI', tone: s.cBlue, spot: s.cur4 },
+  { label: 'Photo', tone: s.cBlue, spot: s.cur4 },
 ];
 
 // Only what the service pages already promise. Colours follow each service's colour elsewhere on the site.
@@ -35,11 +35,9 @@ const SERVICES = [
   { title: 'Brand Design', href: '/services/brand-design', tone: s.bBlue, icon: 'brand' as const,
     items: ['Discovery call', 'Two logo concepts', 'Color & type', 'Full identity system', 'Ready in 4–6 weeks'] },
   { title: 'Web Design & Development', href: '/services/digital-design', tone: s.bMagenta, icon: 'web' as const,
-    items: ['Custom-coded sites', 'WordPress, Wix & Squarespace', 'Your colors, never a template', 'Built by the designers', 'Care plans after launch'] },
+    items: ['Custom-coded sites', 'WordPress, Wix & Squarespace', 'App & website prototypes', 'Your colors, never a template', 'Care plans after launch'] },
   { title: 'Social Media', href: '/services/social-media', tone: s.bMint, icon: 'social' as const,
     items: ['Monthly content calendar', 'Designed graphics', 'Edited videos', 'Captions & hashtags', 'Scheduling & posting'] },
-  { title: 'UX/UI Design', href: '/services/ux-design', tone: s.bOrange, icon: 'ux' as const,
-    items: ['App prototypes', 'Website prototypes', 'Click through every screen', 'Before any code is written'] },
   { title: 'Photography', href: '/services/photography', tone: s.bPurple, icon: 'photo' as const,
     items: ['Your people', 'Your product', 'Your space', 'A shot list for every session'] },
 ];

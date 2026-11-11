@@ -9,7 +9,7 @@
 // and the place ("Custom Website Development in Dallas, TX"); the layout adds
 // " | Thrive Creative Studios".
 
-export type ServiceSlug = 'brand-design' | 'digital-design' | 'ux-design' | 'social-media' | 'photography';
+export type ServiceSlug = 'brand-design' | 'digital-design' | 'social-media' | 'photography';
 
 export interface ServiceSeo {
   slug: ServiceSlug;
@@ -130,31 +130,11 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
         a: 'Website packages are $1,250 for Starter (3 to 5 pages), $1,600 for Medium (6 to 15 pages) and $1,950 for Large (16 to 25 pages). Sites that need more than pages are quoted. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
       },
       {
+        q: 'Can you design an app, or show me a site before it’s built?',
+        a: 'Yes. A clickable prototype is $625 for up to 5 screens and $1,000 for up to 10. It includes screen-by-screen layouts, a prototype you can tap through on a phone or computer, two rounds of revisions, and design files ready to build or hand to your developer.',
+      },
+      {
         q: 'Do you work with businesses outside Dallas?',
-        a: WHERE,
-      },
-    ],
-  },
-  'ux-design': {
-    slug: 'ux-design',
-    path: '/services/ux-design',
-    name: 'UX Design',
-    serviceType: 'User experience design',
-    title: 'UX Design for Apps & Websites in Dallas, TX',
-    description:
-      'Clickable app and website prototypes from $625, designed and ready to hand to your developer. UX design from a Dallas studio, available remotely.',
-    remote: true,
-    faqs: [
-      {
-        q: 'What does UX design include?',
-        a: 'Every prototype includes screen-by-screen layouts for your app or site, a clickable prototype you can tap through on a phone or computer, two rounds of revisions, and design files handed off, ready for your developer. Up to 5 screens is $625 and up to 10 screens is $1,000.',
-      },
-      {
-        q: 'Do I need UX design or just a new look?',
-        a: 'If people get lost, drop off, or keep asking how to do something, the problem is the experience, not the visuals. A clickable prototype lets you see and tap through a clearer path before anything is built.',
-      },
-      {
-        q: 'Can you work with a remote team?',
         a: WHERE,
       },
     ],

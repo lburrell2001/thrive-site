@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Thrive Creative Studios",
     short_name: "Thrive",
-    description: "Branding, Web, and UX Design Studio",
+    description: "Branding, Web Design & Development, and Social Media Studio",
     start_url: "/",
     display: "standalone",
     background_color: "#3943B7",

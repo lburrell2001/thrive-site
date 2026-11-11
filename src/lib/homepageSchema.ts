@@ -25,7 +25,7 @@ export const homepageSchema = z.object({
     z.object({ kind: z.literal('review'), id: z.string().uuid() }),
     z.object({
       kind: z.literal('custom'), text: z.string().trim().min(1, 'Type the quote, or pick a review').max(2000, 'Keep it under 2,000 characters'), who: z.string().trim().max(160),
-      contact_id: z.string().uuid().nullable().optional(), service: z.enum(['brand-design', 'digital-design', 'ux-design', 'social-media', 'photography']).nullable().optional(),
+      contact_id: z.string().uuid().nullable().optional(), service: z.enum(['brand-design', 'digital-design', 'social-media', 'photography']).nullable().optional(),
       review_id: z.string().uuid().nullable().optional(),
     }),
   ])).length(QUOTE_COUNT).optional(),

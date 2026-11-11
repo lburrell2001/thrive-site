@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = buildPageMetadata({
   title: "Web Design, Development & Branding Portfolio — Dallas, TX",
   description:
-    "Work that refuses to blend in: brand identities, websites, UX designs and social media content by Thrive Creative Studios in Dallas, TX.",
+    "Work that refuses to blend in: brand identities, websites, apps and social media content by Thrive Creative Studios in Dallas, TX.",
   path: "/portfolio",
   keywords: [
     "design portfolio",

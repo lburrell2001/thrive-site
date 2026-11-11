@@ -37,9 +37,11 @@ const TONE_STYLE: Record<string, React.CSSProperties> = {
 function packagesFor(slug: keyof typeof SERVICE_PRICING) {
   const [first, ...rest] = SERVICE_PRICING[slug].sections;
   const care = rest.find((sec) => sec.id === 'care')?.cards[0];
+  const protos = rest.find((sec) => sec.id === 'prototypes')?.cards[0];
   return [
     ...(first?.cards ?? []).slice(0, 4),
     ...(first?.addOns ?? []).map((a) => ({ ...a, name: `+ ${a.name.replace(/^Add-on:\s*/, '')}` })),
+    ...(protos ? [{ name: '+ App & website prototypes', price: `from ${protos.price}` }] : []),
     ...(care ? [{ name: '+ Care plans after launch', price: `from ${care.price}` }] : []),
   ];
 }

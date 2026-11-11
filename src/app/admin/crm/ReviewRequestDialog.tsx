@@ -15,7 +15,7 @@ function guessService(title: string): ServiceSlug | '' {
   const t = title.toLowerCase();
   if (/brand|logo|identity/.test(t)) return 'brand-design';
   if (/web|site|landing|digital/.test(t)) return 'digital-design';
-  if (/ux|app|product|prototype/.test(t)) return 'ux-design';
+  if (/ux|app|product|prototype/.test(t)) return 'digital-design';
   if (/social|instagram|content/.test(t)) return 'social-media';
   if (/photo|headshot|shoot/.test(t)) return 'photography';
   return '';

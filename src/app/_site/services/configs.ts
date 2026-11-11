@@ -38,6 +38,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
       { icon: 'edit', title: 'Edit It Yourself', desc: 'With Large and Custom sites, an admin area so your team can edit text and photos.' },
       { icon: 'analytics', title: 'Forms, Analytics & SEO', desc: 'Forms that reach the right inbox, visitor insights and search groundwork, built in.' },
       { icon: 'mobile', title: 'Mobile-First Layouts', desc: 'Every page designed for phones first and tested on phones and desktops.' },
+      { icon: 'ux', title: 'App & Website Prototypes', desc: 'Clickable prototypes of an app or site you can tap through on a phone before anything is built.' },
     ],
     processHeading: 'From brief to live site',
     process: [
@@ -98,29 +99,6 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
     ],
     workHeading: 'Posts we’ve made',
     cta: ['Ready to Grow', 'Your Audience?'],
-  },
-  'ux-design': {
-    slug: 'ux-design',
-    title: 'UX/UI Design',
-    icon: 'ux',
-    tone: 'bOrange',
-    lede: 'App and website prototypes that feel as good as they look — click through every screen before anyone writes code.',
-    deliverablesHeading: 'Designed for real humans',
-    deliverables: [
-      { icon: 'sitemap', title: 'Information Architecture', desc: 'Sitemaps and user flows that make navigation feel obvious, not learned.' },
-      { icon: 'wireframe', title: 'Wireframes', desc: 'Low-fidelity layouts that map content and structure before visual design begins.' },
-      { icon: 'ux', title: 'Interactive Prototypes', desc: 'Clickable prototypes you can tap through on a phone or computer.' },
-      { icon: 'folder', title: 'Developer Handoff', desc: 'Design files handed off, ready for your developer.' },
-    ],
-    processHeading: 'From idea to clickable prototype',
-    process: [
-      { title: 'Plan', desc: 'We map the screens your app or site needs and how people move between them.' },
-      { title: 'Layouts', desc: 'Screen-by-screen layouts, from structure to full visual design.' },
-      { title: 'Prototype', desc: 'A clickable prototype, with two rounds of revisions.' },
-      { title: 'Handoff', desc: 'Design files handed off, ready for your developer.' },
-    ],
-    workHeading: 'Apps we’ve designed',
-    cta: ['Got a Product', 'That Needs Love?'],
   },
   photography: {
     slug: 'photography',

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const SERVICE_SLUGS = ['brand-design', 'digital-design', 'ux-design', 'social-media', 'photography'] as const;
+const SERVICE_SLUGS = ['brand-design', 'digital-design', 'social-media', 'photography'] as const;
 
 export const slugSchema = z
   .string()

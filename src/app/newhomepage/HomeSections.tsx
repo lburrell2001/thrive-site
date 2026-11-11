@@ -36,7 +36,7 @@ export type HomeService = {
 // Same colours as the hero stickers, so each service keeps its colour down the page.
 const SERVICE_TONES = [s.toPink, s.toGreen, s.toOrange, s.toBlue, s.toBlack];
 
-const TAPE = "BRING THE COLOR BACK ✦ BRANDING ✦ WEB DESIGN & DEVELOPMENT ✦ SOCIAL MEDIA ✦ UX/UI DESIGN ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ NO BEIGE HERE ✦ ";
+const TAPE = "BRING THE COLOR BACK ✦ BRANDING ✦ WEB DESIGN & DEVELOPMENT ✦ SOCIAL MEDIA ✦ PHOTOGRAPHY ✦ DALLAS, TX ✦ NO BEIGE HERE ✦ ";
 
 const STEPS = [
   { title: "Listen", text: "We start by listening. Deep dives into your brand, your audience, your goals — and the story only you can tell." },
@@ -151,7 +151,7 @@ export function HomeIntro({ services }: { services: HomeService[] }) {
       <section className={s.services} id="services">
         <h2 className={s.sectionH}>What we do</h2>
         <p className={s.lede}>
-          Branding, web development, social media, UX/UI design and photography — everything a brand with a story needs
+          Branding, web development, social media and photography — everything a brand with a story needs
           to show up in full color.
         </p>
 

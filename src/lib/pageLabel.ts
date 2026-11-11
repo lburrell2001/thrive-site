@@ -5,7 +5,6 @@ const NAMED: Record<string, string> = {
   '/services': 'Services',
   '/services/digital-design': 'Web Design & Development',
   '/services/brand-design': 'Branding',
-  '/services/ux-design': 'UX Design',
   '/services/social-media': 'Social Media',
   '/services/photography': 'Photography',
   '/work': 'Work',

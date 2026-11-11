@@ -389,7 +389,7 @@ export default function PortfolioAdminPage() {
             </Field>
             <Field label="Category">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {['Web Design & Development', 'Brand Design', 'Digital Design', 'UX Design', 'Social Media', 'Photography'].map(cat => {
+                {['Web Design & Development', 'Brand Design', 'Digital Design', 'Social Media', 'Photography'].map(cat => {
                   const selected = (form.category ?? '').split(',').map(s => s.trim()).filter(Boolean);
                   const checked = selected.includes(cat);
                   return (

@@ -114,6 +114,25 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         ],
       },
       {
+        id: 'prototypes',
+        heading: 'App & website prototypes',
+        intro: 'Designing an app, or want to see a whole site before it’s built? A clickable prototype, designed and ready to build or hand to your developer.',
+        cards: [
+          { name: 'Prototype, up to 5 screens', price: '$625' },
+          { name: 'Prototype, up to 10 screens', price: '$1,000' },
+          { name: 'More than 10 screens', price: 'Contact for pricing', cta: { label: 'Contact us', href: '/contact' } },
+        ],
+        includes: {
+          heading: 'Every prototype includes:',
+          items: [
+            'Screen-by-screen layouts for your app or site',
+            'A clickable prototype you can tap through on a phone or computer',
+            'Two rounds of revisions',
+            'Design files handed off, ready for your developer',
+          ],
+        },
+      },
+      {
         id: 'care',
         heading: 'Care plans',
         intro: 'Keep your site secure, backed up, and up to date after launch.',
@@ -227,30 +246,6 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
             ],
           },
         ],
-      },
-    ],
-  },
-  'ux-design': {
-    from: 'From $625',
-    sections: [
-      {
-        id: 'packages',
-        heading: 'Pricing',
-        intro: 'App and website prototypes, designed and ready to hand to your developer.',
-        cards: [
-          { name: 'Prototype, up to 5 screens', price: '$625' },
-          { name: 'Prototype, up to 10 screens', price: '$1,000' },
-          { name: 'More than 10 screens', price: 'Contact for pricing', cta: { label: 'Contact us', href: '/contact' } },
-        ],
-        includes: {
-          heading: 'Every prototype includes:',
-          items: [
-            'Screen-by-screen layouts for your app or site',
-            'A clickable prototype you can tap through on a phone or computer',
-            'Two rounds of revisions',
-            'Design files handed off, ready for your developer',
-          ],
-        },
       },
     ],
   },

@@ -40,15 +40,7 @@ export const SHOWCASE: ShowcaseService[] = [
     media: { type: "video", src: "hero-social.mp4", poster: "/new-thrive/services/social-media.webp" },
   },
   {
-    slug: "ux-design", title: "UX/UI Design", name: "UX/UI DESIGN", tag: "03 — UX",
-    sub: "EXPERIENCES PEOPLE ACTUALLY LOVE",
-    desc: "App and website prototypes that feel as good as they look — click through every screen before anyone writes code.",
-    href: "/services/ux-design", tone: "orange",
-    sticker: "/new-thrive/services/ux.webp",
-    media: { type: "video", src: "ux-hero.mp4", poster: "/new-thrive/services/ux.webp" },
-  },
-  {
-    slug: "brand-design", title: "Brand Design", name: "BRAND DESIGN", tag: "04 — Brand",
+    slug: "brand-design", title: "Brand Design", name: "BRAND DESIGN", tag: "03 — Brand",
     sub: "ALL YOURS IN ONLY 4–6 WEEKS",
     desc: "Logo, colors, type and a full identity system built around your story — so you stop blending in and start standing out.",
     href: "/services/brand-design", tone: "blue",
@@ -56,7 +48,7 @@ export const SHOWCASE: ShowcaseService[] = [
     media: { type: "video", src: "thrive-hero-v2.mp4", poster: "/new-thrive/services/brand-design.webp" },
   },
   {
-    slug: "photography", title: "Photography", name: "PHOTOGRAPHY", tag: "05 — Photo",
+    slug: "photography", title: "Photography", name: "PHOTOGRAPHY", tag: "04 — Photo",
     sub: "VISUALS THAT TELL YOUR STORY",
     desc: "Real images of your people, your product and your space — so you never need a stock photo standing in for you.",
     href: "/services/photography", tone: "black",

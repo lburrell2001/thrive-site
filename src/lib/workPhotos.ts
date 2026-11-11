@@ -19,16 +19,14 @@ export const WORK_PHOTOS: Record<ServiceSlug, WorkPhoto[]> = {
   "digital-design": [
     { src: cs("the-burrell-group", "mockup-screens.webp"), alt: "Five pages of The Burrell Group website floating above a laptop", caption: "The Burrell Group", href: "/work/the-burrell-group" },
     { src: cs("classic-rollers-car-club", "mockup-screens.webp"), alt: "Classic Rollers Car Club website on a desktop monitor with its pages and mobile home page floating around it", caption: "Classic Rollers Car Club", href: "/work/classic-rollers-car-club" },
+    { src: cs("soulcheck", "screens.webp"), alt: "“SoulCheck x Thrive” graphic with three phones: the journal with a Guided/Free switch, the June and May mood calendars, and the delete-account screen with a Face ID prompt", caption: "SoulCheck", href: "/work/soulcheck" },
+    { src: cs("safespace", "ipad-notes.webp"), alt: "Two iPads with the redesigned dark green app; the front one lists a patient's dated session notes", caption: "SafeSpace", href: "/work/safespace" },
+    { src: cs("tckt", "phone-showtimes.webp"), alt: "Cineapolis Luxury Cinema showtimes: a day picker across the top and three films, each with four showtime buttons", caption: "TCKT", href: "/work/tckt" },
   ],
   "social-media": [
     { src: cs("roots-to-wellness-social-media-management-graphics-creation", "post-fresh-harvest.webp"), alt: "Gloved hands lifting radishes and greens into a wooden crate", caption: "Roots to Wellness", href: "/work/roots-to-wellness-social-media-management-graphics-creation" },
     { src: cs("dallas-derby-day", "post-perfect-pair.webp"), alt: "A cigar resting on a glass of tequila with “Experience the perfect pair on the perfect Derby Day” and the Flecha Azul Tequila × The Cigar Bar Experience logos", caption: "Dallas Derby Day", href: "/work/dallas-derby-day" },
     { src: cs("thrive-social-media-management-graphics-creation", "spotlight-mastamind-01.webp"), alt: "“Client spotlight” cover slide with the Mastamind brain-and-headphones logo over a black-and-white concert crowd", caption: "Thrive social", href: "/work/thrive-social-media-management-graphics-creation" },
-  ],
-  "ux-design": [
-    { src: cs("soulcheck", "screens.webp"), alt: "“SoulCheck x Thrive” graphic with three phones: the journal with a Guided/Free switch, the June and May mood calendars, and the delete-account screen with a Face ID prompt", caption: "SoulCheck", href: "/work/soulcheck" },
-    { src: cs("safespace", "ipad-notes.webp"), alt: "Two iPads with the redesigned dark green app; the front one lists a patient's dated session notes", caption: "SafeSpace", href: "/work/safespace" },
-    { src: cs("tckt", "phone-showtimes.webp"), alt: "Cineapolis Luxury Cinema showtimes: a day picker across the top and three films, each with four showtime buttons", caption: "TCKT", href: "/work/tckt" },
   ],
   "brand-design": [
     { src: cs("dj-mastamind", "poster-mastamind.webp"), alt: "Poster with MAS / TA / MIND stacked in navy-purple letters outlined in white and red, the brain-and-headphones mark breaking through the type over a dark brain pattern", caption: "DJ Mastamind", href: "/work/dj-mastamind" },

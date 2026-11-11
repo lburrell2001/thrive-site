@@ -337,7 +337,7 @@
 }
 .cards {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: clamp(12px, 1.6vw, 24px);
   margin-top: clamp(40px, 6vw, 90px);
   text-align: left;
@@ -533,7 +533,7 @@
 
 /* ── Smaller screens ────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .cards { grid-template-columns: repeat(3, 1fr); }
+  .cards { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); align-items: stretch; }
   .step { margin-bottom: 0; }
   .numbers { grid-template-columns: 1fr; }
