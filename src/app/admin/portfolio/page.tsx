@@ -6,7 +6,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ui from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
-import { adminHeaders } from '@/lib/adminSession';
+import { api, directUpload } from './portfolioApi';
+import CaseStudyEditor from './CaseStudyEditor';
 
 const F = {
   inter: 'var(--a-font)',
@@ -42,29 +43,6 @@ const EMPTY: Omit<PortfolioProject, 'id'> = {
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-async function api(action: string, params: Record<string, unknown> = {}) {
-  const res = await fetch('/api/admin', {
-    method: 'POST',
-    headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...params }),
-  });
-  const data = await res.json() as { ok?: boolean; error?: string; data?: unknown; url?: string; signedUrl?: string; path?: string };
-  if (!res.ok || data.error) throw new Error(data.error ?? 'Request failed');
-  return data;
-}
-
-async function directUpload(file: File, storagePath: string, upsert = false): Promise<string> {
-  const res = await api('create_upload_url', { path: storagePath, upsert });
-  if (!res.signedUrl) throw new Error('Could not get upload URL');
-  const up = await fetch(res.signedUrl as string, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
-  });
-  if (!up.ok) throw new Error(`Storage upload failed (${up.status})`);
-  return (res.path as string) ?? storagePath;
-}
 
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -322,7 +300,7 @@ export default function PortfolioAdminPage() {
       <div className={w.head}>
         <div>
           <h1 className={w.title}>Portfolio</h1>
-          <p className={w.sub}>The projects on /work: details, case study copy, cover and gallery images.</p>
+          <p className={w.sub}>The projects on /work: details, the full case study, cover and gallery images.</p>
         </div>
         <div className={w.headActions}>
           <button type="button" className={`${ui.btn} ${ui.btnPrimary}`} onClick={startNew}>New project</button>
@@ -472,7 +450,8 @@ export default function PortfolioAdminPage() {
           </div>
 
           {/* ── Content ── */}
-          <SectionLabel>Content</SectionLabel>
+          <SectionLabel>Short layout copy</SectionLabel>
+          <Hint>Used on the project page only while it has no case study, and as its search description.</Hint>
           <Field label="Overview">
             <textarea
               style={textareaStyle}
@@ -513,6 +492,15 @@ export default function PortfolioAdminPage() {
               placeholder="Internal notes, context, or production details…"
             />
           </Field>
+
+          {/* ── Case study ── */}
+          <SectionLabel>Case study</SectionLabel>
+          {!isNew && selected ? (
+            <CaseStudyEditor key={selected.id} projectId={selected.id} slug={selected.slug} title={selected.title}
+              category={form.category} onMsg={setMsg} />
+          ) : (
+            <Hint>Create the project first, then build its case study here.</Hint>
+          )}
 
           {/* ── Cover Image ── */}
           <SectionLabel>Cover image</SectionLabel>

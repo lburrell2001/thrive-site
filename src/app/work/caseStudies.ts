@@ -5,6 +5,9 @@
 // the delivered files, the client's live site or its code history. No invented
 // metrics or quotes: leave `quote` out until the client has given one.
 //
+// Since migration 060 a case study can also live in projects.case_study (edited
+// in admin → Portfolio); that copy wins over the file. See src/lib/caseStudyStore.ts.
+//
 // Image src: a public path ("/case-studies/<slug>/x.webp") or "storage:<path>"
 // for a file in the course-media bucket (served resized, see caseImageUrl).
 
@@ -17,6 +20,26 @@ export type CaseShowcase = {
   images: CaseImage[];
   /** grid: even tiles · wide: one image per row · phones: phone frames · posts: tilted social posts */
   layout?: "grid" | "wide" | "phones" | "posts";
+};
+
+/** One number that moved, e.g. followers 412 → 1,380. */
+export type GrowthStat = { label: string; start: number; end: number; unit?: string };
+/** A line chart: one measure over time, e.g. followers by month. */
+export type GrowthSeries = { label: string; unit?: string; points: { when: string; value: number }[] };
+export type GrowthAccount = {
+  platform: string;
+  handle?: string;
+  /** e.g. "Jan – Jun 2026" */
+  period?: string;
+  stats: GrowthStat[];
+  series?: GrowthSeries[];
+};
+export type CaseGrowth = {
+  intro?: string;
+  accounts: GrowthAccount[];
+  /** Screenshots from Instagram Insights, Meta Business Suite… shown in phone frames. */
+  screenshots?: CaseImage[];
+  screenshotsText?: string;
 };
 
 /** Every section except the header is optional; the section menu only lists what's there. */
@@ -47,6 +70,8 @@ export type CaseStudy = {
   };
   timeline?: { when: string; title: string; text: string }[];
   mobile?: { intro: string; shots: CaseImage[] };
+  /** Social media results: per-account numbers and charts, plus analytics screenshots shown in phone frames. */
+  growth?: CaseGrowth;
   outcome: string[];
   quote?: { text: string; author: string };
   /** One sentence with a link under the outcome, e.g. to a city page: before + link label + after. */

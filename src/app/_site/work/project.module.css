@@ -86,6 +86,37 @@
 .chip { display: block; aspect-ratio: 1; border-radius: 18px; border: 2px solid var(--ink); margin-bottom: 8px; }
 .hex { color: #6b6b6b; font-size: 0.88rem; }
 
+/* Growth (social media results) */
+.account { margin-top: clamp(28px, 3.4vw, 50px); padding-top: clamp(18px, 2vw, 26px); border-top: 2px solid var(--ink); }
+.accountHead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.accountHead .smallTitle { margin: 0; }
+.accountHandle { font-weight: 500; opacity: 0.7; }
+.accountPeriod { font-weight: 600; font-size: 0.92rem; color: #6b6b6b; }
+.growthStats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: clamp(10px, 1.2vw, 16px); margin-top: clamp(16px, 2vw, 24px); }
+.growthPct { font-weight: 800; letter-spacing: var(--track); font-size: clamp(2.4rem, 3.8vw, 3.8rem); line-height: 0.9; }
+.growthLabel { font-weight: 700; font-size: 1.05rem; margin-top: 6px; }
+.growthFrom { font-size: 0.9rem; opacity: 0.9; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: clamp(14px, 2vw, 28px); margin-top: clamp(18px, 2.4vw, 32px); }
+.chart { margin: 0; }
+.chartTitle { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+.chartBox { position: relative; }
+.chartBox svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.chartGrid { stroke: #e2e2e2; stroke-width: 1; }
+.chartAxis { fill: #6b6b6b; font-size: 12px; font-family: inherit; }
+.chartLine { fill: none; stroke: #e50586; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.chartDot { fill: #e50586; stroke: #fff; stroke-width: 2; }
+.chartCross { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; }
+.chartTip { position: absolute; transform: translate(-50%, calc(-100% - 14px)); background: var(--ink); color: #fff; border-radius: 10px; padding: 6px 10px; display: flex; flex-direction: column; font-size: 0.8rem; line-height: 1.25; white-space: nowrap; pointer-events: none; }
+.chartTip strong { font-size: 0.95rem; }
+.chartTable { margin-top: 6px; font-size: 0.85rem; }
+.chartTable summary { cursor: pointer; font-weight: 600; color: #6b6b6b; }
+.chartTable table { border-collapse: collapse; margin-top: 6px; }
+.chartTable th, .chartTable td { text-align: left; padding: 3px 16px 3px 0; font-weight: 500; }
+.growthShots { margin-top: clamp(36px, 4.4vw, 64px); }
+@media (max-width: 600px) { .growthShots .phones { grid-template-columns: 1fr 1fr; } }
+.phoneFig { margin: 0; }
+.phoneFig figcaption { margin-top: 10px; text-align: center; font-weight: 600; font-size: 0.88rem; }
+
 /* Timeline */
 .timeline { list-style: none; margin: clamp(24px, 3vw, 44px) 0 0; padding: 0; border-top: 2px solid var(--ink); }
 .timeline li { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: clamp(16px, 3vw, 48px); padding: clamp(18px, 2vw, 28px) 0; border-bottom: 2px solid var(--ink); align-items: start; }

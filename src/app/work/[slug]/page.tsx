@@ -10,7 +10,7 @@ import WorkReel from "../../components/WorkReel";
 import ProjectGallery from "./ProjectGallery";
 import Shell from "../../_site/Shell";
 import ProjectView from "../../_site/work/ProjectView";
-import { CASE_STUDIES } from "../caseStudies";
+import { loadCaseStudy } from "@/lib/caseStudyStore";
 
 // Always read fresh project data from Supabase so admin-added projects appear immediately.
 export const dynamic = "force-dynamic";
@@ -280,10 +280,11 @@ export async function generateMetadata({
   if (!project && !staticData) return { title: "Project", robots: { index: false, follow: false } };
 
   const title = project?.title ?? staticData?.name ?? slug;
-  const seo = CASE_STUDIES[slug]?.seo;
+  const cs = await loadCaseStudy(slug);
+  const seo = cs?.seo;
   const metaDescription =
     seo?.description ??
-    CASE_STUDIES[slug]?.lede ??
+    (cs?.lede || undefined) ??
     project?.overview ?? project?.tagline ?? staticData?.description ?? `${title} — a project by Thrive Creative Studios.`;
   const coverSrc = projectCoverOg(slug);
 
@@ -379,7 +380,7 @@ export default async function ProjectSlugPage({
     about: category,
   };
 
-  const caseStudy = CASE_STUDIES[slug];
+  const caseStudy = await loadCaseStudy(slug);
 
   const nextBlock = (
     <div className="wp-next">

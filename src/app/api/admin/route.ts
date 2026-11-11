@@ -3,6 +3,9 @@ import { projectChecklistFromInvoice } from '@/lib/projectWork';
 import { needsWelcome, welcomeDoneAt } from '@/lib/portalWelcome';
 import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
+import { CASE_STUDIES } from '@/app/work/caseStudies';
+import { normalizeCaseStudy } from '@/lib/caseStudyNormalize';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { decryptSecret, encryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
 import { loadProposalById } from '@/lib/proposalRepo';
@@ -678,6 +681,38 @@ export async function POST(req: NextRequest) {
         const { error } = await admin.from('projects').update(updatePayload).eq('id', id);
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
+      }
+
+      // Case study (migration 060): the database copy wins over the code file.
+      case 'get_case_study': {
+        const { slug } = params as { slug: string };
+        if (!slug) return err('slug is required');
+        const { data, error } = await admin.from('projects').select('case_study').eq('slug', slug).maybeSingle();
+        const missingColumn = !!error && /case_study/.test(error.message);
+        if (error && !missingColumn) return err(error.message);
+        return NextResponse.json({
+          ok: true,
+          data: { saved: (data as { case_study?: unknown } | null)?.case_study ?? null, file: CASE_STUDIES[slug] ?? null, needsMigration: missingColumn },
+        });
+      }
+
+      case 'save_case_study': {
+        const { id, slug, case_study } = params as { id: string; slug: string; case_study: unknown };
+        if (!id || !slug) return err('id and slug are required');
+        let value: unknown = null;
+        if (case_study) {
+          const clean = normalizeCaseStudy(case_study, slug);
+          if (!clean) return err('A case study needs at least the client name and a headline.');
+          value = clean;
+        }
+        const { error } = await admin.from('projects').update({ case_study: value }).eq('id', id);
+        if (error) {
+          if (/case_study/.test(error.message)) return err('Run migration 060 (supabase/migrations/060_case_study_json.sql) in Supabase first.');
+          return err(error.message);
+        }
+        revalidatePath(`/work/${slug}`);
+        revalidatePath('/portfolio');
+        return NextResponse.json({ ok: true, data: value });
       }
 
       case 'list_service_featured': {

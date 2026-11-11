@@ -3,13 +3,14 @@
 // A redesigned project page. Every section past the hero is optional and
 // appears only when the case study has it, in the same order as the live
 // page: overview and numbers, hero image, challenge, approach, pages,
-// the work, features, design system, mobile, timeline, outcome and quote,
+// the work, growth (social accounts), features, design system, mobile, timeline, outcome and quote,
 // then the next project and the closing band.
 
 import Link from 'next/link';
 import { caseImageUrl, projectCoverThumb } from '@/lib/storage';
 import type { CaseImage, CaseShowcase, CaseStudy } from '../../work/caseStudies';
 import CtaBand from '../CtaBand';
+import Growth from './Growth';
 import { rd } from '../links';
 import { useReveal } from '../useReveal';
 import s from '../redesign.module.css';
@@ -186,6 +187,9 @@ export default function ProjectView({ cs, title, next }: {
           {cs.showcase.map((b, i) => <Showcase key={b.title ?? i} block={b} />)}
         </section>
       ) : null}
+
+      {/* ── Growth (social media results) ── */}
+      {cs.growth && <Growth growth={cs.growth} Phone={Phone} />}
 
       {/* ── Features ── */}
       {cs.features?.length ? (
