@@ -89,7 +89,7 @@ function template(kind: Kind, title: string): Draft {
       numbers: [{ value: '', label: '' }, { value: '', label: '' }, { value: '', label: '' }],
       about: [''], challenge: { intro: '', goals: T(4) },
       approach: { intro: '', steps: T(4) },
-      showcase: [{ title: 'Feed posts', text: '', layout: 'posts', images: [] }, { title: 'Stories', text: '', layout: 'phones', images: [] }],
+      showcase: [{ title: 'Posts', text: '', layout: 'posts', images: [] }, { title: 'Reels', text: '', layout: 'phones', images: [] }],
       growth: {
         intro: '',
         accounts: [{
@@ -296,12 +296,18 @@ function Section({ id, title, hint, done, children }: { id: SectionId; title: st
 
 type Uploader = (files: File[]) => Promise<string[]>;
 
+function uploadError(x: unknown) {
+  const m = (x as Error)?.message ?? '';
+  if (/413|too large|exceeded/i.test(m)) return 'That file is too big to upload. Export the reel smaller (1080p MP4 works well) and try again.';
+  return `Upload didn’t work: ${m || 'try again'}`;
+}
+
 function Preview({ src, phone }: { src: string; phone?: boolean }) {
   const url = caseImageUrl(src, 480);
   const style: React.CSSProperties = phone
     ? { width: 90, aspectRatio: '9 / 19.5', objectFit: 'cover', objectPosition: 'top', borderRadius: 14, border: '4px solid #141414', background: '#141414', display: 'block' }
     : { width: 150, height: 96, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--a-border)', display: 'block', background: 'var(--a-surface-2)' };
-  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) return <video src={url} muted playsInline style={style} />;
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)) return <video src={`${url}#t=0.1`} muted playsInline preload="metadata" style={style} />;
   return <img src={url} alt="" style={style} />;
 }
 
@@ -310,11 +316,15 @@ function ImagePick({ l, v, set, upload, phone, caption }: {
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
     setBusy(true);
-    try { const [src] = await upload([f]); set({ alt: v?.alt ?? '', ...v, src }); } finally { setBusy(false); if (ref.current) ref.current.value = ''; }
+    setErr('');
+    try { const [src] = await upload([f]); set({ alt: v?.alt ?? '', ...v, src }); }
+    catch (x) { setErr(uploadError(x)); }
+    finally { setBusy(false); if (ref.current) ref.current.value = ''; }
   }
   return (
     <div style={{ marginBottom: 10 }}>
@@ -326,11 +336,12 @@ function ImagePick({ l, v, set, upload, phone, caption }: {
           </div>
         )}
         <div style={{ flex: 1, minWidth: 180 }}>
-          <input ref={ref} type="file" accept="image/*,video/mp4,video/webm" hidden onChange={pick} />
+          <input ref={ref} type="file" accept="image/*,video/*" hidden onChange={pick} />
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             <button type="button" className={`${ui.btn} ${ui.btnSmall}`} onClick={() => ref.current?.click()} disabled={busy}>{busy ? 'Uploading…' : v?.src ? 'Replace' : 'Upload'}</button>
             {v?.src && <button type="button" className={`${ui.btn} ${ui.btnSmall}`} onClick={() => set(undefined)}>Remove</button>}
           </div>
+          {err && <p style={{ color: 'var(--a-danger, #c4046f)', fontSize: 12, margin: '0 0 8px' }}>{err}</p>}
           {v?.src && (
             <>
               <input style={{ ...input, marginBottom: 6 }} value={v.alt} placeholder="Describe the image (for screen readers and Google)" onChange={(e) => set({ ...v, alt: e.target.value })} />
@@ -343,23 +354,47 @@ function ImagePick({ l, v, set, upload, phone, caption }: {
   );
 }
 
+function QuickUpload({ label: text, accept, upload, onDone }: { label: string; accept: string; upload: Uploader; onDone: (srcs: string[]) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function pick(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setBusy(true); setErr('');
+    try { onDone(await upload(files)); }
+    catch (x) { setErr(uploadError(x)); }
+    finally { setBusy(false); if (ref.current) ref.current.value = ''; }
+  }
+  return (
+    <span>
+      <input ref={ref} type="file" accept={accept} multiple hidden onChange={pick} />
+      <button type="button" className={`${ui.btn} ${ui.btnPrimary}`} onClick={() => ref.current?.click()} disabled={busy}>{busy ? 'Uploading…' : text}</button>
+      {err && <span style={{ color: 'var(--a-danger, #c4046f)', fontSize: 12, marginLeft: 8 }}>{err}</span>}
+    </span>
+  );
+}
+
 function ImageList({ v, set, upload, phone, caption, add = 'Add images' }: {
   v?: Img[]; set: (v: Img[]) => void; upload: Uploader; phone?: boolean; caption?: boolean; add?: string;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
   const list = v ?? [];
   async function pick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    setBusy(true);
+    setBusy(true); setErr('');
     try {
       const srcs = await upload(files);
       set([...list, ...srcs.map((src) => ({ src, alt: '' }))]);
-    } finally { setBusy(false); if (ref.current) ref.current.value = ''; }
+    } catch (x) { setErr(uploadError(x)); }
+    finally { setBusy(false); if (ref.current) ref.current.value = ''; }
   }
   return (
     <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))', gap: 10 }}>
       {list.map((img, i) => (
         <div key={img.src + i} style={{ ...rowBox, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -372,8 +407,10 @@ function ImageList({ v, set, upload, phone, caption, add = 'Add images' }: {
           </div>
         </div>
       ))}
-      <input ref={ref} type="file" accept="image/*,video/mp4,video/webm" multiple hidden onChange={pick} />
+      </div>
+      <input ref={ref} type="file" accept="image/*,video/*" multiple hidden onChange={pick} />
       <button type="button" className={`${ui.btn} ${ui.btnSmall}`} onClick={() => ref.current?.click()} disabled={busy}>{busy ? 'Uploading…' : `+ ${add}`}</button>
+      {err && <p style={{ color: 'var(--a-danger, #c4046f)', fontSize: 12, margin: '6px 0 0' }}>{err}</p>}
     </div>
   );
 }
@@ -575,6 +612,19 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
     setDirty(true);
   }
 
+  /** Add uploads to the first group with this layout, or start one. */
+  function addTo(layout: string, title: string, srcs: string[]) {
+    setDraft((cur) => {
+      const list = [...(cur?.showcase ?? [])];
+      const i = list.findIndex((b) => (b.layout ?? 'grid') === layout);
+      const imgs = srcs.map((src) => ({ src, alt: '' }));
+      if (i >= 0) list[i] = { ...list[i], images: [...list[i].images, ...imgs] };
+      else list.push({ title, text: '', layout, images: imgs });
+      return { ...(cur ?? {}), showcase: list };
+    });
+    setDirty(true);
+  }
+
   async function save(value: Draft | null) {
     setSaving(true);
     try {
@@ -764,18 +814,28 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
         </Section>
       )}
 
-      <Section id="work" title="The work" done={(d.showcase ?? []).some((b) => b.images.length)} hint="Groups of images. Layouts: grid, wide (one per row), posts (social posts), phones (phone frames — stories, reels, app screens).">
+      <Section id="work" title="The work" done={(d.showcase ?? []).some((b) => b.images.length)}
+        hint={kind === 'social'
+          ? 'Posts show in a grid; reels (and stories) play in phone frames, muted, while they’re on screen. MP4 videos play in every browser. Add a caption like “18K views” under a reel if you like.'
+          : 'Groups of images. Layouts: grid, wide (one per row), posts (a grid of social posts), phones (phone frames — reels, stories, app screens).'}>
+        {kind === 'social' && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <QuickUpload label="+ Upload posts" accept="image/*,video/*" upload={upload} onDone={(srcs) => addTo('posts', 'Posts', srcs)} />
+            <QuickUpload label="+ Upload reels" accept="video/*,image/*" upload={upload} onDone={(srcs) => addTo('phones', 'Reels', srcs)} />
+          </div>
+        )}
         <Rows items={d.showcase} set={(v) => up('showcase', v)} add="Group" blank={() => ({ title: '', text: '', layout: kind === 'social' ? 'posts' : 'grid', images: [] })}
           render={(b, u) => (
             <>
               <div style={grid(180)}>
                 <Txt v={b.title} set={(t) => u({ ...b, title: t })} ph="Title (optional)" />
                 <select style={{ ...input, marginBottom: 10 }} value={b.layout ?? 'grid'} onChange={(e) => u({ ...b, layout: e.target.value })} aria-label="Layout">
-                  <option value="grid">Grid</option><option value="wide">Wide</option><option value="posts">Posts</option><option value="phones">Phones</option>
+                  <option value="posts">Posts (grid)</option><option value="phones">Reels &amp; stories (phone frames)</option><option value="grid">Grid</option><option value="wide">Wide</option>
                 </select>
               </div>
               <Area v={b.text} set={(t) => u({ ...b, text: t })} rows={2} ph="A line about this group (optional)" />
-              <ImageList v={b.images} set={(x) => u({ ...b, images: x })} upload={upload} phone={b.layout === 'phones'} caption={b.layout !== 'phones'} />
+              <ImageList v={b.images} set={(x) => u({ ...b, images: x })} upload={upload} phone={b.layout === 'phones'} caption
+                add={b.layout === 'phones' ? 'Upload reels' : b.layout === 'posts' ? 'Upload posts' : 'Add images'} />
             </>
           )} />
       </Section>

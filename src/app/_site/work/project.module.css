@@ -62,6 +62,8 @@
 .browser img, .browser video { width: 100%; height: auto; display: block; }
 .phone { border: 6px solid var(--ink); border-radius: 26px; overflow: hidden; background: var(--ink); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2); }
 .phone img, .phone video { width: 100%; height: auto; display: block; }
+/* A reel or story video always fills a phone-shaped screen, whatever shape it was exported. */
+.phone video { aspect-ratio: 9 / 16; height: auto; object-fit: cover; }
 
 /* The work */
 .showcase { margin-top: clamp(28px, 3.4vw, 50px); }

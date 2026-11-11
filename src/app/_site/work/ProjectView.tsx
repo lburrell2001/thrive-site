@@ -6,7 +6,7 @@
 // the work, growth (social accounts), features, design system, mobile, timeline, outcome and quote,
 // then the next project and the closing band.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { caseImageUrl, projectCoverThumb } from '@/lib/storage';
 import type { CaseImage, CaseShowcase, CaseStudy } from '../../work/caseStudies';
@@ -20,11 +20,24 @@ import p from './project.module.css';
 const TONES = [s.bMagenta, s.bOrange, s.bBlue, s.bMint, s.bPurple];
 const tone = (i: number) => TONES[i % TONES.length];
 
+/** A video (a reel, a promo) plays muted on a loop while it's on screen and pauses off it,
+ *  so a page of reels doesn't play them all at once. */
+function Video({ url, alt }: { url: string; alt: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) v.play().catch(() => {}); else v.pause(); }, { threshold: 0.25 });
+    io.observe(v);
+    return () => io.disconnect();
+  }, []);
+  // #t=0.1 makes browsers show the first frame before it plays.
+  return <video ref={ref} src={`${url}#t=0.1`} muted loop playsInline preload="metadata" aria-label={alt} />;
+}
+
 function Media({ img, width = 1400, eager }: { img: CaseImage; width?: number; eager?: boolean }) {
   const url = caseImageUrl(img.src, width);
-  if (/\.(mp4|webm|mov)(\?|$)/i.test(url)) {
-    return <video src={url} muted loop autoPlay playsInline preload="metadata" aria-label={img.alt} />;
-  }
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url)) return <Video url={url} alt={img.alt} />;
   return <img src={url} alt={img.alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />;
 }
 
@@ -47,7 +60,7 @@ function Tile({ img, layout }: { img: CaseImage; layout: string }) {
   const [phone, setPhone] = useState(false);
   const check = (el: HTMLImageElement) => { if (el.naturalWidth && el.naturalHeight / el.naturalWidth >= 1.6) setPhone(true); };
   const url = caseImageUrl(img.src, layout === 'wide' ? 1800 : 1000);
-  const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(url);
+  const isVideo = /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
   return (
     <figure className={`${p.tile} ${phone ? p.tilePhone : ''} ${s.rise}`}>
       {isVideo ? <Media img={img} width={layout === 'wide' ? 1800 : 1000} /> : phone ? (
@@ -72,7 +85,14 @@ function Showcase({ block }: { block: CaseShowcase }) {
         </div>
       )}
       {layout === 'phones' ? (
-        <div className={p.phones}>{block.images.map((img) => <Phone key={img.src} img={img} />)}</div>
+        <div className={p.phones}>
+          {block.images.map((img) => (
+            <figure key={img.src} className={`${p.phoneFig} ${s.rise}`}>
+              <Phone img={img} />
+              {img.caption && <figcaption>{img.caption}</figcaption>}
+            </figure>
+          ))}
+        </div>
       ) : (
         <div className={`${p.tiles} ${p[`tiles_${layout}`]}`}>
           {block.images.map((img) => <Tile key={img.src} img={img} layout={layout} />)}

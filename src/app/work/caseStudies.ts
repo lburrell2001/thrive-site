@@ -18,7 +18,7 @@ export type CaseShowcase = {
   title?: string;
   text?: string;
   images: CaseImage[];
-  /** grid: even tiles · wide: one image per row · phones: phone frames · posts: tilted social posts */
+  /** grid: even tiles · wide: one image per row · phones: phone frames (reels, stories, app screens; videos play) · posts: a grid of social posts */
   layout?: "grid" | "wide" | "phones" | "posts";
 };
 
