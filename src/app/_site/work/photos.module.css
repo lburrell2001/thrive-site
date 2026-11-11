@@ -21,8 +21,18 @@
 .photo:focus-visible { outline: 3px solid #e50586; outline-offset: 3px; }
 
 /* Full-screen viewer */
-.viewer { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; padding: clamp(16px, 4vw, 60px); }
-.viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; }
+/* Sized against the screen (vw/vh), not the box: Safari doesn't resolve % heights here. */
+.viewer { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; align-items: center; justify-content: center; }
+.viewer img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: calc(100vw - 150px);
+  max-height: calc(100vh - 130px);
+  max-height: calc(100dvh - 130px);
+  object-fit: contain;
+  border-radius: 10px;
+}
 .count { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); color: #fff; font-weight: 600; font-size: 0.9rem; }
 .btn { all: unset; position: absolute; width: 48px; height: 48px; border-radius: 999px; background: #fff; color: #141414; display: grid; place-items: center; font-weight: 700; font-size: 1.2rem; cursor: pointer; }
 .btn:hover { background: #e50586; color: #fff; }
@@ -33,5 +43,6 @@
 
 @media (max-width: 600px) {
   .masonry { columns: 2 140px; }
+  .viewer img { max-width: calc(100vw - 24px); max-height: calc(100vh - 170px); max-height: calc(100dvh - 170px); }
   .prev, .next { top: auto; bottom: 20px; transform: none; }
 }
