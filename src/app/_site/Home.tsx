@@ -56,10 +56,13 @@ const STEPS = [
     text: 'Launch-ready deliverables — and ongoing partnership to keep your brand growing long after handoff.' },
 ];
 
-const QUOTES = [
-  { text: 'Thrive completely transformed how our brand shows up. The energy, the vision, the execution — nothing short of exceptional.', who: 'DJ Mastamind', tone: s.bBlue },
-  { text: 'Working with Thrive felt like working with people who actually understood our community.', who: 'Classic Rollers', tone: s.bMint },
-  { text: 'The work they did set us apart immediately. Bold, intentional, and exactly right.', who: 'The Burrell Group', tone: s.bMagenta },
+// The three quotes are chosen in admin (Website → Homepage → Quotes): client
+// reviews or typed ones. These are the defaults, used until then.
+const QUOTE_TONES = [s.bBlue, s.bMint, s.bMagenta];
+const DEFAULT_QUOTES = [
+  { text: 'Thrive completely transformed how our brand shows up. The energy, the vision, the execution — nothing short of exceptional.', who: 'DJ Mastamind' },
+  { text: 'Working with Thrive felt like working with people who actually understood our community.', who: 'Classic Rollers' },
+  { text: 'The work they did set us apart immediately. Bold, intentional, and exactly right.', who: 'The Burrell Group' },
 ];
 
 // Every photo in the hero mosaic, the statement and the services heading is
@@ -131,6 +134,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
   }, []);
 
   const work = projects.slice(0, 6);
+  const quotes = (photos.quotes?.length ? photos.quotes : DEFAULT_QUOTES).map((q, i) => ({ ...q, tone: QUOTE_TONES[i % QUOTE_TONES.length] }));
   // Tiles are labelled with the project's title (a photo's own caption can be the shot's name).
   const titleOf = (href: string) => projects.find((p) => href === `/work/${p.slug}`)?.title;
 
@@ -238,8 +242,8 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
         <section className={s.quotes}>
           <h2 className={`${s.display} ${s.quotesHead} ${s.rise}`}>Beyond clients.<br />Trusted partners.</h2>
           <div className={s.quoteRow}>
-            {QUOTES.map((q, i) => (
-              <figure key={q.who} className={`${s.quote} ${q.tone} ${s.rise}`} style={{ '--d': `${i * 90}ms`, '--tilt': `${[-2, 2, -1][i]}deg` } as React.CSSProperties}>
+            {quotes.map((q, i) => (
+              <figure key={i} className={`${s.quote} ${q.tone} ${s.rise}`} style={{ '--d': `${i * 90}ms`, '--tilt': `${[-2, 2, -1][i]}deg` } as React.CSSProperties}>
                 <span className={s.quoteMark} aria-hidden>”</span>
                 <blockquote>{q.text}</blockquote>
                 <figcaption>{q.who}</figcaption>

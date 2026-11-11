@@ -1,7 +1,8 @@
 // The homepage photos chosen in admin (Website → Homepage), saved in
 // admin_config under `home_collage`:
 //   { mosaic: { desktop: [{ slug, src, col, row, w, h }], phone: [...] },
-//     fan: [pick ×3], inline: [pick ×2], pages: { about, contact, book }, share: pick | null }
+//     fan: [pick ×3], inline: [pick ×2], pages: { about, contact, book }, share: pick | null,
+//     quotes: [slot ×3] }
 // `mosaic` is the hero: its own tiles for desktop (6 columns) and phones (2),
 // each placed where Lauren dragged it (src/lib/collageLayout.ts). `fan` is the three photos
 // above the statement, `inline` the two inside "We're a … Full-Service …
@@ -9,7 +10,10 @@
 // the photo strips on other pages (About, Contact, Book a call), same rule:
 // null = the automatic pick (mixedPhotos). `share` is the picture in the
 // homepage's link preview (texts, social posts; cropped to 1200×630 by
-// /share-image); null = the Classic Rollers Car Club site. Only case-study
+// /share-image); null = the Classic Rollers Car Club site. `quotes` are the
+// three cards under "Beyond clients. Trusted partners.": each is a client's
+// approved review (reviews table, consent to publish) or one typed in admin;
+// unset = the three quotes the site launched with. Only case-study
 // images can be chosen, so every photo is real client work with real alt
 // text. Older saves (a plain array of seven picks, then `tiles` with named
 // sizes) still read: they're packed into a desktop layout and a phone one made from it.
@@ -39,8 +43,32 @@ export type HomeConfig = {
   inline: (CollagePick | null)[];
   pages: Record<StripPage, (CollagePick | null)[]>;
   share: CollagePick | null;
+  quotes: QuoteSlot[];
 };
-export type HomePhotos = { collage: Record<Layout, CollageTile[]>; fan: string[]; inline: string[] };
+
+/** A homepage quote: one of the client reviews (approved, consent given) or typed in admin. */
+export type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string };
+export type HomeQuote = { text: string; who: string };
+export const QUOTE_COUNT = 3;
+/** The quotes the homepage launched with (kept as the defaults). */
+export const DEFAULT_QUOTES: QuoteSlot[] = [
+  { kind: 'custom', text: 'Thrive completely transformed how our brand shows up. The energy, the vision, the execution — nothing short of exceptional.', who: 'DJ Mastamind' },
+  { kind: 'custom', text: 'Working with Thrive felt like working with people who actually understood our community.', who: 'Classic Rollers' },
+  { kind: 'custom', text: 'The work they did set us apart immediately. Bold, intentional, and exactly right.', who: 'The Burrell Group' },
+];
+
+function parseQuotes(v: unknown): QuoteSlot[] {
+  const list = Array.isArray(v) ? v : [];
+  return Array.from({ length: QUOTE_COUNT }, (_, i) => {
+    const q = (list[i] ?? null) as Record<string, unknown> | null;
+    if (q?.kind === 'review' && typeof q.id === 'string' && /^[0-9a-f-]{36}$/i.test(q.id)) return { kind: 'review', id: q.id };
+    if (q?.kind === 'custom' && typeof q.text === 'string' && q.text.trim()) {
+      return { kind: 'custom', text: q.text.trim().slice(0, 400), who: typeof q.who === 'string' ? q.who.trim().slice(0, 80) : '' };
+    }
+    return DEFAULT_QUOTES[i];
+  });
+}
+export type HomePhotos = { collage: Record<Layout, CollageTile[]>; fan: string[]; inline: string[]; quotes?: HomeQuote[] };
 export type LibraryProject = { slug: string; title: string; images: { src: string; url: string; alt: string }[] };
 
 // Thrive's own social isn't client work.
@@ -135,7 +163,7 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
   let raw: unknown = null;
   try { raw = JSON.parse(value ?? 'null'); } catch { raw = null; }
   const obj = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as {
-    mosaic?: Partial<Record<Layout, unknown>>; tiles?: unknown; fan?: unknown; inline?: unknown; pages?: Record<string, unknown>; share?: unknown;
+    mosaic?: Partial<Record<Layout, unknown>>; tiles?: unknown; fan?: unknown; inline?: unknown; pages?: Record<string, unknown>; share?: unknown; quotes?: unknown;
   };
   let mosaic: Mosaic | null = null;
   if (obj.mosaic) {
@@ -155,7 +183,7 @@ export function parseConfig(value: string | null | undefined): HomeConfig {
   }
   const list = (v: unknown, n: number) => Array.from({ length: n }, (_, i) => validPick(Array.isArray(v) ? v[i] : null));
   const pages = Object.fromEntries(STRIP_PAGES.map((k) => [k, list(obj.pages?.[k], PAGE_STRIPS[k])])) as HomeConfig['pages'];
-  return { mosaic: mosaic ?? DEFAULT_MOSAIC, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT), pages, share: validPick(obj.share) };
+  return { mosaic: mosaic ?? DEFAULT_MOSAIC, fan: list(obj.fan, FAN_COUNT), inline: list(obj.inline, INLINE_COUNT), pages, share: validPick(obj.share), quotes: parseQuotes(obj.quotes) };
 }
 
 export async function loadConfig(db: SupabaseClient): Promise<HomeConfig> {
@@ -183,7 +211,26 @@ export function photosFor(config: HomeConfig): HomePhotos {
 
 export async function loadHomePhotos(db: SupabaseClient | null): Promise<HomePhotos> {
   const config = db ? await loadConfig(db).catch(() => parseConfig(null)) : parseConfig(null);
-  return photosFor(config);
+  return { ...photosFor(config), quotes: await homeQuotes(db, config) };
+}
+
+/** Reviews that can be quoted: approved, with the reviewer's consent. */
+export async function quotableReviews(db: SupabaseClient | null): Promise<{ id: string; text: string; who: string; rating: number | null }[]> {
+  if (!db) return [];
+  const { data } = await db.from('reviews').select('id, display_name, display_role, rating, body')
+    .eq('status', 'approved').eq('consent_publish', true).not('body', 'is', null).order('approved_at', { ascending: false });
+  return (data ?? []).map((r) => ({ id: r.id, text: r.body as string, who: [r.display_name, r.display_role].filter(Boolean).join(', ') || 'A Thrive client', rating: r.rating }));
+}
+
+/** The three homepage quotes; a review that's no longer approved falls back to the default in its place. */
+export async function homeQuotes(db: SupabaseClient | null, config: HomeConfig): Promise<HomeQuote[]> {
+  const reviews = config.quotes.some((q) => q.kind === 'review') ? await quotableReviews(db).catch(() => []) : [];
+  return config.quotes.map((q, i) => {
+    if (q.kind === 'custom') return { text: q.text, who: q.who };
+    const r = reviews.find((x) => x.id === q.id);
+    const d = DEFAULT_QUOTES[i] as Extract<QuoteSlot, { kind: 'custom' }>;
+    return r ? { text: r.text, who: r.who } : { text: d.text, who: d.who };
+  });
 }
 
 /** A page's photo strip: chosen photos, automatic ones where nothing is chosen. */

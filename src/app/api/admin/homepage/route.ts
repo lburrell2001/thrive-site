@@ -8,7 +8,7 @@ import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { FAN_COUNT, INLINE_COUNT, PAGE_STRIPS, collageLibrary, loadConfig, photosFor, saveConfig } from '@/lib/homeCollage';
+import { FAN_COUNT, INLINE_COUNT, PAGE_STRIPS, QUOTE_COUNT, collageLibrary, loadConfig, photosFor, quotableReviews, saveConfig } from '@/lib/homeCollage';
 import { MAX_TILES } from '@/lib/collageLayout';
 
 /** Every case-study image to choose from, what's saved, and what the homepage shows now. */
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const auth = await requireAdmin(req);
   if (!auth.ok) return auth.response;
   const config = await loadConfig(auth.db);
-  return NextResponse.json({ ok: true, data: { library: collageLibrary(), config, shown: photosFor(config) } });
+  return NextResponse.json({ ok: true, data: { library: collageLibrary(), config, shown: photosFor(config), reviews: await quotableReviews(auth.db).catch(() => []) } });
 }
 
 const pick = z.object({ slug: z.string().max(200), src: z.string().max(500) });
@@ -32,6 +32,10 @@ const schema = z.object({
     book: z.array(pick.nullable()).length(PAGE_STRIPS.book),
   }),
   share: pick.nullable().default(null),
+  quotes: z.array(z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('review'), id: z.string().uuid() }),
+    z.object({ kind: z.literal('custom'), text: z.string().trim().min(1, 'Type the quote, or pick a review').max(400), who: z.string().trim().max(80) }),
+  ])).length(QUOTE_COUNT).optional(),
 });
 
 export async function PATCH(req: Request) {

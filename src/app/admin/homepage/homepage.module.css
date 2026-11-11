@@ -107,3 +107,10 @@
 .shareText span { color: #6b6b6b; font-size: 12px; }
 .shareSide { flex: 1 1 220px; min-width: 0; }
 .shareCard { outline: 3px solid transparent; outline-offset: 2px; }
+
+/* Quotes: three slots, each a client review or typed. */
+.quotes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.quoteSlot { display: grid; gap: 8px; align-content: start; padding: 12px; border-radius: 16px; background: #f5f5f5; }
+.quoteSwatch { width: 28px; height: 8px; border-radius: 999px; }
+.quotePreview { margin: 0; padding: 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; display: grid; gap: 8px; }
+.quotePreview cite { font-style: normal; font-weight: 700; font-size: 12.5px; }

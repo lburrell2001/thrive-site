@@ -8,6 +8,8 @@
 // - The three photos above the statement and the two inside the services
 //   heading. Left on Automatic, they show projects that aren't in the mosaic.
 // - The photo strips on About, Contact and Book a call (Automatic = a mix by service).
+// - The three quotes under "Beyond clients. Trusted partners.": a client's
+//   approved review or one typed here (defaults: the three it launched with).
 // - The link preview: the picture shown when the homepage link is texted or
 //   posted (cropped to 1200×630 by /share-image). Default: Classic Rollers Car Club.
 // Only case-study images are offered, so every photo is real client work.
@@ -24,7 +26,10 @@ import s from './homepage.module.css';
 type Pick = { slug: string; src: string };
 type Placed = Pick & Rect;
 type StripPage = 'about' | 'contact' | 'book';
-type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]>; share: Pick | null };
+type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string };
+type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]>; share: Pick | null; quotes?: QuoteSlot[] };
+type Review = { id: string; text: string; who: string; rating: number | null };
+const QUOTE_COLOURS = [{ bg: '#3943b7', fg: '#fff' }, { bg: '#0cf574', fg: '#141414' }, { bg: '#e50586', fg: '#fff' }];
 const DEFAULT_SHARE: Pick = { slug: 'classic-rollers-car-club', src: '/case-studies/classic-rollers-car-club/mockup-screens.webp' };
 const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] = [
   { page: 'about', label: 'About', hint: 'the row of five photos', href: '/about' },
@@ -33,7 +38,7 @@ const STRIPS: { page: StripPage; label: string; hint: string; href: string }[] =
 ];
 type Shown = { fan: string[]; inline: string[] };
 type Library = { slug: string; title: string; images: { src: string; url: string; alt: string }[] }[];
-type Data = { library: Library; config: Config; shown: Shown };
+type Data = { library: Library; config: Config; shown: Shown; reviews?: Review[] };
 type Target = { kind: 'tile'; i: number } | { kind: 'new'; rect: Rect } | { kind: 'fan'; i: number } | { kind: 'inline'; i: number } | { kind: 'strip'; page: StripPage; i: number } | { kind: 'share' };
 
 const rectOf = ({ col, row, w: width, h }: Rect): Rect => ({ col, row, w: width, h });
@@ -244,6 +249,41 @@ export default function HomepageAdmin() {
           ))}
         </div>
         <p className={w.muted} style={{ margin: '10px 0 0', fontSize: 13 }}>Automatic photos are projects that aren’t in the mosaic, so they change when the mosaic does.</p>
+      </section>
+
+      <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
+        <h2 className={s.sectionTitle}>Quotes</h2>
+        <p className={w.muted} style={{ margin: '2px 0 12px', fontSize: 13 }}>
+          The three cards under “Beyond clients. Trusted partners.” Pick a client’s review (approved on the Reviews page, with their okay to publish) or type one.
+          {!(data.reviews ?? []).length && ' No approved reviews yet, so you can type them for now.'}
+        </p>
+        <div className={s.quotes}>
+          {(config.quotes ?? []).map((q, i) => {
+            const review = q.kind === 'review' ? (data.reviews ?? []).find((r) => r.id === q.id) : null;
+            const setQuote = (next: QuoteSlot) => update((c) => ({ ...c, quotes: (c.quotes ?? []).map((x, k) => (k === i ? next : x)) }));
+            const colour = QUOTE_COLOURS[i % QUOTE_COLOURS.length];
+            return (
+              <div key={i} className={s.quoteSlot}>
+                <span className={s.quoteSwatch} style={{ background: colour.bg }} aria-hidden />
+                <select className={p.select} value={q.kind === 'review' ? q.id : 'custom'} aria-label={`Quote ${i + 1}`}
+                  onChange={(e) => setQuote(e.target.value === 'custom'
+                    ? { kind: 'custom', text: review?.text ?? '', who: review?.who ?? '' }
+                    : { kind: 'review', id: e.target.value })}>
+                  <option value="custom">Type my own</option>
+                  {(data.reviews ?? []).map((r) => <option key={r.id} value={r.id}>{r.who}{r.rating ? ` · ${'★'.repeat(r.rating)}` : ''}: “{r.text.slice(0, 50)}{r.text.length > 50 ? '…' : ''}”</option>)}
+                </select>
+                {q.kind === 'custom' ? (<>
+                  <textarea className={p.textarea} rows={4} value={q.text} placeholder="What they said" onChange={(e) => setQuote({ ...q, text: e.target.value })} />
+                  <input className={p.input} value={q.who} placeholder="Who said it, e.g. DJ Mastamind" onChange={(e) => setQuote({ ...q, who: e.target.value })} />
+                </>) : (
+                  <blockquote className={s.quotePreview} style={{ background: colour.bg, color: colour.fg }}>
+                    {review ? <>“{review.text}”<cite>{review.who}</cite></> : 'That review isn’t approved any more, so the original quote shows here.'}
+                  </blockquote>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section className={w.card} style={{ padding: 16, marginBottom: 20 }}>
