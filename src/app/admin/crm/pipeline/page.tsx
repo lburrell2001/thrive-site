@@ -208,7 +208,7 @@ export default function PipelinePage() {
         <NewDealDialog
           contacts={contacts ?? []}
           onClose={() => setCreating(false)}
-          onCreated={(contactId, dealId) => { setCreating(false); void load(); refresh(); openContact(contactId, dealId); }}
+          onCreated={(contactId, dealId, client) => { setCreating(false); void load(); refresh(); openContact(contactId, dealId, client ? 'client' : null); }}
         />
       )}
     </div>

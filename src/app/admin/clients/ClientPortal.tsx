@@ -12,6 +12,8 @@ import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import QuestionnairesSection from './QuestionnairesSection';
+import PortalSetup from './PortalSetup';
+import { useCrm } from '../crm/CrmContext';
 import { formatPhone } from '@/lib/phone';
 import { adminHeaders } from '@/lib/adminSession';
 import { depositLabel, dueNow } from '@/lib/invoiceDeposit';
@@ -283,8 +285,19 @@ export function ClientPortal({ clientId, onDeleted }: { clientId: string; onDele
   const [clientData, setClientData] = useState<ClientData | null>(null);
   const [failed, setFailed] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('profile');
+  // The open project card on the Projects tab (lifted here so portal setup can open one).
+  const [expandedProject, setExpandedProject] = useState<string | null>(null);
+  const { notify } = useCrm();
 
   const api = clientApi;
+
+  /** From the portal setup card: the questionnaires card, or a project's milestones. */
+  function goTo(where: 'questionnaires' | 'milestones', projectId: string) {
+    if (where === 'questionnaires') setActiveTab('profile');
+    else { setActiveTab('projects'); setExpandedProject(projectId); }
+    const id = where === 'questionnaires' ? 'client-questionnaires' : `project-${projectId}`;
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -317,6 +330,8 @@ export function ClientPortal({ clientId, onDeleted }: { clientId: string; onDele
         <div className={w.stat}><p className={w.statLabel}>Open requests</p><p className={w.statValue}>{clientData.requests.filter((r) => r.status !== 'completed').length}</p></div>
       </div>
 
+      <PortalSetup clientId={clientId} version={clientData} onGo={goTo} notify={notify} />
+
       <div className={w.tabs} role="tablist" aria-label="Client">
         {TABS.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={activeTab === t.id} className={`${w.tab} ${activeTab === t.id ? w.tabOn : ''}`} onClick={() => setActiveTab(t.id)}>
@@ -327,7 +342,7 @@ export function ClientPortal({ clientId, onDeleted }: { clientId: string; onDele
 
       <div className={w.card} style={{ padding: 22 }}>
         {activeTab === 'profile' && <ProfileTab clientId={clientId} data={clientData} api={api} onRefresh={refreshClientData} />}
-        {activeTab === 'projects' && <ProjectsTab clientId={clientId} data={clientData} api={api} onRefresh={refreshClientData} />}
+        {activeTab === 'projects' && <ProjectsTab clientId={clientId} data={clientData} api={api} onRefresh={refreshClientData} expandedId={expandedProject} setExpandedId={setExpandedProject} />}
       </div>
 
       <ClientDangerZone api={api} clientId={clientId} clientName={clientData.profile?.full_name ?? 'this client'}
@@ -438,7 +453,9 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       <Divider />
       <ActivitySection activity={data.activity} />
       <Divider />
-      <QuestionnairesSection clientId={clientId} projects={data.projects} reminders={data.reminders} remind={remind} />
+      <div id="client-questionnaires" style={{ scrollMarginTop: 16 }}>
+        <QuestionnairesSection clientId={clientId} projects={data.projects} reminders={data.reminders} remind={remind} />
+      </div>
       <Divider />
       <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
     </div>
@@ -1023,8 +1040,10 @@ function ProposalsSection({ clientId, proposals, projects = [], reminders, api, 
 }
 
 // ── Projects Tab ───────────────────────────────────────────────────────────────
-function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void }) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+function ProjectsTab({ clientId, data, api, onRefresh, expandedId, setExpandedId }: {
+  clientId: string; data: ClientData; api: (b: Record<string, unknown>) => Promise<Record<string, unknown>>; onRefresh: () => void;
+  expandedId: string | null; setExpandedId: (id: string | null) => void;
+}) {
   const [name, setName] = useState('');
   const [status, setStatus] = useState('kickoff');
   const [progress, setProgress] = useState(0);
@@ -1052,8 +1071,8 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
 
   function renderCard(p: Project) {
     return (
+      <div key={p.id} id={`project-${p.id}`} style={{ scrollMarginTop: 16 }}>
       <ProjectCard
-        key={p.id}
         project={p}
         expanded={expandedId === p.id}
         onToggle={() => setExpandedId(expandedId === p.id ? null : p.id)}
@@ -1062,6 +1081,7 @@ function ProjectsTab({ clientId, data, api, onRefresh }: { clientId: string; dat
         api={api}
         onRefresh={onRefresh}
       />
+      </div>
     );
   }
 

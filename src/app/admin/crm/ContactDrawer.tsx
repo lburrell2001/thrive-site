@@ -198,9 +198,11 @@ export function ContactDrawer({ id, focusDealId, initialTab, onClose, onChanged,
     setBusy('portal');
     try {
       const r = await apiSend<{ moved_deal: string | null }>(`/api/crm/contacts/${id}/portal`, 'POST');
-      notify(r.moved_deal ? `Portal account created. “${r.moved_deal}” moved to Quote sent.` : 'Portal account created.');
+      notify(r.moved_deal ? `Portal account created. “${r.moved_deal}” moved to Quote sent. Set up their portal below.` : 'Portal account created. Set up their portal below.');
       await reload();
       onChanged();
+      // The portal setup checklist is on the Client tab.
+      setTab('client');
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Could not create portal account', 'error');
     }

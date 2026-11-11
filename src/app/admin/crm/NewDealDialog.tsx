@@ -17,7 +17,8 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
   /** Start with this contact chosen, e.g. "New deal" from their drawer. */
   presetContactId?: string;
   onClose: () => void;
-  onCreated: (contactId: string, dealId: string | null) => void;
+  /** `client`: they were added to Clients with a project, so open their portal setup. */
+  onCreated: (contactId: string, dealId: string | null, client?: boolean) => void;
 }) {
   const [mode, setMode] = useState<'existing' | 'new'>(presetContactId || contacts.length ? 'existing' : 'new');
   const [contactId, setContactId] = useState(presetContactId ?? '');
@@ -91,7 +92,7 @@ export function NewDealDialog({ contacts, presetContactId, onClose, onCreated }:
           return;
         }
       }
-      onCreated(made.contactId, made.dealId);
+      onCreated(made.contactId, made.dealId, Boolean(addToClients && made.dealId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add deal');
       setSaving(false);

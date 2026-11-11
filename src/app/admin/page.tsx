@@ -50,6 +50,11 @@ export default function AdminHome() {
   const [sendingDigest, setSendingDigest] = useState(false);
   const [waitingQs, setWaitingQs] = useState<WaitingQuestionnaire[]>([]);
   const [work, setWork] = useState<WorkRow[]>([]);
+  // New projects whose portal isn't set up yet (migration 057).
+  const [setups, setSetups] = useState<{ project_id: string; project_name: string; client_id: string; client_name: string; contact_id: string | null; deal_id: string | null; created_at: string; steps: Record<string, boolean> }[]>([]);
+  useEffect(() => {
+    apiGet<{ setups: typeof setups }>('/api/portal-setup').then((r) => setSetups(r.setups)).catch(() => setSetups([]));
+  }, [version]);
 
   // Work in progress (migration 052): open projects with a checklist.
   useEffect(() => {
@@ -144,6 +149,7 @@ export default function AdminHome() {
         // What needs her, in order; only the ones with something in them show.
         const needs = [
           { id: 'replies', title: 'Replies', count: replies.length, hot: true },
+          { id: 'portal-setup', title: 'Set up the portal', count: setups.length, hot: true, note: 'New projects: invite, questionnaires, estimate or invoice, milestones' },
           { id: 'follow-ups', title: 'Follow-ups', count: d.followUps.length, hot: overdue > 0 },
           { id: 'inquiries', title: 'New inquiries', count: d.newInquiries.length, hot: true },
           { id: 'signatures', title: 'Waiting on a signature', count: d.proposalsAwaiting.length, link: { href: '/admin/crm/proposals', label: 'Proposals' } },
@@ -233,6 +239,23 @@ export default function AdminHome() {
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
                 </div>
               ))}
+                      </>),
+          'portal-setup': (<>
+              {setups.map((st) => {
+                const left = Object.entries(st.steps).filter(([, v]) => !v).map(([k]) => ({ invite: 'invite', questionnaire: 'questionnaires', billing: 'estimate or invoice', milestones: 'milestones' } as Record<string, string>)[k]);
+                return (
+                  <div key={st.project_id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                    <span className={w.itemMain} style={{ flex: 1, minWidth: 0 }}>
+                      <span className={w.itemTitle}>{st.project_name} <span className={w.muted} style={{ fontWeight: 500 }}>· {st.client_name}</span></span>
+                      <span className={w.itemSub}>Still to do: {left.join(', ')}</span>
+                    </span>
+                    <span className={w.itemWhen}>{timeAgo(st.created_at)}</span>
+                    {st.contact_id
+                      ? <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => openContact(st.contact_id!, st.deal_id, 'client')}>Set up</button>
+                      : <Link href={`/admin/clients?client=${st.client_id}`} className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`}>Set up</Link>}
+                  </div>
+                );
+              })}
                       </>),
           questionnaires: (<>
               {waitingQs.map((a) => (
