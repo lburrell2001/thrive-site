@@ -47,8 +47,10 @@ export type HomeConfig = {
 };
 
 /** A homepage quote: one of the client reviews (approved, consent given) or typed in admin. */
-export type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string };
-export type HomeQuote = { text: string; who: string };
+/** A typed quote can name the client it's from and the service it's about; it's then kept as an approved review (review_id). */
+export type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string; contact_id?: string | null; service?: string | null; review_id?: string | null };
+export type HomeQuote = { text: string; who: string; service?: string | null };
+export const QUOTE_SERVICES: Record<string, string> = { 'brand-design': 'Brand Design', 'digital-design': 'Web Development', 'ux-design': 'UX/UI Design', 'social-media': 'Social Media', photography: 'Photography' };
 export const QUOTE_COUNT = 3;
 /** The quotes the homepage launched with (kept as the defaults). */
 export const DEFAULT_QUOTES: QuoteSlot[] = [
@@ -63,7 +65,11 @@ function parseQuotes(v: unknown): QuoteSlot[] {
     const q = (list[i] ?? null) as Record<string, unknown> | null;
     if (q?.kind === 'review' && typeof q.id === 'string' && /^[0-9a-f-]{36}$/i.test(q.id)) return { kind: 'review', id: q.id };
     if (q?.kind === 'custom' && typeof q.text === 'string' && q.text.trim()) {
-      return { kind: 'custom', text: q.text.trim().slice(0, 400), who: typeof q.who === 'string' ? q.who.trim().slice(0, 80) : '' };
+      const uuid = (x: unknown) => (typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x) ? x : null);
+      return {
+        kind: 'custom', text: q.text.trim().slice(0, 400), who: typeof q.who === 'string' ? q.who.trim().slice(0, 80) : '',
+        contact_id: uuid(q.contact_id), service: typeof q.service === 'string' && QUOTE_SERVICES[q.service] ? q.service : null, review_id: uuid(q.review_id),
+      };
     }
     return DEFAULT_QUOTES[i];
   });
@@ -215,21 +221,22 @@ export async function loadHomePhotos(db: SupabaseClient | null): Promise<HomePho
 }
 
 /** Reviews that can be quoted: approved, with the reviewer's consent. */
-export async function quotableReviews(db: SupabaseClient | null): Promise<{ id: string; text: string; who: string; rating: number | null }[]> {
+export async function quotableReviews(db: SupabaseClient | null): Promise<{ id: string; text: string; who: string; rating: number | null; service: string | null }[]> {
   if (!db) return [];
-  const { data } = await db.from('reviews').select('id, display_name, display_role, rating, body')
+  const { data } = await db.from('reviews').select('id, display_name, display_role, rating, body, service_slug')
     .eq('status', 'approved').eq('consent_publish', true).not('body', 'is', null).order('approved_at', { ascending: false });
-  return (data ?? []).map((r) => ({ id: r.id, text: r.body as string, who: [r.display_name, r.display_role].filter(Boolean).join(', ') || 'A Thrive client', rating: r.rating }));
+  return (data ?? []).map((r) => ({ id: r.id, text: r.body as string, who: [r.display_name, r.display_role].filter(Boolean).join(', ') || 'A Thrive client', rating: r.rating, service: r.service_slug ?? null }));
 }
 
 /** The three homepage quotes; a review that's no longer approved falls back to the default in its place. */
 export async function homeQuotes(db: SupabaseClient | null, config: HomeConfig): Promise<HomeQuote[]> {
   const reviews = config.quotes.some((q) => q.kind === 'review') ? await quotableReviews(db).catch(() => []) : [];
+  const svc = (slug: string | null | undefined) => (slug ? QUOTE_SERVICES[slug] ?? null : null);
   return config.quotes.map((q, i) => {
-    if (q.kind === 'custom') return { text: q.text, who: q.who };
+    if (q.kind === 'custom') return { text: q.text, who: q.who, service: svc(q.service) };
     const r = reviews.find((x) => x.id === q.id);
     const d = DEFAULT_QUOTES[i] as Extract<QuoteSlot, { kind: 'custom' }>;
-    return r ? { text: r.text, who: r.who } : { text: d.text, who: d.who };
+    return r ? { text: r.text, who: r.who, service: svc(r.service) } : { text: d.text, who: d.who };
   });
 }
 

@@ -21,12 +21,14 @@ import { apiGet, apiSend } from '../proposals/adminApi';
 import { COLS, MAX_TILES, PRESETS, autoPhotos, canPlace, emptyCells, firstFree, phoneFrom, type Layout, type Rect } from '@/lib/collageLayout';
 import { mixedPhotos } from '@/lib/workPhotos';
 import MosaicEditor from './MosaicEditor';
+import { useCrm } from '../crm/CrmContext';
 import s from './homepage.module.css';
 
 type Pick = { slug: string; src: string };
 type Placed = Pick & Rect;
 type StripPage = 'about' | 'contact' | 'book';
-type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string };
+type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string; contact_id?: string | null; service?: string | null; review_id?: string | null };
+const SERVICES: [string, string][] = [['brand-design', 'Brand Design'], ['digital-design', 'Web Development'], ['ux-design', 'UX/UI Design'], ['social-media', 'Social Media'], ['photography', 'Photography']];
 type Config = { mosaic: Record<Layout, Placed[]>; fan: (Pick | null)[]; inline: (Pick | null)[]; pages: Record<StripPage, (Pick | null)[]>; share: Pick | null; quotes?: QuoteSlot[] };
 type Review = { id: string; text: string; who: string; rating: number | null };
 const QUOTE_COLOURS = [{ bg: '#3943b7', fg: '#fff' }, { bg: '#0cf574', fg: '#141414' }, { bg: '#e50586', fg: '#fff' }];
@@ -44,6 +46,7 @@ type Target = { kind: 'tile'; i: number } | { kind: 'new'; rect: Rect } | { kind
 const rectOf = ({ col, row, w: width, h }: Rect): Rect => ({ col, row, w: width, h });
 
 export default function HomepageAdmin() {
+  const { contacts } = useCrm();
   const [data, setData] = useState<Data | null>(null);
   const [config, setConfig] = useState<Config | null>(null);
   const [target, setTarget] = useState<Target>({ kind: 'tile', i: 0 });
@@ -275,6 +278,24 @@ export default function HomepageAdmin() {
                 {q.kind === 'custom' ? (<>
                   <textarea className={p.textarea} rows={4} value={q.text} placeholder="What they said" onChange={(e) => setQuote({ ...q, text: e.target.value })} />
                   <input className={p.input} value={q.who} placeholder="Who said it, e.g. DJ Mastamind" onChange={(e) => setQuote({ ...q, who: e.target.value })} />
+                  <select className={p.select} value={q.contact_id ?? ''} aria-label={`Client for quote ${i + 1}`}
+                    onChange={(e) => {
+                      const c = (contacts ?? []).find((x) => x.id === e.target.value);
+                      // Picking a client fills in who said it, if that's still empty.
+                      setQuote({ ...q, contact_id: e.target.value || null, who: q.who.trim() || (c ? [c.name, c.company].filter(Boolean).join(', ') : '') });
+                    }}>
+                    <option value="">Attach to a client (optional)</option>
+                    {(contacts ?? []).filter((c) => c.name || c.company).map((c) => <option key={c.id} value={c.id}>{[c.name, c.company].filter(Boolean).join(' · ')}</option>)}
+                  </select>
+                  <select className={p.select} value={q.service ?? ''} aria-label={`Service for quote ${i + 1}`} onChange={(e) => setQuote({ ...q, service: e.target.value || null })}>
+                    <option value="">Tag a service (optional)</option>
+                    {SERVICES.map(([slug, name]) => <option key={slug} value={slug}>{name}</option>)}
+                  </select>
+                  {(q.contact_id || q.service) && (
+                    <span className={w.muted} style={{ fontSize: 12 }}>
+                      Saved as a review{q.contact_id ? ' on their contact' : ''}{q.service ? `, and shown on the ${SERVICES.find(([sl]) => sl === q.service)?.[1]} page` : ''}.
+                    </span>
+                  )}
                 </>) : (
                   <blockquote className={s.quotePreview} style={{ background: colour.bg, color: colour.fg }}>
                     {review ? <>“{review.text}”<cite>{review.who}</cite></> : 'That review isn’t approved any more, so the original quote shows here.'}

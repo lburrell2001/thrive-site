@@ -134,7 +134,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
   }, []);
 
   const work = projects.slice(0, 6);
-  const quotes = (photos.quotes?.length ? photos.quotes : DEFAULT_QUOTES).map((q, i) => ({ ...q, tone: QUOTE_TONES[i % QUOTE_TONES.length] }));
+  const quotes = (photos.quotes?.length ? photos.quotes : DEFAULT_QUOTES).map((q, i) => ({ text: q.text, who: q.who, service: (q as { service?: string | null }).service ?? null, tone: QUOTE_TONES[i % QUOTE_TONES.length] }));
   // Tiles are labelled with the project's title (a photo's own caption can be the shot's name).
   const titleOf = (href: string) => projects.find((p) => href === `/work/${p.slug}`)?.title;
 
@@ -246,7 +246,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
               <figure key={i} className={`${s.quote} ${q.tone} ${s.rise}`} style={{ '--d': `${i * 90}ms`, '--tilt': `${[-2, 2, -1][i]}deg` } as React.CSSProperties}>
                 <span className={s.quoteMark} aria-hidden>”</span>
                 <blockquote>{q.text}</blockquote>
-                <figcaption>{q.who}</figcaption>
+                <figcaption>{q.who}{q.service ? <span className={s.quoteService}>{q.service}</span> : null}</figcaption>
               </figure>
             ))}
           </div>

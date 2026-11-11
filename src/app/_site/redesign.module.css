@@ -600,3 +600,6 @@
   .menuCard { transition: none; }
   .fill span { color: var(--ink); }
 }
+
+/* The service a homepage quote is about (chosen in admin). */
+.quoteService { display: block; margin-top: 4px; font-weight: 500; font-size: 0.82rem; opacity: 0.8; }
