@@ -51,8 +51,8 @@ SEO setup | Meta tags, sitemap, Google Search Console | $180
 Schema markup | Business info in code for Google and AI search | $90
 Analytics + conversion tracking | Traffic and conversion tracking setup | $150
 Website prototype | Figma design mockups before the build (not clickable) | $225
-Prototype – up to 5 screens | Up to 5 designed screens for a simple app or site | $450
-Prototype – up to 10 screens | Up to 10 designed screens | $900
+Prototype – up to 5 screens | Up to 5 designed screens for a simple app or site | $625
+Prototype – up to 10 screens | Up to 10 designed screens | $1,000
 Additional screen | Per screen | $90
 Wireframes + user flows | Layout and flow planning before design | $360
 Style guide | Colors, type, and components for developers | $450
