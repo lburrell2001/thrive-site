@@ -8,7 +8,7 @@
 // the code file in src/app/work/case-studies/. A project with only a code file
 // opens with that file's content; saving moves it here.
 
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import ui from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { caseImageUrl } from '@/lib/storage';
@@ -107,6 +107,41 @@ function template(kind: Kind, title: string): Draft {
   return { client: title, headline: '', lede: '', meta: [{ label: 'Client', value: title }], about: [''], outcome: [''] };
 }
 
+/** True when nothing has been typed or uploaded: blank strings, empty lists, and the starter labels only. */
+function untouched(v: unknown): boolean {
+  if (v == null) return true;
+  if (typeof v === 'string') return v.trim() === '';
+  if (typeof v === 'number') return false;
+  if (Array.isArray(v)) return v.every(untouched);
+  if (typeof v === 'object') {
+    return Object.entries(v as Record<string, unknown>).every(([k, x]) => ['label', 'title', 'layout', 'platform', 'unit', 'lead', 'name', 'hex'].includes(k) || untouched(x));
+  }
+  return true;
+}
+
+/** Switching kind: every part still untouched takes the new kind's starter; anything typed stays. */
+function switchTemplate(d: Draft, to: Kind, title: string): Draft {
+  const t = template(to, title);
+  const next: Draft = { ...d };
+  for (const k of Object.keys(t) as (keyof Draft)[]) {
+    if (k === 'client' || k === 'headline' || k === 'lede' || k === 'liveUrl') continue;
+    if (k === 'meta') {
+      // Keep typed values; swap the starter rows (same labels across kinds) to the new kind's wording.
+      const starters = new Set((['web', 'social', 'other'] as Kind[]).flatMap((x) => (template(x, title).meta ?? []).map((m) => `${m.label}|${m.value}`)));
+      const typed = (d.meta ?? []).filter((m) => m.value.trim() && !starters.has(`${m.label}|${m.value}`) && m.label !== 'Client');
+      const labels = new Set(typed.map((m) => m.label));
+      next.meta = [...(t.meta ?? []).filter((m) => !labels.has(m.label)), ...typed];
+      continue;
+    }
+    if (untouched(d[k])) (next as Record<string, unknown>)[k] = t[k];
+  }
+  // The other kind's untouched parts go, so they don't show up as empty sections.
+  for (const k of Object.keys(next) as (keyof Draft)[]) {
+    if (!(k in t) && untouched(next[k]) && !['client', 'headline', 'lede', 'liveUrl', 'seo', 'heroImage', 'quote', 'related'].includes(k)) delete next[k];
+  }
+  return next;
+}
+
 function kindOf(category: string | null | undefined, cs: Draft | null): Kind {
   if (cs?.growth || /social/i.test(category ?? '')) return 'social';
   if (cs?.pages?.length || /web|website/i.test(category ?? '')) return 'web';
@@ -119,45 +154,45 @@ const filled = (s?: string) => !!s?.trim();
 const n = (v: Num) => (typeof v === 'number' ? v : Number(String(v).replace(/[,\s$%]/g, '')));
 const ok = (v: Num) => String(v).trim() !== '' && Number.isFinite(n(v));
 
-function checks(d: Draft, kind: Kind): { label: string; done: boolean }[] {
+function checks(d: Draft, kind: Kind): { label: string; done: boolean; section: SectionId }[] {
   const base = [
-    { label: 'Headline and intro', done: filled(d.headline) && filled(d.lede) },
-    { label: 'Main image', done: !!d.heroImage?.src },
-    { label: '3+ numbers', done: (d.numbers ?? []).filter((x) => filled(x.value) && filled(x.label)).length >= 3 },
-    { label: 'About the client', done: (d.about ?? []).some(filled) },
-    { label: 'Challenge with 3+ goals', done: filled(d.challenge?.intro) && (d.challenge?.goals ?? []).filter((g) => filled(g.title)).length >= 3 },
+    { label: 'Headline and intro', section: 'header' as SectionId, done: filled(d.headline) && filled(d.lede) },
+    { label: 'Main image', section: 'hero' as SectionId, done: !!d.heroImage?.src },
+    { label: '3+ numbers', section: 'project' as SectionId, done: (d.numbers ?? []).filter((x) => filled(x.value) && filled(x.label)).length >= 3 },
+    { label: 'About the client', section: 'project' as SectionId, done: (d.about ?? []).some(filled) },
+    { label: 'Challenge with 3+ goals', section: 'challenge' as SectionId, done: filled(d.challenge?.intro) && (d.challenge?.goals ?? []).filter((g) => filled(g.title)).length >= 3 },
   ];
   const tail = [
-    { label: 'Design system (colours + notes)', done: filled(d.design?.intro) && (d.design?.colors ?? []).filter((c) => filled(c.name)).length >= 2 },
-    { label: 'Outcome', done: (d.outcome ?? []).some(filled) },
+    { label: 'Design system (colours + notes)', section: 'design' as SectionId, done: filled(d.design?.intro) && (d.design?.colors ?? []).filter((c) => filled(c.name)).length >= 2 },
+    { label: 'Outcome', section: 'outcome' as SectionId, done: (d.outcome ?? []).some(filled) },
   ];
   if (kind === 'web') {
     const pages = (d.pages ?? []).filter((p) => filled(p.title) && p.desktop?.src);
     return [
       ...base,
-      { label: 'Live site link', done: filled(d.liveUrl) },
-      { label: '4+ pages with desktop shots', done: pages.length >= 4 },
-      { label: 'Every page has a phone shot', done: pages.length > 0 && pages.every((p) => p.mobile?.src) },
-      { label: '4+ features', done: (d.features ?? []).filter((f) => filled(f.title)).length >= 4 },
-      ...tail,
-      { label: 'Type and design patterns', done: filled(d.design?.type) && (d.design?.patterns ?? []).filter((p) => filled(p.title)).length >= 2 },
-      { label: 'Full-length page shots', done: (d.design?.fullPages ?? []).length >= 2 },
-      { label: '3+ timeline steps', done: (d.timeline ?? []).filter((t) => filled(t.when) && filled(t.title)).length >= 3 },
-      { label: '3+ phone views', done: (d.mobile?.shots ?? []).length >= 3 },
-      { label: 'Built with', done: (d.stack ?? []).some(filled) },
+      { label: 'Live site link', section: 'header' as SectionId, done: filled(d.liveUrl) },
+      { label: '4+ pages with desktop shots', section: 'pages' as SectionId, done: pages.length >= 4 },
+      { label: 'Every page has a phone shot', section: 'pages' as SectionId, done: pages.length > 0 && pages.every((p) => p.mobile?.src) },
+      { label: '4+ features', section: 'features' as SectionId, done: (d.features ?? []).filter((f) => filled(f.title)).length >= 4 },
+      { label: 'Outcome', section: 'outcome' as SectionId, done: (d.outcome ?? []).some(filled) },
+      { label: 'Type and design patterns', section: 'design' as SectionId, done: filled(d.design?.type) && (d.design?.patterns ?? []).filter((p) => filled(p.title)).length >= 2 },
+      { label: 'Full-length page shots', section: 'design' as SectionId, done: (d.design?.fullPages ?? []).length >= 2 },
+      { label: '3+ timeline steps', section: 'timeline' as SectionId, done: (d.timeline ?? []).filter((t) => filled(t.when) && filled(t.title)).length >= 3 },
+      { label: '3+ phone views', section: 'mobile' as SectionId, done: (d.mobile?.shots ?? []).length >= 3 },
+      { label: 'Built with', section: 'outcome' as SectionId, done: (d.stack ?? []).some(filled) },
     ];
   }
   if (kind === 'social') {
     const accounts = d.growth?.accounts ?? [];
     return [
       ...base,
-      { label: 'Approach with 3+ steps', done: (d.approach?.steps ?? []).filter((s) => filled(s.title)).length >= 3 },
-      { label: '2+ groups of posts', done: (d.showcase ?? []).filter((b) => b.images.length).length >= 2 },
-      { label: 'Growth numbers (start → end)', done: accounts.some((a) => a.stats.filter((s) => filled(s.label) && ok(s.start) && ok(s.end)).length >= 2) },
-      { label: 'Followers vs non-followers', done: accounts.some((a) => (a.splits ?? []).some((sp) => [sp.start.followers, sp.start.nonFollowers, sp.end.followers, sp.end.nonFollowers].every(ok))) },
-      { label: 'A growth chart (3+ points)', done: accounts.some((a) => (a.series ?? []).some((s) => s.points.filter((p) => filled(p.when) && ok(p.value)).length >= 3)) },
-      { label: '2+ analytics screenshots', done: (d.growth?.screenshots ?? []).length >= 2 },
-      ...tail,
+      { label: 'Approach with 3+ steps', section: 'approach' as SectionId, done: (d.approach?.steps ?? []).filter((s) => filled(s.title)).length >= 3 },
+      { label: '2+ groups of posts', section: 'work' as SectionId, done: (d.showcase ?? []).filter((b) => b.images.length).length >= 2 },
+      { label: 'Growth numbers (start → end)', section: 'growth' as SectionId, done: accounts.some((a) => a.stats.filter((s) => filled(s.label) && ok(s.start) && ok(s.end)).length >= 2) },
+      { label: 'Followers vs non-followers', section: 'growth' as SectionId, done: accounts.some((a) => (a.splits ?? []).some((sp) => [sp.start.followers, sp.start.nonFollowers, sp.end.followers, sp.end.nonFollowers].every(ok))) },
+      { label: 'A growth chart (3+ points)', section: 'growth' as SectionId, done: accounts.some((a) => (a.series ?? []).some((s) => s.points.filter((p) => filled(p.when) && ok(p.value)).length >= 3)) },
+      { label: '2+ analytics screenshots', section: 'growth' as SectionId, done: (d.growth?.screenshots ?? []).length >= 2 },
+      { label: 'Outcome', section: 'outcome' as SectionId, done: (d.outcome ?? []).some(filled) },
     ];
   }
   return [...base, ...tail];
@@ -233,18 +268,27 @@ function Rows<T>({ items, set, blank, add, render, inline }: {
   );
 }
 
-function Section({ title, hint, done, children, open }: { title: string; hint?: string; done?: boolean; children: React.ReactNode; open?: boolean }) {
+type SectionId = 'header' | 'hero' | 'project' | 'challenge' | 'approach' | 'pages' | 'growth' | 'work' | 'features' | 'design' | 'mobile' | 'timeline' | 'outcome';
+const OpenCtx = createContext<{ open: Set<SectionId>; toggle: (id: SectionId) => void }>({ open: new Set(), toggle: () => {} });
+
+function Section({ id, title, hint, done, children }: { id: SectionId; title: string; hint?: string; done?: boolean; children: React.ReactNode }) {
+  const { open, toggle } = useContext(OpenCtx);
+  const isOpen = open.has(id);
   return (
-    <details open={open} style={{ borderTop: '1px solid var(--a-border)', padding: '12px 0' }}>
-      <summary style={{ cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, listStyle: 'none' }}>
+    <section id={`cs-${id}`} style={{ borderTop: '1px solid var(--a-border)', padding: '4px 0', scrollMarginTop: 16 }}>
+      <button type="button" onClick={() => toggle(id)} aria-expanded={isOpen}
+        style={{ all: 'unset', boxSizing: 'border-box', width: '100%', cursor: 'pointer', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0' }}>
         <span aria-hidden style={{ width: 10, height: 10, borderRadius: '50%', background: done ? '#0cf574' : 'var(--a-border-strong)', flexShrink: 0 }} />
-        {title}
-      </summary>
-      <div style={{ paddingTop: 12 }}>
-        {hint && <p style={{ fontSize: 12.5, color: 'var(--a-muted)', margin: '0 0 12px' }}>{hint}</p>}
-        {children}
-      </div>
-    </details>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span aria-hidden style={{ fontSize: 18, lineHeight: 1, transform: isOpen ? 'rotate(45deg)' : 'none', transition: 'transform .15s' }}>+</span>
+      </button>
+      {isOpen && (
+        <div style={{ padding: '4px 0 14px' }}>
+          {hint && <p style={{ fontSize: 12.5, color: 'var(--a-muted)', margin: '0 0 12px' }}>{hint}</p>}
+          {children}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -482,6 +526,13 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [version, setVersion] = useState(0);
+  const [openSet, setOpenSet] = useState<Set<SectionId>>(new Set(['header']));
+  const toggle = (id: SectionId) => setOpenSet((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  /** From a Detail check pill: open that section and bring it into view. */
+  const goTo = (id: SectionId) => {
+    setOpenSet((prev) => new Set(prev).add(id));
+    requestAnimationFrame(() => document.getElementById(`cs-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   useEffect(() => {
     let live = true;
@@ -554,7 +605,7 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
           No case study yet, so /work/{slug} shows the short layout. Start one — it opens with every section a full case study has:
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {([['web', 'Website development'], ['social', 'Social media'], ['other', 'Other (branding, UX, photos)']] as [Kind, string][]).map(([k, l]) => (
+          {([['web', 'Web design & development'], ['social', 'Social media'], ['other', 'Other (branding, UX, photos)']] as [Kind, string][]).map(([k, l]) => (
             <button key={k} type="button" className={`${ui.btn} ${k === kindOf(category, null) ? ui.btnPrimary : ''}`}
               onClick={() => { setDraft(template(k, title)); setKind(k); setDirty(true); setVersion((v) => v + 1); }}>{l}</button>
           ))}
@@ -566,10 +617,25 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
   const d = draft;
   const list = checks(d, kind);
   const doneCount = list.filter((c) => c.done).length;
-  const has = (k: keyof Draft) => d[k] !== undefined;
+  // Which sections each kind shows. Another kind's section still shows if it already has content, so nothing on the page becomes uneditable.
+  const SHOWN: Record<Kind, SectionId[]> = {
+    web: ['header', 'hero', 'project', 'challenge', 'approach', 'pages', 'work', 'features', 'design', 'mobile', 'timeline', 'outcome'],
+    social: ['header', 'hero', 'project', 'challenge', 'approach', 'growth', 'work', 'outcome'],
+    other: ['header', 'hero', 'project', 'challenge', 'approach', 'work', 'features', 'design', 'timeline', 'outcome'],
+  };
+  const hasContent: Partial<Record<SectionId, boolean>> = {
+    pages: (d.pages ?? []).some((pg) => filled(pg.title) && (pg.desktop?.src || filled(pg.text))),
+    growth: (d.growth?.accounts ?? []).some((a) => a.stats.some((st) => ok(st.start) || ok(st.end)) || (a.series ?? []).some((se) => se.points.length) || (a.splits ?? []).some((sp) => ok(sp.start.followers))) || (d.growth?.screenshots ?? []).length > 0,
+    features: (d.features ?? []).some((f) => filled(f.title)),
+    design: filled(d.design?.intro) || (d.design?.colors ?? []).some((c) => filled(c.name)),
+    mobile: (d.mobile?.shots ?? []).length > 0,
+    timeline: (d.timeline ?? []).some((t) => filled(t.title) && filled(t.when)),
+  };
+  const show = (id: SectionId) => SHOWN[kind].includes(id) || !!hasContent[id];
   const isDone = (l: string) => list.find((c) => c.label === l)?.done;
 
   return (
+    <OpenCtx.Provider value={{ open: openSet, toggle }}>
     <div key={version}>
       <datalist id="growth-stats">{STAT_NAMES.map((x) => <option key={x} value={x} />)}</datalist>
       <datalist id="growth-splits">{SPLIT_NAMES.map((x) => <option key={x} value={x} />)}</datalist>
@@ -589,8 +655,8 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '4px 0 10px' }}>
         <span style={label}>Kind</span>
         {(['web', 'social', 'other'] as Kind[]).map((k) => (
-          <button key={k} type="button" className={`${ui.btn} ${ui.btnSmall} ${kind === k ? ui.btnPrimary : ''}`} onClick={() => setKind(k)}>
-            {k === 'web' ? 'Website development' : k === 'social' ? 'Social media' : 'Other'}
+          <button key={k} type="button" className={`${ui.btn} ${ui.btnSmall} ${kind === k ? ui.btnPrimary : ''}`} onClick={() => { if (k === kind) return; setKind(k); setDraft((cur) => (cur ? switchTemplate(cur, k, title) : cur)); setDirty(true); setVersion((v) => v + 1); }}>
+            {k === 'web' ? 'Web design & development' : k === 'social' ? 'Social media' : 'Other'}
           </button>
         ))}
       </div>
@@ -604,18 +670,19 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
           </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--a-muted)', margin: '0 0 8px' }}>
-          {kind === 'web' ? 'What The Burrell Group’s page has.' : kind === 'social' ? 'A full social case study: the posts, the growth and the proof.' : 'The basics every case study has.'}
+          {kind === 'web' ? 'What The Burrell Group’s page has. Tap one to go to it.' : kind === 'social' ? 'A full social case study: the posts, the growth and the proof. Tap one to go to it.' : 'The basics every case study has. Tap one to go to it.'}
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {list.map((c) => (
-            <span key={c.label} className={w.pill} style={c.done ? { background: '#0cf574', color: '#141414' } : { background: '#fff', color: 'var(--a-muted)', boxShadow: 'inset 0 0 0 1.5px var(--a-border-strong)' }}>
+            <button key={c.label} type="button" className={w.pill} onClick={() => goTo(c.section)} title={`Go to ${c.label}`}
+              style={{ cursor: 'pointer', border: 0, font: 'inherit', ...(c.done ? { background: '#0cf574', color: '#141414' } : { background: '#fff', color: 'var(--a-text)', boxShadow: 'inset 0 0 0 1.5px var(--a-border-strong)' }) }}>
               {c.done ? '✓ ' : ''}{c.label}
-            </span>
+            </button>
           ))}
         </div>
       </div>
 
-      <Section title="Header" open done={isDone('Headline and intro')} hint="The project name, a one-line headline and the intro paragraph at the top of the page.">
+      <Section id="header" title="Header" done={isDone('Headline and intro')} hint="The project name, a one-line headline and the intro paragraph at the top of the page.">
         <div style={grid(220)}>
           <Txt l="Client / project name" v={d.client} set={(v) => up('client', v)} />
           <Txt l="Live link" v={d.liveUrl} set={(v) => up('liveUrl', v)} ph={kind === 'social' ? 'https://www.instagram.com/…' : 'https://…'} />
@@ -636,11 +703,11 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
         </div>
       </Section>
 
-      <Section title="Main image" done={!!d.heroImage?.src} hint="The big image under the overview — a mockup of the work works best.">
+      <Section id="hero" title="Main image" done={!!d.heroImage?.src} hint="The big image under the overview — a mockup of the work works best.">
         <ImagePick v={d.heroImage} set={(v) => up('heroImage', v)} upload={upload} />
       </Section>
 
-      <Section title="The project" done={isDone('About the client') && isDone('3+ numbers')} hint="Who the client is, and the big numbers beside it. Only real, countable numbers.">
+      <Section id="project" title="The project" done={isDone('About the client') && isDone('3+ numbers')} hint="Who the client is, and the big numbers beside it. Only real, countable numbers.">
         <Paras l="About" v={d.about} set={(v) => up('about', v)} />
         <span style={label}>Numbers</span>
         <Rows inline items={d.numbers} set={(v) => up('numbers', v)} add="Number" blank={() => ({ value: '', label: '' })}
@@ -652,21 +719,21 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
           )} />
       </Section>
 
-      <Section title="The challenge" done={isDone('Challenge with 3+ goals')}>
+      <Section id="challenge" title="The challenge" done={isDone('Challenge with 3+ goals')}>
         <Area l="Intro" v={d.challenge?.intro} set={(v) => up('challenge', { ...(d.challenge ?? { intro: '' }), intro: v })} rows={3} />
         <span style={label}>Goals</span>
         <Rows items={d.challenge?.goals} set={(v) => up('challenge', { intro: d.challenge?.intro ?? '', goals: v })} add="Goal" blank={() => ({ title: '', text: '' })}
           render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Goal" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
       </Section>
 
-      <Section title="The approach" done={(d.approach?.steps ?? []).some((s) => filled(s.title))} hint={kind === 'web' ? 'Optional for websites — the pages and features usually tell this.' : 'The steps, in order.'}>
+      <Section id="approach" title="The approach" done={(d.approach?.steps ?? []).some((s) => filled(s.title))} hint={kind === 'web' ? 'Optional for websites — the pages and features usually tell this.' : 'The steps, in order.'}>
         <Area l="Intro (optional)" v={d.approach?.intro} set={(v) => up('approach', { steps: d.approach?.steps ?? [], intro: v })} rows={2} />
         <Rows items={d.approach?.steps} set={(v) => up('approach', { intro: d.approach?.intro, steps: v })} add="Step" blank={() => ({ title: '', text: '' })}
           render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Step" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
       </Section>
 
-      {(kind === 'web' || has('pages')) && (
-        <Section title="The pages" done={isDone('4+ pages with desktop shots') && isDone('Every page has a phone shot')} hint="Each page of the site: what it does, a desktop screenshot (shown in a browser frame) and a phone screenshot (shown in a phone frame beside it).">
+      {show('pages') && (
+        <Section id="pages" title="The pages" done={isDone('4+ pages with desktop shots') && isDone('Every page has a phone shot')} hint="Each page of the site: what it does, a desktop screenshot (shown in a browser frame) and a phone screenshot (shown in a phone frame beside it).">
           <Rows<NonNullable<Draft['pages']>[number]> items={d.pages} set={(v) => up('pages', v)} add="Page" blank={() => ({ title: '', text: '' })}
             render={(pg, u) => (
               <>
@@ -681,8 +748,8 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
         </Section>
       )}
 
-      {(kind === 'social' || has('growth')) && (
-        <Section title="The growth" done={isDone('Growth numbers (start → end)') && isDone('Followers vs non-followers') && isDone('A growth chart (3+ points)') && isDone('2+ analytics screenshots')}
+      {show('growth') && (
+        <Section id="growth" title="The growth" done={isDone('Growth numbers (start → end)') && isDone('Followers vs non-followers') && isDone('A growth chart (3+ points)') && isDone('2+ analytics screenshots')}
           hint="Each account's numbers from the start of the contract to the end (shown with the change, % and before/after bars), followers vs non-followers, charts over time, and analytics screenshots in phone frames. Use the real numbers from Insights.">
           <Area l="Intro (optional)" v={d.growth?.intro} rows={2} set={(v) => up('growth', { accounts: [], ...d.growth, intro: v })} />
           <Rows items={d.growth?.accounts} set={(v) => up('growth', { ...d.growth, accounts: v })} add="Account"
@@ -697,7 +764,7 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
         </Section>
       )}
 
-      <Section title="The work" done={(d.showcase ?? []).some((b) => b.images.length)} hint="Groups of images. Layouts: grid, wide (one per row), posts (social posts), phones (phone frames — stories, reels, app screens).">
+      <Section id="work" title="The work" done={(d.showcase ?? []).some((b) => b.images.length)} hint="Groups of images. Layouts: grid, wide (one per row), posts (social posts), phones (phone frames — stories, reels, app screens).">
         <Rows items={d.showcase} set={(v) => up('showcase', v)} add="Group" blank={() => ({ title: '', text: '', layout: kind === 'social' ? 'posts' : 'grid', images: [] })}
           render={(b, u) => (
             <>
@@ -713,55 +780,61 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
           )} />
       </Section>
 
-      <Section title="Features" done={(d.features ?? []).filter((f) => filled(f.title)).length >= (kind === 'web' ? 4 : 1)}>
-        <Rows items={d.features} set={(v) => up('features', v)} add="Feature" blank={() => ({ title: '', text: '' })}
-          render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Feature" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
-      </Section>
+      {show('features') && (
+        <Section id="features" title="Features" done={(d.features ?? []).filter((f) => filled(f.title)).length >= (kind === 'web' ? 4 : 1)}>
+          <Rows items={d.features} set={(v) => up('features', v)} add="Feature" blank={() => ({ title: '', text: '' })}
+            render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Feature" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
+        </Section>
+      )}
 
-      <Section title="Design system" done={isDone('Design system (colours + notes)')}>
-        <Area l="Intro" v={d.design?.intro} rows={2} set={(v) => up('design', { ...(d.design ?? {}), intro: v })} />
-        <span style={label}>Colours</span>
-        <Rows inline items={d.design?.colors} set={(v) => up('design', { intro: '', ...d.design, colors: v })} add="Colour" blank={() => ({ name: '', hex: '#000000' })}
-          render={(c, u) => (
-            <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 110px', gap: 6, alignItems: 'center' }}>
-              <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#000000'} onChange={(e) => u({ ...c, hex: e.target.value })} style={{ width: 44, height: 36, border: 0, background: 'none', padding: 0 }} aria-label="Pick colour" />
-              <input style={input} value={c.name} placeholder="Name" onChange={(e) => u({ ...c, name: e.target.value })} />
-              <input style={input} value={c.hex} onChange={(e) => u({ ...c, hex: e.target.value })} aria-label="Hex" />
+      {show('design') && (
+        <Section id="design" title="Design system" done={isDone('Design system (colours + notes)')}>
+          <Area l="Intro" v={d.design?.intro} rows={2} set={(v) => up('design', { ...(d.design ?? {}), intro: v })} />
+          <span style={label}>Colours</span>
+          <Rows inline items={d.design?.colors} set={(v) => up('design', { intro: '', ...d.design, colors: v })} add="Colour" blank={() => ({ name: '', hex: '#000000' })}
+            render={(c, u) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '44px 1fr 110px', gap: 6, alignItems: 'center' }}>
+                <input type="color" value={/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : '#000000'} onChange={(e) => u({ ...c, hex: e.target.value })} style={{ width: 44, height: 36, border: 0, background: 'none', padding: 0 }} aria-label="Pick colour" />
+                <input style={input} value={c.name} placeholder="Name" onChange={(e) => u({ ...c, name: e.target.value })} />
+                <input style={input} value={c.hex} onChange={(e) => u({ ...c, hex: e.target.value })} aria-label="Hex" />
+              </div>
+            )} />
+          <div style={{ marginTop: 12 }}><Area l="Type" v={d.design?.type} rows={2} set={(v) => up('design', { intro: '', ...d.design, type: v })} /></div>
+          <span style={label}>Patterns</span>
+          <Rows items={d.design?.patterns} set={(v) => up('design', { intro: '', ...d.design, patterns: v })} add="Pattern" blank={() => ({ title: '', text: '' })}
+            render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Pattern" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
+          {(kind === 'web' || (d.design?.fullPages ?? []).length > 0) && (
+            <div style={{ marginTop: 12 }}>
+              <span style={label}>Full-length page screenshots</span>
+              <ImageList v={d.design?.fullPages} caption upload={upload} set={(v) => up('design', { intro: '', ...d.design, fullPages: v })} />
             </div>
-          )} />
-        <div style={{ marginTop: 12 }}><Area l="Type" v={d.design?.type} rows={2} set={(v) => up('design', { intro: '', ...d.design, type: v })} /></div>
-        <span style={label}>Patterns</span>
-        <Rows items={d.design?.patterns} set={(v) => up('design', { intro: '', ...d.design, patterns: v })} add="Pattern" blank={() => ({ title: '', text: '' })}
-          render={(g, u) => <><Txt v={g.title} set={(t) => u({ ...g, title: t })} ph="Pattern" /><Area v={g.text} set={(t) => u({ ...g, text: t })} rows={2} /></>} />
-        {(kind === 'web' || (d.design?.fullPages ?? []).length > 0) && (
-          <div style={{ marginTop: 12 }}>
-            <span style={label}>Full-length page screenshots</span>
-            <ImageList v={d.design?.fullPages} caption upload={upload} set={(v) => up('design', { intro: '', ...d.design, fullPages: v })} />
-          </div>
-        )}
-      </Section>
+          )}
+        </Section>
+      )}
 
-      {(kind === 'web' || has('mobile')) && (
-        <Section title="On phones" done={isDone('3+ phone views')} hint="Phone screenshots, shown in phone frames.">
+      {show('mobile') && (
+        <Section id="mobile" title="On phones" done={isDone('3+ phone views')} hint="Phone screenshots, shown in phone frames.">
           <Area l="Intro" v={d.mobile?.intro} rows={2} set={(v) => up('mobile', { shots: d.mobile?.shots ?? [], intro: v })} />
           <ImageList v={d.mobile?.shots} phone upload={upload} add="Upload phone screenshots" set={(v) => up('mobile', { intro: d.mobile?.intro ?? '', shots: v })} />
         </Section>
       )}
 
-      <Section title="Timeline" done={(d.timeline ?? []).filter((t) => filled(t.title)).length >= 3}>
-        <Rows items={d.timeline} set={(v) => up('timeline', v)} add="Step" blank={() => ({ when: '', title: '', text: '' })}
-          render={(t, u) => (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 6, marginBottom: 6 }}>
-                <input style={input} value={t.when} placeholder="Jan 2026" onChange={(e) => u({ ...t, when: e.target.value })} />
-                <input style={input} value={t.title} placeholder="Launch" onChange={(e) => u({ ...t, title: e.target.value })} />
-              </div>
-              <Area v={t.text} set={(x) => u({ ...t, text: x })} rows={2} />
-            </>
-          )} />
-      </Section>
+      {show('timeline') && (
+        <Section id="timeline" title="Timeline" done={(d.timeline ?? []).filter((t) => filled(t.title)).length >= 3}>
+          <Rows items={d.timeline} set={(v) => up('timeline', v)} add="Step" blank={() => ({ when: '', title: '', text: '' })}
+            render={(t, u) => (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 6, marginBottom: 6 }}>
+                  <input style={input} value={t.when} placeholder="Jan 2026" onChange={(e) => u({ ...t, when: e.target.value })} />
+                  <input style={input} value={t.title} placeholder="Launch" onChange={(e) => u({ ...t, title: e.target.value })} />
+                </div>
+                <Area v={t.text} set={(x) => u({ ...t, text: x })} rows={2} />
+              </>
+            )} />
+        </Section>
+      )}
 
-      <Section title="The outcome" done={isDone('Outcome')} hint="Leave the quote empty until the client has given one.">
+      <Section id="outcome" title="The outcome" done={isDone('Outcome')} hint="Leave the quote empty until the client has given one.">
         <Paras v={d.outcome} set={(v) => up('outcome', v)} />
         <div style={grid(220)}>
           <Area l="Client quote" v={d.quote?.text} rows={2} set={(v) => up('quote', { author: d.quote?.author ?? '', text: v })} />
@@ -793,5 +866,6 @@ export default function CaseStudyEditor({ projectId, slug, title, category, onMs
         </div>
       </div>
     </div>
+    </OpenCtx.Provider>
   );
 }
