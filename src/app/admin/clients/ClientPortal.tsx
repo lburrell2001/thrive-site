@@ -68,7 +68,8 @@ interface Milestone { id: string; project_name: string; title: string; due_date:
 interface Proposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; created_at: string; project_id?: string | null; }
 interface Subscription { id: string; client_id: string; project_name: string; invoice_prefix: string; amount_cents: number; day_of_month: number; next_due_date: string; last_generated_date: string | null; status: string; notes: string | null; created_at: string; interval_count: number; interval_unit: 'week' | 'month' | 'year'; }
 interface Credential { id: string; project_id: string | null; label: string; category: string; site_url: string; username: string; has_secret: boolean; has_notes: boolean; last_viewed_at: string | null; last_viewed_by: string | null; created_at: string; updated_at: string; }
-interface ClientData { profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; reminders?: ReminderLog[]; }
+interface ClientEstimate { id: string; estimate_number: string; title: string; status: string; total_cents: number; issue_date: string; crm_deal_id: string | null; sent_to: string | null; accepted_at: string | null; decline_reason: string | null; }
+interface ClientData { estimates?: ClientEstimate[]; profile: Client | null; projects: Project[]; requests: Request[]; invoices: Invoice[]; files: PortalFile[]; milestones: Milestone[]; onboarding: OnboardingStep[]; activity: Activity[]; proposals: Proposal[]; subscriptions: Subscription[]; credentials: Credential[]; reminders?: ReminderLog[]; }
 type Tab = 'profile' | 'projects';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -1056,7 +1057,9 @@ function ProjectsTab({ clientId, data, api, onRefresh, expandedId, setExpandedId
   const active   = data.projects.filter(p => !p.archived);
   const archived = data.projects.filter(p => p.archived);
   const projectNames = new Set(data.projects.map(p => p.name));
-  const standaloneInvoices = data.invoices.filter(i => !i.project_name || !projectNames.has(i.project_name));
+  const projectDeals = new Set(data.projects.map(p => p.crm_deal_id).filter(Boolean));
+  const standaloneInvoices = data.invoices.filter(i => !projectDeals.has((i as { crm_deal_id?: string | null }).crm_deal_id ?? null)
+    && (!i.project_name || !projectNames.has(i.project_name)));
   const standaloneRequests = data.requests.filter(r => !r.project_name || !projectNames.has(r.project_name));
 
   async function handleAdd(e: React.FormEvent) {
@@ -1213,7 +1216,11 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
   const projectFiles      = data.files.filter(f => f.project_name === project.name);
   const projectMilestones = data.milestones.filter(m => m.project_name === project.name);
   const projectActivity   = data.activity.filter(a => a.project_name === project.name);
-  const projectInvoices   = data.invoices.filter(i => i.project_name === project.name);
+  // Filed under this project by its deal, or by name.
+  const sameProject = (deal: string | null | undefined, name: string | null | undefined) =>
+    (!!project.crm_deal_id && deal === project.crm_deal_id) || (name ?? '').trim().toLowerCase() === project.name.trim().toLowerCase();
+  const projectInvoices   = data.invoices.filter(i => sameProject((i as { crm_deal_id?: string | null }).crm_deal_id, i.project_name));
+  const projectEstimates  = (data.estimates ?? []).filter(e => sameProject(e.crm_deal_id, e.title));
   const projectRequests   = data.requests.filter(r => r.project_name === project.name);
 
   async function handleSave() {
@@ -1360,7 +1367,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             </div>
           </div>
 
-          <ProjectSubInvoices   project={project} invoices={projectInvoices}     clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
+          <ProjectSubInvoices   project={project} invoices={projectInvoices} estimates={projectEstimates} clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
           <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} reminders={data.reminders} api={api} onRefresh={onRefresh} />
           <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
@@ -1612,7 +1619,13 @@ function ProjectSubActivity({ project, activity, clientId, api, onRefresh }: Sub
 }
 
 // ── Per-project: Invoices ─────────────────────────────────────────────────────
-function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; data: ClientData }) {
+const EST_STATUS: Record<string, { label: string; bg: string; fg: string }> = {
+  draft: { label: 'Draft', bg: '#f1f0ef', fg: DARK }, sent: { label: 'Sent', bg: '#3943b7', fg: '#fff' },
+  accepted: { label: 'Accepted', bg: '#0cf574', fg: DARK }, declined: { label: 'Declined', bg: '#e50586', fg: '#fff' },
+  invoiced: { label: 'Invoiced', bg: DARK, fg: '#fff' },
+};
+
+function ProjectSubInvoices({ project, invoices, estimates = [], clientId, data, api, onRefresh }: SubProps & { invoices: Invoice[]; estimates?: ClientEstimate[]; data: ClientData }) {
   const { remind, dialog } = usePortalReminder(api, onRefresh);
   const [editId,    setEditId]    = useState<string | null>(null);
   const [editVals,  setEditVals]  = useState<Partial<Invoice>>({});
@@ -1674,15 +1687,31 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
   return (
     <div style={{ padding: 16, background: 'var(--a-surface-2)', borderBottom: '1px solid var(--a-border)' }}>
       {dialog}
-      <SubSectionHead title="Invoices" action={
+      <SubSectionHead title="Estimates & invoices" action={
         <span style={{ display: 'flex', gap: 6 }}>
           <Link href={`/admin/work/${project.id}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }} title="Checklist, social growth and the completion report">Checklist &amp; report</Link>
           <Link href={`/admin/invoices?mode=estimate&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }}>+ Estimate</Link>
           <Link href={`/admin/invoices?mode=invoice&client=${clientId}&project=${encodeURIComponent(project.name)}`} className={`${p.btn} ${p.btnPrimary}`} style={{ padding: '3px 8px', fontSize: 11 }}>+ Invoice</Link>
         </span>
       } />
+      {estimates.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+          {estimates.map((e) => {
+            const st = EST_STATUS[e.status] ?? EST_STATUS.draft;
+            return (
+              <div key={e.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, minWidth: 70 }}>{e.estimate_number}</span>
+                <span style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, flex: 1 }}>{fmtAmount(e.total_cents)} <span style={{ fontWeight: 500, color: '#808080' }}>· estimate{e.sent_to ? ` · sent to ${e.sent_to}` : ''}</span></span>
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: st.fg, background: st.bg, padding: '2px 8px', borderRadius: 999 }}>{st.label}</span>
+                {e.status === 'declined' && e.decline_reason && <span style={{ flexBasis: '100%', fontFamily: F.inter, fontSize: 12, color: '#e50586' }}>“{e.decline_reason}”</span>}
+                <Link href={`/admin/invoices?estimate=${e.id}`} className={p.btn} style={{ padding: '3px 8px', fontSize: 11 }}>Open</Link>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {invoices.length === 0 ? (
-        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>No invoices yet.</p>
+        <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: '4px 0 0' }}>{estimates.length ? 'No invoices yet.' : 'No estimates or invoices yet.'}</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {invoices.map(inv => editId === inv.id ? (

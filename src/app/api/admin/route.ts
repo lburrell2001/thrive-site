@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
         const clientId = params.clientId as string;
         // Refresh overdue status so the admin view is always accurate without waiting for cron.
         await markOverdueInvoices(admin);
-        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions, credentials, reminders] = await Promise.all([
+        const [authUser, profile, projects, requests, invoices, files, milestones, onboarding, activity, proposals, subscriptions, credentials, reminders, estimates] = await Promise.all([
           admin.auth.admin.getUserById(clientId),
           admin.from('portal_clients').select('*').eq('id', clientId).single(),
           admin.from('portal_projects').select('*').eq('client_id', clientId).order('created_at', { ascending: false }),
@@ -213,6 +213,8 @@ export async function POST(req: NextRequest) {
             .select('id, target_type, target_id, email_status, sms_status, created_at')
             .eq('portal_client_id', clientId).or('email_status.eq.sent,sms_status.eq.sent')
             .order('created_at', { ascending: false }).limit(200),
+          // Their estimates (filed under a project by deal or title), newest first.
+          admin.from('estimates').select('*').eq('portal_client_id', clientId).order('created_at', { ascending: false }),
         ]);
         return NextResponse.json({
           ok: true,
@@ -227,6 +229,11 @@ export async function POST(req: NextRequest) {
             projects: projects.data ?? [],
             requests: requests.data ?? [],
             invoices: invoices.data ?? [],
+            estimates: (estimates.data ?? []).map((e) => ({
+              id: e.id, estimate_number: e.estimate_number, title: e.title, status: e.status, total_cents: e.total_cents,
+              issue_date: e.issue_date, crm_deal_id: e.crm_deal_id ?? null, sent_to: e.sent_to ?? null,
+              accepted_at: e.accepted_at ?? null, decline_reason: e.decline_reason ?? null,
+            })),
             files: await signDocs(admin, files.data, ['file_url']),
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],

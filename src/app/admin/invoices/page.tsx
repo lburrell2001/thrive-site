@@ -378,6 +378,16 @@ export default function InvoiceBuilder() {
     scrollTop();
   }
 
+  /** Throws away the unsaved estimate or invoice (it was never saved or sent). */
+  function discardDraft() {
+    if (!window.confirm(`Delete this unsaved ${draft.mode}${draft.clientName ? ` for ${draft.clientName}` : ''}? It was never saved or sent.`)) return;
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* private window */ }
+    setFromEstimateId(null);
+    setInvoiceWhen(null);
+    setDraft(blankDraft(draft.mode));
+    show(`Unsaved ${draft.mode} deleted.`);
+  }
+
   function continueDraft() {
     setEditingId(null);
     setView('edit');
@@ -787,7 +797,10 @@ export default function InvoiceBuilder() {
               <strong>Unsaved {draft.mode}</strong>
               <span className={w.muted}> · {[draft.clientName, draft.title, items.length ? formatLineMoney(total) : ''].filter(Boolean).join(' · ') || 'started'}</span>
             </div>
-            <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={continueDraft}>Continue</button>
+            <span style={{ display: 'inline-flex', gap: 8 }}>
+              <button type="button" className={`${p.btn} ${p.btnSmall}`} style={{ background: '#fff', color: '#141414' }} onClick={discardDraft}>Delete</button>
+              <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={continueDraft}>Continue</button>
+            </span>
           </div>
         )}
 
