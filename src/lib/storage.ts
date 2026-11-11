@@ -15,6 +15,12 @@ export function projectCoverThumb(slug: string, width = 640) {
   return `${SUPABASE_URL}/storage/v1/render/image/public/${BUCKET}/work/${slug}-cover.jpg?width=${width}&resize=contain&quality=75`;
 }
 
+// The same cover at several widths for srcset, so retina screens get a sharp
+// copy and phones a light one. The resizer never enlarges past the original.
+export function projectCoverSrcSet(slug: string, widths = [800, 1400, 2000, 2800]) {
+  return widths.map((w) => `${projectCoverThumb(slug, w)} ${w}w`).join(", ");
+}
+
 // 1200×630 copy of the cover for link previews. Some original covers are
 // ~20 MB, which iMessage, Instagram and Facebook won't fetch.
 export function projectCoverOg(slug: string) {

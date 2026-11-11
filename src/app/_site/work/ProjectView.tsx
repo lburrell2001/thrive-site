@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { caseImageUrl, projectCoverThumb } from '@/lib/storage';
+import { caseImageUrl, projectCoverSrcSet, projectCoverThumb } from '@/lib/storage';
 import type { CaseImage, CaseShowcase, CaseStudy } from '../../work/caseStudies';
 import CtaBand from '../CtaBand';
 import Growth from './Growth';
@@ -127,7 +127,7 @@ export default function ProjectView({ cs, title, next }: {
             </div>
           </div>
         </div>
-        <div className={p.cover}><img src={projectCoverThumb(cs.slug, 2000)} alt={`${title} cover`} fetchPriority="high" /></div>
+        <div className={p.cover}><img src={projectCoverThumb(cs.slug, 2000)} srcSet={projectCoverSrcSet(cs.slug)} sizes="100vw" alt={`${title} cover`} fetchPriority="high" /></div>
       </section>
 
       {/* ── At a glance ── */}
