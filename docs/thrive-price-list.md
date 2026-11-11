@@ -21,8 +21,6 @@ Rush – Branding | Up to 1 week ahead of schedule | $150
 Priority Rush – Branding | More than 1 week ahead of schedule | $300
 Rush – Website | Up to 1 week ahead of schedule | $150
 Priority Rush – Website | More than 1 week ahead of schedule | $300
-Rush – UX/UI design | Up to 1 week ahead of schedule | $150
-Priority Rush – UX/UI design | More than 1 week ahead of schedule | $300
 Rush – App development | Up to 1 week ahead of schedule | $500
 Priority Rush – App development | More than 1 week ahead of schedule | $1,000
 
@@ -53,6 +51,12 @@ SEO setup | Meta tags, sitemap, Google Search Console | $180
 Schema markup | Business info in code for Google and AI search | $90
 Analytics + conversion tracking | Traffic and conversion tracking setup | $150
 Website prototype | Figma design mockups before the build (not clickable) | $225
+Prototype – up to 5 screens | Up to 5 designed screens for a simple app or site | $450
+Prototype – up to 10 screens | Up to 10 designed screens | $900
+Additional screen | Per screen | $90
+Wireframes + user flows | Layout and flow planning before design | $360
+Style guide | Colors, type, and components for developers | $450
+Developer handoff | Specs and assets for another developer | $180
 Copywriting revisions | Per page | $35
 Domain + email setup | Domain connection and professional email | $100
 
@@ -121,14 +125,6 @@ Menu – Simple | Single-sided, print and digital versions | $70
 Menu – Multi-page | Double-sided or multiple pages, print and digital versions | $135
 Presentation deck | Up to 10 slides | $135
 Additional slide | Per slide beyond 10 | $15
-
-=== UX/UI DESIGN ===
-UX Starter | Up to 5 designed screens for a simple app or site | $450
-Wireframes + user flows | Layout and flow planning before design | $360
-App/website prototype | Up to 10 designed screens | $900
-Additional screen | Per screen | $90
-Style guide | Colors, type, and components for developers | $450
-Developer handoff | Specs and assets for another developer | $180
 
 === PHOTOGRAPHY ===
 Note: Preferred studio is BURIED DREAMS, Deep Ellum (Peerspace), about $112/hour with fees, 2-hour minimum.

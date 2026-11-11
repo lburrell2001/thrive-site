@@ -255,7 +255,6 @@ export function categoryTitle(heading: string): string {
     'BRANDING': 'Branding',
     'SOCIAL MEDIA (MONTHLY)': 'Social media (monthly)',
     'MARKETING + PRINT DESIGN': 'Marketing + print design',
-    'UX/UI DESIGN': 'UX/UI design',
     'PHOTOGRAPHY': 'Photography',
     'SEO + LOCAL SEARCH': 'SEO + local search',
     'DISCOUNTS': 'Discounts',
