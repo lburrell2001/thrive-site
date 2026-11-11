@@ -1,9 +1,13 @@
 'use client';
 
-// The portal's help corner: a "?" button always in the bottom-right with
-// "Take the tour", "Something isn't working" (a message to Lauren, filed as a
-// portal request) and an email link; and the tour itself — a short walk
-// through the sidebar that highlights each part of the portal.
+// The portal's help corner: a "?" button always in the bottom-right with tips
+// for the page they're on, "Tour this page", "Tour the whole portal",
+// "Something isn't working" (a message to Lauren, filed as a portal request)
+// and an email link; and the tours themselves (portalTours.ts): the main one
+// walks the sidebar, each page has its own short one.
+//
+// Each page's tour is offered once, the first time they open that page
+// (user_metadata.portal_tours_seen lists the pages).
 //
 // Every client is asked once whether they'd like the tour (the first time
 // they're in the portal after it arrived, or after the welcome for a brand
@@ -16,25 +20,22 @@ import { usePathname } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { portalApi } from '@/lib/portalApi';
 import { portalTrack } from '@/lib/portalTrack';
-
-type Step = { target: string | null; title: string; body: string; nav?: boolean };
-const STEPS: Step[] = [
-  { target: null, title: 'Welcome to your portal', body: 'A one-minute look around, so you know where everything lives. You can leave any time.' },
-  { target: '/portal/dashboard', nav: true, title: 'Dashboard', body: 'What’s happening right now: your projects, invoices due, milestones coming up and what we’ve been working on.' },
-  { target: '/portal/onboarding', nav: true, title: 'Onboarding', body: 'Questionnaires and first steps for your project. Your answers save as you go, so you can come back to them.' },
-  { target: '/portal/progress', nav: true, title: 'My Projects', body: 'Each project’s progress, files, milestones and requests. Completion reports land here when a project wraps up.' },
-  { target: '/portal/proposals', nav: true, title: 'Proposals', body: 'Read your proposals and sign them here. Signing sets up your invoice straight away.' },
-  { target: '/portal/vault', nav: true, title: 'Secure Vault', body: 'Share website, hosting or social logins safely, instead of texting or emailing passwords.' },
-  { target: '/portal/invoices', nav: true, title: 'Billing', body: 'Your invoices: accept or decline them, download PDFs and pay by card.' },
-  { target: '/portal/settings', nav: true, title: 'Settings', body: 'Your name, business and phone, and whether you’d like text updates.' },
-  { target: 'help', title: 'Help is always here', body: 'Tap ? any time to take this tour again or tell us if something isn’t working. It comes straight to Lauren.' },
-];
+import { MAIN_TOUR, PAGE_GUIDES, findTarget, type TourStep } from './portalTours';
 
 const PINK = '#e50586';
 const INK = '#141414';
 
 async function markTourSeen() {
   try { await supabasePortal.auth.updateUser({ data: { portal_tour_seen: new Date().toISOString() } }); } catch { /* try again next time */ }
+}
+
+/** Pages whose own tour they've been offered. */
+async function markPageSeen(path: string) {
+  try {
+    const { data } = await supabasePortal.auth.getSession();
+    const seen = ((data.session?.user.user_metadata as Record<string, unknown> | undefined)?.portal_tours_seen as string[] | undefined) ?? [];
+    if (!seen.includes(path)) await supabasePortal.auth.updateUser({ data: { portal_tours_seen: [...seen, path] } });
+  } catch { /* asked again next time */ }
 }
 
 export default function PortalHelp({ openNav, enabled = true }: {
@@ -47,6 +48,13 @@ export default function PortalHelp({ openNav, enabled = true }: {
   const [menu, setMenu] = useState(false);
   const [asking, setAsking] = useState(false);
   const [step, setStep] = useState<number | null>(null);
+  // Which tour is running: the whole portal, or the page they're on.
+  const [steps, setSteps] = useState<TourStep[]>(MAIN_TOUR);
+  // This page's own tour, offered once.
+  // The page the offer is for; it lapses when they move to another page.
+  const [askPath, setAskPath] = useState<string | null>(null);
+  const pageAsk = askPath === pathname;
+  const guide = PAGE_GUIDES[pathname] ?? null;
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [support, setSupport] = useState<{ topic: 'broken' | 'question' | 'billing' | 'other'; message: string; busy: boolean; error: string; sent: boolean } | null>(null);
 
@@ -61,12 +69,36 @@ export default function PortalHelp({ openNav, enabled = true }: {
     return () => { cancelled = true; };
   }, [enabled]);
 
-  const start = useCallback(() => {
-    setMenu(false); setAsking(false);
-    void markTourSeen();
-    void portalTrack('action', { label: 'Took the portal tour' });
+  // The first time on a page with its own tour (once the big one has been offered).
+  useEffect(() => {
+    if (!enabled || !guide) return;
+    let cancelled = false;
+    supabasePortal.auth.getSession().then(({ data }) => {
+      const meta = (data.session?.user.user_metadata ?? {}) as Record<string, unknown>;
+      const seenPages = (meta.portal_tours_seen as string[] | undefined) ?? [];
+      if (!cancelled && data.session && meta.portal_tour_seen && !seenPages.includes(pathname)) setTimeout(() => { if (!cancelled) setAskPath(pathname); }, 900);
+    });
+    return () => { cancelled = true; };
+  }, [enabled, guide, pathname]);
+
+  const startPage = useCallback(() => {
+    if (!guide) return;
+    setMenu(false); setAskPath(null);
+    void markPageSeen(pathname);
+    void portalTrack('action', { label: `Took the ${guide.name} tour` });
+    setSteps(guide.tour);
     setStep(0);
-  }, []);
+  }, [guide, pathname]);
+
+  const start = useCallback(() => {
+    setMenu(false); setAsking(false); setAskPath(null);
+    void markTourSeen();
+    // Asked here once already: this page's own tour isn't offered on top of it.
+    if (PAGE_GUIDES[pathname]) void markPageSeen(pathname);
+    void portalTrack('action', { label: 'Took the portal tour' });
+    setSteps(MAIN_TOUR);
+    setStep(0);
+  }, [pathname]);
 
   const finish = useCallback(() => {
     setStep(null); setRect(null);
@@ -74,15 +106,20 @@ export default function PortalHelp({ openNav, enabled = true }: {
   }, [openNav]);
 
   // Where the highlighted thing is; on phones the sidebar opens for the nav steps.
-  const current = step === null ? null : STEPS[step];
+  const current = step === null ? null : steps[step];
   useLayoutEffect(() => {
     if (!current) return;
     const desktop = window.matchMedia('(min-width: 768px)').matches;
     if (!desktop) openNav(!!current.nav);
     const measure = () => {
-      const el = current.target ? document.querySelector<HTMLElement>(`[data-tour="${current.target}"]`) : null;
+      const el = findTarget(current.target);
       const r = el?.getBoundingClientRect();
-      setRect(r && r.width > 0 && r.right > 0 && r.left < window.innerWidth ? r : null);
+      // Off screen: bring it into view, then measure again.
+      if (el && r && (r.top < 0 || r.bottom > window.innerHeight) && !current.nav) {
+        el.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+      }
+      const r2 = el?.getBoundingClientRect();
+      setRect(r2 && r2.width > 0 && r2.right > 0 && r2.left < window.innerWidth ? r2 : null);
     };
     // The sidebar slides in on phones; measure again once it has.
     measure();
@@ -95,7 +132,7 @@ export default function PortalHelp({ openNav, enabled = true }: {
     if (step === null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish();
-      if (e.key === 'ArrowRight') setStep((s) => (s !== null && s < STEPS.length - 1 ? s + 1 : s));
+      if (e.key === 'ArrowRight') setStep((s) => (s !== null && s < steps.length - 1 ? s + 1 : s));
       if (e.key === 'ArrowLeft') setStep((s) => (s ? s - 1 : s));
     };
     window.addEventListener('keydown', onKey);
@@ -130,9 +167,18 @@ export default function PortalHelp({ openNav, enabled = true }: {
       <div style={{ position: 'fixed', right: 18, bottom: 18, zIndex: 60, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
         {menu && (
           <div role="menu" style={{ width: 260, background: '#fff', borderRadius: 18, boxShadow: '0 18px 50px rgba(0,0,0,0.18)', border: '1px solid #e6e6e6', padding: 8, display: 'grid', gap: 2 }}>
+            {guide && (
+              <div style={{ margin: '4px 4px 6px', padding: '10px 12px', borderRadius: 14, background: '#f5f5f5' }}>
+                <p style={{ margin: '0 0 6px', fontSize: 12.5, fontWeight: 700 }}>Tips for {guide.name}</p>
+                <ul style={{ margin: 0, paddingLeft: 16, display: 'grid', gap: 4, fontSize: 12.5, lineHeight: 1.4, color: '#404040' }}>
+                  {guide.tips.map((t) => <li key={t}>{t}</li>)}
+                </ul>
+              </div>
+            )}
             <p style={{ margin: '6px 10px 4px', fontSize: 13, color: '#6b6b6b' }}>How can we help?</p>
             {[
-              ['Take the tour', start],
+              ...(guide ? [[`Tour ${guide.name}`, startPage]] : []),
+              [guide ? 'Tour the whole portal' : 'Take the tour', start],
               ['Something isn’t working', () => { setMenu(false); setSupport({ topic: 'broken', message: '', busy: false, error: '', sent: false }); }],
               ['Ask a question', () => { setMenu(false); setSupport({ topic: 'question', message: '', busy: false, error: '', sent: false }); }],
             ].map(([label, fn]) => (
@@ -150,6 +196,18 @@ export default function PortalHelp({ openNav, enabled = true }: {
           {menu ? '×' : '?'}
         </button>
       </div>
+
+      {/* This page's tour, offered the first time they're on it */}
+      {pageAsk && !asking && step === null && guide && (
+        <div role="dialog" aria-labelledby="page-tour-ask" style={{ position: 'fixed', right: 18, bottom: 84, zIndex: 61, width: 'min(300px, calc(100vw - 36px))', background: '#fff', color: INK, border: '1px solid #e6e6e6', borderRadius: 20, padding: 16, boxShadow: '0 18px 50px rgba(0,0,0,0.18)' }}>
+          <h2 id="page-tour-ask" style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, letterSpacing: '-0.065em' }}>First time on {guide.name}?</h2>
+          <p style={{ margin: '0 0 12px', fontSize: 13, color: '#404040' }}>A 30-second tour of what’s here.</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={startPage} style={{ flex: 1, border: 0, borderRadius: 999, padding: '9px 12px', background: PINK, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Show me</button>
+            <button type="button" onClick={() => { setAskPath(null); void markPageSeen(pathname); }} style={{ border: '1.5px solid #d4d4d4', borderRadius: 999, padding: '9px 12px', background: '#fff', color: INK, fontWeight: 600, cursor: 'pointer' }}>No thanks</button>
+          </div>
+        </div>
+      )}
 
       {/* Asked once */}
       {asking && step === null && (
@@ -172,17 +230,17 @@ export default function PortalHelp({ openNav, enabled = true }: {
             : <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.62)' }} />}
           <div role="dialog" aria-modal="true" aria-labelledby="tour-title"
             style={{ position: 'fixed', ...cardStyle, width: 'min(340px, calc(100vw - 32px))', background: '#fff', color: INK, borderRadius: 20, padding: 20, boxShadow: '0 18px 50px rgba(0,0,0,0.25)' }}>
-            <p style={{ margin: '0 0 6px', fontSize: 12, color: '#6b6b6b' }}>{step! + 1} of {STEPS.length}</p>
+            <p style={{ margin: '0 0 6px', fontSize: 12, color: '#6b6b6b' }}>{step! + 1} of {steps.length}</p>
             <h2 id="tour-title" style={{ margin: '0 0 6px', fontSize: 20, fontWeight: 700, letterSpacing: '-0.065em' }}>{current.title}</h2>
             <p style={{ margin: '0 0 16px', fontSize: 14, lineHeight: 1.5, color: '#404040' }}>{current.body}</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button type="button" onClick={finish} style={{ border: 0, background: 'none', padding: 0, fontSize: 13, color: '#6b6b6b', textDecoration: 'underline', cursor: 'pointer', marginRight: 'auto' }}>
-                {step === STEPS.length - 1 ? 'Close' : 'Skip the tour'}
+                {step === steps.length - 1 ? 'Close' : 'Skip the tour'}
               </button>
               {step! > 0 && <button type="button" onClick={() => setStep(step! - 1)} style={{ border: `1.5px solid ${INK}`, borderRadius: 999, padding: '8px 14px', background: '#fff', color: INK, fontWeight: 600, cursor: 'pointer' }}>Back</button>}
-              <button type="button" autoFocus onClick={() => (step === STEPS.length - 1 ? finish() : setStep(step! + 1))}
+              <button type="button" autoFocus onClick={() => (step === steps.length - 1 ? finish() : setStep(step! + 1))}
                 style={{ border: 0, borderRadius: 999, padding: '9px 16px', background: PINK, color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                {step === 0 ? 'Start' : step === STEPS.length - 1 ? 'Done' : 'Next'}
+                {step === 0 && steps === MAIN_TOUR ? 'Start' : step === steps.length - 1 ? 'Done' : 'Next'}
               </button>
             </div>
           </div>
