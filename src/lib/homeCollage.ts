@@ -67,7 +67,7 @@ function parseQuotes(v: unknown): QuoteSlot[] {
     if (q?.kind === 'custom' && typeof q.text === 'string' && q.text.trim()) {
       const uuid = (x: unknown) => (typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x) ? x : null);
       return {
-        kind: 'custom', text: q.text.trim().slice(0, 400), who: typeof q.who === 'string' ? q.who.trim().slice(0, 80) : '',
+        kind: 'custom', text: q.text.trim().slice(0, 2000), who: typeof q.who === 'string' ? q.who.trim().slice(0, 160) : '',
         contact_id: uuid(q.contact_id), service: typeof q.service === 'string' && QUOTE_SERVICES[q.service] ? q.service : null, review_id: uuid(q.review_id),
       };
     }

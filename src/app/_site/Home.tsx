@@ -243,7 +243,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
           <h2 className={`${s.display} ${s.quotesHead} ${s.rise}`}>Beyond clients.<br />Trusted partners.</h2>
           <div className={s.quoteRow}>
             {quotes.map((q, i) => (
-              <figure key={i} className={`${s.quote} ${q.tone} ${s.rise}`} style={{ '--d': `${i * 90}ms`, '--tilt': `${[-2, 2, -1][i]}deg` } as React.CSSProperties}>
+              <figure key={i} className={`${s.quote} ${q.tone} ${s.rise} ${q.text.length > 240 ? s.quoteLong : ''}`} style={{ '--d': `${i * 90}ms`, '--tilt': `${[-2, 2, -1][i]}deg` } as React.CSSProperties}>
                 <span className={s.quoteMark} aria-hidden>”</span>
                 <blockquote>{q.text}</blockquote>
                 <figcaption>{q.who}{q.service ? <span className={s.quoteService}>{q.service}</span> : null}</figcaption>

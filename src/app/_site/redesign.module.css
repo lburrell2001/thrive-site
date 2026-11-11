@@ -603,3 +603,7 @@
 
 /* The service a homepage quote is about (chosen in admin). */
 .quoteService { display: block; margin-top: 4px; font-weight: 500; font-size: 0.82rem; opacity: 0.8; }
+
+/* A long quote (a full client review) reads smaller and left-aligned; the cards keep their own heights. */
+.quoteRow { align-items: start; }
+.quoteLong blockquote { font-size: clamp(0.9rem, 0.95vw, 1rem); line-height: 1.5; text-align: left; }

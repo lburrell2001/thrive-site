@@ -276,13 +276,14 @@ export default function HomepageAdmin() {
                   {(data.reviews ?? []).map((r) => <option key={r.id} value={r.id}>{r.who}{r.rating ? ` · ${'★'.repeat(r.rating)}` : ''}: “{r.text.slice(0, 50)}{r.text.length > 50 ? '…' : ''}”</option>)}
                 </select>
                 {q.kind === 'custom' ? (<>
-                  <textarea className={p.textarea} rows={4} value={q.text} placeholder="What they said" onChange={(e) => setQuote({ ...q, text: e.target.value })} />
+                  <textarea className={p.textarea} rows={5} maxLength={2000} value={q.text} placeholder="What they said" onChange={(e) => setQuote({ ...q, text: e.target.value })} />
                   <input className={p.input} value={q.who} placeholder="Who said it, e.g. DJ Mastamind" onChange={(e) => setQuote({ ...q, who: e.target.value })} />
                   <select className={p.select} value={q.contact_id ?? ''} aria-label={`Client for quote ${i + 1}`}
                     onChange={(e) => {
                       const c = (contacts ?? []).find((x) => x.id === e.target.value);
-                      // Picking a client fills in who said it, if that's still empty.
-                      setQuote({ ...q, contact_id: e.target.value || null, who: q.who.trim() || (c ? [c.name, c.company].filter(Boolean).join(', ') : '') });
+                      // Picking a client fills in who said it: their name and company.
+                      const name = c ? [c.name, c.company].filter(Boolean).join(', ') : '';
+                      setQuote({ ...q, contact_id: e.target.value || null, who: name || q.who });
                     }}>
                     <option value="">Attach to a client (optional)</option>
                     {(contacts ?? []).filter((c) => c.name || c.company).map((c) => <option key={c.id} value={c.id}>{[c.name, c.company].filter(Boolean).join(' · ')}</option>)}
