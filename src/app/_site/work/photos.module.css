@@ -1,0 +1,37 @@
+/* A photography project: the photos and nothing else. */
+
+.head { padding: clamp(110px, 13vw, 190px) var(--gutter) 0; }
+.title { font-size: clamp(3.2rem, 9vw, 9.5rem); line-height: 0.9; overflow-wrap: normal; }
+.line { margin: clamp(10px, 1.4vw, 18px) 0 0; font-weight: 600; color: #6b6b6b; }
+
+/* Masonry: columns keep every photo's own shape, nothing is cropped. */
+.masonry { columns: 3 320px; column-gap: clamp(10px, 1.2vw, 18px); margin: clamp(30px, 4vw, 60px) var(--gutter) 0; }
+.photo {
+  all: unset;
+  display: block;
+  width: 100%;
+  margin: 0 0 clamp(10px, 1.2vw, 18px);
+  break-inside: avoid;
+  border-radius: clamp(12px, 1.4vw, 20px);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.photo img { display: block; width: 100%; height: auto; transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.photo:hover img { transform: scale(1.03); }
+.photo:focus-visible { outline: 3px solid #e50586; outline-offset: 3px; }
+
+/* Full-screen viewer */
+.viewer { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.94); display: grid; place-items: center; padding: clamp(16px, 4vw, 60px); }
+.viewer img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 10px; }
+.count { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); color: #fff; font-weight: 600; font-size: 0.9rem; }
+.btn { all: unset; position: absolute; width: 48px; height: 48px; border-radius: 999px; background: #fff; color: #141414; display: grid; place-items: center; font-weight: 700; font-size: 1.2rem; cursor: pointer; }
+.btn:hover { background: #e50586; color: #fff; }
+.btn:focus-visible { outline: 3px solid #e50586; outline-offset: 3px; }
+.close { top: 16px; right: 16px; }
+.prev { left: 16px; top: 50%; transform: translateY(-50%); }
+.next { right: 16px; top: 50%; transform: translateY(-50%); }
+
+@media (max-width: 600px) {
+  .masonry { columns: 2 140px; }
+  .prev, .next { top: auto; bottom: 20px; transform: none; }
+}

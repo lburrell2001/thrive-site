@@ -10,6 +10,8 @@ import WorkReel from "../../components/WorkReel";
 import ProjectGallery from "./ProjectGallery";
 import Shell from "../../_site/Shell";
 import ProjectView from "../../_site/work/ProjectView";
+import PhotoView from "../../_site/work/PhotoView";
+import type { CaseImage } from "../caseStudies";
 import { loadCaseStudy } from "@/lib/caseStudyStore";
 
 // Always read fresh project data from Supabase so admin-added projects appear immediately.
@@ -391,6 +393,39 @@ export default async function ProjectSlugPage({
       <a href={`/work/${nextSlug}`} className="wp-next-btn">VIEW PROJECT →</a>
     </div>
   );
+
+  // Photography: just the photos (src/app/_site/work/PhotoView.tsx). A case study set to the
+  // gallery view, or any project tagged only Photography, with or without a case study.
+  const categoryParts = (project?.category ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  const photoOnly = categoryParts.length > 0 && categoryParts.every((x) => x === "Photography");
+  if (caseStudy?.view === "gallery" || photoOnly) {
+    const seen = new Set<string>();
+    const key = (src: string) => src.replace(/^storage:/, "").replace(/^.*\/course-media\//, "").split("?")[0];
+    const photos: CaseImage[] = [];
+    const add = (img?: CaseImage) => {
+      if (!img?.src || /\.(mp4|webm|mov|m4v)$/i.test(img.src) || seen.has(key(img.src))) return;
+      seen.add(key(img.src));
+      photos.push(img);
+    };
+    add(caseStudy?.heroImage);
+    caseStudy?.showcase?.forEach((b) => b.images.forEach(add));
+    caseStudy?.design?.fullPages?.forEach(add);
+    // Anything uploaded to the project's gallery folder that the case study doesn't list.
+    files?.filter((f) => f.name && !f.name.startsWith(".")).forEach((f) => add({ src: `storage:${galleryFolder}/${f.name}`, alt: `${title} photo` }));
+    if (!photos.length) add({ src: `storage:work/${slug}-cover.jpg`, alt: `${title} cover` });
+    const line = ["Photography", project?.year || null].filter(Boolean).join(" · ");
+    return (
+      <Shell>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd({ ...projectJsonLd, description: caseStudy?.lede || overview }) }} />
+        <PhotoView
+          title={title}
+          line={line}
+          photos={photos}
+          next={nextProject && { slug: nextProject.slug, title: nextProject.title, category: nextProject.category }}
+        />
+      </Shell>
+    );
+  }
 
   // Every project with a case study uses the redesigned page (src/app/_site/work/ProjectView.tsx).
   if (caseStudy) {

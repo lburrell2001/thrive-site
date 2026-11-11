@@ -702,7 +702,7 @@ export async function POST(req: NextRequest) {
         let value: unknown = null;
         if (case_study) {
           const clean = normalizeCaseStudy(case_study, slug);
-          if (!clean) return err('A case study needs at least the client name and a headline.');
+          if (!clean) return err('A case study needs at least a name (and a headline, unless it’s a photo gallery).');
           value = clean;
         }
         const { error } = await admin.from('projects').update({ case_study: value }).eq('id', id);

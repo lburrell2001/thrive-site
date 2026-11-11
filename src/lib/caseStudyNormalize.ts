@@ -68,7 +68,9 @@ export function normalizeCaseStudy(raw: unknown, slug: string): CaseStudy | null
   const r = obj(raw);
   const client = str(r.client);
   const headline = str(r.headline);
-  if (!client || !headline) return null;
+  // A photo gallery needs only a name; every other case study needs a headline too.
+  const gallery = str(r.view) === 'gallery';
+  if (!client || (!headline && !gallery)) return null;
   const seo = obj(r.seo);
   const ch = obj(r.challenge);
   const ap = obj(r.approach);
@@ -79,6 +81,7 @@ export function normalizeCaseStudy(raw: unknown, slug: string): CaseStudy | null
 
   const cs: CaseStudy = {
     slug,
+    ...(gallery ? { view: 'gallery' as const } : {}),
     client,
     headline,
     lede: str(r.lede),

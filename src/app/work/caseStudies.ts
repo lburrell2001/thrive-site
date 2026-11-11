@@ -62,6 +62,8 @@ export type CaseGrowth = {
 /** Every section except the header is optional; the section menu only lists what's there. */
 export type CaseStudy = {
   slug: string;
+  /** 'gallery': the page is just the photos (photography projects). Photography-only projects get it anyway. */
+  view?: 'gallery';
   client: string;
   headline: string;
   lede: string;
