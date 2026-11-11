@@ -4,12 +4,18 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
+import { portalApi } from '@/lib/portalApi';
 
 interface DbInvoice {
   id: string; invoice_number: string; project_name: string;
   amount_cents: number; invoice_date: string; due_date: string; status: string;
   deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
+  /** Accepted or declined here (migration 058). */
+  accepted_at?: string | null; declined_at?: string | null; decline_reason?: string | null;
 }
+
+/** Nothing paid on it and not answered yet: they can accept or decline it. */
+const canDecide = (inv: DbInvoice) => inv.status !== 'paid' && !inv.deposit_paid_at && !inv.accepted_at && !inv.declined_at;
 
 const F = {
   bungee: `var(--font-bungee), 'Bungee', sans-serif`,
@@ -28,6 +34,7 @@ function effectiveStatus(inv: DbInvoice): string {
   const due = dueNow(inv);
   if (due.kind === 'paid') return 'paid';
   if (due.kind === 'held') return 'held';
+  if (due.kind === 'declined') return 'declined';
   if (due.dueDate && due.dueDate < new Date().toISOString().slice(0, 10)) return 'overdue';
   return 'due';
 }
@@ -53,9 +60,9 @@ function depositNote(inv: DbInvoice): string | null {
   if (due.kind === 'pay' && due.part === 'balance') return `Deposit received · ${fmtCurrency(due.cents)} balance due ${fmtDate(due.dueDate ?? inv.due_date)}`;
   return null;
 }
-const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586', held:'#0a0a0a' };
-const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8', held:'#f1f0ef' };
-const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue', held:'Deposit paid' };
+const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586', held:'#0a0a0a', declined:'#0a0a0a' };
+const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8', held:'#f1f0ef', declined:'#f1f0ef' };
+const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue', held:'Deposit paid', declined:'Declined' };
 
 export default function InvoicesPage() {
   const searchParams = useSearchParams();
@@ -70,6 +77,12 @@ export default function InvoicesPage() {
   const [confirming,  setConfirming]  = useState(false);
   const [statCards,   setStatCards]   = useState<{label:string;value:string;color:string}[]>([]);
   const [filter,      setFilter]      = useState<'all'|'due'|'paid'|'overdue'>('all');
+  // Accepting or declining an invoice (migration 058).
+  const [deciding,    setDeciding]    = useState<{ inv: DbInvoice; mode: 'accept' | 'decline' } | null>(null);
+  const [reason,      setReason]      = useState('');
+  const [decideBusy,  setDecideBusy]  = useState(false);
+  const [decideError, setDecideError] = useState('');
+  const [decidedNote, setDecidedNote] = useState('');
 
   const loadInvoices = useCallback(async () => {
     const { data: { user } } = await supabasePortal.auth.getUser();
@@ -117,6 +130,39 @@ export default function InvoicesPage() {
   async function handleExportPDF(inv: DbInvoice) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
     await generateInvoicePDF(inv);
+  }
+
+  async function decide() {
+    if (!deciding) return;
+    setDecideBusy(true); setDecideError('');
+    try {
+      await portalApi(`/api/portal/invoices/${deciding.inv.id}`, { body: deciding.mode === 'accept' ? { action: 'accept' } : { action: 'decline', reason: reason.trim() } });
+      setDecidedNote(deciding.mode === 'accept'
+        ? `Thanks! Invoice ${deciding.inv.invoice_number} is accepted. You can pay it whenever you’re ready.`
+        : `Thanks for letting us know. Lauren has your note about invoice ${deciding.inv.invoice_number} and will be in touch.`);
+      setDeciding(null); setReason('');
+      await loadInvoices();
+    } catch (e) {
+      setDecideError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
+    }
+    setDecideBusy(false);
+  }
+
+  /** Accept / Decline buttons, or what they chose. */
+  function decideButtons(inv: DbInvoice, big = false) {
+    const pad = big ? '10px 16px' : '6px 12px';
+    if (inv.declined_at) return <span style={{ fontFamily:F.inter, fontSize:12, color:'#808080' }}>You declined this</span>;
+    if (!canDecide(inv)) return null;
+    return (<>
+      <button onClick={() => { setDecideError(''); setDeciding({ inv, mode: 'decline' }); }}
+        style={{ fontFamily:F.inter, fontSize:big?13:12, fontWeight:700, color:'#0a0a0a', background:'#fff', border:'1.5px solid #d4d4d4', borderRadius:big?10:8, padding:pad, cursor:'pointer' }}>
+        Decline
+      </button>
+      <button onClick={() => { setDecideError(''); setDeciding({ inv, mode: 'accept' }); }}
+        style={{ fontFamily:F.inter, fontSize:big?13:12, fontWeight:700, color:'#0a0a0a', background:'#0cf574', border:'none', borderRadius:big?10:8, padding:pad, cursor:'pointer' }}>
+        Accept
+      </button>
+    </>);
   }
 
   async function handlePay(invoiceId: string, amountCents: number, description: string) {
@@ -243,13 +289,15 @@ export default function InvoicesPage() {
                 <span style={{ fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#0a0a0a' }}>
                   {fmtCurrency(inv.amount_cents)}
                   {depositNote(inv) && <span style={{ display:'block', fontSize:11, fontWeight:500, color:'#808080', marginTop:2 }}>{depositNote(inv)}</span>}
+                  {inv.accepted_at && inv.status !== 'paid' && <span style={{ display:'block', fontSize:11, fontWeight:600, color:'#08b957', marginTop:2 }}>Accepted {fmtDate(inv.accepted_at)}</span>}
                 </span>
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.invoice_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:13, color:'#808080' }}>{fmtDate(inv.due_date)}</span>
                 <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, color:sc, background:sbg, padding:'3px 8px', borderRadius:999, width:'fit-content' }}>
                   {statusLabel(inv)}
                 </span>
-                <div style={{ display:'flex', gap:8 }}>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+                  {decideButtons(inv)}
                   <button onClick={() => handleExportPDF(inv)}
                     style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer' }}>
                     PDF
@@ -281,7 +329,8 @@ export default function InvoicesPage() {
                       {depositNote(inv) ?? `Issued ${fmtDate(inv.invoice_date)} · Due ${fmtDate(inv.due_date)}`}
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                  <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                    {decideButtons(inv, true)}
                     <button onClick={() => handleExportPDF(inv)}
                       style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>
                       PDF
@@ -299,6 +348,44 @@ export default function InvoicesPage() {
           );
         })}
       </div>
+
+      {decidedNote && (
+        <div role="status" style={{ background:'#edfff6', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#0a0a0a' }}>
+          {decidedNote}
+        </div>
+      )}
+
+      {deciding && (
+        <div onMouseDown={(e) => { if (e.target === e.currentTarget && !decideBusy) setDeciding(null); }}
+          style={{ position:'fixed', inset:0, zIndex:60, background:'rgba(10,10,10,0.55)', display:'grid', placeItems:'center', padding:16 }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="decide-title" style={{ width:'min(440px, 100%)', background:'#fff', borderRadius:18, padding:24, display:'grid', gap:14 }}>
+            <h2 id="decide-title" style={{ fontFamily:F.bungee, fontSize:20, margin:0, color:'#0a0a0a' }}>
+              {deciding.mode === 'accept' ? `Accept invoice ${deciding.inv.invoice_number}?` : `Decline invoice ${deciding.inv.invoice_number}?`}
+            </h2>
+            {deciding.mode === 'accept' ? (
+              <p style={{ fontFamily:F.inter, fontSize:14, color:'#404040', margin:0 }}>
+                You agree to {fmtCurrency(deciding.inv.amount_cents)} for {deciding.inv.project_name}. Lauren is told, and you can pay it whenever you’re ready.
+              </p>
+            ) : (
+              <label style={{ display:'grid', gap:6, fontFamily:F.inter, fontSize:13, fontWeight:600, color:'#0a0a0a' }}>
+                What’s not right? Lauren will get back to you.
+                <textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus
+                  placeholder="e.g. The amount is different from what we agreed, or this was already paid"
+                  style={{ fontFamily:F.inter, fontSize:14, padding:'10px 12px', borderRadius:10, border:'1.5px solid #d4d4d4', resize:'vertical' }} />
+              </label>
+            )}
+            {decideError && <p role="alert" style={{ fontFamily:F.inter, fontSize:13, color:'#e40586', margin:0 }}>{decideError}</p>}
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+              <button onClick={() => setDeciding(null)} disabled={decideBusy}
+                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#f1f0ef', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>Cancel</button>
+              <button onClick={decide} disabled={decideBusy || (deciding.mode === 'decline' && !reason.trim())}
+                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color: deciding.mode === 'accept' ? '#0a0a0a' : '#fff', background: deciding.mode === 'accept' ? '#0cf574' : '#e40586', border:'none', borderRadius:10, padding:'10px 18px', cursor:'pointer', opacity: decideBusy || (deciding.mode === 'decline' && !reason.trim()) ? 0.5 : 1 }}>
+                {decideBusy ? 'Sending…' : deciding.mode === 'accept' ? 'Accept invoice' : 'Decline invoice'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {payError && (
         <div style={{ background:'#fff0f8', border:'1px solid #e40586', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#e40586' }}>

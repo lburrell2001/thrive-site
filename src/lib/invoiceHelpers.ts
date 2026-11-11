@@ -65,13 +65,16 @@ interface SubscriptionRow {
 export async function markOverdueInvoices(admin: SupabaseClient, today = new Date().toISOString().slice(0, 10)) {
   // A deposit invoice is overdue only once its balance is open (the deposit
   // carries its own date, which the portal and reminders read).
-  const sweep = (withDeposits: boolean) => {
+  // A declined invoice (058) is never swept.
+  const sweep = (withDeposits: boolean, withDeclined = true) => {
     let q = admin.from('portal_invoices').update({ status: 'overdue' }).eq('status', 'due').lt('due_date', today);
     if (withDeposits) q = q.eq('balance_open', true).is('deposit_cents', null);
+    if (withDeclined) q = q.is('declined_at', null);
     return q.select('id');
   };
   let { data, error } = await sweep(true);
-  if (error && /balance_open|deposit_cents/.test(error.message)) ({ data, error } = await sweep(false));
+  if (error && /declined_at/.test(error.message)) ({ data, error } = await sweep(true, false));
+  if (error && /balance_open|deposit_cents/.test(error.message)) ({ data, error } = await sweep(false, false));
   if (error) return { ok: false, error: error.message, updated: 0 };
   return { ok: true, updated: (data ?? []).length };
 }

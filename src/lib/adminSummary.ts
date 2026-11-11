@@ -58,9 +58,11 @@ export async function buildAdminSummary(db: SupabaseClient): Promise<AdminSummar
     db.from('portal_proposals').select('id, name, client_id, created_at').eq('status', 'pending').order('created_at'),
     // Deposit columns (migration 048) when they exist.
     db.from('portal_invoices')
-      .select('id, invoice_number, project_name, amount_cents, due_date, status, client_id, deposit_cents, deposit_due_date, deposit_paid_at, balance_open')
+      .select('id, invoice_number, project_name, amount_cents, due_date, status, client_id, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at')
       .neq('status', 'paid')
       .order('due_date')
+      // Before 058 (no declined_at).
+      .then(async (r) => (r.error ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, client_id, deposit_cents, deposit_due_date, deposit_paid_at, balance_open').neq('status', 'paid').order('due_date') : r))
       .then(async (r) => (r.error
         ? db.from('portal_invoices').select('id, invoice_number, project_name, amount_cents, due_date, status, client_id').neq('status', 'paid').order('due_date')
         : r)),

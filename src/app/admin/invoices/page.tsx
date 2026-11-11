@@ -37,6 +37,8 @@ interface InvoiceRow {
   invoice_date: string; due_date: string; status: string; line_items?: LineItem[] | null; notes?: string | null;
   totals_only?: boolean | null;
   deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
+  /** Accepted or declined by the client in the portal (migration 058). */
+  accepted_at?: string | null; declined_at?: string | null; decline_reason?: string | null;
 }
 interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
 interface DealRow { id: string; contact_id: string; title: string; stage: string }
@@ -118,6 +120,7 @@ function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
   const due = dueNow(inv);
   if (due.kind === 'paid') return { cls: s.stAccepted, label: 'Paid' };
   if (due.kind === 'held') return { cls: s.stDraft, label: 'Balance on hold' };
+  if (due.kind === 'declined') return { cls: s.stDeclined, label: 'Declined by client' };
   const late = inv.status === 'overdue' || (!!due.dueDate && due.dueDate < today());
   const what = due.part === 'deposit' ? 'Deposit' : due.part === 'balance' ? 'Balance' : '';
   if (late) return { cls: s.stDeclined, label: what ? `${what} overdue` : 'Overdue' };
@@ -845,6 +848,7 @@ export default function InvoiceBuilder() {
                       </span>
                       <span className={s.docWho}>{est.client_name || 'No client'}</span>
                       <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
+                      {est.status === 'declined' && est.decline_reason && <span className={s.docMeta} style={{ color: '#e50586' }}>Declined{est.declined_by ? ` by ${est.declined_by}` : ''}: “{est.decline_reason}”</span>}
                     </button>
                     <span className={s.docAmount}>{formatLineMoney(est.total_cents)}</span>
                     <div className={s.docActions}>
@@ -927,7 +931,8 @@ export default function InvoiceBuilder() {
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
                       </span>
                       <span className={s.docWho}>{client || 'Client'}</span>
-                      <span className={s.docMeta}>{[inv.project_name, invoiceMeta(inv)].filter(Boolean).join(' · ')}</span>
+                      <span className={s.docMeta}>{[inv.project_name, invoiceMeta(inv), inv.accepted_at && !inv.declined_at && inv.status !== 'paid' ? `accepted ${formatDate(inv.accepted_at)}` : ''].filter(Boolean).join(' · ')}</span>
+                      {inv.declined_at && <span className={s.docMeta} style={{ color: '#e50586' }}>Declined: “{inv.decline_reason}”. Reopen it from the client’s Client tab.</span>}
                     </Link>
                     <span className={s.docAmount}>{formatLineMoney(inv.amount_cents)}</span>
                     <div className={s.docActions}>

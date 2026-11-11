@@ -59,7 +59,7 @@ interface Client { id: string; full_name: string; company_name: string; initials
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
-interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; }
+interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
@@ -1706,6 +1706,15 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
                 </span>
               )}
               {inv.subscription_id && <RecurringBadge />}
+              {/* The client's answer in the portal (migration 058). */}
+              {inv.accepted_at && !inv.declined_at && inv.status !== 'paid' && (
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: DARK, background: '#0cf574', padding: '2px 8px', borderRadius: 999 }}>Accepted {fmtDate(inv.accepted_at)}</span>
+              )}
+              {inv.declined_at && (
+                <span style={{ flexBasis: '100%', fontFamily: F.inter, fontSize: 12.5, color: '#fff', background: PINK, padding: '6px 10px', borderRadius: 10 }}>
+                  Declined {fmtDate(inv.declined_at)}: “{inv.decline_reason}” · Pay is hidden and reminders are off until you reopen it.
+                </span>
+              )}
               {inv.status !== 'paid' && lastRemindedLabel(data.reminders, 'invoice', inv.id) && (
                 <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(data.reminders, 'invoice', inv.id)}</span>
               )}
@@ -1719,7 +1728,13 @@ function ProjectSubInvoices({ project, invoices, clientId, data, api, onRefresh 
                 {inv.status !== 'paid' && (
                   <Btn onClick={() => handleMarkPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : inv.deposit_cents ? 'Mark all paid' : 'Mark Paid'}</Btn>
                 )}
-                {inv.status !== 'paid' && dueNow(inv).kind !== 'held' && (
+                {inv.declined_at && (
+                  <Btn onClick={async () => {
+                    if (!confirm(`Reopen ${inv.invoice_number}? It becomes payable again and they can accept or decline it. Edit it first if something needs changing.`)) return;
+                    await api({ action: 'reopen_invoice', id: inv.id }); onRefresh();
+                  }} style={{ padding: '3px 8px', fontSize: 11, background: PINK, color: '#fff' }}>Reopen</Btn>
+                )}
+                {inv.status !== 'paid' && dueNow(inv).kind !== 'held' && !inv.declined_at && (
                   <Btn variant="ghost" onClick={() => remind({ kind: 'invoice', id: inv.id }, `Remind about ${inv.invoice_number}`)} style={{ padding: '3px 8px', fontSize: 11 }} title={lastRemindedLabel(data.reminders, 'invoice', inv.id) ?? 'Not reminded yet'}>Remind</Btn>
                 )}
                 {!inv.subscription_id && (

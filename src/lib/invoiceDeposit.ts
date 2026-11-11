@@ -6,6 +6,7 @@
 //   deposit paid, held     → nothing payable: the balance waits for Lauren
 //   deposit paid, open     → the balance is payable, by due_date
 //   status 'paid'          → nothing owed
+//   declined by the client → nothing payable until Lauren reopens it (058)
 
 export type DepositFields = {
   amount_cents: number;
@@ -15,6 +16,8 @@ export type DepositFields = {
   deposit_due_date?: string | null;
   deposit_paid_at?: string | null;
   balance_open?: boolean | null;
+  /** The client declined it in the portal (migration 058). */
+  declined_at?: string | null;
 };
 
 export type PayPart = 'full' | 'deposit' | 'balance';
@@ -22,6 +25,7 @@ export type PayPart = 'full' | 'deposit' | 'balance';
 export type DueNow =
   | { kind: 'pay'; part: PayPart; cents: number; dueDate: string | null }
   | { kind: 'held'; cents: number }
+  | { kind: 'declined'; cents: number }
   | { kind: 'paid' };
 
 export const hasDeposit = (inv: DepositFields) => !!inv.deposit_cents && inv.deposit_cents > 0;
@@ -29,6 +33,7 @@ export const hasDeposit = (inv: DepositFields) => !!inv.deposit_cents && inv.dep
 /** What the client owes right now, and for which part. */
 export function dueNow(inv: DepositFields): DueNow {
   if (inv.status === 'paid') return { kind: 'paid' };
+  if (inv.declined_at) return { kind: 'declined', cents: remainingCents(inv) };
   if (!hasDeposit(inv)) return { kind: 'pay', part: 'full', cents: inv.amount_cents, dueDate: inv.due_date || null };
   const deposit = inv.deposit_cents!;
   if (!inv.deposit_paid_at) return { kind: 'pay', part: 'deposit', cents: deposit, dueDate: inv.deposit_due_date ?? inv.due_date ?? null };

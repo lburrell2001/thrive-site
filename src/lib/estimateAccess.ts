@@ -10,6 +10,8 @@ export type ClientEstimate = {
   id: string; estimate_number: string; title: string; client_name: string; line_items: LineItem[]; notes: string | null;
   total_cents: number; issue_date: string; valid_until: string | null; status: string; totals_only: boolean | null;
   accepted_at: string | null; accepted_by: string | null; invoice_id: string | null; access_token: string;
+  /** Declined on its page with a reason (migration 058). */
+  declined_at?: string | null; decline_reason?: string | null;
 };
 
 const same = (a: string, b: string) => {
@@ -20,9 +22,11 @@ const same = (a: string, b: string) => {
 
 export async function loadClientEstimate(id: string, token: string | undefined): Promise<ClientEstimate | null> {
   if (!token || !/^[0-9a-f-]{36}$/i.test(id)) return null;
-  const { data } = await proposalServiceClient().from('estimates')
-    .select('id, estimate_number, title, client_name, line_items, notes, total_cents, issue_date, valid_until, status, totals_only, accepted_at, accepted_by, invoice_id, access_token')
-    .eq('id', id).maybeSingle();
+  const cols = 'id, estimate_number, title, client_name, line_items, notes, total_cents, issue_date, valid_until, status, totals_only, accepted_at, accepted_by, invoice_id, access_token';
+  const db = proposalServiceClient();
+  let { data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason`).eq('id', id).maybeSingle();
+  // Before migration 058.
+  if (error) ({ data } = await db.from('estimates').select(cols).eq('id', id).maybeSingle());
   if (!data?.access_token || !same(data.access_token, token)) return null;
   return data as ClientEstimate;
 }

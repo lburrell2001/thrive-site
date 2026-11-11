@@ -439,6 +439,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      // A client declined it in the portal (058): payable and answerable again.
+      case 'reopen_invoice': {
+        const { error } = await admin.from('portal_invoices').update({ declined_at: null, decline_reason: null, accepted_at: null, accepted_by: null }).eq('id', params.id);
+        if (error) return err(error.message);
+        return NextResponse.json({ ok: true });
+      }
+
       case 'delete_invoice': {
         const { error } = await admin.from('portal_invoices').delete().eq('id', params.id);
         if (error) return err(error.message);

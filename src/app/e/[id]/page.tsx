@@ -31,6 +31,11 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
           <a href="/portal/invoices" style={{ color: 'inherit', fontWeight: 700 }}>Open your portal →</a>
         </p>
       )}
+      {est.status === 'declined' && !accepted && (
+        <p className="proposalNotice">
+          You let us know you’re not going ahead{est.declined_at ? ` on ${day(est.declined_at)}` : ''}{est.decline_reason ? `: “${est.decline_reason}”` : '.'} Changed your mind? Reply to the email this came in and we’ll reopen it.
+        </p>
+      )}
       {expired && (
         <p className="proposalNotice proposalNoticeWarn">
           This estimate was good until {day(est.valid_until!)}. Reply to the email it came in and we’ll send a fresh one.
@@ -47,6 +52,7 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         totalLabel={estimateTotalLabel(pdf)}
         accepted={accepted || est.status === 'invoiced'}
         canAccept={!accepted && !expired && est.status !== 'declined' && est.status !== 'invoiced'}
+        declined={est.status === 'declined'}
       />
     </main>
   );

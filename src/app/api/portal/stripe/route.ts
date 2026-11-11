@@ -34,17 +34,20 @@ export async function POST(req: NextRequest) {
 
   // Deposit columns exist once migration 048 is in.
   const pick = (cols: string) => db.from('portal_invoices').select(cols).eq('id', invoiceId).eq('client_id', user.id).single();
-  let found = await pick('id, client_id, invoice_number, project_name, amount_cents, status, due_date, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
+  let found = await pick('id, client_id, invoice_number, project_name, amount_cents, status, due_date, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at');
+  if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, status, due_date, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
   if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, status, due_date');
   const invoice = found.data as unknown as {
     id: string; invoice_number: string; project_name: string; amount_cents: number; status: string; due_date: string;
     deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
+    declined_at?: string | null;
   } | null;
   if (!invoice) return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 });
   // Only the part that's due now can be paid: the deposit, the balance once it's open, or the whole invoice.
   const due = dueNow(invoice);
   if (due.kind === 'paid') return NextResponse.json({ error: 'This invoice is already paid.' }, { status: 409 });
   if (due.kind === 'held') return NextResponse.json({ error: 'The rest of this invoice isn’t ready to pay yet.' }, { status: 409 });
+  if (due.kind === 'declined') return NextResponse.json({ error: 'You declined this invoice. Thrive will be in touch about it.' }, { status: 409 });
   if (!(due.cents > 0)) return NextResponse.json({ error: 'This invoice has no amount due.' }, { status: 400 });
 
   // Return to our own site only, never to a caller-supplied Origin.

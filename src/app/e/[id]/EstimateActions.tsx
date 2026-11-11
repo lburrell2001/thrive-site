@@ -2,15 +2,19 @@
 
 // The estimate page's footer: the total, "Export PDF", and "Accept estimate"
 // with a short confirm (their name and a tick). Accepting turns it into an
-// invoice in their portal.
+// invoice in their portal. "Not going ahead" declines it with a reason
+// (migration 058), which Lauren is sent.
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept }: {
-  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean;
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false }: {
+  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean;
 }) {
+  const [declining, setDeclining] = useState(false);
+  const [reason, setReason] = useState('');
+  const [declinedNow, setDeclinedNow] = useState(false);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -56,13 +60,32 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
     setBusy(false);
   }
 
+  async function decline() {
+    setBusy(true); setError('');
+    try {
+      const res = await fetch(`/e/${id}/decline`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, reason: reason.trim(), name: name.trim() || undefined }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) { setError(body.error ?? 'Something went wrong. Please try again.'); setBusy(false); return; }
+      setDeclinedNow(true);
+      setDeclining(false);
+    } catch {
+      setError('Something went wrong. Please try again.');
+    }
+    setBusy(false);
+  }
+
   const isAccepted = accepted || !!done;
+  const isDeclined = declined || declinedNow;
 
   return (
     <>
       <div className="proposalFooter">
         <div style={{ minWidth: 0 }}>
-          <div className="proposalFooterLabel">{isAccepted ? 'Accepted' : 'Estimate total'}</div>
+          <div className="proposalFooterLabel">{isAccepted ? 'Accepted' : isDeclined ? 'Declined' : 'Estimate total'}</div>
           <div className="proposalFooterTotal">{totalLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -71,9 +94,10 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
           </button>
           {isAccepted ? (
             <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a>
-          ) : canAccept ? (
-            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => setOpen(true)}>Accept estimate</button>
-          ) : null}
+          ) : canAccept && !isDeclined ? (<>
+            <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclining(true); }}>Not going ahead</button>
+            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setOpen(true); }}>Accept estimate</button>
+          </>) : null}
         </div>
       </div>
 
@@ -81,6 +105,37 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
         <p className="proposalNotice proposalNoticeGood" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 96, zIndex: 40, margin: 0 }}>
           Thank you! {done.invoiceReady ? 'Your invoice is ready in your client portal — we’ve emailed you the link.' : 'We’ve got it and will send your invoice shortly.'}
         </p>
+      )}
+
+      {declinedNow && (
+        <p className="proposalNotice" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 96, zIndex: 40, margin: 0 }}>
+          Thanks for letting us know. Lauren has your note. If anything changes, just reply to the email this came in.
+        </p>
+      )}
+
+      {declining && createPortal(
+        <div className="signOverlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setDeclining(false); }}>
+          <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="decline-heading">
+            <h2 id="decline-heading" className="signHeading">Not going ahead?</h2>
+            <p className="signIntro">That’s okay. A line on why helps us — price, timing, scope, or something else.</p>
+            <div className="signField">
+              <label htmlFor="decline-reason">Why not</label>
+              <textarea id="decline-reason" rows={4} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+            </div>
+            <div className="signField">
+              <label htmlFor="decline-name">Your name (optional)</label>
+              <input id="decline-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            </div>
+            {error && <p className="signError" role="alert">{error}</p>}
+            <div className="signActions">
+              <button type="button" className="signButtonGhost" onClick={() => setDeclining(false)} disabled={busy}>Cancel</button>
+              <button type="button" className="signButton" onClick={decline} disabled={busy || !reason.trim()}>
+                {busy ? 'Sending…' : 'Decline estimate'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
       )}
 
       {open && createPortal(

@@ -21,6 +21,10 @@ export type Estimate = {
   issue_date: string;
   valid_until: string | null;
   status: EstimateStatus;
+  /** Declined on its page with a reason (migration 058). */
+  declined_at?: string | null;
+  declined_by?: string | null;
+  decline_reason?: string | null;
   invoice_id: string | null;
   /** Migration 047: the client's PDF shows category subtotals, not each line. */
   totals_only?: boolean;

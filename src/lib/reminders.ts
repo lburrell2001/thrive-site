@@ -106,7 +106,8 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
   switch (target.kind) {
     case 'invoice': {
       const pick = (cols: string) => db.from('portal_invoices').select(cols).eq('id', target.id).maybeSingle();
-      let found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
+      let found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at');
+      if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
       if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status');
       const inv = found.data as unknown as (DepositFields & { id: string; client_id: string; invoice_number: string; project_name: string }) | null;
       if (!inv) throw new ReminderError('Invoice not found');
@@ -114,6 +115,7 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
       // A deposit invoice is chased for the part due now; a balance on hold isn't due.
       const due = dueNow(inv);
       if (due.kind === 'held') throw new ReminderError('The deposit is paid and the balance isn’t open yet, so nothing is due');
+      if (due.kind === 'declined') throw new ReminderError('They declined this invoice. Reopen it on their Client tab first');
       if (due.kind !== 'pay') throw new ReminderError('That invoice is already paid');
       const contact = await portalContact(db, inv.client_id);
       if (!contact) throw new ReminderError('Client not found');

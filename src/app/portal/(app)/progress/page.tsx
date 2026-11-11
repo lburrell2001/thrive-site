@@ -8,7 +8,7 @@ import { loadMyDocuments } from '@/lib/portalDocuments';
 
 interface DbStage    { key: string; label: string; }
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; stages?: DbStage[]; archived?: boolean; }
-interface DbInvoice  { id: string; invoice_number: string; amount_cents: number; invoice_date: string; due_date: string; status: string; project_name?: string; }
+interface DbInvoice  { id: string; invoice_number: string; amount_cents: number; invoice_date: string; due_date: string; status: string; project_name?: string; declined_at?: string | null; accepted_at?: string | null; }
 interface DbFile     { id: string; name: string; file_url: string; project_name?: string; }
 interface DbProposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; project_id?: string; }
 interface DbMilestone { id: string; title: string; due_date: string; color: string; completed: boolean; project_name?: string; }
@@ -331,7 +331,8 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               ? <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: 0 }}>No invoices yet.</p>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {invoices.map(inv => {
-                    const canPay = inv.status === 'due' || inv.status === 'overdue';
+                    // Declined in the portal (058): no Pay until Thrive reopens it.
+                    const canPay = (inv.status === 'due' || inv.status === 'overdue') && !inv.declined_at;
                     const isPaying = payingId === inv.id;
                     return (
                       <div key={inv.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fafafa' }}>
@@ -343,8 +344,11 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                           </div>
                         </div>
                         <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: INV_BG[inv.status] ?? '#f1f0ef', color: INV_COLOR[inv.status] ?? '#808080', padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>
-                          {inv.status}
+                          {inv.declined_at ? 'declined' : inv.status}
                         </span>
+                        {canPay && !inv.accepted_at && (
+                          <a href="/portal/invoices" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#808080' }}>Accept or decline</a>
+                        )}
                         {canPay && (
                           <button onClick={() => handlePay(inv)} disabled={!!payingId} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: '#e40586', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: payingId ? 'default' : 'pointer', opacity: payingId ? 0.6 : 1, flexShrink: 0 }}>
                             {isPaying ? '…' : `Pay ${fmtCurrency(inv.amount_cents)}`}
