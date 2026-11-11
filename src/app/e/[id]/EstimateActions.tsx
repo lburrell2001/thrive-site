@@ -114,7 +114,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
       )}
 
       {declining && createPortal(
-        <div className="signOverlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setDeclining(false); }}>
+        <div className="signOverlay estimateDialog" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setDeclining(false); }}>
           <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="decline-heading">
             <h2 id="decline-heading" className="signHeading">Not going ahead?</h2>
             <p className="signIntro">That’s okay. A line on why helps us — price, timing, scope, or something else.</p>
@@ -139,7 +139,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
       )}
 
       {open && createPortal(
-        <div className="signOverlay" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setOpen(false); }}>
+        <div className="signOverlay estimateDialog" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setOpen(false); }}>
           <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="accept-heading">
             <h2 id="accept-heading" className="signHeading">Accept this estimate</h2>
             <p className="signIntro">Your invoice will be ready in your client portal straight away.</p>

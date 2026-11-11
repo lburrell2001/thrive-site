@@ -109,6 +109,10 @@ Migration `059`. `portal_events` (RLS on, no policies): `sign_in` (the login pag
 
 New client logins are created with `user_metadata.portal_welcome = 'pending'` (`makePortalClient`, `create_client`, the portal admin route), so a brand new client always opens to `/portal/welcome` first; the login page sends them straight there.
 
+### Portal help and tour
+
+`src/app/portal/PortalHelp.tsx` (in the portal layout, not on the welcome): a "?" button always bottom-right with Take the tour, Something isn't working, Ask a question and an email link. The help form posts to `POST /api/portal/support` (client token): filed as a `portal_requests` row (type "Portal help", high priority, page in the description) and sent to Lauren by `tellLauren()` with the page and browser. The tour highlights each sidebar link (`data-tour="<href>"` on the nav links, `data-tour="help"` on the ?), opening the sidebar on phones. Every client is asked once ("Take a quick tour?") the first time they're in the portal without `user_metadata.portal_tour_seen`; taking it or "Not now" stamps it (a brand new client sees the welcome first, then the ask on the dashboard).
+
 ### Portal look
 
 Since 2026-11-10 the client portal follows the public site's look like the admin: `src/app/portal/portalFonts.ts` points the pages' `--font-bungee` (headings) and `--font-inter` (text) at Poppins, and `src/app/portal/portal.module.css` (`.root`, on the portal layout and login) sets the site tracking, makes inline-styled headings Bold −65, turns off every all-caps label, and makes buttons pills (whole-card buttons with `textAlign: left` / `width: 100%` keep their corners). Brand colours only: status pills are solid brand colours with contrasting text, no pastels, white work area, magenta pill nav on the black sidebar. Keep new portal UI to these rules (Title Case text, no `textTransform: 'uppercase'`).

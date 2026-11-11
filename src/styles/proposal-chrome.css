@@ -191,7 +191,7 @@
   background: #000;
   padding: 11px 12px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px; /* under 16px, iPhone Safari zooms in and stays zoomed */
   color: #fff;
 }
 
@@ -340,7 +340,7 @@
   background: #000;
   padding: 11px 12px;
   font: inherit;
-  font-size: 15px;
+  font-size: 16px; /* under 16px, iPhone Safari zooms in and stays zoomed */
   line-height: 1.5;
   color: #fff;
   resize: vertical;

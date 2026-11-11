@@ -8,6 +8,7 @@ import pt from '../portal.module.css';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { needsWelcome } from '@/lib/portalWelcome';
 import PortalTracker from '../PortalTracker';
+import PortalHelp from '../PortalHelp';
 
 
 const BASE_NAV_LINKS = [
@@ -161,6 +162,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
       {/* What they view and for how long (migration 059). */}
       <PortalTracker />
+      {/* The ? corner and the portal tour (asked once per client). */}
+      <PortalHelp openNav={setSidebarOpen} />
 
       {/* Mobile overlay */}
       {sidebarOpen && !isDesktop && (
@@ -197,6 +200,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               <Link
                 key={href}
                 href={href}
+                data-tour={href}
                 style={{
                   display: 'flex', alignItems: 'center',
                   height: 42, borderRadius: 999,

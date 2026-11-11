@@ -1,0 +1,122 @@
+/* The estimate page (/e/<id>) in the public site's look (Nov 2026): white
+   page, Poppins with the site's tracking, brand colours only, pills, Title
+   Case. Scoped to .estimatePage so the proposal pages (/p, which share
+   proposal-chrome.css and embed the same estimate) keep their own design. */
+
+.estimatePage {
+  background: #fff !important;
+  color: #141414;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  letter-spacing: -0.055em;
+  word-spacing: 0.1em;
+  overflow-x: clip;
+}
+
+/* The document */
+.estimatePage .estimatePaper {
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  border: 1px solid #e6e6e6;
+  border-radius: 22px;
+  box-shadow: none;
+}
+.estimatePage .estimateHead { border-bottom-color: #e50586; }
+.estimatePage .estimateKind,
+.estimatePage .estimateMeta span,
+.estimatePage .estimateTotal span { text-transform: none; letter-spacing: -0.04em; }
+.estimatePage .estimateKind { letter-spacing: -0.08em; word-spacing: 0.12em; }
+.estimatePage .estimateMeta span { font-size: 12px; font-weight: 600; color: #6b6b6b; }
+.estimatePage .estimateTotal { border-radius: 16px; background: #141414; }
+.estimatePage .estimateTotal span { font-size: 14px; color: #d4d4d4; }
+
+/* Notices: never text on nothing. */
+.estimatePage .proposalNotice {
+  max-width: 860px;
+  margin: 16px auto 0;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: #141414;
+  color: #fff;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+@media (max-width: 900px) { .estimatePage .proposalNotice { margin: 16px 16px 0; } }
+.estimatePage .proposalNoticeGood { background: #0cf574; color: #141414; }
+.estimatePage .proposalNoticeWarn { background: #fd6100; color: #141414; }
+.estimatePage .proposalNotice a { color: inherit; }
+
+/* The footer: total and pill buttons on white. */
+.estimatePage .proposalFooter {
+  background: rgba(255, 255, 255, 0.94);
+  border-top: 1px solid #e6e6e6;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+}
+.estimatePage .proposalFooterLabel { text-transform: none; letter-spacing: -0.04em; font-size: 13px; font-weight: 600; color: #6b6b6b; }
+.estimatePage .proposalFooterTotal { font-family: var(--rd-sans), system-ui, sans-serif; color: #141414; letter-spacing: -0.06em; }
+.estimatePage .proposalFooterAction {
+  border: 2px solid #141414;
+  border-radius: 999px;
+  color: #141414;
+  background: #fff;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: -0.04em;
+  padding: 11px 20px;
+}
+.estimatePage .proposalFooterAction:hover { background: #141414; color: #fff; }
+.estimatePage .proposalFooterActionPrimary { border-color: #e50586; background: #e50586; color: #fff; }
+.estimatePage .proposalFooterActionPrimary:hover { border-color: #141414; background: #141414; color: #fff; }
+
+/* Accept / decline dialogs */
+.estimateDialog { font-family: var(--rd-sans), system-ui, sans-serif; letter-spacing: -0.055em; word-spacing: 0.1em; }
+.estimateDialog.signOverlay { background: rgba(20, 20, 20, 0.55); }
+.estimateDialog .signDialog {
+  background: #fff;
+  color: #141414;
+  border: 0;
+  border-radius: 22px;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+}
+.estimateDialog .signHeading { color: #141414; text-transform: none; font-family: var(--rd-sans), system-ui, sans-serif; letter-spacing: -0.065em; word-spacing: 0.1em; }
+.estimateDialog .signIntro,
+.estimateDialog .signCheck { color: #404040; }
+.estimateDialog .signField label { color: #141414; text-transform: none; letter-spacing: -0.04em; font-size: 13px; font-weight: 600; }
+.estimateDialog .signField input,
+.estimateDialog .signField textarea {
+  background: #fff;
+  color: #141414;
+  border: 1.5px solid #d4d4d4;
+  border-radius: 12px;
+  font-family: var(--rd-sans), system-ui, sans-serif;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+}
+.estimateDialog .signField input:focus-visible,
+.estimateDialog .signField textarea:focus-visible { outline: 3px solid #e50586; outline-offset: 1px; }
+.estimateDialog .signCheck input { accent-color: #e50586; }
+.estimateDialog .signError { color: #e50586; background: #f5f5f5; border-left-color: #e50586; }
+.estimateDialog .signButton,
+.estimateDialog .signButtonGhost {
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: -0.04em;
+  font-size: 14px;
+  font-weight: 600;
+}
+.estimateDialog .signButton { background: #e50586; border-color: #e50586; color: #fff; }
+.estimateDialog .signButtonGhost { border-color: #141414; color: #141414; }
+.estimateDialog .signButtonGhost:hover { background: #141414; color: #fff; }
+.estimatePage a:focus-visible, .estimatePage button:focus-visible { outline-color: #e50586; }
+
+/* Phones: the meta reads top to bottom; the footer keeps Accept full width with the two others side by side. */
+@media (max-width: 600px) {
+  .estimatePage .estimateMetaRight { text-align: left; }
+  .estimatePage .estimateMeta { flex-direction: column; }
+  .estimatePage .proposalFooter { padding: 12px 16px; gap: 8px; }
+  .estimatePage .proposalFooter > div:last-child { width: 100%; }
+  .estimatePage .proposalFooterAction { width: auto; flex: 1 1 0; padding: 10px 12px; font-size: 13px; }
+  .estimatePage .proposalFooterActionPrimary { flex: 1 1 100%; font-size: 15px; padding: 13px 16px; }
+}
