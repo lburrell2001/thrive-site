@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { portalTrack } from '@/lib/portalTrack';
 
 type FilterTab = 'All' | 'In Progress' | 'Review' | 'Completed';
 
@@ -16,7 +17,7 @@ interface DbProject { id: string; name: string; archived?: boolean; }
 const NEW_PROJECT = '__new__';
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
@@ -24,8 +25,9 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: 'In Progress', review: 'Review', kickoff: 'Kickoff', completed: 'Completed',
 };
 const STATUS_COLOR: Record<string, string> = {
-  in_progress: '#e40586', review: '#fd6100', kickoff: '#1e3add', completed: '#0cf574',
+  in_progress: '#e50586', review: '#fd6100', kickoff: '#3943b7', completed: '#0cf574',
 };
+const onColor = (bg: string) => (/^#(fd6100|0cf574|f2f2f2|f5f5f5|ffffff)$/i.test(bg) ? '#141414' : '#fff');
 const TABS: FilterTab[] = ['All', 'In Progress', 'Review', 'Completed'];
 
 function fmt(d: string) {
@@ -33,7 +35,7 @@ function fmt(d: string) {
 }
 
 function Skel({ w = '100%', h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
-  return <div className="skel" style={{ width: w, height: h, borderRadius: r, background: '#f1f0ef' }} />;
+  return <div className="skel" style={{ width: w, height: h, borderRadius: r, background: '#f2f2f2' }} />;
 }
 
 export default function RequestsPage() {
@@ -75,6 +77,7 @@ export default function RequestsPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!fTitle.trim() || !userId) { setFormError('Tell us what you need, even roughly'); return; }
+    void portalTrack('action', { label: `Sent a brain dump: ${fTitle.trim().slice(0, 80)}` });
     if (fProject === NEW_PROJECT && !fNewProj.trim()) {
       setFormError('What would you call this new project?'); return;
     }
@@ -108,20 +111,20 @@ export default function RequestsPage() {
   };
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, background: '#f6f5f4', minHeight: '100%' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20, background: '#ffffff', minHeight: '100%' }}>
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}.skel{animation:pulse 1.5s ease-in-out infinite}`}</style>
 
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <button
           onClick={() => setShowForm(!showForm)}
-          style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: showForm ? '#808080' : '#e40586', border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background .15s' }}
+          style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: showForm ? '#808080' : '#e50586', border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background .15s' }}
         >
           {showForm ? 'Cancel' : '+ New Brain Dump'}
         </button>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 600, border: 'none', borderRadius: 999, padding: '8px 16px', cursor: 'pointer', background: activeTab === tab ? '#0a0a0a' : '#ebe9e7', color: activeTab === tab ? '#fff' : '#808080', transition: 'background .15s' }}>
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 600, border: 'none', borderRadius: 999, padding: '8px 16px', cursor: 'pointer', background: activeTab === tab ? '#0a0a0a' : '#ebebeb', color: activeTab === tab ? '#fff' : '#808080', transition: 'background .15s' }}>
               {tab}
             </button>
           ))}
@@ -131,7 +134,7 @@ export default function RequestsPage() {
       {/* New request form */}
       {showForm && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontFamily: F.bungee, fontSize: 14, color: '#0a0a0a', margin: 0 }}>NEW BRAIN DUMP</h3>
+          <h3 style={{ fontFamily: F.bungee, fontSize: 18, color: '#0a0a0a', margin: 0 }}>New Brain Dump</h3>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -170,7 +173,7 @@ export default function RequestsPage() {
                 )}
               </div>
             </div>
-            {formError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{formError}</p>}
+            {formError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{formError}</p>}
             <div>
               <button type="submit" disabled={submitting} style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: submitting ? '#ccc' : '#0a0a0a', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: submitting ? 'default' : 'pointer' }}>
                 {submitting ? 'Sending…' : 'Send It Over'}
@@ -182,14 +185,14 @@ export default function RequestsPage() {
 
       {/* Error */}
       {error && (
-        <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
+        <div style={{ background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e50586' }}>
           Something went wrong loading your brain dumps — please refresh.
         </div>
       )}
 
       {/* Column headers */}
       {!error && (
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1fr 1fr', gap: 12, padding: '10px 20px', background: '#f1f0ef', borderRadius: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 1.2fr 1fr 1fr', gap: 12, padding: '10px 20px', background: '#f2f2f2', borderRadius: 12 }}>
           {['Brain Dump', 'Project', 'Status', 'Date'].map(col => (
             <span key={col} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#808080' }}>{col}</span>
           ))}
@@ -215,7 +218,7 @@ export default function RequestsPage() {
               : `Nothing ${activeTab.toLowerCase()} right now`}
           </p>
           {activeTab === 'All' && (
-            <button onClick={() => setShowForm(true)} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#e40586', background: 'transparent', border: '1.5px solid #e40586', borderRadius: 999, padding: '7px 20px', cursor: 'pointer' }}>
+            <button onClick={() => setShowForm(true)} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#e50586', background: 'transparent', border: '1.5px solid #e50586', borderRadius: 999, padding: '7px 20px', cursor: 'pointer' }}>
               + New Brain Dump
             </button>
           )}
@@ -235,13 +238,13 @@ export default function RequestsPage() {
                 {req.description && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2, whiteSpace: 'pre-wrap' }}>{req.description}</div>}
               </div>
               {req.project_name ? (
-                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isRealProject ? '#1e3add' : '#808080', background: isRealProject ? '#eef1ff' : '#f1f0ef', padding: '3px 9px', borderRadius: 999, width: 'fit-content' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: isRealProject ? '#3943b7' : '#808080', background: isRealProject ? '#f5f5f5' : '#f2f2f2', padding: '3px 9px', borderRadius: 999, width: 'fit-content' }}>
                   {isRealProject ? req.project_name : `New: ${req.project_name}`}
                 </span>
               ) : (
                 <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf' }}>Unassigned</span>
               )}
-              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: sc, background: `${sc}18`, padding: '3px 8px', borderRadius: 999, width: 'fit-content' }}>
+              <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: onColor(sc), background: sc, padding: '3px 8px', borderRadius: 999, width: 'fit-content' }}>
                 {STATUS_LABEL[req.status] ?? req.status}
               </span>
               <span style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>{fmt(req.created_at)}</span>

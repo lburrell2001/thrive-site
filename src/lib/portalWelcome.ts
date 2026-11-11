@@ -3,7 +3,9 @@
 // migrate: `portal_welcome_done` (ISO time) once they finish or skip it, and
 // `portal_welcome: 'pending'` when Lauren turns it on for them, or `'off'` when
 // she turns it off (admin, Client tab → "Onboarding walkthrough" switch).
-// Accounts made before the welcome existed don't get it unless she asks.
+// Every client login made since 2026-11-10 starts as 'pending', so a brand new
+// client always opens to it before the dashboard. Accounts made before the
+// welcome existed don't get it unless she asks (or never signed in: set pending once).
 
 import type { User } from '@supabase/supabase-js';
 

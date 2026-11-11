@@ -5,6 +5,7 @@ import { portalApi } from '@/lib/portalApi';
 import type { ReportData } from '@/lib/reportPDF';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
+import { portalTrack } from '@/lib/portalTrack';
 
 interface DbStage    { key: string; label: string; }
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; stages?: DbStage[]; archived?: boolean; }
@@ -16,7 +17,7 @@ interface DbRequest  { id: string; title: string; description?: string; type: st
 interface DbActivity { id: string; text: string; dot_color: string; created_at: string; project_name?: string; }
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
@@ -28,16 +29,17 @@ const DEFAULT_STAGES: DbStage[] = [
 ];
 
 const STATUS_COLOR: Record<string, string> = {
-  kickoff: '#1e3add', in_progress: '#e40586', review: '#fd6100', completed: '#0cf574', on_hold: '#808080',
+  kickoff: '#3943b7', in_progress: '#e50586', review: '#fd6100', completed: '#0cf574', on_hold: '#808080',
 };
-const INV_COLOR: Record<string, string> = { due: '#fd6100', paid: '#0cf574', overdue: '#e40586' };
-const INV_BG:    Record<string, string> = { due: '#fff4ec', paid: '#edfff6', overdue: '#fff0f8' };
-const PRI_COLOR: Record<string, string> = { high: '#e40586', normal: '#1e3add', low: '#808080' };
-const PRI_BG:    Record<string, string> = { high: '#fff0f8', normal: '#eef1ff', low: '#f1f0ef' };
-const REQ_COLOR: Record<string, string> = { kickoff: '#1e3add', in_progress: '#e40586', review: '#fd6100', completed: '#0cf574' };
-const REQ_BG:    Record<string, string> = { kickoff: '#eef1ff', in_progress: '#fff0f8', review: '#fff4ec', completed: '#edfff6' };
+// Pills: solid brand colours with contrasting text (no pastels).
+const INV_COLOR: Record<string, string> = { due: '#141414', paid: '#141414', overdue: '#fff' };
+const INV_BG:    Record<string, string> = { due: '#fd6100', paid: '#0cf574', overdue: '#e50586' };
+const PRI_COLOR: Record<string, string> = { high: '#fff', normal: '#fff', low: '#141414' };
+const PRI_BG:    Record<string, string> = { high: '#e50586', normal: '#3943b7', low: '#f2f2f2' };
+const REQ_COLOR: Record<string, string> = { kickoff: '#fff', in_progress: '#fff', review: '#141414', completed: '#141414' };
+const REQ_BG:    Record<string, string> = { kickoff: '#3943b7', in_progress: '#e50586', review: '#fd6100', completed: '#0cf574' };
 
-function fmtCurrency(c: number) { return (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }); }
+function fmtCurrency(c: number) { return (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: c % 100 ? 2 : 0 }); }
 function fmtDate(s: string) { if (!s) return '—'; return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function relTime(d: string) {
   const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
@@ -49,14 +51,14 @@ function relTime(d: string) {
 }
 
 function Skel({ w = '100%', h = 14, r = 6 }: { w?: string | number; h?: number; r?: number }) {
-  return <div className="skel" style={{ width: w, height: h, borderRadius: r, background: '#f1f0ef' }} />;
+  return <div className="skel" style={{ width: w, height: h, borderRadius: r, background: '#f2f2f2' }} />;
 }
 
 function SectionLabel({ label, count }: { label: string; count?: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
       <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
-      {count !== undefined && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', background: '#f1f0ef', padding: '1px 7px', borderRadius: 999 }}>{count}</span>}
+      {count !== undefined && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#bfbfbf', background: '#f2f2f2', padding: '1px 7px', borderRadius: 999 }}>{count}</span>}
     </div>
   );
 }
@@ -124,17 +126,17 @@ export default function ProgressPage() {
   const archived = projects.filter(p => p.archived);
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f6f5f4', minHeight: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#ffffff', minHeight: '100%', boxSizing: 'border-box' }}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
         .skel{animation:pulse 1.5s ease-in-out infinite}
         @keyframes fillbar{from{width:0}}
         .prog-fill{animation:fillbar .6s ease forwards}
-        .proj-section + .proj-section { border-top: 1px solid #f1f0ef; }
+        .proj-section + .proj-section { border-top: 1px solid #f2f2f2; }
       `}</style>
 
       {error && (
-        <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
+        <div style={{ background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e50586' }}>
           Something went wrong loading projects — please refresh.
         </div>
       )}
@@ -156,7 +158,7 @@ export default function ProgressPage() {
       {!loading && !error && active.length === 0 && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '56px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 14 }}>
           <div style={{ width: 56, height: 56, borderRadius: 14, background: '#1e3add18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1e3add" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3943b7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
           </div>
           <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No active projects yet</p>
         </div>
@@ -223,6 +225,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
   const totalItems  = invoices.length + files.length + proposals.length + milestones.length + requests.length;
 
   async function handlePay(inv: DbInvoice) {
+    void portalTrack('action', { label: `Started paying invoice ${inv.invoice_number}` });
     setPayingId(inv.id); setPayError('');
     try {
       const { data: { session } } = await supabasePortal.auth.getSession();
@@ -239,6 +242,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
     e.preventDefault();
     if (!reqTitle.trim() || !userId) { setReqError('Tell us what you need, even roughly'); return; }
     setReqSubmitting(true); setReqError('');
+    void portalTrack('action', { label: `Sent a brain dump: ${reqTitle.trim().slice(0, 80)}` });
     // Thrive sets type and priority when the request is triaged.
     const { error } = await supabasePortal.from('portal_requests').insert({
       client_id: userId, title: reqTitle.trim(), description: reqDesc.trim(),
@@ -266,12 +270,12 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: dimAccent, flexShrink: 0 }} />
             <span style={{ fontFamily: F.bungee, fontSize: 16, color: archived ? '#808080' : '#0a0a0a', letterSpacing: '0em', lineHeight: 1.2 }}>{proj.name}</span>
-            {archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '1px 7px', borderRadius: 999 }}>ARCHIVED</span>}
+            {archived && <span style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 700, color: '#808080', background: '#f0f0f0', padding: '1px 7px', borderRadius: 999 }}>Archived</span>}
             {reports.map((report) => (
               <button
                 key={report.invoice_id ?? 'project'}
                 type="button"
-                onClick={async (e) => { e.stopPropagation(); const { generateReportPDF } = await import('@/lib/reportPDF'); await generateReportPDF(report); }}
+                onClick={async (e) => { e.stopPropagation(); void portalTrack('action', { label: `Downloaded the ${report.invoice ?? proj.name} completion report` }); const { generateReportPDF } = await import('@/lib/reportPDF'); await generateReportPDF(report); }}
                 style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#0a0a0a', background: '#0cf574', border: 'none', borderRadius: 999, padding: '3px 10px', cursor: 'pointer' }}
               >
                 {report.invoice ? `${report.invoice} report (PDF)` : 'Completion report (PDF)'}
@@ -279,7 +283,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
             ))}
           </div>
           {/* Mini progress bar */}
-          <div style={{ height: 4, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden', maxWidth: 240 }}>
+          <div style={{ height: 4, borderRadius: 999, background: '#f2f2f2', overflow: 'hidden', maxWidth: 240 }}>
             <div style={{ height: '100%', borderRadius: 999, background: dimAccent, width: `${pct}%`, transition: 'width .4s' }} />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
@@ -297,7 +301,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
 
       {/* Expanded content */}
       {expanded && (
-        <div style={{ borderTop: '1px solid #f1f0ef' }}>
+        <div style={{ borderTop: '1px solid #f2f2f2' }}>
 
           {/* Stage pipeline */}
           <div className="proj-section" style={{ padding: '20px 24px' }}>
@@ -307,7 +311,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                 const isPast = activeIdx > idx, isCurrent = activeIdx === idx;
                 const isFuture = activeIdx < idx && activeIdx !== -1, isUnknown = activeIdx === -1;
                 return (
-                  <div key={stage.key} style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', background: isCurrent ? dimAccent : isPast ? `${dimAccent}22` : '#f6f5f4', border: isCurrent ? `2px solid ${dimAccent}` : isPast ? `1.5px solid ${dimAccent}55` : '1.5px solid #e5e5e5', opacity: isFuture || isUnknown ? 0.5 : 1, transition: 'all .2s' }}>
+                  <div key={stage.key} style={{ borderRadius: 8, padding: '10px 8px', textAlign: 'center', background: isCurrent ? dimAccent : isPast ? `${dimAccent}22` : '#ffffff', border: isCurrent ? `2px solid ${dimAccent}` : isPast ? `1.5px solid ${dimAccent}55` : '1.5px solid #e5e5e5', opacity: isFuture || isUnknown ? 0.5 : 1, transition: 'all .2s' }}>
                     <div style={{ fontFamily: F.inter, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: isCurrent ? '#fff' : isPast ? dimAccent : '#808080', marginBottom: 3 }}>{String(idx + 1).padStart(2, '0')}</div>
                     <div style={{ fontFamily: F.inter, fontSize: 12, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#fff' : isPast ? dimAccent : '#808080' }}>{stage.label}</div>
                     {isPast && <div style={{ marginTop: 4 }}><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" fill={dimAccent}/><path d="M3.5 6l2 2 3-3" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg></div>}
@@ -315,7 +319,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                 );
               })}
             </div>
-            <div style={{ height: 10, borderRadius: 999, background: '#f1f0ef', overflow: 'hidden' }}>
+            <div style={{ height: 10, borderRadius: 999, background: '#f2f2f2', overflow: 'hidden' }}>
               <div className="prog-fill" style={{ height: '100%', borderRadius: 999, background: dimAccent, width: `${pct}%` }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5 }}>
@@ -335,7 +339,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                     const canPay = (inv.status === 'due' || inv.status === 'overdue') && !inv.declined_at;
                     const isPaying = payingId === inv.id;
                     return (
-                      <div key={inv.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fafafa' }}>
+                      <div key={inv.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fafafa' }}>
                         <div style={{ flex: 1, minWidth: 120 }}>
                           <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>{inv.invoice_number}</div>
                           <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2 }}>
@@ -343,21 +347,21 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                             {inv.due_date && ` · Due ${fmtDate(inv.due_date)}`}
                           </div>
                         </div>
-                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: INV_BG[inv.status] ?? '#f1f0ef', color: INV_COLOR[inv.status] ?? '#808080', padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: INV_BG[inv.status] ?? '#f2f2f2', color: INV_COLOR[inv.status] ?? '#808080', padding: '3px 10px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>
                           {inv.declined_at ? 'declined' : inv.status}
                         </span>
                         {canPay && !inv.accepted_at && (
                           <a href="/portal/invoices" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#808080' }}>Accept or decline</a>
                         )}
                         {canPay && (
-                          <button onClick={() => handlePay(inv)} disabled={!!payingId} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: '#e40586', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: payingId ? 'default' : 'pointer', opacity: payingId ? 0.6 : 1, flexShrink: 0 }}>
+                          <button onClick={() => handlePay(inv)} disabled={!!payingId} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: '#e50586', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: payingId ? 'default' : 'pointer', opacity: payingId ? 0.6 : 1, flexShrink: 0 }}>
                             {isPaying ? '…' : `Pay ${fmtCurrency(inv.amount_cents)}`}
                           </button>
                         )}
                       </div>
                     );
                   })}
-                  {payError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{payError}</p>}
+                  {payError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{payError}</p>}
                 </div>
             }
           </div>
@@ -367,7 +371,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SectionLabel label="Brain Dumps" count={requests.length} />
               {!archived && (
-                <button onClick={() => setShowReqForm(v => !v)} style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}>
+                <button onClick={() => setShowReqForm(v => !v)} style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e50586', background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 6, padding: '4px 12px', cursor: 'pointer' }}>
                   {showReqForm ? 'Cancel' : '+ New'}
                 </button>
               )}
@@ -376,15 +380,15 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               <form onSubmit={handleSubmitRequest} style={{ background: '#fafafa', borderRadius: 10, border: '1px solid #e5e5e5', padding: 16, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>WHAT DO YOU NEED? *</label>
+                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>What do you need? *</label>
                     <input style={inp} value={reqTitle} onChange={e => setReqTitle(e.target.value)} placeholder="Logo revision" />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>TELL US MORE</label>
+                    <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080' }}>Tell us more</label>
                     <textarea style={{ ...inp, minHeight: 90, resize: 'vertical', fontFamily: F.inter }} value={reqDesc} onChange={e => setReqDesc(e.target.value)} placeholder="Brain dump here — ideas, references, deadlines, anything you're thinking." />
                   </div>
                 </div>
-                {reqError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', margin: 0 }}>{reqError}</p>}
+                {reqError && <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', margin: 0 }}>{reqError}</p>}
                 <button type="submit" disabled={reqSubmitting} style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#fff', background: '#0a0a0a', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: reqSubmitting ? 'default' : 'pointer', opacity: reqSubmitting ? 0.5 : 1, alignSelf: 'flex-start' }}>
                   {reqSubmitting ? 'Sending…' : 'Send It Over'}
                 </button>
@@ -394,16 +398,16 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               ? <p style={{ fontFamily: F.inter, fontSize: 13, color: '#bfbfbf', margin: 0 }}>Nothing dumped here yet.</p>
               : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {requests.map(req => (
-                    <div key={req.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fafafa' }}>
+                    <div key={req.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fafafa' }}>
                       {req.priority !== 'normal' && (
-                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: PRI_BG[req.priority] ?? '#f1f0ef', color: PRI_COLOR[req.priority] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
+                        <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: PRI_BG[req.priority] ?? '#f2f2f2', color: PRI_COLOR[req.priority] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>{req.priority}</span>
                       )}
                       <div style={{ flex: 1, minWidth: 100 }}>
                         <div style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#0a0a0a' }}>{req.title}</div>
                         {req.description && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 2, whiteSpace: 'pre-wrap' }}>{req.description}</div>}
                         {req.type && <div style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', marginTop: 1 }}>{req.type}</div>}
                       </div>
-                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: REQ_BG[req.status] ?? '#f1f0ef', color: REQ_COLOR[req.status] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>
+                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: REQ_BG[req.status] ?? '#f2f2f2', color: REQ_COLOR[req.status] ?? '#808080', padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize', flexShrink: 0 }}>
                         {req.status.replace('_', ' ')}
                       </span>
                     </div>
@@ -418,12 +422,12 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               <SectionLabel label="Proposals" count={proposals.length} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {proposals.map(p => (
-                  <div key={p.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fafafa' }}>
+                  <div key={p.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: '#fafafa' }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                     <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1 }}>{p.name}</span>
-                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.status === 'signed' ? '#edfff6' : '#fff4ec', color: p.status === 'signed' ? '#1a8a4a' : '#fd6100', padding: '2px 8px', borderRadius: 999 }}>{p.status}</span>
-                    <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1e3add', textDecoration: 'none' }}>View ↗</a>
-                    {p.signed_file_url && <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1a8a4a', textDecoration: 'none' }}>Signed ↗</a>}
+                    <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: p.status === 'signed' ? '#f5f5f5' : '#f5f5f5', color: p.status === 'signed' ? '#08b957' : '#fd6100', padding: '2px 8px', borderRadius: 999 }}>{p.status}</span>
+                    <a href={p.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', textDecoration: 'none' }}>View ↗</a>
+                    {p.signed_file_url && <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#08b957', textDecoration: 'none' }}>Signed ↗</a>}
                   </div>
                 ))}
               </div>
@@ -436,10 +440,10 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               <SectionLabel label="Files & Assets" count={files.length} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {files.map(f => (
-                  <div key={f.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, background: '#fafafa' }}>
+                  <div key={f.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, background: '#fafafa' }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                     <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1 }}>{f.name}</span>
-                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1e3add', textDecoration: 'none' }}>Download ↗</a>
+                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', textDecoration: 'none' }}>Download ↗</a>
                   </div>
                 ))}
               </div>
@@ -452,11 +456,11 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               <SectionLabel label="Milestones" count={milestones.length} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {milestones.map(m => (
-                  <div key={m.id} style={{ border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fafafa' }}>
+                  <div key={m.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#fafafa' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
                     <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: m.completed ? '#bfbfbf' : '#0a0a0a', flex: 1, textDecoration: m.completed ? 'line-through' : 'none' }}>{m.title}</span>
-                    {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', background: '#f1f0ef', padding: '2px 9px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
-                    {m.completed && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1a8a4a', background: '#edfff6', padding: '2px 8px', borderRadius: 999 }}>Done</span>}
+                    {m.due_date && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', background: '#f2f2f2', padding: '2px 9px', borderRadius: 999 }}>{fmtDate(m.due_date)}</span>}
+                    {m.completed && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#08b957', background: '#f5f5f5', padding: '2px 8px', borderRadius: 999 }}>Done</span>}
                   </div>
                 ))}
               </div>
@@ -469,7 +473,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
               <SectionLabel label="Activity" />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {activity.slice(0, 8).map((item, i) => (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: i < Math.min(activity.length, 8) - 1 ? 12 : 0, borderBottom: i < Math.min(activity.length, 8) - 1 ? '1px solid #f1f0ef' : 'none' }}>
+                  <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, paddingBottom: i < Math.min(activity.length, 8) - 1 ? 12 : 0, borderBottom: i < Math.min(activity.length, 8) - 1 ? '1px solid #f2f2f2' : 'none' }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 5 }} />
                     <div style={{ flex: 1 }}>
                       <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a' }}>{item.text}</span>

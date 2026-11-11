@@ -3,12 +3,12 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Bungee, Bai_Jamjuree } from 'next/font/google';
+import { portalFonts } from '../portalFonts';
+import pt from '../portal.module.css';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { needsWelcome } from '@/lib/portalWelcome';
+import PortalTracker from '../PortalTracker';
 
-const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bungee' });
-const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 const BASE_NAV_LINKS = [
   { href: '/portal/dashboard', label: 'Dashboard' },
@@ -23,16 +23,16 @@ const BASE_NAV_LINKS = [
 function buildPageTitles(userName: string, userCompany: string) {
   const welcome = `Welcome back, ${userCompany || userName}`;
   return {
-    '/portal/dashboard':  { title: 'DASHBOARD',       subtitle: welcome },
-    '/portal/requests':   { title: 'BRAIN DUMP',      subtitle: 'Everything you want — big, small, half-formed' },
-    '/portal/progress':   { title: 'MY PROJECTS',      subtitle: 'Everything organised by project' },
-    '/portal/invoices':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
-    '/portal/payments':   { title: 'BILLING',         subtitle: 'Invoices, payments and history' },
-    '/portal/onboarding': { title: 'ONBOARDING',      subtitle: 'Questionnaires and first steps for your project' },
-    '/portal/files':      { title: 'FILES & ASSETS',  subtitle: 'Delivered files and uploads' },
-    '/portal/proposals':  { title: 'PROPOSALS',       subtitle: 'Read, sign and download your proposals' },
-    '/portal/vault':      { title: 'SECURE VAULT',    subtitle: 'Share logins and access details safely' },
-    '/portal/settings':   { title: 'SETTINGS',        subtitle: 'Account and notification preferences' },
+    '/portal/dashboard':  { title: 'Dashboard',       subtitle: welcome },
+    '/portal/requests':   { title: 'Brain Dump',      subtitle: 'Everything you want — big, small, half-formed' },
+    '/portal/progress':   { title: 'My Projects',      subtitle: 'Everything organised by project' },
+    '/portal/invoices':   { title: 'Billing',         subtitle: 'Invoices, payments and history' },
+    '/portal/payments':   { title: 'Billing',         subtitle: 'Invoices, payments and history' },
+    '/portal/onboarding': { title: 'Onboarding',      subtitle: 'Questionnaires and first steps for your project' },
+    '/portal/files':      { title: 'Files & Assets',  subtitle: 'Delivered files and uploads' },
+    '/portal/proposals':  { title: 'Proposals',       subtitle: 'Read, sign and download your proposals' },
+    '/portal/vault':      { title: 'Secure Vault',    subtitle: 'Share logins and access details safely' },
+    '/portal/settings':   { title: 'Settings',        subtitle: 'Account and notification preferences' },
   } as Record<string, { title: string; subtitle: string }>;
 }
 
@@ -120,14 +120,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }
 
   if (pathname === '/portal/login') {
-    return <div className={`${bungee.variable} ${baiJamjuree.variable}`}>{children}</div>;
+    return <div className={`${portalFonts} ${pt.root}`}>{children}</div>;
   }
 
   if (checking) {
     return (
       <div
-        className={`${bungee.variable} ${baiJamjuree.variable}`}
-        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f6f5f4' }}
+        className={`${portalFonts} ${pt.root}`}
+        style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff' }}
       >
         <span style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, color: '#808080' }}>
           Loading…
@@ -138,17 +138,17 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
 
   // The welcome is full screen, without the portal's sidebar and header.
   if (pathname === '/portal/welcome') {
-    return <div className={`${bungee.variable} ${baiJamjuree.variable}`}>{children}</div>;
+    return <div className={`${portalFonts} ${pt.root}`}><PortalTracker />{children}</div>;
   }
 
   const NAV_LINKS = BASE_NAV_LINKS;
 
   const PAGE_TITLES = buildPageTitles(userName, userCompany);
   const pageInfo    = PAGE_TITLES[pathname]
-    ?? (pathname.startsWith('/portal/onboarding/') ? { title: 'QUESTIONNAIRE', subtitle: 'Answers save as you go' } : { title: 'PORTAL', subtitle: '' });
+    ?? (pathname.startsWith('/portal/onboarding/') ? { title: 'Questionnaire', subtitle: 'Answers save as you go' } : { title: 'Portal', subtitle: '' });
 
   return (
-    <div className={`${bungee.variable} ${baiJamjuree.variable}`} style={{ display: 'flex', minHeight: '100dvh' }}>
+    <div className={`${portalFonts} ${pt.root}`} style={{ display: 'flex', minHeight: '100dvh' }}>
       <style>{`
         @media (min-width: 768px) { .portal-main { margin-left: 220px; } }
         .portal-header { padding: 0 32px; }
@@ -158,6 +158,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           .portal-header p  { display: none; }
         }
       `}</style>
+
+      {/* What they view and for how long (migration 059). */}
+      <PortalTracker />
 
       {/* Mobile overlay */}
       {sidebarOpen && !isDesktop && (
@@ -189,29 +192,22 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           {NAV_LINKS.map(({ href, label }) => {
             const isActive = pathname === href || (href !== '/portal/dashboard' && pathname.startsWith(href));
             const isAdmin  = href === '/portal/admin';
-            const activeBg = isAdmin ? '#5b2d8e' : '#e40586';
+            const activeBg = isAdmin ? '#9409ce' : '#e50586';
             return (
               <Link
                 key={href}
                 href={href}
                 style={{
-                  position: 'relative',
                   display: 'flex', alignItems: 'center',
-                  height: 40, borderRadius: 8,
-                  paddingLeft: 16, paddingRight: 12,
-                  fontFamily: 'var(--font-inter)', fontSize: 14, fontWeight: 600,
+                  height: 42, borderRadius: 999,
+                  paddingLeft: 18, paddingRight: 12,
+                  fontFamily: 'var(--font-inter)', fontSize: 15, fontWeight: 500,
                   textDecoration: 'none',
                   background:   isActive ? activeBg : 'transparent',
-                  color:        isActive ? '#fff' : '#808080',
+                  color:        isActive ? '#fff' : '#bfbfbf',
                   transition: 'color .15s, background .15s',
                 }}
               >
-                {isActive && (
-                  <span style={{
-                    position: 'absolute', left: 0, top: 0, bottom: 0,
-                    width: 4, borderRadius: '8px 0 0 8px', background: '#0cf574',
-                  }} />
-                )}
                 {label}
               </Link>
             );
@@ -224,7 +220,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <div style={{
               width: 36, height: 36, borderRadius: '50%',
-              background: '#e40586',
+              background: '#e50586',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
@@ -247,14 +243,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               width: '100%',
               background: 'transparent',
               border: '1px solid #333',
-              borderRadius: 8,
-              padding: '8px 0',
-              fontFamily: 'var(--font-inter)', fontSize: 12, fontWeight: 600,
+              borderRadius: 999,
+              padding: '9px 0',
+              fontFamily: 'var(--font-inter)', fontSize: 13, fontWeight: 500,
               color: '#666',
               cursor: 'pointer',
               transition: 'border-color .15s, color .15s',
             }}
-            onMouseEnter={e => { (e.target as HTMLButtonElement).style.borderColor = '#e40586'; (e.target as HTMLButtonElement).style.color = '#e40586'; }}
+            onMouseEnter={e => { (e.target as HTMLButtonElement).style.borderColor = '#e50586'; (e.target as HTMLButtonElement).style.color = '#e50586'; }}
             onMouseLeave={e => { (e.target as HTMLButtonElement).style.borderColor = '#333'; (e.target as HTMLButtonElement).style.color = '#666'; }}
           >
             Sign Out
@@ -263,7 +259,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       </aside>
 
       {/* ── Main ── */}
-      <div className="portal-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: '#f6f5f4' }}>
+      <div className="portal-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: '#ffffff' }}>
         {/* Header */}
         <header className="portal-header" style={{
           position: 'sticky', top: 0, zIndex: 20,
@@ -281,7 +277,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
               <HamburgerIcon open={sidebarOpen} />
             </button>
             <div>
-              <h1 style={{ fontFamily: 'var(--font-bungee)', fontSize: 20, color: '#0a0a0a', lineHeight: 1, margin: 0 }}>
+              <h1 style={{ fontFamily: 'var(--font-bungee)', fontSize: 26, color: '#0a0a0a', lineHeight: 1, margin: 0 }}>
                 {pageInfo.title}
               </h1>
               {pageInfo.subtitle && (
@@ -304,7 +300,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </div>
             <div style={{
               width: 40, height: 40, borderRadius: '50%',
-              background: '#e40586',
+              background: '#e50586',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <span style={{ fontFamily: 'var(--font-inter)', color: '#fff', fontSize: 14, fontWeight: 700 }}>

@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Bungee, Bai_Jamjuree } from 'next/font/google';
+import { portalFonts } from '../portalFonts';
+import pt from '../portal.module.css';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { needsWelcome } from '@/lib/portalWelcome';
+import { portalTrack } from '@/lib/portalTrack';
 
-const bungee = Bungee({ weight: '400', subsets: ['latin'], variable: '--font-bungee' });
-const baiJamjuree = Bai_Jamjuree({ weight: ['400', '600', '700'], subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 type Step = 'contact' | 'verify';
 
@@ -18,8 +19,8 @@ function ErrorBox({ message }: { message: string }) {
       fontFamily: 'var(--font-inter)',
       fontSize: 13,
       color: '#c0006a',
-      background: '#fff0f8',
-      border: '1px solid #f5b8d8',
+      background: '#f5f5f5',
+      border: '1px solid #e50586',
       borderRadius: 10,
       padding: '10px 14px',
       margin: 0,
@@ -104,8 +105,9 @@ export default function LoginPage() {
         setTimeout(() => codeRefs.current[0]?.focus(), 50);
         return;
       }
-      console.log('OTP verify success:', data);
-      router.push('/portal/dashboard');
+      // Recorded for Lauren (migration 059), then a brand new client goes to the welcome first.
+      portalTrack('sign_in', { label: 'Signed in with an email code' });
+      router.push(needsWelcome(data.user) ? '/portal/welcome' : '/portal/dashboard');
     } catch (err) {
       setLoading(false);
       const msg = err instanceof Error ? err.message : String(err);
@@ -140,7 +142,7 @@ export default function LoginPage() {
 
   /* ── Shared text helpers ── */
   const F = {
-    bungee: `var(--font-bungee), 'Bungee', sans-serif` as const,
+    bungee: `var(--font-bungee), sans-serif` as const,
     inter:  `var(--font-inter), 'Inter', sans-serif`  as const,
   };
 
@@ -157,7 +159,7 @@ export default function LoginPage() {
         .portal-login-left {
           width: 50%;
           flex-shrink: 0;
-          background: #0A0A0A;
+          background: #0a0a0a;
           display: flex;
           flex-direction: column;
           justify-content: center;
@@ -168,7 +170,7 @@ export default function LoginPage() {
         .portal-login-right {
           width: 50%;
           flex-shrink: 0;
-          background: #F7F5F2;
+          background: #ffffff;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -192,30 +194,30 @@ export default function LoginPage() {
           font-family: var(--font-bungee), sans-serif;
           font-size: 24px;
           text-align: center;
-          color: #0A0A0A;
+          color: #0a0a0a;
           background: #fff;
           outline: none;
           transition: border-color .15s, background .15s;
         }
-        .portal-otp-box:focus { border-color: #E50586; }
+        .portal-otp-box:focus { border-color: #e50586; }
         .portal-input {
           width: 100%;
           box-sizing: border-box;
-          border: 2px solid #0A0A0A;
+          border: 2px solid #0a0a0a;
           border-radius: 10px;
           padding: 13px 16px;
           font-size: 14px;
           font-family: var(--font-inter), sans-serif;
-          color: #0A0A0A;
+          color: #0a0a0a;
           background: #fff;
           outline: none;
           transition: border-color .15s;
         }
-        .portal-input:focus { border-color: #E50586; }
+        .portal-input:focus { border-color: #e50586; }
         .portal-input::placeholder { color: #aaa; }
         .portal-btn-primary {
           width: 100%;
-          background: #E50586;
+          background: #e50586;
           color: #fff;
           font-family: var(--font-bungee), sans-serif;
           font-size: 16px;
@@ -226,11 +228,11 @@ export default function LoginPage() {
           transition: opacity .15s;
           letter-spacing: -0.01em;
         }
-        .portal-btn-primary:disabled { opacity: 0.45; cursor: default; }
+        .portal-btn-primary:disabled { background: #141414 !important; opacity: 0.35; cursor: default; }
         .portal-btn-primary:not(:disabled):hover { opacity: 0.88; }
       `}</style>
 
-      <div className={`${bungee.variable} ${baiJamjuree.variable} portal-login-wrap`}>
+      <div className={`${portalFonts} ${pt.root} portal-login-wrap`}>
 
         {/* ══ LEFT — dark brand panel ══════════════════════ */}
         <div className="portal-login-left">
@@ -248,7 +250,7 @@ export default function LoginPage() {
               marginBottom: 0,
               letterSpacing: '0em',
             }}>
-              YOUR CREATIVE<br />WORKSPACE<br />AWAITS.
+              Your Creative<br />Workspace<br />Awaits.
             </h2>
             <p style={{
               fontFamily: F.inter,
@@ -266,7 +268,7 @@ export default function LoginPage() {
           <div className="portal-login-footer" style={{ position: 'absolute', bottom: 48, left: 52, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Link
               href="/"
-              style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#E50586', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 600, color: '#e50586', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             >
               ← Return to Homepage
             </Link>
@@ -288,8 +290,8 @@ export default function LoginPage() {
             {/* Heading */}
             {step === 'contact' ? (
               <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontFamily: F.bungee, fontSize: 40, color: '#0A0A0A', margin: 0, letterSpacing: '0em', lineHeight: 1 }}>
-                  SIGN IN
+                <h1 style={{ fontFamily: F.bungee, fontSize: 40, color: '#0a0a0a', margin: 0, letterSpacing: '0em', lineHeight: 1 }}>
+                  Sign In
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>
                   Enter your email and we&apos;ll send you a code.
@@ -297,14 +299,14 @@ export default function LoginPage() {
               </div>
             ) : (
               <div style={{ marginBottom: 32 }}>
-                <h1 style={{ fontFamily: F.bungee, fontSize: 36, color: '#0A0A0A', margin: 0, letterSpacing: '0em', lineHeight: 1.1 }}>
-                  {sentTo.email ? <>CHECK YOUR<br />EMAIL</> : <>CHECK YOUR<br />TEXTS</>}
+                <h1 style={{ fontFamily: F.bungee, fontSize: 36, color: '#0a0a0a', margin: 0, letterSpacing: '0em', lineHeight: 1.1 }}>
+                  {sentTo.email ? <>Check Your<br />Email</> : <>Check Your<br />Texts</>}
                 </h1>
                 <p style={{ fontFamily: F.inter, fontSize: 14, color: '#888', marginTop: 10, marginBottom: 0 }}>
                   {sentTo.email ? (
                     <>
                       We sent an 8-digit code to{' '}
-                      <strong style={{ color: '#0A0A0A' }}>{contact}</strong>
+                      <strong style={{ color: '#0a0a0a' }}>{contact}</strong>
                       {sentTo.texted ? ' and texted it to your phone.' : '.'}
                     </>
                   ) : (
@@ -320,7 +322,7 @@ export default function LoginPage() {
 
                 {/* Input */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0A0A0A' }}>
+                  <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#0a0a0a' }}>
                     Email address
                   </label>
                   <input
@@ -337,7 +339,7 @@ export default function LoginPage() {
                 {error && <ErrorBox message={error} />}
 
                 <button type="submit" className="portal-btn-primary" disabled={loading || !contact.trim()}>
-                  {loading ? 'SENDING…' : 'SEND CODE →'}
+                  {loading ? 'Sending…' : 'Send code →'}
                 </button>
               </form>
             )}
@@ -359,7 +361,7 @@ export default function LoginPage() {
                       value={digit}
                       onChange={e => handleCodeInput(i, e.target.value)}
                       onKeyDown={e => handleCodeKey(i, e)}
-                      style={{ borderColor: digit ? '#0A0A0A' : '#ccc', background: digit ? '#f5f5f5' : '#fff' }}
+                      style={{ borderColor: digit ? '#0a0a0a' : '#ccc', background: digit ? '#f5f5f5' : '#fff' }}
                     />
                   ))}
                 </div>
@@ -367,7 +369,7 @@ export default function LoginPage() {
                 {error && <ErrorBox message={error} />}
 
                 <button type="submit" className="portal-btn-primary" disabled={loading || !codeComplete}>
-                  {loading ? 'VERIFYING…' : 'VERIFY & SIGN IN →'}
+                  {loading ? 'Verifying…' : 'Verify & sign in →'}
                 </button>
 
                 <p style={{ fontFamily: F.inter, fontSize: 13, color: '#888', textAlign: 'center', margin: 0 }}>
@@ -375,7 +377,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => { setStep('contact'); setCode(['', '', '', '', '', '', '', '']); setError(''); }}
-                    style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#E50586', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, padding: 0 }}
+                    style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: '#e50586', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3, padding: 0 }}
                   >
                     Go back
                   </button>

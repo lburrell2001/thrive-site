@@ -112,6 +112,8 @@ export async function POST(req: NextRequest) {
         const { data: newUser, error: createErr } = await admin.auth.admin.createUser({
           email,
           email_confirm: true,
+          // A brand new client opens to the welcome walkthrough first (portalWelcome.ts).
+          user_metadata: { portal_welcome: 'pending' },
         });
         if (createErr) return err(createErr.message);
 

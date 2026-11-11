@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
       case 'create_client': {
         const { email, full_name, company_name } = params as Record<string, string>;
         const initials = (full_name ?? email).split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-        const { data: newUser, error: createErr } = await admin.auth.admin.createUser({ email, email_confirm: true });
+        const { data: newUser, error: createErr } = await admin.auth.admin.createUser({ email, email_confirm: true, user_metadata: { portal_welcome: 'pending' } });
         if (createErr) return err(createErr.message);
         const { error: insertErr } = await admin.from('portal_clients').insert({ id: newUser.user.id, full_name, company_name, initials, role: 'client' });
         if (insertErr) return err(insertErr.message);

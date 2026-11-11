@@ -2,8 +2,10 @@
 
 // "Set up the portal" for each new project (migration 057, src/lib/portalSetup.ts):
 // invite them, assign questionnaires, add an estimate or invoice, add
-// milestones. Each step ticks itself once it's done; "Skip setup" hides it.
-// Shown at the top of the client tab; Home lists the same projects.
+// milestones. Each step ticks itself once it's done. A new client's first
+// project must be set up (no skip; Home lists it). For an existing client
+// it's optional: a slim prompt that opens the checklist, or "Not needed".
+// Shown at the top of the client tab.
 
 import { useCallback, useEffect, useState } from 'react';
 import p from '../proposals/proposals.module.css';
@@ -16,7 +18,7 @@ const PINK: React.CSSProperties = { background: '#e50586', color: '#fff' };
 type Step = 'invite' | 'questionnaire' | 'billing' | 'milestones';
 type Setup = {
   project_id: string; project_name: string; client_id: string; client_name: string;
-  steps: Record<Step, boolean>; invited_at: string | null; signed_in: boolean;
+  steps: Record<Step, boolean>; invited_at: string | null; signed_in: boolean; required?: boolean;
 };
 
 export default function PortalSetup({ clientId, version, onGo, notify }: {
@@ -28,6 +30,8 @@ export default function PortalSetup({ clientId, version, onGo, notify }: {
 }) {
   const [setups, setSetups] = useState<Setup[]>([]);
   const [busy, setBusy] = useState('');
+  // Optional setups the admin has opened.
+  const [opened, setOpened] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     apiGet<{ setups: Setup[] }>(`/api/portal-setup?client=${clientId}`).then((r) => setSetups(r.setups)).catch(() => setSetups([]));
@@ -58,7 +62,7 @@ export default function PortalSetup({ clientId, version, onGo, notify }: {
   }
 
   async function skip(s: Setup) {
-    if (!window.confirm(`Stop prompting to set up the portal for ${s.project_name}?`)) return;
+    if (!window.confirm(`Skip the portal setup for ${s.project_name}? ${s.client_name} already has their portal from earlier work.`)) return;
     try {
       await apiSend('/api/portal-setup', 'POST', { action: 'skip', project_id: s.project_id });
       load();
@@ -97,11 +101,27 @@ export default function PortalSetup({ clientId, version, onGo, notify }: {
             action: <button type="button" className={`${p.btn} ${p.btnSmall}`} style={LIGHT} onClick={() => onGo('milestones', s.project_id)}>Add</button>,
           },
         ];
+        // An existing client: optional, folded until opened.
+        if (s.required === false && !opened.has(s.project_id)) {
+          return (
+            <section key={s.project_id} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '10px 14px', borderRadius: 16, border: '1.5px dashed #d4d4d4', fontSize: 13 }}>
+              <span><strong>{s.project_name}</strong> is new. Set up its portal pieces? <span style={{ color: '#6b6b6b' }}>Optional for an existing client · {done} of 4 done</span></span>
+              <span style={{ display: 'inline-flex', gap: 6 }}>
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => skip(s)}>Not needed</button>
+                <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => setOpened((cur) => new Set(cur).add(s.project_id))}>Set it up</button>
+              </span>
+            </section>
+          );
+        }
         return (
           <section key={s.project_id} style={{ padding: '16px 18px', borderRadius: 22, background: '#141414', color: '#fff' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 10 }}>
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: '-0.065em', wordSpacing: '0.1em' }}>Set up the portal for {s.project_name}</h3>
-              <span style={{ fontSize: 12.5, color: '#d4d4d4' }}>{done} of 4 done · <button type="button" onClick={() => skip(s)} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', color: '#d4d4d4', textDecoration: 'underline', cursor: 'pointer' }}>Skip setup</button></span>
+              <span style={{ fontSize: 12.5, color: '#d4d4d4' }}>
+                {done} of 4 done
+                {/* A new client's first project can't be skipped. */}
+                {s.required === false && <> · <button type="button" onClick={() => skip(s)} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', color: '#d4d4d4', textDecoration: 'underline', cursor: 'pointer' }}>Not needed</button></>}
+              </span>
             </div>
             <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
               {rows.map((r) => (

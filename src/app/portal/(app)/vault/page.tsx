@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { portalTrack } from '@/lib/portalTrack';
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
@@ -26,14 +27,14 @@ interface Credential {
 interface DbProject { id: string; name: string; archived?: boolean; }
 
 const CATEGORIES: { value: string; label: string; color: string; bg: string }[] = [
-  { value: 'website_host', label: 'Website Host',    color: '#1e3add', bg: '#eef1ff' },
-  { value: 'domain',       label: 'Domain Registrar', color: '#5b2d8e', bg: '#f3edfb' },
-  { value: 'cms',          label: 'CMS / Admin',      color: '#e40586', bg: '#fff0f8' },
-  { value: 'ftp',          label: 'FTP / Server',     color: '#fd6100', bg: '#fff4ec' },
-  { value: 'analytics',    label: 'Analytics',        color: '#1a8a4a', bg: '#edfff6' },
-  { value: 'social',       label: 'Social Account',   color: '#0b7f8f', bg: '#e9f8fa' },
-  { value: 'email',        label: 'Email / Mailing',  color: '#8a6d1a', bg: '#fdf7e3' },
-  { value: 'other',        label: 'Other',            color: '#808080', bg: '#f1f0ef' },
+  { value: 'website_host', label: 'Website Host',    color: '#3943b7', bg: '#f5f5f5' },
+  { value: 'domain',       label: 'Domain Registrar', color: '#9409ce', bg: '#f5f5f5' },
+  { value: 'cms',          label: 'CMS / Admin',      color: '#e50586', bg: '#f5f5f5' },
+  { value: 'ftp',          label: 'FTP / Server',     color: '#fd6100', bg: '#f5f5f5' },
+  { value: 'analytics',    label: 'Analytics',        color: '#08b957', bg: '#f5f5f5' },
+  { value: 'social',       label: 'Social Account',   color: '#0b7f8f', bg: '#f5f5f5' },
+  { value: 'email',        label: 'Email / Mailing',  color: '#8a6d1a', bg: '#f5f5f5' },
+  { value: 'other',        label: 'Other',            color: '#808080', bg: '#f2f2f2' },
 ];
 
 function categoryStyle(value: string) {
@@ -155,6 +156,7 @@ export default function VaultPage() {
     e.preventDefault();
     if (!form.label.trim()) { setFormError('Give this entry a name so you both know what it unlocks.'); return; }
     setSaving(true); setFormError('');
+    void portalTrack('action', { label: `Saved a login in the vault: ${form.label.trim().slice(0, 60)}` });
     const r = await api({
       action: editingId ? 'update' : 'create',
       id: editingId ?? undefined,
@@ -203,7 +205,7 @@ export default function VaultPage() {
   const projectName = (id: string | null) => projects.find(p => p.id === id)?.name ?? '';
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f6f5f4', minHeight: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#ffffff', minHeight: '100%', boxSizing: 'border-box' }}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
         .skel{animation:pulse 1.5s ease-in-out infinite}
@@ -221,7 +223,7 @@ export default function VaultPage() {
           </svg>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#fff', letterSpacing: '0em', marginBottom: 5 }}>
+          <div style={{ fontFamily: F.bungee, fontSize: 18, color: '#fff', letterSpacing: '0em', marginBottom: 5 }}>
             ENCRYPTED BEFORE IT&apos;S STORED
           </div>
           <p style={{ fontFamily: F.inter, fontSize: 13, color: '#a0a0a0', margin: 0, lineHeight: 1.6 }}>
@@ -233,19 +235,19 @@ export default function VaultPage() {
       </div>
 
       {error && (
-        <div style={{ background: '#fff0f8', border: '1px solid #e40586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e40586' }}>
+        <div style={{ background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 12, padding: '14px 20px', fontFamily: F.inter, fontSize: 14, color: '#e50586' }}>
           {error}
         </div>
       )}
 
       {/* ── Add / edit ── */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
-        <div style={{ height: 3, background: '#e40586' }} />
+        <div style={{ height: 3, background: '#e50586' }} />
         <div style={{ padding: '18px 24px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>
-                {editingId ? 'EDIT CREDENTIAL' : 'ADD A CREDENTIAL'}
+              <div style={{ fontFamily: F.bungee, fontSize: 18, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>
+                {editingId ? 'Edit Credential' : 'Add a Credential'}
               </div>
               <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080' }}>
                 Hosting, domain, CMS, FTP, analytics — anything the team needs access to.
@@ -254,7 +256,7 @@ export default function VaultPage() {
             <button
               type="button"
               onClick={() => (formOpen ? closeForm() : openAddForm())}
-              style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: formOpen ? '#808080' : '#fff', background: formOpen ? '#f1f0ef' : '#e40586', border: 'none', borderRadius: 8, padding: '10px 22px', cursor: 'pointer' }}
+              style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: formOpen ? '#808080' : '#fff', background: formOpen ? '#f2f2f2' : '#e50586', border: 'none', borderRadius: 8, padding: '10px 22px', cursor: 'pointer' }}
             >
               {formOpen ? 'Cancel' : '+ Add Credential'}
             </button>
@@ -295,7 +297,7 @@ export default function VaultPage() {
                     <button
                       type="button"
                       onClick={() => setShowSecretField(v => !v)}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#1e3add', cursor: 'pointer', padding: 4 }}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', cursor: 'pointer', padding: 4 }}
                     >
                       {showSecretField ? 'Hide' : 'Show'}
                     </button>
@@ -326,7 +328,7 @@ export default function VaultPage() {
               </div>
 
               {formError && (
-                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{formError}</p>
+                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{formError}</p>
               )}
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -346,15 +348,15 @@ export default function VaultPage() {
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {[1, 2].map(i => (
-            <div key={i} className="skel" style={{ height: 108, borderRadius: 12, background: '#eceae8' }} />
+            <div key={i} className="skel" style={{ height: 108, borderRadius: 12, background: '#ebebeb' }} />
           ))}
         </div>
       ) : items.length === 0 ? (
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', padding: '52px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 12 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 14, background: '#eef1ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 56, height: 56, borderRadius: 14, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="4" y="10" width="16" height="11" rx="2.5" stroke="#1e3add" strokeWidth="1.6" />
-              <path d="M8 10V7a4 4 0 018 0v3" stroke="#1e3add" strokeWidth="1.6" strokeLinecap="round" />
+              <rect x="4" y="10" width="16" height="11" rx="2.5" stroke="#3943b7" strokeWidth="1.6" />
+              <path d="M8 10V7a4 4 0 018 0v3" stroke="#3943b7" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           </div>
           <p style={{ fontFamily: F.inter, fontSize: 14, color: '#808080', margin: 0, maxWidth: 380, lineHeight: 1.6 }}>
@@ -379,10 +381,10 @@ export default function VaultPage() {
                       <div className="vault-row" style={{ marginBottom: 4 }}>
                         <span style={{ fontFamily: F.inter, fontSize: 15, fontWeight: 700, color: '#0a0a0a' }}>{item.label}</span>
                         <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: cat.bg, color: cat.color, padding: '2px 9px', borderRadius: 999 }}>{cat.label}</span>
-                        {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f1f0ef', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
+                        {proj && <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: '#f2f2f2', color: '#808080', padding: '2px 9px', borderRadius: 999 }}>{proj}</span>}
                       </div>
                       {item.site_url && (
-                        <a href={item.site_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: '#1e3add', textDecoration: 'none', wordBreak: 'break-all' }}>
+                        <a href={item.site_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, color: '#3943b7', textDecoration: 'none', wordBreak: 'break-all' }}>
                           {item.site_url} ↗
                         </a>
                       )}
@@ -399,7 +401,7 @@ export default function VaultPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(item)}
-                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e40586', background: 'transparent', border: '1.5px solid #fbc8e8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
+                        style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#e50586', background: 'transparent', border: '1.5px solid #e50586', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}
                       >
                         Delete
                       </button>
@@ -407,14 +409,14 @@ export default function VaultPage() {
                   </div>
 
                   {/* Values */}
-                  <div style={{ background: '#fafafa', border: '1px solid #f1f0ef', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ background: '#fafafa', border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div className="vault-row">
                       <span style={{ ...labelStyle, width: 74 }}>User</span>
                       <span style={{ fontFamily: F.inter, fontSize: 13, color: item.username ? '#0a0a0a' : '#bfbfbf', flex: 1, minWidth: 120, wordBreak: 'break-all' }}>
                         {item.username || 'Not provided'}
                       </span>
                       {item.username && (
-                        <button type="button" onClick={() => copyValue(`u-${item.id}`, item.username)} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1e3add', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                        <button type="button" onClick={() => copyValue(`u-${item.id}`, item.username)} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#3943b7', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                           {copied === `u-${item.id}` ? 'Copied' : 'Copy'}
                         </button>
                       )}
@@ -427,11 +429,11 @@ export default function VaultPage() {
                       </span>
                       {item.has_secret && (
                         <>
-                          <button type="button" onClick={() => handleReveal(item)} disabled={revealing === item.id} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1e3add', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                          <button type="button" onClick={() => handleReveal(item)} disabled={revealing === item.id} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#3943b7', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                             {revealing === item.id ? '…' : open ? 'Hide' : 'Show'}
                           </button>
                           {open && (
-                            <button type="button" onClick={() => copyValue(`p-${item.id}`, open.secret)} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#1e3add', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+                            <button type="button" onClick={() => copyValue(`p-${item.id}`, open.secret)} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#3943b7', background: 'transparent', border: 'none', cursor: 'pointer' }}>
                               {copied === `p-${item.id}` ? 'Copied' : 'Copy'}
                             </button>
                           )}

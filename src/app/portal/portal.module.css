@@ -1,0 +1,38 @@
+/* The portal in the public site's look (Nov 2026): Poppins with the site's
+   tracking (−55 text, −65 headings, word spacing added back), brand colours
+   only, Title Case — no all-caps labels. Pages use inline styles, so the
+   heading and caps rules reach them through their style attributes. */
+
+.root {
+  font-family: var(--font-inter), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.055em;
+  word-spacing: 0.1em;
+  color: #141414;
+}
+
+/* Headings (inline font-family: var(--font-bungee)): Poppins Bold. */
+.root :global([style*="font-bungee"]) {
+  font-weight: 700 !important;
+  letter-spacing: -0.065em !important;
+  word-spacing: 0.1em;
+  line-height: 1.1;
+}
+
+/* No all-caps labels. */
+.root :global([style*="uppercase"]) {
+  text-transform: none !important;
+  letter-spacing: -0.04em !important;
+}
+
+.root input, .root textarea, .root select, .root button {
+  font-family: inherit;
+  letter-spacing: inherit;
+  word-spacing: inherit;
+}
+
+/* Buttons are pills, like the site's (whole-card buttons keep their corners). */
+.root button:not([style*="text-align: left"]):not([style*="width: 100%"]),
+.root :global(a[style*="padding"][style*="background"]) {
+  border-radius: 999px !important;
+}

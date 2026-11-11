@@ -16,6 +16,7 @@ import {
 } from '@/lib/questionnaires';
 import QuestionField from '@/components/questionnaire/QuestionField';
 import s from '@/components/questionnaire/questionnaire.module.css';
+import { portalTrack } from '@/lib/portalTrack';
 
 type Assignment = { id: string; title: string; status: AssignmentStatus; include_optional_sections: string[]; project_name: string | null };
 type Detail = { assignment: Assignment; questionnaire: Questionnaire; answers: Record<string, AnswerValue> };
@@ -175,6 +176,7 @@ export default function QuestionnairePage() {
     setSubmitting(true);
     try {
       await portalApi(`/api/portal/questionnaires/${id}`, { body: { action: 'submit' } });
+      void portalTrack('action', { label: 'Submitted a questionnaire' });
       setConfirming(false);
       setJustSubmitted(true);
       window.scrollTo({ top: 0 });
@@ -225,7 +227,7 @@ export default function QuestionnairePage() {
       </div>
 
       {!editable && <p className={s.lockNote}>You’ve submitted this questionnaire, so your answers are locked. Need to change something? Message us and we’ll reopen it.</p>}
-      {assignment.status === 'reopened' && editable && <p className={s.lockNote} style={{ background: '#fff0f8', borderColor: '#e40586' }}>We’ve reopened this so you can make changes. Submit again when you’re done.</p>}
+      {assignment.status === 'reopened' && editable && <p className={s.lockNote} style={{ background: '#f5f5f5', borderColor: '#e50586' }}>We’ve reopened this so you can make changes. Submit again when you’re done.</p>}
 
       <div className={s.layout}>
         <nav className={s.side} aria-label="Sections">

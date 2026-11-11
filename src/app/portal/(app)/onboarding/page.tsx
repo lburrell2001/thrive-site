@@ -16,7 +16,7 @@ interface DbStep {
 }
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
@@ -50,11 +50,11 @@ export default function OnboardingPage() {
   const pct            = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
-    <div style={{ padding:24, display:'flex', flexDirection:'column', gap:16, background:'#f6f5f4', minHeight:'100%' }}>
+    <div style={{ padding:24, display:'flex', flexDirection:'column', gap:16, background:'#ffffff', minHeight:'100%' }}>
 
       {/* Error */}
       {error && (
-        <div style={{ background:'#fff0f8', border:'1px solid #e40586', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#e40586' }}>
+        <div style={{ background:'#f5f5f5', border:'1px solid #e50586', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#e50586' }}>
           Something went wrong loading onboarding steps — please refresh.
         </div>
       )}
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
             {loading ? '' : `${completedCount} of ${totalCount} steps done`}
           </span>
         </div>
-        <div style={{ height:10, borderRadius:999, background:'#f1f0ef', overflow:'hidden' }}>
+        <div style={{ height:10, borderRadius:999, background:'#f2f2f2', overflow:'hidden' }}>
           <div style={{ height:'100%', borderRadius:999, background:'#0cf574', width:`${pct}%`, transition:'width .4s ease' }} />
         </div>
       </div>}
@@ -156,12 +156,12 @@ export default function OnboardingPage() {
                 </div>
                 <div style={{ flexShrink:0, display:'flex', alignItems:'center', gap:10 }}>
                   {step.completed && (
-                    <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, background:'#0cf57418', color:'#0a7a3a', padding:'4px 12px', borderRadius:999 }}>
+                    <span style={{ fontFamily:F.inter, fontSize:11, fontWeight:700, background:'#0cf57418', color:'#08b957', padding:'4px 12px', borderRadius:999 }}>
                       Completed
                     </span>
                   )}
                   {!step.completed && step.action_label && step.action_href && (
-                    <Link href={step.action_href} style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e40586', borderRadius:8, padding:'8px 16px', textDecoration:'none' }}>
+                    <Link href={step.action_href} style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e50586', borderRadius:8, padding:'8px 16px', textDecoration:'none' }}>
                       {step.action_label}
                     </Link>
                   )}
@@ -176,10 +176,10 @@ export default function OnboardingPage() {
       {/* Help banner */}
       <div style={{ background:'#0a0a0a', borderRadius:16, padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16, marginTop:8 }}>
         <div>
-          <h3 style={{ fontFamily:F.bungee, fontSize:16, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>NEED HELP WITH ONBOARDING?</h3>
+          <h3 style={{ fontFamily:F.bungee, fontSize:16, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>Need Help With Onboarding?</h3>
           <p style={{ fontFamily:F.inter, fontSize:13, color:'#808080', margin:0 }}>Our team is here to help you get started smoothly.</p>
         </div>
-        <Link href="/contact" style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#f6f5f4', borderRadius:8, padding:'10px 20px', textDecoration:'none', flexShrink:0 }}>
+        <Link href="/contact" style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#ffffff', borderRadius:8, padding:'10px 20px', textDecoration:'none', flexShrink:0 }}>
           Contact Us
         </Link>
       </div>

@@ -18,7 +18,7 @@ export async function makePortalClient(db: SupabaseClient, contactId: string): P
   const fullName: string = contact.name || contact.email;
   const initials = fullName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const { data: made, error: createErr } = await db.auth.admin.createUser({ email: contact.email, email_confirm: true });
+  const { data: made, error: createErr } = await db.auth.admin.createUser({ email: contact.email, email_confirm: true, user_metadata: { portal_welcome: 'pending' } });
   if (createErr) return { ok: false, error: createErr.message };
   const portalId = made.user.id;
 

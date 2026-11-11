@@ -87,24 +87,24 @@ export default function FilesPage() {
   }
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: '#f6f5f4', minHeight: '100%' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24, background: '#ffffff', minHeight: '100%' }}>
 
       {/* Proposals section */}
       {(loading || proposals.length > 0) && (
         <div>
-          <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: '0 0 12px', letterSpacing: '0em' }}>PROPOSALS</h2>
+          <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 18, color: '#0a0a0a', margin: '0 0 12px', letterSpacing: '0em' }}>Proposals</h2>
           {loading ? (
             <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f0ef', flexShrink: 0 }} />
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f2f2', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ height: 12, borderRadius: 4, background: '#f1f0ef', width: '45%', marginBottom: 8 }} />
-                <div style={{ height: 10, borderRadius: 4, background: '#f1f0ef', width: '20%' }} />
+                <div style={{ height: 12, borderRadius: 4, background: '#f2f2f2', width: '45%', marginBottom: 8 }} />
+                <div style={{ height: 10, borderRadius: 4, background: '#f2f2f2', width: '20%' }} />
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {uploadError && (
-                <div style={{ background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 10, padding: '10px 16px', fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, color: '#e40586' }}>
+                <div style={{ background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 10, padding: '10px 16px', fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, color: '#e50586' }}>
                   {uploadError}
                 </div>
               )}
@@ -116,15 +116,15 @@ export default function FilesPage() {
                   <div key={p.id} style={{ background: '#fff', borderRadius: 16, border: signed ? '1.5px solid #0cf574' : '1px solid #e5e5e5', overflow: 'hidden' }}>
                     {/* Main row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px', flexWrap: 'wrap' }}>
-                      <div style={{ width: 40, height: 40, borderRadius: 10, background: signed ? '#edfff6' : '#fff0f8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={signed ? '#1a8a4a' : '#e40586'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: signed ? '#f5f5f5' : '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={signed ? '#08b957' : '#e50586'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
                           <polyline points="13 2 13 9 20 9" />
                         </svg>
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, fontWeight: 700, color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                        <span style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 11, fontWeight: 700, background: signed ? '#edfff6' : '#fff4ec', color: signed ? '#1a8a4a' : '#fd6100', padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginTop: 4 }}>
+                        <span style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 11, fontWeight: 700, background: signed ? '#f5f5f5' : '#f5f5f5', color: signed ? '#08b957' : '#fd6100', padding: '2px 8px', borderRadius: 999, display: 'inline-block', marginTop: 4 }}>
                           {signed ? '✓ Signed' : 'Awaiting your signature'}
                         </span>
                       </div>
@@ -133,7 +133,7 @@ export default function FilesPage() {
                           {signed ? 'View Original' : 'Download & Sign'}
                         </a>
                         {signed && p.signed_file_url && (
-                          <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, fontWeight: 700, color: '#1a8a4a', border: '1.5px solid #1a8a4a', borderRadius: 8, padding: '7px 14px', textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' }}>
+                          <a href={p.signed_file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, fontWeight: 700, color: '#08b957', border: '1.5px solid #08b957', borderRadius: 8, padding: '7px 14px', textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' }}>
                             View Signed ↗
                           </a>
                         )}
@@ -142,7 +142,7 @@ export default function FilesPage() {
 
                     {/* Upload signed copy — only shown when pending */}
                     {!signed && (
-                      <div style={{ borderTop: '1px solid #f1f0ef', padding: '14px 20px', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ borderTop: '1px solid #f2f2f2', padding: '14px 20px', background: '#fafafa', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, fontWeight: 700, color: '#0a0a0a' }}>Return signed copy</div>
                           <div style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, color: '#808080', marginTop: 2 }}>Download the proposal, fill it out, then upload the completed file below.</div>
@@ -164,7 +164,7 @@ export default function FilesPage() {
 
                     {/* Success confirmation */}
                     {showSuccess && (
-                      <div style={{ borderTop: '1px solid #0cf574', padding: '12px 20px', background: '#edfff6', fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, fontWeight: 700, color: '#1a8a4a' }}>
+                      <div style={{ borderTop: '1px solid #0cf574', padding: '12px 20px', background: '#f5f5f5', fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, fontWeight: 700, color: '#08b957' }}>
                         ✓ Signed proposal received — your Thrive team has been notified.
                       </div>
                     )}
@@ -178,7 +178,7 @@ export default function FilesPage() {
 
       {/* Files section heading */}
       {!loading && files.length > 0 && (
-        <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 14, color: '#0a0a0a', margin: 0, letterSpacing: '0em' }}>FILES & ASSETS</h2>
+        <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 18, color: '#0a0a0a', margin: 0, letterSpacing: '0em' }}>Files & Assets</h2>
       )}
 
       {/* Loading skeleton */}
@@ -188,14 +188,14 @@ export default function FilesPage() {
             <div key={i} style={{
               display: 'flex', alignItems: 'center', gap: 16,
               padding: '16px 24px',
-              borderBottom: i < 3 ? '1px solid #f1f0ef' : 'none',
+              borderBottom: i < 3 ? '1px solid #f2f2f2' : 'none',
             }}>
-              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f1f0ef', flexShrink: 0 }} />
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#f2f2f2', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ height: 12, borderRadius: 4, background: '#f1f0ef', width: '45%', marginBottom: 8 }} />
-                <div style={{ height: 10, borderRadius: 4, background: '#f1f0ef', width: '30%' }} />
+                <div style={{ height: 12, borderRadius: 4, background: '#f2f2f2', width: '45%', marginBottom: 8 }} />
+                <div style={{ height: 10, borderRadius: 4, background: '#f2f2f2', width: '30%' }} />
               </div>
-              <div style={{ width: 80, height: 32, borderRadius: 8, background: '#f1f0ef', flexShrink: 0 }} />
+              <div style={{ width: 80, height: 32, borderRadius: 8, background: '#f2f2f2', flexShrink: 0 }} />
             </div>
           ))}
         </div>
@@ -205,7 +205,7 @@ export default function FilesPage() {
       {!loading && files.length === 0 && proposals.length === 0 && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '64px 40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 16 }}>
           <div style={{
-            width: 64, height: 64, borderRadius: 16, background: '#f1f0ef',
+            width: 64, height: 64, borderRadius: 16, background: '#f2f2f2',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#bfbfbf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -214,7 +214,7 @@ export default function FilesPage() {
             </svg>
           </div>
           <div>
-            <h2 style={{ fontFamily: 'var(--font-bungee), Bungee, sans-serif', fontSize: 24, color: '#0a0a0a', margin: '0 0 8px', letterSpacing: '0em' }}>
+            <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 24, color: '#0a0a0a', margin: '0 0 8px', letterSpacing: '0em' }}>
               NO FILES YET
             </h2>
             <p style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, color: '#808080', margin: 0, maxWidth: 320, lineHeight: 1.6 }}>
@@ -232,7 +232,7 @@ export default function FilesPage() {
             display: 'flex', alignItems: 'center', gap: 16,
             padding: '12px 24px',
             background: '#fafafa',
-            borderBottom: '1px solid #f1f0ef',
+            borderBottom: '1px solid #f2f2f2',
           }}>
             <div style={{ width: 40, flexShrink: 0 }} />
             <span style={{ flex: 1, fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bfbfbf' }}>
@@ -250,13 +250,13 @@ export default function FilesPage() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 16,
                 padding: '16px 24px',
-                borderBottom: i < files.length - 1 ? '1px solid #f1f0ef' : 'none',
+                borderBottom: i < files.length - 1 ? '1px solid #f2f2f2' : 'none',
                 justifyContent: 'space-between',
               }}
             >
               {/* Icon */}
               <div style={{
-                width: 40, height: 40, borderRadius: 10, background: '#f6f5f4',
+                width: 40, height: 40, borderRadius: 10, background: '#ffffff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0,
               }}>

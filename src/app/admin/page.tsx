@@ -53,7 +53,8 @@ export default function AdminHome() {
   // New projects whose portal isn't set up yet (migration 057).
   const [setups, setSetups] = useState<{ project_id: string; project_name: string; client_id: string; client_name: string; contact_id: string | null; deal_id: string | null; created_at: string; steps: Record<string, boolean> }[]>([]);
   useEffect(() => {
-    apiGet<{ setups: typeof setups }>('/api/portal-setup').then((r) => setSetups(r.setups)).catch(() => setSetups([]));
+    // Only new clients' first projects need it; for existing clients it's optional (their Client tab only).
+    apiGet<{ setups: (typeof setups[number] & { required?: boolean })[] }>('/api/portal-setup').then((r) => setSetups(r.setups.filter((x) => x.required !== false))).catch(() => setSetups([]));
   }, [version]);
 
   // Work in progress (migration 052): open projects with a checklist.
@@ -149,7 +150,7 @@ export default function AdminHome() {
         // What needs her, in order; only the ones with something in them show.
         const needs = [
           { id: 'replies', title: 'Replies', count: replies.length, hot: true },
-          { id: 'portal-setup', title: 'Set up the portal', count: setups.length, hot: true, note: 'New projects: invite, questionnaires, estimate or invoice, milestones' },
+          { id: 'portal-setup', title: 'Set up the portal', count: setups.length, hot: true, note: 'New clients: invite, questionnaires, estimate or invoice, milestones' },
           { id: 'follow-ups', title: 'Follow-ups', count: d.followUps.length, hot: overdue > 0 },
           { id: 'inquiries', title: 'New inquiries', count: d.newInquiries.length, hot: true },
           { id: 'signatures', title: 'Waiting on a signature', count: d.proposalsAwaiting.length, link: { href: '/admin/crm/proposals', label: 'Proposals' } },

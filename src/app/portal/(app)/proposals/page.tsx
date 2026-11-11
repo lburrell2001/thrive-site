@@ -21,7 +21,7 @@ const day = (s: string) => new Date(s.length === 10 ? `${s}T12:00:00` : s).toLoc
 
 function statusOf(p: BuiltProposal): { label: string; color: string; bg: string } {
   if (p.status === 'signed') return { label: `Signed${p.signed_at ? ` ${day(p.signed_at)}` : ''}`, color: '#0a0a0a', bg: '#0cf574' };
-  if (p.status === 'declined') return { label: 'Declined', color: '#fff', bg: '#e40586' };
+  if (p.status === 'declined') return { label: 'Declined', color: '#fff', bg: '#e50586' };
   if (p.status === 'expired' || (p.valid_until && p.valid_until < new Date().toISOString().slice(0, 10))) return { label: 'Expired', color: '#fff', bg: '#0a0a0a' };
   return { label: 'Awaiting your signature', color: '#fff', bg: '#fd6100' };
 }
@@ -86,12 +86,12 @@ export default function PortalProposalsPage() {
   const card: React.CSSProperties = { background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' };
   const pill = (bg: string, color: string): React.CSSProperties => ({ fontFamily: F, fontSize: 11, fontWeight: 700, background: bg, color, padding: '3px 10px', borderRadius: 999, display: 'inline-block', marginTop: 4 });
   const button = (primary: boolean): React.CSSProperties => ({
-    fontFamily: F, fontSize: 13, fontWeight: 700, color: primary ? '#fff' : '#0a0a0a', background: primary ? '#e40586' : '#fff',
+    fontFamily: F, fontSize: 13, fontWeight: 700, color: primary ? '#fff' : '#0a0a0a', background: primary ? '#e50586' : '#fff',
     border: primary ? 'none' : '1.5px solid #e5e5e5', borderRadius: 10, padding: '10px 18px', textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap', cursor: 'pointer',
   });
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f6f5f4', minHeight: '100%' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#ffffff', minHeight: '100%' }}>
       {!loading && waiting > 0 && (
         <div style={{ background: '#0a0a0a', color: '#fff', borderRadius: 16, padding: '16px 20px', fontFamily: F, fontSize: 14, fontWeight: 600 }}>
           {waiting === 1 ? 'One proposal is waiting for your signature.' : `${waiting} proposals are waiting for your signature.`}
@@ -123,7 +123,7 @@ export default function PortalProposalsPage() {
       })}
 
       {uploadError && (
-        <div style={{ background: '#fff', border: '1.5px solid #e40586', borderRadius: 12, padding: '10px 16px', fontFamily: F, fontSize: 13, color: '#e40586' }}>{uploadError}</div>
+        <div style={{ background: '#fff', border: '1.5px solid #e50586', borderRadius: 12, padding: '10px 16px', fontFamily: F, fontSize: 13, color: '#e50586' }}>{uploadError}</div>
       )}
       {uploaded.map((p) => {
         const signed = p.status === 'signed';

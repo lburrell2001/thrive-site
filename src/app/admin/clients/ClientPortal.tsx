@@ -13,6 +13,7 @@ import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import QuestionnairesSection from './QuestionnairesSection';
 import PortalSetup from './PortalSetup';
+import PortalActivity from './PortalActivity';
 import { useCrm } from '../crm/CrmContext';
 import { formatPhone } from '@/lib/phone';
 import { adminHeaders } from '@/lib/adminSession';
@@ -332,6 +333,7 @@ export function ClientPortal({ clientId, onDeleted }: { clientId: string; onDele
       </div>
 
       <PortalSetup clientId={clientId} version={clientData} onGo={goTo} notify={notify} />
+      <PortalActivity clientId={clientId} />
 
       <div className={w.tabs} role="tablist" aria-label="Client">
         {TABS.map((t) => (

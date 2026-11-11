@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
 import { portalApi } from '@/lib/portalApi';
+import { portalTrack } from '@/lib/portalTrack';
 
 interface DbInvoice {
   id: string; invoice_number: string; project_name: string;
@@ -18,12 +19,12 @@ interface DbInvoice {
 const canDecide = (inv: DbInvoice) => inv.status !== 'paid' && !inv.deposit_paid_at && !inv.accepted_at && !inv.declined_at;
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
 function fmtCurrency(c: number) {
-  return (c/100).toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits:0});
+  return (c/100).toLocaleString('en-US',{style:'currency',currency:'USD',minimumFractionDigits: c % 100 ? 2 : 0});
 }
 function fmtDate(s: string) {
   return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});
@@ -60,8 +61,9 @@ function depositNote(inv: DbInvoice): string | null {
   if (due.kind === 'pay' && due.part === 'balance') return `Deposit received · ${fmtCurrency(due.cents)} balance due ${fmtDate(due.dueDate ?? inv.due_date)}`;
   return null;
 }
-const STATUS_COLOR: Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e40586', held:'#0a0a0a', declined:'#0a0a0a' };
-const STATUS_BG:    Record<string,string> = { due:'#fff4ec', paid:'#edfff6', overdue:'#fff0f8', held:'#f1f0ef', declined:'#f1f0ef' };
+// Solid brand colours with contrasting text (no pastels).
+const STATUS_COLOR: Record<string,string> = { due:'#141414', paid:'#141414', overdue:'#fff', held:'#fff', declined:'#fff' };
+const STATUS_BG:    Record<string,string> = { due:'#fd6100', paid:'#0cf574', overdue:'#e50586', held:'#141414', declined:'#141414' };
 const STATUS_LABEL: Record<string,string> = { due:'Due', paid:'Paid', overdue:'Overdue', held:'Deposit paid', declined:'Declined' };
 
 export default function InvoicesPage() {
@@ -98,8 +100,8 @@ export default function InvoicesPage() {
     setStatCards([
       { label:'Total Paid',  value:fmtCurrency(totalPaid),   color:'#0cf574' },
       { label:'Outstanding', value:fmtCurrency(outstanding), color:'#fd6100' },
-      { label:'Overdue',     value:fmtCurrency(overdue),     color:'#e40586' },
-      { label:'Next Due',    value:nextDue ? fmtDate(payNow(nextDue)?.date ?? nextDue.due_date) : '—', color:'#1e3add' },
+      { label:'Overdue',     value:fmtCurrency(overdue),     color:'#e50586' },
+      { label:'Next Due',    value:nextDue ? fmtDate(payNow(nextDue)?.date ?? nextDue.due_date) : '—', color:'#3943b7' },
     ]);
     setDueInvoice(nextDue ?? null);
     setLoading(false);
@@ -128,6 +130,7 @@ export default function InvoicesPage() {
   }, [justPaid, sessionId, loadInvoices]);
 
   async function handleExportPDF(inv: DbInvoice) {
+    void portalTrack('action', { label: `Downloaded invoice ${inv.invoice_number} (PDF)` });
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
     await generateInvoicePDF(inv);
   }
@@ -136,6 +139,7 @@ export default function InvoicesPage() {
     if (!deciding) return;
     setDecideBusy(true); setDecideError('');
     try {
+      void portalTrack('action', { label: `${deciding.mode === 'accept' ? 'Accepted' : 'Declined'} invoice ${deciding.inv.invoice_number}` });
       await portalApi(`/api/portal/invoices/${deciding.inv.id}`, { body: deciding.mode === 'accept' ? { action: 'accept' } : { action: 'decline', reason: reason.trim() } });
       setDecidedNote(deciding.mode === 'accept'
         ? `Thanks! Invoice ${deciding.inv.invoice_number} is accepted. You can pay it whenever you’re ready.`
@@ -166,6 +170,7 @@ export default function InvoicesPage() {
   }
 
   async function handlePay(invoiceId: string, amountCents: number, description: string) {
+    void portalTrack('action', { label: `Started paying: ${description}` });
     setPayLoading(true); setPayError('');
     try {
       const { data: { session } } = await supabasePortal.auth.getSession();
@@ -181,29 +186,29 @@ export default function InvoicesPage() {
   const displayStats = statCards.length > 0 ? statCards : [
     {label:'Total Paid',value:'—',color:'#0cf574'},
     {label:'Outstanding',value:'—',color:'#fd6100'},
-    {label:'Overdue',value:'—',color:'#e40586'},
-    {label:'Next Due',value:'—',color:'#1e3add'},
+    {label:'Overdue',value:'—',color:'#e50586'},
+    {label:'Next Due',value:'—',color:'#3943b7'},
   ];
 
   return (
-    <div style={{ padding:24, display:'flex', flexDirection:'column', gap:24, background:'#f6f5f4', minHeight:'100%' }}>
+    <div style={{ padding:24, display:'flex', flexDirection:'column', gap:24, background:'#ffffff', minHeight:'100%' }}>
       <style>{`
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
-        .skel{animation:pulse 1.5s ease-in-out infinite;background:#f1f0ef;border-radius:6px;}
+        .skel{animation:pulse 1.5s ease-in-out infinite;background:#f2f2f2;border-radius:6px;}
         .inv-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
-        .inv-table-head { display:grid; grid-template-columns:90px 1fr 100px 100px 100px 110px 130px; gap:12px; padding:10px 24px; background:#fafafa; }
-        .inv-table-row  { display:grid; grid-template-columns:90px 1fr 100px 100px 100px 110px 130px; gap:12px; padding:14px 24px; border-top:1px solid #f1f0ef; align-items:center; }
+        .inv-table-head { display:grid; grid-template-columns:84px 1fr 90px 80px 80px 110px 250px; gap:12px; padding:10px 24px; background:#fafafa; }
+        .inv-table-row  { display:grid; grid-template-columns:84px 1fr 90px 80px 80px 110px 250px; gap:12px; padding:14px 24px; border-top:1px solid #f2f2f2; align-items:center; }
         .inv-card { display:none; }
         @media (min-width:900px) { .inv-stats { grid-template-columns:repeat(4,1fr); } }
         @media (max-width:680px) {
           .inv-table-head { display:none; }
           .inv-table-row  { display:none; }
-          .inv-card       { display:block; padding:16px; border-top:1px solid #f1f0ef; }
+          .inv-card       { display:block; padding:16px; border-top:1px solid #f2f2f2; }
         }
       `}</style>
 
       {justPaid && (
-        <div style={{ background:'#f0fff8', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#0a7a3a' }}>
+        <div style={{ background:'#f5f5f5', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#08b957' }}>
           {confirming ? 'Confirming payment…' : 'Payment received — your invoice has been updated.'}
         </div>
       )}
@@ -224,8 +229,8 @@ export default function InvoicesPage() {
       {/* Invoice list */}
       <div style={{ background:'#fff', borderRadius:16, border:'1px solid #e5e5e5', overflow:'hidden' }}>
         <div style={{ padding:'20px 24px 8px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-          <h2 style={{ fontFamily:F.bungee, fontSize:13, color:'#0a0a0a', letterSpacing:'0em', margin:0 }}>INVOICES &amp; PAYMENTS</h2>
-          <div role="tablist" aria-label="Filter invoices" style={{ display:'flex', gap:4, background:'#f1f0ef', borderRadius:999, padding:3 }}>
+          <h2 style={{ fontFamily:F.bungee, fontSize:18, color:'#0a0a0a', letterSpacing:'0em', margin:0 }}>Invoices &amp; Payments</h2>
+          <div role="tablist" aria-label="Filter invoices" style={{ display:'flex', gap:4, background:'#f2f2f2', borderRadius:999, padding:3 }}>
             {([
               { key:'all',     label:'All',      count: invoices.length },
               { key:'due',     label:'Due',      count: invoices.filter(i=>effectiveStatus(i)==='due').length },
@@ -245,7 +250,7 @@ export default function InvoicesPage() {
             })}
           </div>
         </div>
-        <div style={{ height:1, background:'#f1f0ef' }} />
+        <div style={{ height:1, background:'#f2f2f2' }} />
 
         {/* Desktop column headers */}
         <div className="inv-table-head">
@@ -256,7 +261,7 @@ export default function InvoicesPage() {
 
         {/* Loading */}
         {loading && [1,2,3].map(i => (
-          <div key={i} style={{ height:60, borderTop:'1px solid #f1f0ef', background:i%2===0?'#fff':'#fafafa', opacity:0.4 }} />
+          <div key={i} style={{ height:60, borderTop:'1px solid #f2f2f2', background:i%2===0?'#fff':'#fafafa', opacity:0.4 }} />
         ))}
 
         {/* Empty */}
@@ -277,7 +282,7 @@ export default function InvoicesPage() {
         {!loading && invoices.filter(i => filter === 'all' || effectiveStatus(i) === filter || (filter === 'due' && effectiveStatus(i) === 'held')).map((inv, i) => {
           const es     = effectiveStatus(inv);
           const sc     = STATUS_COLOR[es] ?? '#808080';
-          const sbg    = STATUS_BG[es]    ?? '#f1f0ef';
+          const sbg    = STATUS_BG[es]    ?? '#f2f2f2';
           const canPay = es === 'due' || es === 'overdue';
 
           return (
@@ -299,13 +304,13 @@ export default function InvoicesPage() {
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
                   {decideButtons(inv)}
                   <button onClick={() => handleExportPDF(inv)}
-                    style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer' }}>
+                    style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#808080', background:'#f2f2f2', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer' }}>
                     PDF
                   </button>
                   {canPay && (
                     <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
-                      style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:8, padding:'6px 16px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
-                      {payLoading ? '…' : payNow(inv)?.label ? `PAY ${payNow(inv)!.label.toUpperCase()}` : 'PAY'}
+                      style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#fff', background:'#e50586', border:'none', borderRadius:8, padding:'6px 16px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
+                      {payLoading ? '…' : payNow(inv)?.label ? `Pay ${payNow(inv)!.label}` : 'Pay'}
                     </button>
                   )}
                 </div>
@@ -332,13 +337,13 @@ export default function InvoicesPage() {
                   <div style={{ display:'flex', gap:8, flexShrink:0, flexWrap:'wrap', justifyContent:'flex-end' }}>
                     {decideButtons(inv, true)}
                     <button onClick={() => handleExportPDF(inv)}
-                      style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#808080', background:'#f1f0ef', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>
+                      style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#808080', background:'#f2f2f2', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>
                       PDF
                     </button>
                     {canPay && (
                       <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
-                        style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
-                        {payLoading ? '…' : payNow(inv)?.label ? `PAY ${payNow(inv)!.label.toUpperCase()} ${fmtCurrency(payNow(inv)!.cents)}` : 'PAY NOW'}
+                        style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e50586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
+                        {payLoading ? '…' : payNow(inv)?.label ? `Pay ${payNow(inv)!.label} ${fmtCurrency(payNow(inv)!.cents)}` : 'Pay now'}
                       </button>
                     )}
                   </div>
@@ -350,7 +355,7 @@ export default function InvoicesPage() {
       </div>
 
       {decidedNote && (
-        <div role="status" style={{ background:'#edfff6', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#0a0a0a' }}>
+        <div role="status" style={{ background:'#f5f5f5', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#0a0a0a' }}>
           {decidedNote}
         </div>
       )}
@@ -374,12 +379,12 @@ export default function InvoicesPage() {
                   style={{ fontFamily:F.inter, fontSize:14, padding:'10px 12px', borderRadius:10, border:'1.5px solid #d4d4d4', resize:'vertical' }} />
               </label>
             )}
-            {decideError && <p role="alert" style={{ fontFamily:F.inter, fontSize:13, color:'#e40586', margin:0 }}>{decideError}</p>}
+            {decideError && <p role="alert" style={{ fontFamily:F.inter, fontSize:13, color:'#e50586', margin:0 }}>{decideError}</p>}
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
               <button onClick={() => setDeciding(null)} disabled={decideBusy}
-                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#f1f0ef', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>Cancel</button>
+                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#0a0a0a', background:'#f2f2f2', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>Cancel</button>
               <button onClick={decide} disabled={decideBusy || (deciding.mode === 'decline' && !reason.trim())}
-                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color: deciding.mode === 'accept' ? '#0a0a0a' : '#fff', background: deciding.mode === 'accept' ? '#0cf574' : '#e40586', border:'none', borderRadius:10, padding:'10px 18px', cursor:'pointer', opacity: decideBusy || (deciding.mode === 'decline' && !reason.trim()) ? 0.5 : 1 }}>
+                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color: deciding.mode === 'accept' ? '#0a0a0a' : '#fff', background: deciding.mode === 'accept' ? '#0cf574' : '#e50586', border:'none', borderRadius:10, padding:'10px 18px', cursor:'pointer', opacity: decideBusy || (deciding.mode === 'decline' && !reason.trim()) ? 0.5 : 1 }}>
                 {decideBusy ? 'Sending…' : deciding.mode === 'accept' ? 'Accept invoice' : 'Decline invoice'}
               </button>
             </div>
@@ -388,17 +393,17 @@ export default function InvoicesPage() {
       )}
 
       {payError && (
-        <div style={{ background:'#fff0f8', border:'1px solid #e40586', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#e40586' }}>
+        <div style={{ background:'#f5f5f5', border:'1px solid #e50586', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, color:'#e50586' }}>
           {payError}
         </div>
       )}
 
       {/* Due invoice CTA */}
       {!loading && dueInvoice && (
-        <div style={{ background:'#0a0a0a', borderRadius:16, borderLeft:'4px solid #e40586', padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+        <div style={{ background:'#0a0a0a', borderRadius:16, borderLeft:'4px solid #e50586', padding:'24px 28px', display:'flex', flexWrap:'wrap', alignItems:'center', justifyContent:'space-between', gap:16 }}>
           <div>
             <h3 style={{ fontFamily:F.bungee, fontSize:18, color:'#fff', margin:'0 0 4px', letterSpacing:'0em' }}>
-              {payNow(dueInvoice)?.label ? `${payNow(dueInvoice)!.label.toUpperCase()} ON ` : ''}INVOICE {dueInvoice.invoice_number} IS DUE {fmtDate(payNow(dueInvoice)?.date ?? dueInvoice.due_date).toUpperCase()}
+              {payNow(dueInvoice)?.label ? `The ${payNow(dueInvoice)!.label} on i` : 'I'}nvoice {dueInvoice.invoice_number} is due {fmtDate(payNow(dueInvoice)?.date ?? dueInvoice.due_date)}
             </h3>
             <p style={{ fontFamily:F.inter, fontSize:14, color:'#bfbfbf', margin:0 }}>
               {fmtCurrency(payNow(dueInvoice)?.cents ?? dueInvoice.amount_cents)} due now — pay now to keep your project on track
@@ -407,8 +412,8 @@ export default function InvoicesPage() {
           <button
             onClick={() => handlePay(dueInvoice.id, dueInvoice.amount_cents, `Invoice ${dueInvoice.invoice_number} — ${dueInvoice.project_name}`)}
             disabled={payLoading}
-            style={{ fontFamily:F.inter, fontSize:14, fontWeight:700, color:'#fff', background:'#e40586', border:'none', borderRadius:10, padding:'12px 24px', cursor:'pointer', flexShrink:0, opacity:payLoading?0.6:1, width:'100%', maxWidth:320 }}>
-            {payLoading ? 'Loading…' : `PAY ${fmtCurrency(payNow(dueInvoice)?.cents ?? dueInvoice.amount_cents)} NOW`}
+            style={{ fontFamily:F.inter, fontSize:14, fontWeight:700, color:'#fff', background:'#e50586', border:'none', borderRadius:999, padding:'12px 24px', cursor:'pointer', flexShrink:0, opacity:payLoading?0.6:1, width:'100%', maxWidth:320 }}>
+            {payLoading ? 'Loading…' : `Pay ${fmtCurrency(payNow(dueInvoice)?.cents ?? dueInvoice.amount_cents)} now`}
           </button>
         </div>
       )}

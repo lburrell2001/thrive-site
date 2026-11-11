@@ -5,6 +5,9 @@
 //   billing       an estimate, proposal or invoice is on the project's deal (or name)
 //   milestones    the project has at least one milestone
 // When every step is done, or Lauren skips it, portal_projects.setup_done_at is set.
+// A new client's first project must be set up (`required`: no skipping, listed
+// on Home). For an existing client — one who already had a project — it's
+// optional: a quieter prompt on their Client tab only, which can be dismissed.
 
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -19,6 +22,8 @@ export type ProjectSetup = {
   client_id: string; client_name: string; contact_id: string | null; deal_id: string | null;
   steps: Record<SetupStep, boolean>;
   invited_at: string | null; signed_in: boolean;
+  /** Their first project: setting up the portal isn't optional. */
+  required: boolean;
 };
 
 const lower = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
@@ -33,7 +38,8 @@ export async function portalSetups(db: SupabaseClient, opts: { clientId?: string
 
   const clientIds = [...new Set(projects.map((p) => p.client_id as string))];
   const dealIds = projects.map((p) => p.crm_deal_id).filter(Boolean) as string[];
-  const [clients, contacts, invites, questionnaires, invoices, estimates, proposals, milestones, users] = await Promise.all([
+  const [allProjects, clients, contacts, invites, questionnaires, invoices, estimates, proposals, milestones, users] = await Promise.all([
+    db.from('portal_projects').select('id, client_id, created_at').in('client_id', clientIds),
     db.from('portal_clients').select('id, full_name, company_name').in('id', clientIds),
     db.from('crm_contacts').select('id, portal_client_id').in('portal_client_id', clientIds),
     db.from('client_reminders').select('portal_client_id, created_at').eq('target_type', 'portal_invite').eq('email_status', 'sent').in('portal_client_id', clientIds).order('created_at', { ascending: false }),
@@ -68,6 +74,8 @@ export async function portalSetups(db: SupabaseClient, opts: { clientId?: string
       client_id: p.client_id, client_name: client?.company_name || client?.full_name || 'Client',
       contact_id: contacts.data?.find((c) => c.portal_client_id === p.client_id)?.id ?? null,
       deal_id: p.crm_deal_id, steps, invited_at: invite?.created_at ?? null, signed_in: Boolean(signedIn.get(p.client_id)),
+      // Required unless they already had a project before this one.
+      required: !allProjects.data?.some((o) => o.client_id === p.client_id && o.id !== p.id && o.created_at < p.created_at),
     });
   }
   return out;

@@ -6,7 +6,7 @@ import { formatPhone, normalizePhone } from '@/lib/phone';
 import SmsOptInLabel from '../../../components/SmsOptInLabel';
 
 const F = {
-  bungee: `var(--font-bungee), 'Bungee', sans-serif`,
+  bungee: `var(--font-bungee), sans-serif`,
   inter:  `var(--font-inter),  'Inter',  sans-serif`,
 };
 
@@ -79,19 +79,19 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#f6f5f4', minHeight: '100%' }}>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, background: '#ffffff', minHeight: '100%' }}>
 
       {/* Profile section */}
       <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
-        <div style={{ height: 3, background: '#e40586' }} />
+        <div style={{ height: 3, background: '#e50586' }} />
         <div style={{ padding: '20px 24px 24px' }}>
-          <div style={{ fontFamily: F.bungee, fontSize: 13, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>PROFILE</div>
+          <div style={{ fontFamily: F.bungee, fontSize: 18, color: '#0a0a0a', letterSpacing: '0em', marginBottom: 4 }}>Profile</div>
           <div style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', marginBottom: 20 }}>Update your name, company, and contact information.</div>
 
           {loading ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[1, 2, 3].map(i => (
-                <div key={i} style={{ height: 38, borderRadius: 8, background: '#f1f0ef' }} />
+                <div key={i} style={{ height: 38, borderRadius: 8, background: '#f2f2f2' }} />
               ))}
             </div>
           ) : (
@@ -120,19 +120,19 @@ export default function SettingsPage() {
               </div>
 
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? '#0a0a0a' : '#bfbfbf', lineHeight: 1.5 }}>
-                <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={e => setSmsOptIn(e.target.checked)} style={{ marginTop: 3, accentColor: '#e40586' }} />
+                <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={e => setSmsOptIn(e.target.checked)} style={{ marginTop: 3, accentColor: '#e50586' }} />
                 <SmsOptInLabel newTab linkStyle={{ color: 'inherit', textDecoration: 'underline' }} />
               </label>
 
               {saveErr && (
-                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e40586', background: '#fff0f8', border: '1px solid #fbc8e8', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{saveErr}</p>
+                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#e50586', background: '#f5f5f5', border: '1px solid #e50586', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{saveErr}</p>
               )}
               {saveMsg && (
-                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#0a7a3a', background: '#f0fff8', border: '1px solid #0cf574', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{saveMsg}</p>
+                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#08b957', background: '#f5f5f5', border: '1px solid #0cf574', borderRadius: 8, padding: '8px 12px', margin: 0 }}>{saveMsg}</p>
               )}
 
               <div>
-                <button type="submit" disabled={saving} style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: saving ? '#ccc' : '#e40586', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: saving ? 'default' : 'pointer', transition: 'background .15s' }}>
+                <button type="submit" disabled={saving} style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: '#fff', background: saving ? '#ccc' : '#e50586', border: 'none', borderRadius: 8, padding: '10px 24px', cursor: saving ? 'default' : 'pointer', transition: 'background .15s' }}>
                   {saving ? 'Saving…' : 'Save Profile'}
                 </button>
               </div>
