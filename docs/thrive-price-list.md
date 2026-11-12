@@ -33,6 +33,7 @@ Hosting setup | Billed during the build, transferred to you at launch | Included
 Copywriting | Written copy for every page | Included
 
 === WEBSITE ADD-ONS ===
+Note: Shopify subscription (from ~$39/mo) is paid directly to Shopify and billed separately from the build. Premium theme or paid app costs, if any, are flagged before purchase.
 Extra page | Additional page beyond package | $90
 Motion – Homepage | Scroll reveals, hover effects, and animated hero on the homepage | $135
 Motion – All pages | Scroll reveals, hover effects, and transitions across the whole site | $360
@@ -44,6 +45,11 @@ Email list signup | Newsletter signup connected to your email platform | $70
 Blog/CMS | Post and edit content on your own | $500
 Online payments | Stripe checkout, payment links, and product setup | $300
 Online store | Shop setup with up to 20 products | $800
+Shopify Store – Template | Premium theme customized in your brand, up to 20 products loaded, mobile-friendly, launch-ready. Shopify subscription billed separately by Shopify | $1,250
+Shopify Store – Custom | Fully custom storefront design, up to 20 products loaded, mobile-friendly, launch-ready. Shopify subscription billed separately by Shopify | $2,400
+Shopify store configuration | Payments, shipping, taxes, checkout, and inventory setup | $300
+Shopify account setup | Store account creation and walkthrough | Included
+Extra Shopify products | Per 20 products beyond the first 20 | $90
 Client/member login area | Private accounts and gated content | $720
 Third-party integration | CRM, POS, calendar, or other tool, each | $135
 Content migration | Move content from your old site | $135
@@ -59,6 +65,7 @@ Style guide | Colors, type, and components for developers | $450
 Developer handoff | Specs and assets for another developer | $180
 Copywriting revisions | Per page | $35
 Domain + email setup | Domain connection and professional email | $100
+Domain + email connection | Connect your existing domain, keep your email working | $100
 
 === WEBSITE CARE PLANS (MONTHLY) ===
 Care Plan – Basic | Updates, backups, security monitoring | $100
