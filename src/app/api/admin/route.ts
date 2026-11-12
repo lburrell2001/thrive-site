@@ -4,6 +4,7 @@ import { needsWelcome, welcomeDoneAt } from '@/lib/portalWelcome';
 import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
+import { sendPaymentReceipt } from '@/lib/paymentReceipt';
 import { CASE_STUDIES } from '@/app/work/caseStudies';
 import { normalizeCaseStudy } from '@/lib/caseStudyNormalize';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
@@ -406,10 +407,18 @@ export async function POST(req: NextRequest) {
         if (project_name   !== undefined) update.project_name   = project_name;
         if (amount_cents   !== undefined) update.amount_cents   = Number(amount_cents);
         if (due_date       !== undefined) update.due_date       = due_date;
+        // Marked paid by hand (cash, Zelle, check): a receipt goes out, once — only if it wasn't paid before.
+        const { data: before } = status === 'paid'
+          ? await admin.from('portal_invoices').select('status, deposit_cents, deposit_paid_at').eq('id', id).maybeSingle()
+          : { data: null };
         const { error } = await admin.from('portal_invoices').update(update).eq('id', id);
         if (error) return err(error.message);
         // Marked paid: its lines start the project's checklist if it has none.
         if (status === 'paid') await projectChecklistFromInvoice(admin, id as string).catch(() => undefined);
+        if (status === 'paid' && before && before.status !== 'paid') {
+          const part = before.deposit_cents && before.deposit_paid_at ? 'balance' : 'full';
+          after(() => sendPaymentReceipt(admin, id as string, part, 'recorded').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
+        }
         return NextResponse.json({ ok: true });
       }
 
@@ -442,10 +451,12 @@ export async function POST(req: NextRequest) {
       case 'mark_deposit_paid': {
         const { id } = params as { id?: string };
         if (!id) return err('Missing invoice');
-        const { error } = await admin.from('portal_invoices').update({ deposit_paid_at: new Date().toISOString() })
-          .eq('id', id).not('deposit_cents', 'is', null).is('deposit_paid_at', null);
+        const { data: marked, error } = await admin.from('portal_invoices').update({ deposit_paid_at: new Date().toISOString() })
+          .eq('id', id).not('deposit_cents', 'is', null).is('deposit_paid_at', null).select('id');
         if (error) return err(error.message);
         await projectChecklistFromInvoice(admin, id).catch(() => undefined);
+        // A receipt for the deposit, once.
+        if (marked?.length) after(() => sendPaymentReceipt(admin, id, 'deposit', 'recorded').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
         return NextResponse.json({ ok: true });
       }
 

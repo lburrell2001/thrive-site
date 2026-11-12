@@ -11,7 +11,8 @@ import { dueNow, type DepositFields, type PayPart } from './invoiceDeposit';
 import { projectChecklistFromInvoice } from './projectWork';
 
 export type PaidResult =
-  | { ok: true; invoiceId: string }
+  /** fresh: this call recorded the payment (the other path may have already) — send the receipt only then. */
+  | { ok: true; invoiceId: string; fresh?: boolean; part?: PayPart }
   | { ok: false; reason: string };
 
 /**
@@ -46,12 +47,15 @@ export async function markInvoicePaid(db: SupabaseClient, session: Stripe.Checko
   const update = part === 'deposit'
     ? { deposit_paid_at: new Date().toISOString(), deposit_session_id: session.id }
     : { status: 'paid', stripe_checkout_session_id: session.id };
-  const { error } = await db.from('portal_invoices').update(update).eq('id', invoiceId);
+  // Only one of the webhook and the return-page confirm records it (and sends the receipt).
+  const q = db.from('portal_invoices').update(update).eq('id', invoiceId);
+  const { data: updated, error } = await (part === 'deposit' ? q.is('deposit_paid_at', null) : q.neq('status', 'paid')).select('id');
   if (error) {
     console.error('[stripe] could not record the payment', invoiceId, error.message);
     return { ok: false, reason: 'update failed' };
   }
+  if (!updated?.length) return { ok: true, invoiceId };
   // Paid: the work starts — its lines become the project's checklist if it has none.
   await projectChecklistFromInvoice(db, invoiceId).catch((e) => console.error('[stripe] checklist not made', e));
-  return { ok: true, invoiceId };
+  return { ok: true, invoiceId, fresh: true, part };
 }

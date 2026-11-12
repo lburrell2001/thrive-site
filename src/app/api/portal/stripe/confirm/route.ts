@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { trackPaidSession } from '@/lib/opinlyStripe';
 import { markInvoicePaid } from '@/lib/invoicePayment';
+import { sendPaymentReceipt } from '@/lib/paymentReceipt';
 
 function getServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     if (!result.ok) return NextResponse.json({ error: 'Could not confirm this payment.', paid: false }, { status: 400 });
 
     after(() => trackPaidSession(session, result.invoiceId));
+    if (result.fresh) after(() => sendPaymentReceipt(getServiceClient(), result.invoiceId, result.part ?? 'full', 'card').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
     return NextResponse.json({ paid: true, invoiceId: result.invoiceId });
   } catch (err: unknown) {
     console.error('[stripe] confirm failed', err instanceof Error ? err.message : err);
