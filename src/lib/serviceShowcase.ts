@@ -40,9 +40,9 @@ export const SHOWCASE: ShowcaseService[] = [
     media: { type: "video", src: "hero-social.mp4", poster: "/new-thrive/services/social-media.webp" },
   },
   {
-    slug: "brand-design", title: "Brand Design", name: "BRAND DESIGN", tag: "03 — Brand",
-    sub: "ALL YOURS IN ONLY 4–6 WEEKS",
-    desc: "Logo, colors, type and a full identity system built around your story — so you stop blending in and start standing out.",
+    slug: "brand-design", title: "Brand & Graphic Design", name: "BRAND & GRAPHIC DESIGN", tag: "03 — Brand",
+    sub: "YOUR BRAND, EVERYWHERE IT SHOWS UP",
+    desc: "Logos and full identities built around your story — plus posters, event flyers, social graphics, menus, brochures and signage, all in your colors.",
     href: "/services/brand-design", tone: "blue",
     sticker: "/new-thrive/services/brand-design.webp",
     media: { type: "video", src: "thrive-hero-v2.mp4", poster: "/new-thrive/services/brand-design.webp" },

@@ -38,23 +38,25 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
   'brand-design': {
     slug: 'brand-design',
     path: '/services/brand-design',
-    name: 'Branding',
-    serviceType: 'Brand identity design',
-    title: 'Branding & Logo Design in Dallas, TX',
+    name: 'Brand & Graphic Design',
+    serviceType: 'Brand identity and graphic design',
+    title: 'Branding & Graphic Design in Dallas, TX',
     description:
-      'Branding for Dallas small businesses from $750: a logo, colors and fonts, or a full identity with brand guidelines in 4 to 6 weeks. Remote across the US.',
+      'Branding and graphic design for Dallas small businesses: logos and full identities from $750, plus flyers, posters, menus, brochures and signage from $70. Remote across the US.',
     remote: true,
     about: {
-      heading: 'BRANDING THAT MAKES YOU RECOGNIZABLE',
+      heading: 'A BRAND PEOPLE RECOGNIZE, EVERYWHERE IT SHOWS UP',
       paragraphs: [
         'Your brand is how people remember you after they scroll past, drive by or close the tab. A brand identity from Thrive gives you a logo, a color system and a typeface pairing that work together, plus the guidelines that keep them consistent wherever your business shows up — your website, your social accounts, your signage, your invoices.',
         'Every branding project starts with a discovery call about your goals, your customers and the feeling you want people to have when they see your name. From there you see two logo concepts, pick the one that feels most like you, and we refine it together: spacing, type, color and the layouts you will need.',
         'At the end you get your final files for print and web. A full identity adds an icon or secondary mark, a brand guidelines document, social media profile and cover images, and a business card design, and is yours in 4 to 6 weeks. The scope and price are agreed in a written proposal before any work starts.',
+        'Beyond the identity, we design the pieces your brand lives on day to day: posters and event flyers, social graphics, menus, brochures, catalogs, signage and banners, presentation decks, and packaging and merch. Each one is built from your logo, colors and fonts, so everything you put out looks like it came from the same place.',
       ],
       forWho: [
         'New businesses that need a logo and a look before they launch',
         'Established businesses whose brand feels dated or no longer fits what they offer',
         'Founders tired of every post, flyer and page looking slightly different',
+        'Businesses and events that need flyers, posters, menus or signage designed fast and on brand',
         'Businesses getting ready for a new website and want the brand right first',
       ],
     },
@@ -66,6 +68,10 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       {
         q: 'What do I get at the end?',
         a: 'Logo and essentials includes a primary logo plus one alternate layout, a color palette and font pairing, and files for print and web. A full identity adds an icon or secondary mark, a brand guidelines document, social media profile and cover images, and a business card design.',
+      },
+      {
+        q: 'Do you design flyers, posters and other graphics?',
+        a: 'Yes. A flyer, poster or social graphic is $70, an event flyer set with feed, story and print versions is $180, signage or a banner is $135, menus are $70 to $135, brochures $135 to $270 and a presentation deck $135. Packaging or merch is $180 per item. We work from your existing brand, or design one first.',
       },
       {
         q: 'How many logo concepts will I see?',

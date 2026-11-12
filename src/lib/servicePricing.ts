@@ -184,7 +184,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
     ],
   },
   'brand-design': {
-    from: 'From $750',
+    from: 'From $70',
     sections: [
       {
         id: 'packages',
@@ -212,6 +212,21 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
               'Business card design',
             ],
           },
+        ],
+      },
+      {
+        id: 'graphics',
+        heading: 'Graphics & print',
+        intro: 'One-off designs in your brand, ready to post or print. Already have a brand? We work from your logo, colors and fonts.',
+        cards: [
+          { name: 'Flyer, poster or social graphic', price: '$70', scope: 'One design' },
+          { name: 'Event flyer set', price: '$180', scope: 'Feed, story and print versions' },
+          { name: 'Signage or banner', price: '$135', scope: 'Print-ready large format' },
+          { name: 'Menu', price: '$70 to $135', scope: 'Single-sided, or double-sided and multi-page' },
+          { name: 'Brochure', price: '$135 to $270', scope: 'Bi-fold or tri-fold, or an 8–12 page booklet' },
+          { name: 'Presentation deck', price: '$135', scope: 'Up to 10 slides' },
+          { name: 'Packaging or merch', price: '$180', scope: 'Per item' },
+          { name: 'Bigger or ongoing', price: 'Contact for pricing', scope: 'Catalogs, campaigns, a monthly bundle', cta: { label: 'Contact us', href: '/contact' } },
         ],
       },
     ],

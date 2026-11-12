@@ -50,7 +50,7 @@ export type HomeConfig = {
 /** A typed quote can name the client it's from and the service it's about; it's then kept as an approved review (review_id). */
 export type QuoteSlot = { kind: 'review'; id: string } | { kind: 'custom'; text: string; who: string; contact_id?: string | null; service?: string | null; review_id?: string | null };
 export type HomeQuote = { text: string; who: string; service?: string | null };
-export const QUOTE_SERVICES: Record<string, string> = { 'brand-design': 'Brand Design', 'digital-design': 'Web Design & Development', 'social-media': 'Social Media', photography: 'Photography' };
+export const QUOTE_SERVICES: Record<string, string> = { 'brand-design': 'Brand & Graphic Design', 'digital-design': 'Web Design & Development', 'social-media': 'Social Media', photography: 'Photography' };
 export const QUOTE_COUNT = 3;
 /** The quotes the homepage launched with (kept as the defaults). */
 export const DEFAULT_QUOTES: QuoteSlot[] = [

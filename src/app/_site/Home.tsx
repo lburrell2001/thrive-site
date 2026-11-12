@@ -32,8 +32,8 @@ const CURSORS = [
 
 // Only what the service pages already promise. Colours follow each service's colour elsewhere on the site.
 const SERVICES = [
-  { title: 'Brand Design', href: '/services/brand-design', tone: s.bBlue, icon: 'brand' as const,
-    items: ['Discovery call', 'Two logo concepts', 'Color & type', 'Full identity system', 'Ready in 4–6 weeks'] },
+  { title: 'Brand & Graphic Design', href: '/services/brand-design', tone: s.bBlue, icon: 'brand' as const,
+    items: ['Logos & full identities', 'Posters & event flyers', 'Social graphics', 'Menus, brochures & signage', 'Packaging & merch'] },
   { title: 'Web Design & Development', href: '/services/digital-design', tone: s.bMagenta, icon: 'web' as const,
     items: ['Custom-coded sites', 'WordPress, Wix & Squarespace', 'App & website prototypes', 'Your colors, never a template', 'Care plans after launch'] },
   { title: 'Social Media', href: '/services/social-media', tone: s.bMint, icon: 'social' as const,

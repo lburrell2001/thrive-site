@@ -53,10 +53,10 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
   },
   'brand-design': {
     slug: 'brand-design',
-    title: 'Brand Design',
+    title: 'Brand & Graphic Design',
     icon: 'brand',
     tone: 'bBlue',
-    lede: 'Logo, colors, type and a full identity system built around your story — so you stop blending in and start standing out.',
+    lede: 'Logos and full identities built around your story — and the graphics that carry them: posters, event flyers, social graphics, menus, brochures, signage and more, all in your colors.',
     deliverablesHeading: 'Everything your brand needs',
     deliverables: [
       { icon: 'pen', title: 'Logo Design', desc: 'A primary mark and lockup variations built to work everywhere — digital, print, and beyond.' },
@@ -64,6 +64,8 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
       { icon: 'type', title: 'Typography', desc: 'Font pairing and hierarchy that makes every headline and caption feel intentional.' },
       { icon: 'book', title: 'Brand Guidelines', desc: 'A living doc covering logo usage, colors, typography, do’s and don’ts.' },
       { icon: 'card', title: 'Social & Print Pieces', desc: 'Social media profile and cover images and a business card design, with a full identity.' },
+      { icon: 'card', title: 'Posters & Event Flyers', desc: 'Single flyers or a full event set — feed, story and print versions that match.' },
+      { icon: 'book', title: 'Menus, Brochures & Signage', desc: 'Print-ready menus, brochures, catalogs, banners and signs, plus presentation decks.' },
       { icon: 'folder', title: 'Final Files', desc: 'Every final file packaged and delivered for print and web.' },
     ],
     processHeading: 'How we build it',
@@ -73,7 +75,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
       { title: 'Refinement', desc: 'We polish the system: spacing, type, color — everything gets tight.' },
       { title: 'Delivery', desc: 'Final exports + brand guidelines. Clean files, clear instructions.' },
     ],
-    workHeading: 'Brands we’ve built',
+    workHeading: 'Brands and graphics we’ve made',
     cta: ['Ready to Build', 'Your Brand?'],
   },
   'social-media': {
