@@ -16,15 +16,14 @@ import w from './work.module.css';
 export type WorkProject = { id: string; title: string; slug: string; category: string | null; tagline: string | null };
 export type WorkCaseStudy = { title: string; slug: string; category: string | null; problem: string; solution: string; results: string };
 
-// Filter tags as stored in projects.category. "Digital Design" there means
-// graphics work, not the web service — the label stays as it is.
+// Filter tags as stored in projects.category. Since 2026-11-11 "Brand Design"
+// and "Digital Design" (graphics) are one tag, "Brand & Graphic Design".
 const FILTERS = [
   { label: 'All', tone: s.bBlack },
   { label: 'Web Design & Development', tone: s.bMagenta },
-  { label: 'Brand Design', tone: s.bBlue },
-  { label: 'Digital Design', tone: s.bPurple },
+  { label: 'Brand & Graphic Design', tone: s.bBlue },
   { label: 'Social Media', tone: s.bMint },
-  { label: 'Photography', tone: s.bOrange },
+  { label: 'Photography', tone: s.bPurple },
 ];
 // Hover colour per tile, round the brand palette.
 const TONES = [s.bMagenta, s.bOrange, s.bBlue, s.bMint, s.bPurple];
