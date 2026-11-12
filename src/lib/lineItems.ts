@@ -253,6 +253,23 @@ export function selectLines<T extends LineItem>(items: T[], selection?: Partial<
   return applyPercents(chosen);
 }
 
+/**
+ * The builder's tier menu: puts item `index` (in parse order) into `tier`
+ * (null = every option) and returns the typed text again, with each tier's
+ * lines kept together after the shared ones.
+ */
+export function setTierInText(text: string, index: number, tier: string | null): string {
+  const { items } = parseLineItems(text);
+  if (!items[index]) return text;
+  const moved = { ...items[index] };
+  if (tier) moved.tier = tier; else delete moved.tier;
+  const rest = items.filter((_, i) => i !== index);
+  const order = [...new Set([...tiersOf(rest), ...(tier ? [tier] : [])])];
+  const all = [...rest.slice(0, index), moved, ...rest.slice(index)];
+  const sorted = [...all.filter((it) => !it.tier), ...order.flatMap((t) => all.filter((it) => it.tier === t))];
+  return lineItemsToText(sorted);
+}
+
 /** One tier's total with no extras (shared lines included), for "Template store — $1,550". */
 export function tierTotal(items: LineItem[], tier: string | null): number {
   return selectLines(items, { tier, optional: [] }).reduce((sum, it) => sum + it.amount_cents, 0);

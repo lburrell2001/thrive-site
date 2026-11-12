@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, choiceSections, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { amountText, categoryTotals, choiceSections, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -744,21 +744,8 @@ export default function InvoiceBuilder() {
 
   /** Tier (migration 061): which option a line belongs to (null = every option). Rewrites the list, keeping each tier's lines together. */
   function setBlockTier(b: LineBlock, tier: string | null) {
-    const valid = blocks.filter((x) => x.item);
-    const idx = valid.indexOf(b);
-    const { items: all } = parseLineItems(draft.text);
-    if (idx < 0 || !all[idx]) return;
-    const moved = { ...all[idx] };
-    if (tier) moved.tier = tier; else delete moved.tier;
-    const rest = all.filter((_, i) => i !== idx);
-    // Shared lines first, then each tier's lines in the order the tiers appear.
-    const order = [...new Set([...tiersOf(rest), ...(tier ? [tier] : [])])];
-    const withMoved = [...rest, moved];
-    const sorted = [
-      ...withMoved.filter((it) => !it.tier),
-      ...order.flatMap((t) => withMoved.filter((it) => it.tier === t)),
-    ];
-    set('text', lineItemsToText(sorted));
+    const idx = blocks.filter((x) => x.item).indexOf(b);
+    if (idx >= 0) set('text', setTierInText(draft.text, idx, tier));
   }
 
   /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
@@ -1374,7 +1361,8 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
           {headed && (
             <div className={s.rowGroupHead}>
               <span>{g.category}</span>
-              <span>{amountText(g.oneTime, g.monthly)}</span>
+              {/* With tiers or extras a category's sum would mix options: the Tiers box has the totals. */}
+              {!(choices && hasChoices(valid.map((b) => b.item))) && <span>{amountText(g.oneTime, g.monthly)}</span>}
             </div>
           )}
           {valid.filter((b) => (b.item.category?.trim() || 'Other') === g.category).map((b) => {
@@ -1389,6 +1377,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                   <span className={s.itemRowName}>
                     {name}
                     {optional && <span className={s.badgeOptional}>Optional</span>}
+                    {b.item.tier && <span className={s.badgeTier}>{b.item.tier}</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                     {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
@@ -1407,10 +1396,6 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                   {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
                   {choices && !b.item.percent && (
                     <span className={s.choiceControls}>
-                      <label className={s.descSwitch}>
-                        <input type="checkbox" className={s.switchSm} role="switch" checked={optional} onChange={() => choices.onOptional(b)} />
-                        {optional ? 'Optional — client can add it' : 'Optional'}
-                      </label>
                       {choices.tiers.length > 0 && (
                         <select className={s.tierSelect} value={b.item.tier ?? ''} aria-label={`Tier for ${name}`}
                           onChange={(e) => choices.onTier(b, e.target.value || null)}>
@@ -1418,6 +1403,10 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                           {choices.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
                         </select>
                       )}
+                      <label className={s.optionalTick}>
+                        <input type="checkbox" checked={optional} onChange={() => choices.onOptional(b)} />
+                        Optional
+                      </label>
                     </span>
                   )}
                 </div>
@@ -1456,8 +1445,8 @@ function TierBar({ items, extra, onAdd }: { items: LineItem[]; extra: string[]; 
         <strong>Tiers</strong>
         <span className={s.tierHint}>
           {tiers.length
-            ? 'The client picks one option. Lines set to “Every option” are in all of them; optional lines are extras they can tick.'
-            : 'Offer options (e.g. Template store / Custom store): name a tier, then set each line’s tier below.'}
+            ? 'The client picks one option when they accept. Use the menu under each line to put it in a tier (“Every option” = included in all). Tick Optional for extras they can add.'
+            : 'Offer options (e.g. Template store / Custom store): name a tier, then pick it from the menu under each line.'}
         </span>
       </div>
       {tiers.length > 0 && (
