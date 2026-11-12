@@ -143,6 +143,8 @@ export interface CrmDealCard extends CrmDeal {
   /** Latest builder proposal on this deal, for the card's one-line status. */
   latest_proposal: { status: string; total_cents: number; currency: string } | null;
   last_touch_at: string;
+  /** Their portal login has been used at least once (a login never used reads "Sent", not "Client"). */
+  portal_signed_in: boolean;
 }
 
 /** A contact in the Contacts list. */

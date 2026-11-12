@@ -265,7 +265,10 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
         ) : d.open_tasks > 0 ? (
           <span className={s.chip}>{d.open_tasks} task{d.open_tasks === 1 ? '' : 's'}</span>
         ) : null}
-        {d.contact.portal_client_id && d.stage !== 'won' && <span className={s.chip}>Client</span>}
+        {/* A portal login they've used reads "Client"; one never used reads "Sent" (unless the proposal already says it). */}
+        {d.contact.portal_client_id && d.stage !== 'won' && (d.portal_signed_in
+          ? <span className={s.chip}>Client</span>
+          : !(d.latest_proposal && d.stage === 'proposal') && <span className={s.chip}>Sent</span>)}
         {d.contact.tags.slice(0, 2).map((t) => <span key={t} className={s.chip}>{t}</span>)}
       </div>
       <p className={s.cardSub} style={{ marginTop: 6 }}>

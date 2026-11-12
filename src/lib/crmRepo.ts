@@ -84,6 +84,18 @@ export async function loadDealBoard(db: SupabaseClient): Promise<CrmDealCard[]> 
   ]);
   if (deals.error) throw new Error(deals.error.message);
 
+  // Portal logins that have been used: auth's last sign-in (the portal client id is the auth user id).
+  const signedIn = new Set<string>();
+  const portalIds = new Set((deals.data ?? []).map((d) => (d.crm_contacts as { portal_client_id?: string | null } | null)?.portal_client_id).filter(Boolean));
+  if (portalIds.size) {
+    for (let page = 1; page <= 10; page++) {
+      const { data, error } = await db.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error || !data) break;
+      for (const u of data.users) if (u.last_sign_in_at && portalIds.has(u.id)) signedIn.add(u.id);
+      if (data.users.length < 1000) break;
+    }
+  }
+
   const openTasks = new Map<string, { count: number; due: string | null; title: string | null }>();
   for (const t of tasks.data ?? []) {
     const cur = openTasks.get(t.contact_id) ?? { count: 0, due: null, title: null };
@@ -121,6 +133,7 @@ export async function loadDealBoard(db: SupabaseClient): Promise<CrmDealCard[]> 
       new_inquiries: newInquiries.get(d.id) ?? 0,
       latest_proposal: latestProposal.get(d.id) ?? null,
       last_touch_at: latest(touches.touched.get(d.contact_id), d.updated_at) ?? d.created_at,
+      portal_signed_in: signedIn.has((contact as { portal_client_id?: string | null } | null)?.portal_client_id ?? ''),
     };
   });
 }
