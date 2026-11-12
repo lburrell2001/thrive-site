@@ -21,6 +21,7 @@ import { ProposalFooter } from './ProposalFooter';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 import { estimateForClientPdf } from '@/lib/estimateAccess';
 import { EstimatePaper } from '@/components/estimate/EstimatePaper';
+import { proposalChoices } from '@/lib/proposalChoices';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -61,6 +62,9 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   });
 
   const deposit = depositCents(renderable.totalCents, renderable.depositPercent);
+  // Tiers and optional extras (migration 061): the client picks in the sign dialog; the footer shows the lowest option.
+  const choices = proposalChoices(renderable.lineItems);
+  const fromCents = choices?.tiers.length ? Math.min(...choices.tiers.map((t) => t.total_cents)) : renderable.totalCents;
   const estimate = await estimateForClient(row.estimate_id ?? null);
 
   // The terms link lives on the signature block, and the modal needs it.
@@ -129,7 +133,7 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
       <ProposalFooter
         slug={slug}
         token={token ?? ''}
-        totalLabel={formatMoney(renderable.totalCents, renderable.currency)}
+        totalLabel={choices?.tiers.length && renderable.status !== 'signed' ? `From ${formatMoney(fromCents, renderable.currency)}` : formatMoney(renderable.totalCents, renderable.currency)}
         depositLabel={`${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
         pdfHref={`/api/proposals/${row.id}/pdf?t=${encodeURIComponent(token ?? '')}`}
         signed={renderable.status === 'signed'}
@@ -138,6 +142,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         termsUrl={termsUrl}
         estimate={estimate}
         clientName={renderable.client?.company || renderable.client?.name || null}
+        choices={choices}
+        currency={renderable.currency}
       />
     </main>
   );

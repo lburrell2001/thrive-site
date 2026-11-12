@@ -16,6 +16,8 @@ export type ProposalLine = {
   quantity: number;
   unit_price_cents: number;
   position: number;
+  tier?: string | null;
+  is_optional?: boolean;
 };
 
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
@@ -48,7 +50,11 @@ export function estimateToProposalLines(lines: LineItem[]): {
         unit = line.amount_cents / n;
       }
     }
-    lineItems.push({ label: label.slice(0, 200), description, quantity, unit_price_cents: unit, position: lineItems.length });
+    lineItems.push({
+      label: label.slice(0, 200), description, quantity, unit_price_cents: unit, position: lineItems.length,
+      ...(line.tier ? { tier: line.tier } : {}),
+      ...(line.optional ? { is_optional: true } : {}),
+    });
     const title = label.replace(/\s*\(optional\)\s*$/i, '');
     if (!deliverables.some((d) => d.title === title)) {
       deliverables.push({ title, description: stripMo(line.description.split('\n')[0] ?? '') });
@@ -69,6 +75,22 @@ export function proposalTotals(items: ProposalLine[]): { oneTime: number; monthl
     else oneTime += cents;
   }
   return { oneTime, monthly };
+}
+
+/**
+ * Tiers and optional extras (migration 061): the lines a signed proposal's
+ * client chose — their option, the shared lines and the extras they ticked
+ * (the estimate's selection; extras by index in position order). Without a
+ * choice yet: the first option, no extras.
+ */
+export function chosenProposalLines(items: ProposalLine[], selection?: { tier: string | null; optional: number[] } | null): ProposalLine[] {
+  const order = [...items].sort((a, b) => a.position - b.position).filter((i) => i.label.trim());
+  const tierOf = (i: ProposalLine) => i.tier?.trim() || null;
+  if (!order.some((i) => tierOf(i) || i.is_optional)) return items;
+  const tier = selection?.tier ?? order.map(tierOf).find((t) => t) ?? null;
+  const ticked = new Set(selection?.optional ?? []);
+  return order.filter((i, idx) => (i.is_optional ? ticked.has(idx) : !tierOf(i) || tierOf(i) === tier))
+    .map(({ tier: _t, is_optional: _o, ...rest }) => { void _t; void _o; return rest; });
 }
 
 /** Typed lines for the invoice builder. */
@@ -113,6 +135,8 @@ export function proposalToEstimateLines(items: ProposalLine[], previous: LineIte
     };
     if (before?.category) line.category = before.category;
     if (before?.hide_description) line.hide_description = true;
+    if (i.tier?.trim()) line.tier = i.tier.trim();
+    if (i.is_optional) line.optional = true;
     return line;
   });
 }

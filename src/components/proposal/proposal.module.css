@@ -647,6 +647,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tiers and optional extras (migration 061): a heading per option, with its total. */
+.pricingOptionHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: clamp(8px, 1.4cqw, 16px) 0 clamp(4px, 0.8cqw, 8px);
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(12px, 1.8cqw, 18px);
+  text-transform: uppercase;
+  color: var(--accent-2, var(--accent));
+}
+
 /* The total is the loudest object on the page: a full-width orange bar. */
 .pricingTotal {
   display: flex;

@@ -461,6 +461,26 @@
 .estimateTotalSub { margin-top: 2px; }
 .estimateNotes { margin: 18px 0 0; font-size: 13px; line-height: 1.6; color: #333; white-space: pre-line; }
 
+/* Tiers and optional extras (migration 061) */
+.estimateSection + .estimateSection { margin-top: 18px; }
+.estimateSectionHead {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  margin: 0; padding: 10px 12px; background: #fbe6f1; color: #c4046f;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.estimateSectionTotal { font-size: 15px; letter-spacing: 0; color: #0a0a0a; white-space: nowrap; }
+.estimateOption { border: 2px solid transparent; border-radius: 12px; overflow: hidden; }
+.estimateOption .estimateSectionHead { border-radius: 0; }
+.estimateOptionOn { border-color: #e50586; }
+.estimateOption .estimateRows { padding: 0 12px; border-top: 0; }
+.estimatePick { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.estimatePick input, .estimateTick { width: 20px; height: 20px; accent-color: #e50586; cursor: pointer; flex: 0 0 auto; margin: 0; }
+.estimateRows li.estimateRowChoice { justify-content: flex-start; }
+.estimateRows li.estimateRowChoice > div { flex: 1; }
+.estimateRowChoice .estimateTick { margin-top: 1px; }
+.estimateTag { margin-left: 8px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #c4046f; }
+.estimateTickMark { width: 20px; flex: 0 0 auto; font-weight: 700; color: #0cb35c; }
+
 .estimateSectionTitle {
   max-width: 860px;
   margin: 40px auto -12px;
@@ -474,3 +494,15 @@
 }
 
 button.proposalFooterAction { font-family: inherit; }
+
+/* The sign dialog's option and extras chooser (migration 061) */
+.signChoices { border: 0; margin: 0 0 18px; padding: 0; display: grid; gap: 8px; }
+.signChoicesHead { margin: 6px 0 2px; padding: 0; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #9a9a9a; }
+.signChoice { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid #2e2e2e; border-radius: 12px; cursor: pointer; }
+.signChoice span { flex: 1; }
+.signChoice strong { white-space: nowrap; }
+.signChoice input { width: 18px; height: 18px; accent-color: #e50586; margin: 0; }
+.signChoiceOn { border-color: #e50586; }
+.signChoicesTotal { display: flex; justify-content: space-between; margin: 4px 0 0; padding-top: 8px; border-top: 1px solid #2e2e2e; }
+.signChoicesTotal span { font-weight: 600; }
+.signChoicesTotal strong { font-size: 18px; }

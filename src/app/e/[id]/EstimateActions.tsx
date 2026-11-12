@@ -9,9 +9,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
+import type { LineSelection } from '@/lib/lineItems';
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false }: {
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, selection, choiceLabel, pricing = false }: {
   id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean; invoiced?: boolean;
+  /** Tiers and extras (migration 061): what the client picked, sent with Accept. */
+  selection?: LineSelection;
+  /** "Custom store + 1 extra", said back in the confirm. */
+  choiceLabel?: string;
+  /** The total is being worked out for a new choice. */
+  pricing?: boolean;
 }) {
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState('');
@@ -49,7 +56,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
       const res = await fetch(`/e/${id}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, name: name.trim(), agreed }),
+        body: JSON.stringify({ token, name: name.trim(), agreed, ...(selection ? { selection } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean };
       if (!res.ok) { setError(body.error ?? 'Something went wrong. Please try again.'); setBusy(false); return; }
@@ -97,7 +104,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             (invoiced || done?.invoiceReady) ? <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a> : null
           ) : canAccept && !isDeclined ? (<>
             <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclining(true); }}>Not going ahead</button>
-            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setOpen(true); }}>Accept estimate</button>
+            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" disabled={pricing} onClick={() => { setError(''); setOpen(true); }}>Accept estimate</button>
           </>) : null}
         </div>
       </div>
@@ -154,7 +161,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             </div>
             <label className="signCheck">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>I accept this estimate for {totalLabel} and agree to be invoiced for it.</span>
+              <span>I accept this estimate{choiceLabel ? ` (${choiceLabel})` : ''} for {totalLabel} and agree to be invoiced for it.</span>
             </label>
             {error && <p className="signError" role="alert">{error}</p>}
             <div className="signActions">

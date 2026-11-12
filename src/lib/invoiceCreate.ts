@@ -7,7 +7,7 @@
 import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ClientMessage } from './clientNotify';
-import { lineItemsSchema, totalCents } from './lineItems';
+import { lineItemsSchema, selectLines, totalCents } from './lineItems';
 import { SITE_URL } from './seo';
 
 const usd = (c: number) => (c / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
@@ -27,10 +27,13 @@ export async function createPortalInvoice(
   if (line_items !== undefined) {
     const lines = lineItemsSchema.safeParse(line_items);
     if (!lines.success) return { ok: false, error: lines.error.issues[0]?.message ?? 'Check the invoice lines' };
-    amount_cents = totalCents(lines.data);
+    // An invoice bills one set of lines: tiers and optional extras (estimate-only) are resolved
+    // to the first option with no extras, and the markers dropped.
+    const billed = selectLines(lines.data.map(({ optional: _o, ...it }) => { void _o; return it; }));
+    amount_cents = totalCents(billed);
     if (Number(amount_cents) <= 0) return { ok: false, error: 'The invoice total must be more than $0' };
     row.amount_cents = amount_cents;
-    row.line_items = lines.data;
+    row.line_items = billed;
     row.notes = typeof notes === 'string' && notes.trim() ? notes.trim().slice(0, 4000) : null;
     if (typeof totals_only === 'boolean') row.totals_only = totals_only;
   }

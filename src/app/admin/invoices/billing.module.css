@@ -1112,3 +1112,14 @@
   font-weight: 700;
   vertical-align: 1px;
 }
+
+/* Tiers and optional items (migration 061) */
+.choiceControls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 6px; }
+.tierSelect { font: inherit; font-size: 12.5px; padding: 4px 8px; border: 1px solid var(--a-border-strong); border-radius: 999px; background: #fff; }
+.tierBar { border: 1.5px solid #141414; border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; display: grid; gap: 8px; }
+.tierBarHead { display: grid; gap: 2px; }
+.tierHint { font-size: 12px; color: var(--a-muted); margin: 0; }
+.tierList { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.tierList li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 6px 10px; border-radius: 10px; background: var(--a-surface-2); }
+.tierAdd { display: flex; gap: 8px; }
+.tierAdd input { flex: 1; min-width: 0; }

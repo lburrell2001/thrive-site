@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
   // Work out the starting blocks.
   let blocks: ProposalBlock[] = [];
-  let lineItems: { label: string; description: string | null; quantity: number; unit_price_cents: number; position: number }[] = [];
+  let lineItems: { label: string; description: string | null; quantity: number; unit_price_cents: number; position: number; tier?: string | null; is_optional?: boolean }[] = [];
   let theme: unknown = {};
   let depositPercent = 50;
   let currency = 'USD';
@@ -126,6 +126,9 @@ export async function POST(req: Request) {
       quantity: Number(row.quantity),
       unit_price_cents: row.unit_price_cents,
       position: index,
+      // Migration 061 (absent before it).
+      ...(row.tier ? { tier: row.tier } : {}),
+      ...(row.is_optional ? { is_optional: true } : {}),
     }));
     theme = source.data.theme ?? {};
     depositPercent = source.data.deposit_percent;

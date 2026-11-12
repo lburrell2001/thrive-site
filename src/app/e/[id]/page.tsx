@@ -6,6 +6,9 @@ import { notFound } from 'next/navigation';
 import { estimateForClientPdf, loadClientEstimate } from '@/lib/estimateAccess';
 import { EstimatePaper, estimateTotalLabel } from '@/components/estimate/EstimatePaper';
 import { EstimateActions } from './EstimateActions';
+import { EstimateChoices } from './EstimateChoices';
+import { hasChoices } from '@/lib/lineItems';
+import { choiceTotal } from '@/lib/estimateChoice';
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string | string[] }> };
 
@@ -27,8 +30,10 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
     <main>
       {accepted && (
         <p className="proposalNotice proposalNoticeGood">
-          Accepted{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}. Your invoice is ready in your client portal.{' '}
-          <a href="/portal/invoices" style={{ color: 'inherit', fontWeight: 700 }}>Open your portal →</a>
+          Accepted{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}.{' '}
+          {est.invoice_id ? (<>Your invoice is ready in your client portal.{' '}
+            <a href="/portal/invoices" style={{ color: 'inherit', fontWeight: 700 }}>Open your portal →</a></>)
+            : 'We’ll set up your client portal and send your invoice there.'}
         </p>
       )}
       {est.status === 'declined' && !accepted && (
@@ -42,6 +47,19 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         </p>
       )}
 
+      {hasChoices(est.line_items) && !accepted ? (
+        <EstimateChoices
+          id={est.id}
+          token={token!}
+          pdf={pdf}
+          clientName={est.client_name || null}
+          initial={choiceTotal(est.line_items, est.selection).selection}
+          initialTotal={(() => { const c = choiceTotal(est.line_items, est.selection); return { cents: c.total_cents, label: c.label }; })()}
+          canAccept={!expired && est.status !== 'declined' && est.status !== 'invoiced'}
+          declined={est.status === 'declined'}
+          invoiced={!!est.invoice_id}
+        />
+      ) : (<>
       <EstimatePaper pdf={pdf} clientName={est.client_name || null} />
 
       <EstimateActions
@@ -55,6 +73,7 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         declined={est.status === 'declined'}
         invoiced={!!est.invoice_id}
       />
+      </>)}
     </main>
   );
 }

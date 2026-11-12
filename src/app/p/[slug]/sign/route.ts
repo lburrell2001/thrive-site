@@ -19,6 +19,8 @@ import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/propo
 import { formatMoney } from '@/components/proposal/context';
 import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { afterAccept } from '@/lib/acceptedPortal';
+import { choiceTotalFor } from '@/lib/proposalChoices';
+import { totalCents, type LineItem } from '@/lib/lineItems';
 
 /**
  * Fetch the proposal PDF over HTTP rather than rendering it in this function.
@@ -58,6 +60,11 @@ const signRequestSchema = z.object({
   agreedTerms: z.literal(true, { message: 'You need to agree to the terms to approve' }),
   /** The token also arrives in the body so the POST works without a referer. */
   token: z.string().min(1).max(64),
+  /** Tiers and optional extras (migration 061): the option and the extras (line ids) they picked. */
+  selection: z.object({
+    tier: z.string().trim().max(80).nullable(),
+    optional: z.array(z.string().uuid()).max(100),
+  }).optional(),
 });
 
 function fail(message: string, status = 400) {
@@ -104,6 +111,10 @@ export async function POST(
     return fail('This proposal is no longer open for approval.', 409);
   }
 
+  // Their choice of option and extras decides the total they're signing for.
+  const choice = choiceTotalFor(renderable.lineItems, input.selection);
+  const agreedCents = choice ? choice.total_cents : renderable.totalCents;
+
   const db = proposalServiceClient();
   const signedAt = new Date();
   const ipAddress = parseIpAddress(req.headers.get('x-forwarded-for'));
@@ -113,7 +124,7 @@ export async function POST(
   // document and leaves this row exactly as it is.
   const snapshot = buildSignatureSnapshot(
     renderable.blocks,
-    renderable.totalCents,
+    agreedCents,
     renderable.currency,
   );
 
@@ -128,7 +139,7 @@ export async function POST(
     user_agent: userAgent,
     blocks_snapshot: snapshot.blocks,
     content_hash: snapshot.contentHash,
-    total_cents: renderable.totalCents,
+    total_cents: agreedCents,
     signed_at: signedAt.toISOString(),
   });
 
@@ -143,7 +154,7 @@ export async function POST(
 
   const { error: statusError } = await db
     .from('proposals')
-    .update({ status: 'signed', signed_at: signedAt.toISOString() })
+    .update({ status: 'signed', signed_at: signedAt.toISOString(), ...(choice ? { total_cents: agreedCents } : {}) })
     .eq('id', row.id);
 
   if (statusError) console.error('Signature saved but status not updated:', statusError.message);
@@ -154,6 +165,15 @@ export async function POST(
   let invoiceReady = false;
   let needsSetup = false;
   if (estimateId) {
+    // The estimate's lines follow the proposal's (by position): the chosen extras by index.
+    if (choice) {
+      const order = [...renderable.lineItems].sort((a, b) => a.position - b.position).filter((i) => i.label.trim());
+      const selection = { tier: choice.selection.tier, optional: choice.selection.optional.map((id) => order.findIndex((i) => i.id === id)).filter((i) => i >= 0) };
+      const { data: estRow } = await db.from('estimates').select('line_items').eq('id', estimateId).maybeSingle();
+      const total = totalCents((estRow?.line_items ?? []) as LineItem[], selection);
+      const { error: selErr } = await db.from('estimates').update({ selection, total_cents: total }).eq('id', estimateId);
+      if (selErr) console.error('[sign] selection not saved (run migration 061?)', row.id, selErr.message);
+    }
     await db.from('estimates').update({ accepted_at: signedAt.toISOString(), accepted_by: input.signerName, accepted_ip: ipAddress }).eq('id', estimateId).is('accepted_at', null);
     const next = await afterAccept(db, estimateId, { depositPercent: renderable.depositPercent });
     invoiceReady = next.invoiceReady;
@@ -169,11 +189,11 @@ export async function POST(
       ip: ipAddress,
       user_agent: userAgent,
       content_hash: snapshot.contentHash,
-      total_cents: renderable.totalCents,
+      total_cents: agreedCents,
     },
   });
 
-  const depositCents = depositCentsFor(renderable.totalCents, renderable.depositPercent);
+  const depositCents = depositCentsFor(agreedCents, renderable.depositPercent);
   const site = resolveSiteOrigin(req);
 
   // Rendering a PDF and sending two emails takes seconds. The client is
@@ -182,8 +202,8 @@ export async function POST(
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
     await textAgency(needsSetup
-      ? `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
-      : `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
+      ? `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
+      : `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
     );
     const pdf = await fetchProposalPdf(site, row.id, row.access_token, renderable.title);
     await sendSigningEmails({
@@ -197,7 +217,7 @@ export async function POST(
         timeStyle: 'short',
         timeZone: 'America/Chicago',
       }),
-      totalLabel: formatMoney(renderable.totalCents, renderable.currency),
+      totalLabel: formatMoney(agreedCents, renderable.currency),
       depositLabel: formatMoney(depositCents, renderable.currency),
       depositPercent: renderable.depositPercent,
       proposalUrl: `${site}/p/${slug}?t=${row.access_token}`,
@@ -216,7 +236,7 @@ export async function POST(
     ok: true,
     data: {
       signedAt: signedAt.toISOString(),
-      totalLabel: formatMoney(renderable.totalCents, renderable.currency),
+      totalLabel: formatMoney(agreedCents, renderable.currency),
       depositLabel: formatMoney(depositCents, renderable.currency),
       depositPercent: renderable.depositPercent,
       portalPath: '/portal/invoices',

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import type { ProposalChoices } from "@/lib/proposalChoices";
 
 interface SignResult {
   signedAt: string;
@@ -23,12 +24,23 @@ export function SignAction({
   token,
   pdfHref,
   termsUrl,
+  choices,
+  currency = "USD",
 }: {
   slug: string;
   token: string;
   pdfHref: string;
   termsUrl?: string;
+  /** Tiers and optional extras (migration 061): the client picks theirs here. */
+  choices?: ProposalChoices | null;
+  currency?: string;
 }) {
+  const [tier, setTier] = useState<string | null>(choices?.tiers[0]?.name ?? null);
+  const [extras, setExtras] = useState<string[]>([]);
+  const money = (c: number) => new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: c % 100 ? 2 : 0 }).format(c / 100);
+  const chosenTotal = choices
+    ? (choices.tiers.find((t) => t.name === tier)?.total_cents ?? 0) + choices.extras.filter((e) => extras.includes(e.id)).reduce((n, e) => n + e.amount_cents, 0)
+    : 0;
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<SignResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -100,6 +112,7 @@ export function SignAction({
           typedName,
           agreedTerms,
           token,
+          ...(choices ? { selection: { tier, optional: extras } } : {}),
         }),
       });
       const body = (await res.json()) as { data?: SignResult; error?: string };
@@ -156,6 +169,37 @@ export function SignAction({
                     the date, time, and a copy of exactly what you are
                     approving.
                   </p>
+
+                  {choices && (
+                    <fieldset className="signChoices">
+                      {choices.tiers.length > 0 && (
+                        <>
+                          <legend className="signChoicesHead">Choose your option</legend>
+                          {choices.tiers.map((t, i) => (
+                            <label key={t.name} className={`signChoice${tier === t.name ? " signChoiceOn" : ""}`}>
+                              <input type="radio" name="sign-tier" checked={tier === t.name} onChange={() => setTier(t.name)} />
+                              <span>Option {i + 1}: {t.name}</span>
+                              <strong>{money(t.total_cents)}</strong>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                      {choices.extras.length > 0 && (
+                        <>
+                          <p className="signChoicesHead">Add any extras</p>
+                          {choices.extras.map((e) => (
+                            <label key={e.id} className="signChoice">
+                              <input type="checkbox" checked={extras.includes(e.id)}
+                                onChange={(ev) => setExtras((cur) => (ev.target.checked ? [...cur, e.id] : cur.filter((x) => x !== e.id)))} />
+                              <span>{e.label}</span>
+                              <strong>+ {money(e.amount_cents)}</strong>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                      <p className="signChoicesTotal"><span>Your total</span><strong>{money(chosenTotal)}</strong></p>
+                    </fieldset>
+                  )}
 
                   <SignField
                     ref={firstField}

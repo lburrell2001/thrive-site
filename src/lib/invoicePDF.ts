@@ -1,4 +1,4 @@
-import { amountText, clientRows, formatLineMoney, splitTotals, type LineItem } from './lineItems';
+import { amountText, choiceSections, clientRows, defaultSelection, formatLineMoney, hasChoices, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
 import { dueNow } from './invoiceDeposit';
 
 export interface InvoiceForPDF {
@@ -20,20 +20,49 @@ export interface InvoiceForPDF {
   deposit_due_date?: string | null;
   deposit_paid_at?: string | null;
   balance_open?: boolean | null;
+  /** Tiers (migration 061): each option's total — shared lines included, no extras. Worked out from the lines when absent. */
+  options?: { tier: string; total_cents: number }[] | null;
+  /** The client's choice, once they've accepted. */
+  selection?: LineSelection | null;
 }
 
-type Row = { name: string; description: string; hours: number | null; amount: string };
+type Row = { name: string; description: string; hours: number | null; amount: string; heading?: boolean };
+
+/** Each option's total, from the PDF data or worked out from full lines. */
+export function optionTotals(invoice: Pick<InvoiceForPDF, 'line_items' | 'options'>): { tier: string; total_cents: number }[] {
+  if (invoice.options?.length) return invoice.options;
+  const lines = (invoice.line_items ?? []) as LineItem[];
+  return tiersOf(lines).map((tier) => ({ tier, total_cents: tierTotal(lines, tier) }));
+}
 
 
 /** What the table prints: every line, or one row per category. */
-function tableRows(invoice: InvoiceForPDF): Row[] {
+export function tableRows(invoice: InvoiceForPDF): Row[] {
   const lines = invoice.line_items ?? [];
   if (!lines.length) {
     return [{ name: invoice.project_name || 'Creative Services', description: '', hours: null, amount: fmtMoney(invoice.amount_cents) }];
   }
-  return clientRows(lines, !!invoice.totals_only).map((r) => ({
-    name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly),
-  }));
+  const rows = clientRows(lines as LineItem[], !!invoice.totals_only);
+  const plain = (r: (typeof rows)[number]): Row => ({ name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly) });
+  if (!hasChoices(rows)) return rows.map(plain);
+  // Tiers and extras: what every option includes, each option with its total, then the extras.
+  const totals = optionTotals(invoice);
+  const chosen = invoice.selection;
+  const out: Row[] = [];
+  for (const sec of choiceSections(rows)) {
+    if (sec.kind === 'shared' && totals.length) out.push({ name: 'Included in every option', description: '', hours: null, amount: '', heading: true });
+    if (sec.kind === 'tier') {
+      const n = totals.findIndex((t) => t.tier === sec.tier);
+      const picked = chosen?.tier === sec.tier ? ' — chosen' : '';
+      out.push({ name: `Option ${n + 1}: ${sec.tier}${picked}`, description: 'Total with everything included in every option', hours: null, amount: formatLineMoney(totals[n]?.total_cents ?? 0), heading: true });
+    }
+    if (sec.kind === 'extras') out.push({ name: 'Optional extras', description: chosen ? 'Ticked extras are in the total' : 'Add any of these', hours: null, amount: '', heading: true });
+    for (const r of sec.rows) {
+      const ticked = chosen && r.optional && r.source !== undefined && chosen.optional.includes(r.source);
+      out.push({ ...plain(r), name: r.optional ? `${r.name}${ticked ? ' — added' : ' (optional)'}` : r.name });
+    }
+  }
+  return out;
 }
 
 /** Whole dollars stay whole; cents show when there are any. */
@@ -194,13 +223,17 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
       y = header(20);
     }
 
+    if (line.heading) {
+      doc.setFillColor('#fbe6f1');
+      doc.rect(M, y, tableW, rowH, 'F');
+    }
     doc.setDrawColor('#e5e5e5');
     doc.line(M, y + rowH, M + tableW, y + rowH);
 
     let ty = y + 7.5;
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.setTextColor('#0a0a0a');
+    doc.setTextColor(line.heading ? '#c4046f' : '#0a0a0a');
     doc.text(nameLines, M + 5, ty);
     doc.text(line.amount, amountX, ty, { align: 'right' });
     if (showHours && line.hours !== null) {
@@ -219,8 +252,13 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
 
   // Total row (dark bg). An estimate with monthly lines shows one-time and
   // monthly apart; an invoice is due in full, first month included.
-  const split = invoice.line_items?.length ? splitTotals(invoice.line_items as LineItem[]) : { oneTime: invoice.amount_cents, monthly: 0 };
-  const totals: { label: string; value: string }[] = isEstimate && split.monthly
+  const sel = invoice.line_items?.length && hasChoices(invoice.line_items as LineItem[])
+    ? defaultSelection(invoice.line_items as LineItem[], invoice.selection) : null;
+  const split = invoice.line_items?.length ? splitTotals(invoice.line_items as LineItem[], sel) : { oneTime: invoice.amount_cents, monthly: 0 };
+  const choiceLabel = sel?.tier ? ` — ${sel.tier.toUpperCase()}${invoice.selection ? '' : ', NO EXTRAS'}` : sel && !invoice.selection ? ' — NO EXTRAS' : '';
+  const totals: { label: string; value: string }[] = sel && !split.monthly
+    ? [{ label: `${isEstimate ? 'ESTIMATE TOTAL' : 'TOTAL DUE'}${choiceLabel}`, value: fmtMoney(split.oneTime) }]
+    : isEstimate && split.monthly
     ? [
         ...(split.oneTime ? [{ label: 'ONE-TIME TOTAL', value: fmtMoney(split.oneTime) }] : []),
         { label: 'MONTHLY', value: `${fmtMoney(split.monthly)}/mo` },

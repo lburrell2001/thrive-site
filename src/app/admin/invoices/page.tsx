@@ -19,13 +19,13 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, splitTotals, totalCents, type LineBlock, type LineItem } from '@/lib/lineItems';
+import { amountText, categoryTotals, choiceSections, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import SendLater, { laterAt, scheduledFor } from '../SendLater';
 import { formatWhen } from '@/lib/scheduleTime';
-import { proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
+import { chosenProposalLines, proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
 import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
 
 type Mode = 'estimate' | 'invoice';
@@ -175,6 +175,8 @@ export default function InvoiceBuilder() {
   const { toast, show } = useToast();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [drawer, setDrawer] = useState(false);
+  /** Tiers named in the bar but not given any items yet (migration 061). */
+  const [newTiers, setNewTiers] = useState<string[]>([]);
 
   useEffect(() => {
     apiGet<Catalog & { ready: boolean }>('/api/price-list')
@@ -225,7 +227,7 @@ export default function InvoiceBuilder() {
         if (proposalId) {
           window.history.replaceState(null, '', window.location.pathname);
           const part = (['full', 'deposit', 'balance'].includes(params.get('part') ?? '') ? params.get('part') : 'full') as InvoicePart;
-          apiGet<{ proposal: { title: string; deposit_percent: number }; lineItems: ProposalLine[]; client: { name: string; company: string | null; portal_client_id: string | null } | null }>(`/api/proposals/${proposalId}`)
+          apiGet<{ proposal: { title: string; deposit_percent: number }; lineItems: ProposalLine[]; client: { name: string; company: string | null; portal_client_id: string | null } | null; estimate?: { selection?: { tier: string | null; optional: number[] } | null } | null }>(`/api/proposals/${proposalId}`)
             .then((pr) => {
               if (cancelled) return;
               const current = storedDraft();
@@ -237,7 +239,7 @@ export default function InvoiceBuilder() {
               setDraft({
                 ...blankDraft('invoice'), client: key,
                 clientName: portalClient ? clientLabel(portalClient) : (pr.client?.company || pr.client?.name || ''),
-                title: pr.proposal.title, text: proposalInvoiceText(part, pr.proposal, pr.lineItems), totalsOnly: part === 'full',
+                title: pr.proposal.title, text: proposalInvoiceText(part, pr.proposal, chosenProposalLines(pr.lineItems, pr.estimate?.selection)), totalsOnly: part === 'full',
                 // The whole proposal on one invoice, with its deposit first.
                 ...(part === 'full' && pr.proposal.deposit_percent > 0 && pr.proposal.deposit_percent < 100
                   ? { depositOn: true, depositMode: 'percent' as const, depositValue: String(pr.proposal.deposit_percent) }
@@ -289,7 +291,10 @@ export default function InvoiceBuilder() {
     return <div className={w.page}><p className={w.muted}>{failed || 'Loading…'}</p></div>;
   }
 
-  const { items, problems } = parseLineItems(draft.text);
+  const parsedLines = parseLineItems(draft.text);
+  // An invoice bills everything on it: "optional" only means something on an estimate (migration 061).
+  const items = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, ...it }) => { void _o; return it; }) : parsedLines.items;
+  const { problems } = parsedLines;
   const total = totalCents(items);
   const split = splitTotals(items);
   const depositCents = isDepositOn(draft) ? depositFor(draft, total) : 0;
@@ -423,7 +428,8 @@ export default function InvoiceBuilder() {
     setFromDealId(est.crm_deal_id ?? null);
     setDraft({
       mode: 'invoice', client, clientName: est.client_name, title: est.title, number: '',
-      issueDate: t, dueDate: addDays(t, 14), text: lineItemsToText(est.line_items), notes: est.notes ?? '',
+      // Tiers and extras (migration 061): the client's choice (or the first option, no extras).
+      issueDate: t, dueDate: addDays(t, 14), text: lineItemsToText(selectLines(est.line_items, (est as { selection?: LineSelection | null }).selection ?? null)), notes: est.notes ?? '',
       totalsOnly: est.totals_only ?? false,
     });
     void fillInvoiceNumber(client);
@@ -724,6 +730,35 @@ export default function InvoiceBuilder() {
     if (!next.hide_description) delete next.hide_description;
     lines.splice(b.start, b.end - b.start + 1, ...lineText(next).split('\n'));
     set('text', lines.join('\n'));
+  }
+
+  /** Optional (migration 061): an extra the client can tick — rewrites just that item's lines. */
+  function toggleOptional(b: LineBlock) {
+    if (!b.item) return;
+    const lines = draft.text.split('\n');
+    const next: LineItem = { ...b.item, optional: !b.item.optional };
+    if (!next.optional) delete next.optional;
+    lines.splice(b.start, b.end - b.start + 1, ...lineText(next).split('\n'));
+    set('text', lines.join('\n'));
+  }
+
+  /** Tier (migration 061): which option a line belongs to (null = every option). Rewrites the list, keeping each tier's lines together. */
+  function setBlockTier(b: LineBlock, tier: string | null) {
+    const valid = blocks.filter((x) => x.item);
+    const idx = valid.indexOf(b);
+    const { items: all } = parseLineItems(draft.text);
+    if (idx < 0 || !all[idx]) return;
+    const moved = { ...all[idx] };
+    if (tier) moved.tier = tier; else delete moved.tier;
+    const rest = all.filter((_, i) => i !== idx);
+    // Shared lines first, then each tier's lines in the order the tiers appear.
+    const order = [...new Set([...tiersOf(rest), ...(tier ? [tier] : [])])];
+    const withMoved = [...rest, moved];
+    const sorted = [
+      ...withMoved.filter((it) => !it.tier),
+      ...order.flatMap((t) => withMoved.filter((it) => it.tier === t)),
+    ];
+    set('text', lineItemsToText(sorted));
   }
 
   /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
@@ -1107,7 +1142,11 @@ export default function InvoiceBuilder() {
               </div>
             ) : (
               <>
-                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription} />
+                {!isInvoice && (
+                  <TierBar items={items} extra={newTiers} onAdd={(t) => setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t]))} />
+                )}
+                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
+                  choices={isInvoice ? undefined : { tiers: [...new Set([...tiersOf(items), ...newTiers])], onTier: setBlockTier, onOptional: toggleOptional }} />
                 <div className={s.itemsTools}>
                   <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
                     title={catalog ? undefined : 'Run migration 047 to use the price list'}>
@@ -1310,10 +1349,12 @@ export default function InvoiceBuilder() {
 }
 
 /** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
-function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
+function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choices }: {
   blocks: LineBlock[]; catalog: Catalog | null;
   onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
   onToggleDescription: (b: LineBlock) => void;
+  /** Estimates (migration 061): each line's tier and whether it's optional. */
+  choices?: { tiers: string[]; onTier: (b: LineBlock, tier: string | null) => void; onOptional: (b: LineBlock) => void };
 }) {
   const valid = blocks.filter((b): b is LineBlock & { item: LineItem } => b.item !== null);
   const names = valid.map((b) => b.item.name);
@@ -1340,7 +1381,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
             const cat = catalog ? itemForLine(catalog.items, b.item.name) : undefined;
             const qty = Number(b.item.name.match(/\(x(\d+)\)/i)?.[1] ?? 1);
             const lockedBy = requiredBy(cat);
-            const optional = /\(optional\)\s*$/i.test(b.item.name);
+            const optional = !!b.item.optional;
             const name = b.item.name.replace(/\s*\(x\d+\)/i, '').replace(/\s*\(optional\)\s*$/i, '');
             return (
               <div key={b.start} className={s.itemRow}>
@@ -1364,6 +1405,21 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
                     </>
                   )}
                   {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
+                  {choices && !b.item.percent && (
+                    <span className={s.choiceControls}>
+                      <label className={s.descSwitch}>
+                        <input type="checkbox" className={s.switchSm} role="switch" checked={optional} onChange={() => choices.onOptional(b)} />
+                        {optional ? 'Optional — client can add it' : 'Optional'}
+                      </label>
+                      {choices.tiers.length > 0 && (
+                        <select className={s.tierSelect} value={b.item.tier ?? ''} aria-label={`Tier for ${name}`}
+                          onChange={(e) => choices.onTier(b, e.target.value || null)}>
+                          <option value="">Every option</option>
+                          {choices.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      )}
+                    </span>
+                  )}
                 </div>
                 {cat?.unit && cat.price_type !== 'hourly' ? (
                   <div className={s.stepper} role="group" aria-label={`How many ${cat.unit}s`}>
@@ -1382,6 +1438,41 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription }: {
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Tiers (migration 061): each option's total, and a box to name a new one.
+ * Lines join a tier from their row's menu; the client picks one tier.
+ */
+function TierBar({ items, extra, onAdd }: { items: LineItem[]; extra: string[]; onAdd: (tier: string) => void }) {
+  const [name, setName] = useState('');
+  const tiers = [...new Set([...tiersOf(items), ...extra])];
+  const add = () => { const t = name.trim().slice(0, 80); if (t && !/^(none|all|shared)$/i.test(t)) { onAdd(t); setName(''); } };
+  return (
+    <div className={s.tierBar}>
+      <div className={s.tierBarHead}>
+        <strong>Tiers</strong>
+        <span className={s.tierHint}>
+          {tiers.length
+            ? 'The client picks one option. Lines set to “Every option” are in all of them; optional lines are extras they can tick.'
+            : 'Offer options (e.g. Template store / Custom store): name a tier, then set each line’s tier below.'}
+        </span>
+      </div>
+      {tiers.length > 0 && (
+        <ul className={s.tierList}>
+          {tiers.map((t, i) => (
+            <li key={t}><span>Option {i + 1}: {t}</span><strong>{items.some((it) => it.tier === t) ? formatLineMoney(tierTotal(items, t)) : 'no lines yet'}</strong></li>
+          ))}
+        </ul>
+      )}
+      {hasChoices(items) && <p className={s.tierHint}>The estimate total shows the first option with no extras until the client chooses.</p>}
+      <div className={s.tierAdd}>
+        <input className={p.input} value={name} placeholder="New tier, e.g. Custom store" onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+        <button type="button" className={p.btn} onClick={add} disabled={!name.trim()}>Add tier</button>
+      </div>
     </div>
   );
 }
@@ -1668,7 +1759,38 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you add them.</td></tr>
-          ) : groups.map((g) => {
+          ) : !isInvoice && hasChoices(items) ? choiceSections(items).map((sec, si) => {
+            // Tiers and extras (migration 061): laid out as the client sees them.
+            const tiers = tiersOf(items);
+            const head = sec.kind === 'tier'
+              ? { label: `Option ${tiers.indexOf(sec.tier!) + 1}: ${sec.tier}`, amount: formatLineMoney(tierTotal(items, sec.tier!)) }
+              : sec.kind === 'extras' ? { label: 'Optional extras — the client can tick these', amount: '' }
+              : tiers.length ? { label: 'Included in every option', amount: '' } : null;
+            return (
+              <Fragment key={si}>
+                {head && (
+                  <tr className={s.catRow}>
+                    <td colSpan={showHours ? 2 : 1}>{head.label}</td>
+                    <td className={s.num}>{head.amount}</td>
+                  </tr>
+                )}
+                {sec.rows.map((it, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div className={s.lineName}>{it.name}{it.optional ? ' (optional)' : ''}</div>
+                      {it.description && (
+                        <div className={`${s.lineDesc} ${it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
+                      )}
+                    </td>
+                    {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
+                    <td className={s.num} style={{ fontWeight: 700 }}>
+                      {isMonthly(it) ? amountText(0, it.amount_cents) : amountText(it.amount_cents, 0)}
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          }) : groups.map((g) => {
             // What the client sees with Totals only: a category with two or more
             // lines collapses to its subtotal; a lone or uncategorised line keeps its name.
             const collapsed = draft.totalsOnly && g.items.length > 1 && g.items.some((it) => it.category?.trim());
@@ -1715,7 +1837,7 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         </>
       ) : (
         <div className={s.total}>
-          <span className={s.totalLabel}>{isInvoice ? 'TOTAL DUE' : 'ESTIMATE TOTAL'}</span>
+          <span className={s.totalLabel}>{isInvoice ? 'TOTAL DUE' : hasChoices(items) ? `ESTIMATE TOTAL${tiersOf(items)[0] ? ` — ${tiersOf(items)[0].toUpperCase()}` : ''}, NO EXTRAS` : 'ESTIMATE TOTAL'}</span>
           <span className={s.totalValue}>{formatLineMoney(total)}</span>
         </div>
       )}

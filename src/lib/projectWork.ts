@@ -8,7 +8,7 @@
 //   analytics. The completion report shows start, end and the change.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { LineItem } from './lineItems';
+import { selectLines, type LineItem, type LineSelection } from './lineItems';
 
 export type Metric = { key: string; label: string; unit?: '' | '%'; start: number | null; end: number | null };
 export type SocialAccount = {
@@ -79,8 +79,10 @@ export async function syncProjectProgress(db: SupabaseClient, projectId: string)
 export async function projectChecklistFromEstimate(db: SupabaseClient, estimateId: string, projectId: string): Promise<void> {
   const { count } = await db.from('project_tasks').select('id', { count: 'exact', head: true }).eq('project_id', projectId).eq('estimate_id', estimateId);
   if (count) return;
-  const { data: est } = await db.from('estimates').select('line_items, crm_deal_id, title').eq('id', estimateId).maybeSingle();
-  const lines = ((est?.line_items ?? []) as LineItem[]).filter((l) => l.amount_cents >= 0);
+  let { data: est, error } = await db.from('estimates').select('line_items, crm_deal_id, title, selection').eq('id', estimateId).maybeSingle();
+  if (error) ({ data: est } = await db.from('estimates').select('line_items, crm_deal_id, title').eq('id', estimateId).maybeSingle()); // before 061
+  // Tiers and extras (migration 061): the checklist is what they chose.
+  const lines = selectLines((est?.line_items ?? []) as LineItem[], (est as { selection?: LineSelection | null } | null)?.selection ?? null).filter((l) => l.amount_cents >= 0);
   if (!lines.length) return;
 
   const { data: last } = await db.from('project_tasks').select('position').eq('project_id', projectId).order('position', { ascending: false }).limit(1).maybeSingle();

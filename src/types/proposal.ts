@@ -194,6 +194,9 @@ export interface ProposalLineItem {
   quantity: number;
   unit_price_cents: number;
   position: number;
+  /** Tiers and optional extras (migration 061): the option this line is in (null = every option), and whether the client can tick it. */
+  tier?: string | null;
+  is_optional?: boolean;
 }
 
 export interface ProposalClient {

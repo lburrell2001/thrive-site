@@ -15,11 +15,15 @@ import { parseIpAddress } from '@/lib/proposalSignature';
 import { textAgency } from '@/lib/sms';
 import { formatLineMoney } from '@/lib/lineItems';
 import { SITE_URL } from '@/lib/seo';
+import { hasChoices, lineSelectionSchema } from '@/lib/lineItems';
+import { choiceTotal } from '@/lib/estimateChoice';
 
 const schema = z.object({
   token: z.string().min(10).max(128),
   name: z.string().trim().min(1, 'Type your name to accept').max(160),
   agreed: z.literal(true, { message: 'Tick the box to accept' }),
+  /** Tiers and extras (migration 061): the option and extras they picked. */
+  selection: lineSelectionSchema.optional(),
 });
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -40,6 +44,15 @@ export async function POST(req: Request, { params }: Ctx) {
     }
     if (est.status === 'declined') {
       return NextResponse.json({ error: 'This estimate was marked declined. Reply to the email it came in and we’ll reopen it.' }, { status: 409 });
+    }
+    // Their choice of option and extras, and its total (which the deal and invoice follow).
+    const choice = hasChoices(est.line_items) ? choiceTotal(est.line_items, parsed.data.selection) : null;
+    if (choice) {
+      const { error: selErr } = await db.from('estimates').update({ selection: choice.selection, total_cents: choice.total_cents }).eq('id', id);
+      if (selErr) {
+        console.error('[estimate accept] selection not saved', id, selErr.message);
+        return NextResponse.json({ error: 'We couldn’t record your choice. Please try again.' }, { status: 500 });
+      }
     }
     const { error } = await db.from('estimates').update({
       accepted_at: new Date().toISOString(),

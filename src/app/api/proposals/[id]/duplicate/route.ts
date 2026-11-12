@@ -74,6 +74,9 @@ export async function POST(req: Request, { params }: Ctx) {
       quantity: Number(row.quantity),
       unit_price_cents: row.unit_price_cents,
       position: index,
+      // Migration 061 (absent before it).
+      ...(row.tier ? { tier: row.tier } : {}),
+      ...(row.is_optional ? { is_optional: true } : {}),
     })),
   });
   if (saveError) return badRequest(saveError.message);

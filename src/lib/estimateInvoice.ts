@@ -17,7 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { makePortalClient } from './portalClient';
 import { nextInvoiceNumberFor } from './invoiceHelpers';
 import { notifyPortalClient } from './clientNotify';
-import { formatLineMoney, type LineItem } from './lineItems';
+import { formatLineMoney, hasChoices, selectLines, totalCents, type LineItem, type LineSelection } from './lineItems';
 import { SITE_URL } from './seo';
 import { projectChecklistFromEstimate } from './projectWork';
 
@@ -41,8 +41,12 @@ export async function invoiceForEstimate(
     const { data: inv } = await db.from('portal_invoices').select('id, client_id').eq('id', est.invoice_id).maybeSingle();
     if (inv) return { ok: true, invoiceId: inv.id, portalId: inv.client_id, created: false };
   }
-  const lines = (est.line_items ?? []) as LineItem[];
-  if (!lines.length || !(est.total_cents > 0)) return { ok: false, error: 'The estimate has nothing to invoice' };
+  // Tiers and extras (migration 061): only the chosen option, the shared lines and the ticked extras.
+  const all = (est.line_items ?? []) as LineItem[];
+  const selection = (est.selection ?? null) as LineSelection | null;
+  const lines = hasChoices(all) ? selectLines(all, selection) : all;
+  const total = hasChoices(all) ? totalCents(all, selection) : est.total_cents;
+  if (!lines.length || !(total > 0)) return { ok: false, error: 'The estimate has nothing to invoice' };
 
   // 1. Their portal login.
   let portalId: string | null = est.portal_client_id;
@@ -92,13 +96,13 @@ export async function invoiceForEstimate(
   // 3. The invoice.
   const today = dallasToday();
   const pct = opts.depositPercent ?? 0;
-  const deposit = pct > 0 && pct < 100 ? Math.round((est.total_cents * pct) / 100) : 0;
+  const deposit = pct > 0 && pct < 100 ? Math.round((total * pct) / 100) : 0;
   const invoiceNumber = await nextInvoiceNumberFor(db, portalId, 'INV');
   const { data: inv, error: invErr } = await db.from('portal_invoices').insert({
     client_id: portalId,
     invoice_number: invoiceNumber,
     project_name: project?.name ?? projectName,
-    amount_cents: est.total_cents,
+    amount_cents: total,
     invoice_date: today,
     due_date: addDays(today, 14),
     status: 'due',
@@ -112,12 +116,12 @@ export async function invoiceForEstimate(
 
   await db.from('estimates').update({ invoice_id: inv.id, status: 'invoiced', updated_at: new Date().toISOString() }).eq('id', estimateId);
 
-  const total = formatLineMoney(est.total_cents);
+  const totalText = formatLineMoney(total);
   await db.from('portal_activity').insert({
     client_id: portalId,
     text: deposit
-      ? `Invoice ${invoiceNumber} ready — ${formatLineMoney(deposit)} deposit due now (${total} total)`
-      : `Invoice ${invoiceNumber} ready — ${total} due`,
+      ? `Invoice ${invoiceNumber} ready — ${formatLineMoney(deposit)} deposit due now (${totalText} total)`
+      : `Invoice ${invoiceNumber} ready — ${totalText} due`,
     dot_color: '#1e3add',
     project_name: project?.name ?? projectName,
   });
@@ -128,16 +132,16 @@ export async function invoiceForEstimate(
       ? {
           subject: `Invoice ${invoiceNumber} — ${formatLineMoney(deposit)} deposit to get started`,
           headline: `Thank you! Your invoice is ready in your portal. The ${formatLineMoney(deposit)} deposit gets us started; the rest is due later.`,
-          detail: [`Project: ${projectName}`, `Deposit: ${formatLineMoney(deposit)}`, `Total: ${total}`].join('\n'),
+          detail: [`Project: ${projectName}`, `Deposit: ${formatLineMoney(deposit)}`, `Total: ${totalText}`].join('\n'),
           ctaUrl: `${SITE_URL}/portal/invoices`, ctaLabel: 'Pay the deposit',
           sms: `thank you! Invoice ${invoiceNumber} is ready: ${formatLineMoney(deposit)} deposit to get started. Pay here:`,
         }
       : {
-          subject: `Invoice ${invoiceNumber} — ${total}`,
+          subject: `Invoice ${invoiceNumber} — ${totalText}`,
           headline: `Thank you! Your invoice is ready in your portal.`,
-          detail: [`Project: ${projectName}`, `Amount: ${total}`].join('\n'),
+          detail: [`Project: ${projectName}`, `Amount: ${totalText}`].join('\n'),
           ctaUrl: `${SITE_URL}/portal/invoices`, ctaLabel: 'View invoice',
-          sms: `thank you! Invoice ${invoiceNumber} (${total}) is ready. View and pay:`,
+          sms: `thank you! Invoice ${invoiceNumber} (${totalText}) is ready. View and pay:`,
         });
   }
   return { ok: true, invoiceId: inv.id, portalId, created: true };

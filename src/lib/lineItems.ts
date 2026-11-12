@@ -21,6 +21,13 @@
 // percentage discount: its amount is worked out from the one-time lines that
 // aren't discounts (monthly lines and other discounts don't count), so it
 // stays right when items change (applyPercents).
+//
+// Tiers and optional items (migration 061): a line "Tier: Template store"
+// starts a tier — the items under it belong to that option, until the next
+// "Tier:" line ("Tier: none" goes back to lines every tier includes). The
+// client picks one tier. A name ending "(Optional)" is an extra the client can
+// tick. Totals, the invoice and the deposit follow the client's choice
+// (selectLines); until they choose, the first tier and no extras.
 
 import { z } from 'zod';
 
@@ -36,7 +43,16 @@ export type LineItem = {
   hide_description?: boolean;
   /** A percentage discount ("50% off"): amount_cents is minus this share of the base. Only set on those lines. */
   percent?: number;
+  /** The tier (option) this line belongs to; absent = every tier includes it. */
+  tier?: string;
+  /** An extra the client can tick; not in the total unless chosen. Only set when true. */
+  optional?: boolean;
+  /** Display only (rows sent to the client's page): the line's index in the estimate, for ticking an extra. */
+  source?: number;
 };
+
+/** What the client chose: one tier (null when there are none) and the indexes of the optional lines they ticked. */
+export type LineSelection = { tier: string | null; optional: number[] };
 
 export type LineProblem = { line: number; message: string };
 
@@ -58,6 +74,11 @@ const RE_TAIL_PRICE = new RegExp(String.raw`\s(-?\s*\$\s*-?\s*${NUM}|-?${NUM})$`
 const RE_TAIL_INCLUDED = /\s(included|free|no charge)$/i;
 const RE_TAIL_PERCENT = new RegExp(String.raw`\s(-?\s*${NUM}\s*%(?:\s*off)?)$`, 'i');
 const RE_TAIL_HOURS = new RegExp(String.raw`\s(${NUM}\s*${HOURS_WORD})$`, 'i');
+
+const RE_TIER = /^\s*tier\s*:\s*(.*?)\s*$/i;
+const RE_OPTIONAL = /\s*\(optional\)\s*$/i;
+/** "none", "all", "shared" or nothing: back to lines every tier includes. */
+const tierName = (s: string) => (/^(none|all|shared|everyone|every tier)?$/i.test(s.trim()) ? '' : s.trim().slice(0, 80));
 
 function cents(minus1: string | undefined, minus2: string | undefined, n: string): number {
   const value = Math.round(parseFloat(n.replace(/,/g, '')) * 100);
@@ -99,10 +120,15 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
   const items: LineItem[] = [];
   const problems: LineProblem[] = [];
   let category = '';
+  let tier = '';
 
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = i + 1;
     if (!raw.trim() || raw.trim().startsWith('//')) return;
+
+    // "Tier: Custom store": the items below are that option (until the next "Tier:").
+    const tierLine = raw.match(RE_TIER);
+    if (tierLine) { tier = tierName(tierLine[1]); return; }
 
     // "# Website packages": the lines below belong to this category.
     const heading = raw.match(/^#+\s+(.*\S)\s*$/);
@@ -129,7 +155,10 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       Object.assign(money, read);
     }
 
-    const name = words.shift() ?? '';
+    let name = words.shift() ?? '';
+    // "Hosting (Optional)": an extra the client can tick.
+    const optional = RE_OPTIONAL.test(name);
+    if (optional) name = name.replace(RE_OPTIONAL, '').trim();
     if (!name) { problems.push({ line, message: 'Add a name for this item' }); return; }
     // "~description": hidden from the client.
     const hidden = words.length > 0 && words[0].startsWith('~');
@@ -160,6 +189,8 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       ...(category ? { category } : {}),
       ...(hidden ? { hide_description: true } : {}),
       ...(money.percent !== undefined ? { percent: money.percent } : {}),
+      ...(tier ? { tier } : {}),
+      ...(optional ? { optional: true } : {}),
     });
   });
 
@@ -171,10 +202,60 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
  * lines that aren't discounts (monthly charges and other discounts aren't
  * discounted). Discounts don't stack on each other.
  */
-export function applyPercents<T extends LineItem>(items: T[]): T[] {
+export function applyPercents<T extends LineItem>(items: T[], selection?: LineSelection | null): T[] {
   if (!items.some((it) => it.percent)) return items;
-  const base = items.reduce((sum, it) => (it.percent || isMonthly(it) || it.amount_cents <= 0 ? sum : sum + it.amount_cents), 0);
+  // The base is what's in the total: with tiers or extras, the chosen (or default) lines only.
+  const inTotal = includedSet(items, selection);
+  const base = items.reduce((sum, it, i) => (!inTotal.has(i) || it.percent || isMonthly(it) || it.amount_cents <= 0 ? sum : sum + it.amount_cents), 0);
   return items.map((it) => (it.percent ? { ...it, hours: null, rate_cents: null, amount_cents: -Math.round((base * it.percent) / 100) } : it));
+}
+
+// ── Tiers and optional items ─────────────────────────────────────────────────
+
+/** The tiers in the order they first appear. */
+export function tiersOf(items: Pick<LineItem, 'tier'>[]): string[] {
+  const out: string[] = [];
+  for (const it of items) if (it.tier && !out.includes(it.tier)) out.push(it.tier);
+  return out;
+}
+
+export const hasChoices = (items: Pick<LineItem, 'tier' | 'optional'>[]) => items.some((it) => it.tier || it.optional);
+
+/** Until the client chooses: the first tier, no extras. A saved choice for a tier that's gone falls back the same way. */
+export function defaultSelection(items: Pick<LineItem, 'tier' | 'optional'>[], saved?: Partial<LineSelection> | null): LineSelection {
+  const tiers = tiersOf(items);
+  const tier = saved?.tier && tiers.includes(saved.tier) ? saved.tier : tiers[0] ?? null;
+  const optional = (saved?.optional ?? []).filter((i) => Number.isInteger(i) && items[i]?.optional);
+  return { tier, optional: [...new Set(optional)].sort((a, b) => a - b) };
+}
+
+function includedSet(items: Pick<LineItem, 'tier' | 'optional'>[], selection?: Partial<LineSelection> | null): Set<number> {
+  const sel = defaultSelection(items, selection);
+  const ticked = new Set(sel.optional);
+  const out = new Set<number>();
+  items.forEach((it, i) => {
+    if (it.tier && it.tier !== sel.tier) return;
+    if (it.optional && !ticked.has(i)) return;
+    out.add(i);
+  });
+  return out;
+}
+
+/** The lines the client is buying: their tier's, the shared ones and the extras they ticked — discounts worked out on those. */
+export function selectLines<T extends LineItem>(items: T[], selection?: Partial<LineSelection> | null): T[] {
+  if (!hasChoices(items)) return items;
+  const keep = includedSet(items, selection);
+  const chosen = items.filter((_, i) => keep.has(i)).map((it) => {
+    const { tier: _t, optional: _o, ...rest } = it;
+    void _t; void _o;
+    return rest as T;
+  });
+  return applyPercents(chosen);
+}
+
+/** One tier's total with no extras (shared lines included), for "Template store — $1,550". */
+export function tierTotal(items: LineItem[], tier: string | null): number {
+  return selectLines(items, { tier, optional: [] }).reduce((sum, it) => sum + it.amount_cents, 0);
 }
 
 /** One item in the typed text: its line, any "-" lines under it, and what it reads as. */
@@ -187,10 +268,13 @@ export type LineBlock = { start: number; end: number; item: LineItem | null };
  */
 export function lineBlocks(text: string): LineBlock[] {
   const lines = text.split(/\r?\n/);
-  const blocks: { start: number; end: number; category: string }[] = [];
+  const blocks: { start: number; end: number; category: string; tier: string }[] = [];
   let category = '';
+  let tier = '';
   lines.forEach((raw, i) => {
     if (!raw.trim() || raw.trim().startsWith('//')) return;
+    const tierLine = raw.match(RE_TIER);
+    if (tierLine) { tier = tierName(tierLine[1]); return; }
     const heading = raw.match(/^#+\s+(.*\S)\s*$/);
     if (heading) { category = heading[1].slice(0, 120); return; }
     if (/^(\s+|[-•*]\s)/.test(raw)) {
@@ -198,12 +282,12 @@ export function lineBlocks(text: string): LineBlock[] {
       if (prev) prev.end = i;
       return;
     }
-    blocks.push({ start: i, end: i, category });
+    blocks.push({ start: i, end: i, category, tier });
   });
   return blocks.map((b) => {
     const own = lines.slice(b.start, b.end + 1).filter((l, j) => j === 0 || /^(\s+|[-•*]\s)/.test(l)).join('\n');
     const item = parseLineItems(own).items[0] ?? null;
-    return { start: b.start, end: b.end, item: item ? { ...item, ...(b.category ? { category: b.category } : {}) } : null };
+    return { start: b.start, end: b.end, item: item ? { ...item, ...(b.category ? { category: b.category } : {}), ...(b.tier ? { tier: b.tier } : {}) } : null };
   }).map((b, _i, all) => {
     // A percentage discount read on its own has nothing to take off: use every row.
     if (!b.item?.percent) return b;
@@ -226,33 +310,40 @@ export function lineText(it: LineItem): string {
     : it.hours !== null && it.rate_cents !== null
     ? `${it.hours}h @ ${money(it.rate_cents)}`
     : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
-  const main = [it.name, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
+  const main = [it.optional ? `${it.name} (Optional)` : it.name, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
   return [main, ...more.map((d) => `  - ${d}`)].join('\n');
 }
 
 export function lineItemsToText(items: LineItem[]): string {
   let category = '';
+  let tier = '';
   return items.map((it) => {
     let head = '';
+    if ((it.tier ?? '') !== tier) {
+      tier = it.tier ?? '';
+      head += tier ? `Tier: ${tier}\n` : 'Tier: none\n';
+    }
     if ((it.category ?? '') !== category) {
       category = it.category ?? '';
       // A line with no category after a heading can't get back out from under it.
-      head = category ? `# ${category}\n` : '# Other\n';
+      head += category ? `# ${category}\n` : '# Other\n';
     }
     return head + lineText(it);
   }).join('\n');
 }
 
-export const totalCents = (items: LineItem[]) => items.reduce((sum, it) => sum + it.amount_cents, 0);
+/** The total: with tiers or optional extras, of the client's choice (or the default one: first tier, no extras). */
+export const totalCents = (items: LineItem[], selection?: Partial<LineSelection> | null) =>
+  selectLines(items, selection).reduce((sum, it) => sum + it.amount_cents, 0);
 
 /** A monthly charge: its description ends in "/mo" (the price list adds it). */
 export const isMonthly = (it: LineItem) => /\/\s*mo(nth)?\.?\s*$/i.test(it.description.trim());
 
 /** The same total, split into one-time and monthly. */
-export function splitTotals(items: LineItem[]): { oneTime: number; monthly: number } {
+export function splitTotals(items: LineItem[], selection?: Partial<LineSelection> | null): { oneTime: number; monthly: number } {
   let oneTime = 0;
   let monthly = 0;
-  for (const it of items) {
+  for (const it of selectLines(items, selection)) {
     if (isMonthly(it)) monthly += it.amount_cents;
     else oneTime += it.amount_cents;
   }
@@ -285,7 +376,11 @@ export function amountText(oneTime: number, monthly: number): string {
   return `${money(oneTime)} + ${money(monthly)}/mo`;
 }
 
-export type ClientRow = { name: string; description: string; hours: number | null; oneTime: number; monthly: number; group: boolean };
+export type ClientRow = {
+  name: string; description: string; hours: number | null; oneTime: number; monthly: number; group: boolean;
+  /** Tiers and extras (migration 061): which option the row is in, whether the client can tick it, and its line index. */
+  tier?: string; optional?: boolean; source?: number;
+};
 
 /**
  * The rows the client sees. Every line normally; with "Totals only", one row
@@ -295,21 +390,55 @@ export type ClientRow = { name: string; description: string; hours: number | nul
  * description out either way.
  */
 export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] {
-  const one = (it: LineItem): ClientRow => ({
+  const one = (it: LineItem, source?: number): ClientRow => ({
     name: it.name,
     description: it.hide_description ? '' : it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, ''),
     hours: it.hours,
     oneTime: isMonthly(it) ? 0 : it.amount_cents,
     monthly: isMonthly(it) ? it.amount_cents : 0,
     group: false,
+    ...(it.tier ? { tier: it.tier } : {}),
+    // Rows already collapsed for a client keep the index they came with.
+    ...(it.optional ? { optional: true, source: it.source ?? source } : {}),
   });
-  if (!totalsOnly) return items.map(one);
+  if (!totalsOnly) return items.map((it, i) => one(it, i));
+  if (hasChoices(items)) {
+    // Each option is summed on its own; an extra always shows on its own, since the client ticks it.
+    const shared = items.map((it, i) => ({ it, i })).filter(({ it }) => !it.tier && !it.optional);
+    const rowsOf = (part: { it: LineItem; i: number }[], tier?: string) =>
+      categoryTotals(part.map((p) => p.it)).flatMap((g): ClientRow[] => {
+        const uncategorised = g.items.every((it) => !it.category?.trim());
+        if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
+        return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true, ...(tier ? { tier } : {}) }];
+      });
+    return [
+      ...rowsOf(shared),
+      ...tiersOf(items).flatMap((t) => rowsOf(items.map((it, i) => ({ it, i })).filter(({ it }) => it.tier === t && !it.optional), t)),
+      ...items.map((it, i) => ({ it, i })).filter(({ it }) => it.optional).map(({ it, i }) => ({ ...one(it, i), hours: null })),
+    ];
+  }
   return categoryTotals(items).flatMap((g): ClientRow[] => {
     const uncategorised = g.items.every((it) => !it.category?.trim());
     // Shown on its own: keeps its description unless "Show description" is off.
     if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
     return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true }];
   });
+}
+
+/**
+ * Rows in the order a client reads choices: what every option includes, then
+ * each option with its total (shared lines included, no extras), then the
+ * extras. Works on full lines or on client rows (each has tier/optional).
+ */
+export type ChoiceSection<R> = { kind: 'shared' | 'tier' | 'extras'; tier?: string; rows: R[] };
+export function choiceSections<R extends { tier?: string; optional?: boolean }>(rows: R[]): ChoiceSection<R>[] {
+  const out: ChoiceSection<R>[] = [];
+  const shared = rows.filter((r) => !r.tier && !r.optional);
+  if (shared.length) out.push({ kind: 'shared', rows: shared });
+  for (const t of tiersOf(rows)) out.push({ kind: 'tier', tier: t, rows: rows.filter((r) => r.tier === t && !r.optional) });
+  const extras = rows.filter((r) => r.optional);
+  if (extras.length) out.push({ kind: 'extras', rows: extras });
+  return out;
 }
 
 /** "One-time: $2,675 · Monthly: $100/mo", or just the one that applies. */
@@ -332,6 +461,13 @@ export const lineItemSchema = z.object({
   category: z.string().trim().max(120).optional(),
   hide_description: z.boolean().optional(),
   percent: z.number().gt(0).max(100).optional(),
+  tier: z.string().trim().min(1).max(80).optional(),
+  optional: z.boolean().optional(),
+});
+
+export const lineSelectionSchema = z.object({
+  tier: z.string().trim().max(80).nullable(),
+  optional: z.array(z.number().int().min(0).max(199)).max(200),
 });
 
 /** Percentage discounts are worked out again on the server, so a saved total always matches its lines. */

@@ -48,7 +48,8 @@ export async function GET(req: Request, { params }: Ctx) {
   const blocks = rowsToBlocks(blockRows.data ?? []);
   // Its estimate (migration 050), for the builder's Pricing tab.
   const { data: estimate } = proposal.estimate_id
-    ? await db.from('estimates').select('id, estimate_number, status, total_cents').eq('id', proposal.estimate_id).maybeSingle()
+    ? await db.from('estimates').select('id, estimate_number, status, total_cents, selection').eq('id', proposal.estimate_id).maybeSingle()
+        .then((r) => (r.error ? db.from('estimates').select('id, estimate_number, status, total_cents').eq('id', proposal.estimate_id).maybeSingle() : r))
     : { data: null };
   const imageUrls = await signImageUrls(db, collectImagePaths(blocks));
 

@@ -23,7 +23,7 @@ export async function syncProposalEstimate(db: SupabaseClient, proposalId: strin
   if (!proposal) return { ok: false, error: 'Proposal not found' };
 
   const [{ data: items }, { data: client }, { data: pricing }, current] = await Promise.all([
-    db.from('proposal_line_items').select('label, description, quantity, unit_price_cents, position').eq('proposal_id', proposalId),
+    db.from('proposal_line_items').select('*').eq('proposal_id', proposalId),
     proposal.client_id
       ? db.from('proposal_clients').select('name, company, portal_client_id, crm_contact_id').eq('id', proposal.client_id).maybeSingle()
       : Promise.resolve({ data: null }),

@@ -52,6 +52,9 @@ export const lineItemSchema = z.object({
   quantity: z.number().min(0).max(100000),
   unit_price_cents: z.number().int().min(0).max(100_000_000),
   position: z.number().int().min(0),
+  /** Migration 061: the option this line is in (null/blank = every option), and an extra the client can tick. */
+  tier: z.string().trim().max(80).nullable().optional(),
+  is_optional: z.boolean().optional(),
 });
 
 /** The autosave payload. Every part is optional so a save can be partial. */

@@ -20,6 +20,9 @@ export interface BuilderLineItem {
   quantity: number;
   unit_price_cents: number;
   position: number;
+  /** Tiers and optional extras (migration 061). */
+  tier?: string | null;
+  is_optional?: boolean;
 }
 
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
@@ -30,11 +33,13 @@ const lineCents = (item: BuilderLineItem) => Math.round(item.quantity * item.uni
 function lineFor(item: PriceItem, qty: number): Omit<BuilderLineItem, 'position'> {
   const monthly = item.price_type === 'monthly';
   const description = [item.description.trim(), monthly ? '/mo' : ''].filter(Boolean).join(' ') || null;
-  const label = item.is_optional ? `${item.name} (Optional)` : item.name;
+  // An optional price list item is an extra the client can tick (migration 061).
+  const label = item.name;
+  const optional = item.is_optional ? { is_optional: true } : {};
   if (item.price_type === 'hourly') {
-    return { label, description, quantity: (item.hours ?? 1) * qty, unit_price_cents: Math.round((item.price ?? 0) * 100) };
+    return { label, description, quantity: (item.hours ?? 1) * qty, unit_price_cents: Math.round((item.price ?? 0) * 100), ...optional };
   }
-  return { label, description, quantity: qty, unit_price_cents: unitCents(item) };
+  return { label, description, quantity: qty, unit_price_cents: unitCents(item), ...optional };
 }
 
 /**
@@ -62,6 +67,8 @@ export function PricingForm({
   const [drawer, setDrawer] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [note, setNote] = useState('');
+  const [newTiers, setNewTiers] = useState<string[]>([]);
+  const [tierName, setTierName] = useState('');
 
   useEffect(() => {
     apiGet<Catalog & { ready: boolean }>('/api/price-list')
@@ -69,9 +76,14 @@ export function PricingForm({
       .catch(() => { /* custom lines still work */ });
   }, []);
 
-  const monthly = lineItems.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
-  const total = lineItems.reduce((n, i) => n + lineCents(i), 0);
+  // Tiers and extras (migration 061): the total is the first option with no extras, as the client first sees it.
+  const tiers = [...new Set([...lineItems.map((i) => i.tier?.trim()).filter((t): t is string => !!t), ...newTiers])];
+  const firstTier = lineItems.find((i) => i.tier?.trim())?.tier?.trim() ?? null;
+  const counted = lineItems.filter((i) => !i.is_optional && (!i.tier?.trim() || i.tier.trim() === firstTier));
+  const monthly = counted.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
+  const total = counted.reduce((n, i) => n + lineCents(i), 0);
   const oneTime = total - monthly;
+  const tierTotal = (t: string) => lineItems.filter((i) => !i.is_optional && (!i.tier?.trim() || i.tier.trim() === t)).reduce((n, i) => n + lineCents(i), 0);
 
   const names = lineItems.map((i) => i.label);
   const missing = catalog ? missingRequired(catalog, names) : [];
@@ -139,6 +151,26 @@ export function PricingForm({
           </span>
         </div>
 
+        <div className={pf.tierBar}>
+          <strong>Tiers</strong>
+          <span className={s.hint}>
+            {tiers.length
+              ? 'The client picks one option when they sign. Set each line’s tier (or “Every option”) by tapping it; optional lines are extras they can tick.'
+              : 'Offer options (e.g. Template store / Custom store): name a tier, then tap a line to set its tier.'}
+          </span>
+          {tiers.length > 0 && (
+            <ul className={pf.tierList}>
+              {tiers.map((t, i) => <li key={t}><span>Option {i + 1}: {t}</span><strong>{lineItems.some((it) => it.tier?.trim() === t) ? formatMoneyCents(tierTotal(t), currency) : 'no lines yet'}</strong></li>)}
+            </ul>
+          )}
+          <div className={pf.tierAdd}>
+            <input className={s.input} value={tierName} placeholder="New tier, e.g. Custom store" onChange={(e) => setTierName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = tierName.trim().slice(0, 80); if (t) { setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t])); setTierName(''); } } }} />
+            <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!tierName.trim()}
+              onClick={() => { const t = tierName.trim().slice(0, 80); if (t) { setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t])); setTierName(''); } }}>Add tier</button>
+          </div>
+        </div>
+
         {lineItems.length === 0 ? (
           <div className={pf.empty}>
             <button type="button" className={`${s.btn} ${s.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
@@ -161,6 +193,8 @@ export function PricingForm({
                       <span className={pf.rowName}>
                         {item.label || <em>New line</em>}
                         {!cat && item.label && <span className={pf.badgeCustom}>Custom</span>}
+                        {item.is_optional && <span className={pf.badgeCustom}>Optional</span>}
+                        {item.tier?.trim() && <span className={pf.badgeTier}>{item.tier.trim()}</span>}
                       </span>
                       {stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
                       {locked && <span className={pf.lock}>Required with {locked}</span>}
@@ -190,6 +224,20 @@ export function PricingForm({
                           onChange={(e) => update(index, { description: [stripMo(item.description), e.target.checked ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
                         Monthly
                       </label>
+                      <label className={pf.check}>
+                        <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
+                        Optional — the client can tick it as an extra
+                      </label>
+                      {tiers.length > 0 && (
+                        <label className={pf.check} style={{ gap: 8 }}>
+                          Tier
+                          <select className={s.input} style={{ width: 'auto' }} value={item.tier?.trim() ?? ''}
+                            onChange={(e) => update(index, { tier: e.target.value || null })}>
+                            <option value="">Every option</option>
+                            {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </label>
+                      )}
                       {cat && <p className={s.hint}>Price list: {priceLabel(cat)}. Changing it here only changes this proposal.</p>}
                     </div>
                   )}
