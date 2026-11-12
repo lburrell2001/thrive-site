@@ -104,7 +104,7 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       heading: 'A WEBSITE THAT WORKS AS HARD AS YOU DO',
       paragraphs: [
         'For most small businesses, the website is the first real impression — it is where people go after they hear your name, see a post or find you on Google. Thrive designs and builds websites that make it obvious what you do, who you do it for and what to do next, whether that is booking a call, buying, or getting in touch.',
-        'Already on WordPress, Wix, Squarespace or another platform? We can work with your site where it is. If it needs more than the platform can do, we build it from scratch: custom-coded for your business, in your colors and fonts — not a template. Larger sites add an admin area so your team can edit text and photos, and custom builds can include forms with a database, client portals, logins, online payments and visitor dashboards.',
+        'Selling products? We build Shopify stores, from a premium theme in your brand to a fully custom storefront. Already on WordPress, Wix, Squarespace or another platform? We can work with your site where it is. If it needs more than the platform can do, we build it from scratch: custom-coded for your business, in your colors and fonts — not a template. Larger sites add an admin area so your team can edit text and photos, and custom builds can include forms with a database, client portals, logins, online payments and visitor dashboards.',
         'Every project starts with discovery and a page-by-page plan, then design with your colors, type and imagery, then the build, testing on phones and desktops, and launch. Every layout is designed mobile-first. If you already have a brand, it is carried through every page; if you don’t, branding can be part of the same project. The timeline and price are agreed in writing before work starts.',
       ],
       forWho: [
@@ -134,6 +134,10 @@ export const SERVICE_SEO: Record<ServiceSlug, ServiceSeo> = {
       {
         q: 'Is a website with Thrive affordable for a small business?',
         a: 'Website packages are $1,250 for Starter (3 to 5 pages), $1,600 for Medium (6 to 15 pages) and $1,950 for Large (16 to 25 pages). Sites that need more than pages are quoted. You get a written proposal with the timeline and price before anything starts, so there are no surprises.',
+      },
+      {
+        q: 'Do you build Shopify stores?',
+        a: 'Yes. A template store is $1,250: a premium Shopify theme customized in your brand, up to 20 products loaded, and payments, shipping, taxes, checkout and inventory set up. A fully custom storefront is $2,400. More products are $90 per 20. Your Shopify subscription, from about $39 a month, is paid directly to Shopify.',
       },
       {
         q: 'Can you design an app, or show me a site before it’s built?',

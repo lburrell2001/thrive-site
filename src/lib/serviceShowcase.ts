@@ -26,7 +26,7 @@ export const SHOWCASE: ShowcaseService[] = [
   {
     slug: "digital-design", title: "Web Design & Development", name: "WEB DESIGN & DEVELOPMENT", tag: "01 — Web",
     sub: "DESIGNED AND BUILT BY ONE TEAM",
-    desc: "We design and build: custom-coded from scratch, or on WordPress, Wix or Squarespace when that fits — in your colors and fonts, never a template. Care plans keep it running after launch.",
+    desc: "We design and build: custom-coded from scratch, Shopify stores, or on WordPress, Wix or Squarespace when that fits — in your colors and fonts, never a template. Care plans keep it running after launch.",
     href: "/services/digital-design", tone: "pink",
     sticker: "/new-thrive/services/web-development.webp",
     media: { type: "image", src: "/new-thrive/services/web-development.webp", local: true },

@@ -35,7 +35,7 @@ const SERVICES = [
   { title: 'Brand & Graphic Design', href: '/services/brand-design', tone: s.bBlue, icon: 'brand' as const,
     items: ['Logos & full identities', 'Posters & event flyers', 'Social graphics', 'Menus, brochures & signage', 'Packaging & merch'] },
   { title: 'Web Design & Development', href: '/services/digital-design', tone: s.bMagenta, icon: 'web' as const,
-    items: ['Custom-coded sites', 'WordPress, Wix & Squarespace', 'App & website prototypes', 'Your colors, never a template', 'Care plans after launch'] },
+    items: ['Custom-coded sites', 'Shopify stores', 'WordPress, Wix & Squarespace', 'App & website prototypes', 'Care plans after launch'] },
   { title: 'Social Media', href: '/services/social-media', tone: s.bMint, icon: 'social' as const,
     items: ['Monthly content calendar', 'Designed graphics', 'Edited videos', 'Captions & hashtags', 'Scheduling & posting'] },
   { title: 'Photography', href: '/services/photography', tone: s.bPurple, icon: 'photo' as const,

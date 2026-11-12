@@ -29,7 +29,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
     title: 'Web Design & Development',
     icon: 'web',
     tone: 'bMagenta',
-    lede: 'We design and build: custom-coded from scratch, or on WordPress, Wix or Squarespace when that fits — in your colors and fonts, never a template. Care plans keep it running after launch.',
+    lede: 'We design and build: custom-coded from scratch, Shopify stores, or on WordPress, Wix or Squarespace when that fits — in your colors and fonts, never a template. Care plans keep it running after launch.',
     deliverablesHeading: 'Custom-coded, not templated',
     deliverables: [
       { icon: 'web', title: 'Custom-Coded Websites', desc: 'Sites written from scratch for your business, built to do exactly what you need.' },
@@ -38,6 +38,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
       { icon: 'edit', title: 'Edit It Yourself', desc: 'With Large and Custom sites, an admin area so your team can edit text and photos.' },
       { icon: 'analytics', title: 'Forms, Analytics & SEO', desc: 'Forms that reach the right inbox, visitor insights and search groundwork, built in.' },
       { icon: 'mobile', title: 'Mobile-First Layouts', desc: 'Every page designed for phones first and tested on phones and desktops.' },
+      { icon: 'web', title: 'Shopify Stores', desc: 'Online stores on Shopify — a premium theme in your brand or a fully custom storefront, with payments, shipping and taxes set up.' },
       { icon: 'ux', title: 'App & Website Prototypes', desc: 'Clickable prototypes of an app or site you can tap through on a phone before anything is built.' },
     ],
     processHeading: 'From brief to live site',

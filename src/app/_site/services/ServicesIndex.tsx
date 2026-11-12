@@ -39,9 +39,11 @@ function packagesFor(slug: keyof typeof SERVICE_PRICING) {
   const care = rest.find((sec) => sec.id === 'care')?.cards[0];
   const protos = rest.find((sec) => sec.id === 'prototypes')?.cards[0];
   const graphics = rest.find((sec) => sec.id === 'graphics')?.cards[0];
+  const shopify = rest.find((sec) => sec.id === 'shopify')?.cards[0];
   return [
     ...(first?.cards ?? []).slice(0, 4),
     ...(first?.addOns ?? []).map((a) => ({ ...a, name: `+ ${a.name.replace(/^Add-on:\s*/, '')}` })),
+    ...(shopify ? [{ name: '+ Shopify stores', price: `from ${shopify.price}` }] : []),
     ...(protos ? [{ name: '+ App & website prototypes', price: `from ${protos.price}` }] : []),
     ...(graphics ? [{ name: '+ Flyers, posters, menus & signage', price: `from ${graphics.price}` }] : []),
     ...(care ? [{ name: '+ Care plans after launch', price: `from ${care.price}` }] : []),

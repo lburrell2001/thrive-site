@@ -114,6 +114,42 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
         ],
       },
       {
+        id: 'shopify',
+        heading: 'Shopify stores',
+        intro: 'Selling products? We build your store on Shopify, set up so you can run it yourself: payments, shipping, taxes and inventory included.',
+        cards: [
+          {
+            name: 'Template store',
+            price: '$1,250',
+            scope: 'A premium theme customized in your brand',
+            items: [
+              'Up to 20 products loaded',
+              'Payments, shipping, taxes, checkout and inventory set up',
+              'Store account created, with a walkthrough',
+              'Mobile-friendly and launch-ready',
+            ],
+          },
+          {
+            name: 'Custom store',
+            price: '$2,400',
+            scope: 'A fully custom storefront design',
+            items: [
+              'Everything in Template store',
+              'A storefront designed from scratch for your brand',
+              'Up to 20 products loaded',
+              'Mobile-friendly and launch-ready',
+            ],
+          },
+        ],
+        addOns: [
+          { name: 'Add-on: More products', price: '$90 per 20', scope: 'Products loaded beyond the first 20' },
+          { name: 'Add-on: Domain + email connection', price: '$100', scope: 'Connect your existing domain and keep your email working' },
+        ],
+        notes: [
+          'Your Shopify subscription (from about $39/month) is paid directly to Shopify, separately from the build. Premium theme or paid app costs, if any, are flagged before purchase.',
+        ],
+      },
+      {
         id: 'prototypes',
         heading: 'App & website prototypes',
         intro: 'Designing an app, or want to see a whole site before it’s built? A clickable prototype, designed and ready to build or hand to your developer.',
