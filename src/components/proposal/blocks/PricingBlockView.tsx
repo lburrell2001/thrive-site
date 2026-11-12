@@ -45,21 +45,26 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
       <Kicker>{c.kicker}</Kicker>
       <Markdown source={c.intro} className={styles.prose} />
 
-      {/* With tiers the client sees each option's total (and the extras), not every line. */}
-      {hasRows && !(tiers.length > 0 && itemised) && <div className={styles.pricingList}>
-        {itemised
+      {/* The items first (with tiers, each option's own lines tagged), then each option's total, then the extras. */}
+      {(hasRows || tiers.length > 0) && <div className={styles.pricingList}>
+        {itemised || tiers.length > 0
           ? ctx.lineItems.filter((item) => !item.is_optional).map((item) => (
               <div key={item.id} className={styles.pricingRow}>
                 <div className={styles.pricingRowText}>
-                  <p className={styles.pricingRowTitle}>{item.label}</p>
+                  <p className={styles.pricingRowTitle}>
+                    {item.label}
+                    {tierOf(item) && <span className={styles.pricingTierTag}>{tierOf(item)}</span>}
+                  </p>
                   {item.description && stripMo(item.description) && (
                     <p className={styles.pricingRowDescription}>{stripMo(item.description)}</p>
                   )}
                 </div>
-                <div className={styles.pricingRowAmount}>
-                  {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}
-                  {isMonthly(item.description) ? '/mo' : ''}
-                </div>
+                {itemised && (
+                  <div className={styles.pricingRowAmount}>
+                    {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}
+                    {isMonthly(item.description) ? '/mo' : ''}
+                  </div>
+                )}
               </div>
             ))
           : c.deliverables.map((item, i) => (

@@ -2,11 +2,11 @@
 // proposal (/p/…). Takes the rows already collapsed for the client
 // (estimateForClientPdf), so nothing hidden reaches the page.
 //
-// Tiers and extras (migration 061): what every option includes, each option
-// with its total, then the extras. With `choose`, the options are radio
+// Tiers and extras (migration 061): the items (a line in one option tagged
+// with its name), then each option's total, then the extras. With `choose`, the options are radio
 // buttons and the extras checkboxes (the estimate page, before accepting).
 
-import { amountText, choiceSections, formatLineMoney, hasChoices, isMonthly, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { amountText, formatLineMoney, hasChoices, isMonthly, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
 import { optionTotals, type InvoiceForPDF } from '@/lib/invoicePDF';
 
 export type EstimateChoose = {
@@ -31,7 +31,7 @@ function Row({ r, control }: { r: LineItem; control?: React.ReactNode }) {
     <li className={control ? 'estimateRowChoice' : undefined}>
       {control}
       <div>
-        <strong>{r.name}{r.optional && !control ? <span className="estimateTag"> Optional</span> : null}</strong>
+        <strong>{r.name}{r.tier ? <span className="estimateTierTag">{r.tier}</span> : null}{r.optional && !control ? <span className="estimateTag"> Optional</span> : null}</strong>
         {stripMo(r.description) && <p>{stripMo(r.description)}</p>}
       </div>
       <span>{isMonthly(r) ? amountText(0, r.amount_cents) : amountText(r.amount_cents, 0)}</span>
@@ -75,38 +75,39 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
         <ul className="estimateRows">
           {rows.map((r, i) => <Row key={i} r={r} />)}
         </ul>
-      ) : choiceSections(rows).map((sec, si) => {
-        if (sec.kind === 'shared') {
-          return (
-            <section key={si} className="estimateSection">
-              {options.length > 0 && <h2 className="estimateSectionHead">Included in every option</h2>}
-              <ul className="estimateRows">{sec.rows.map((r, i) => <Row key={i} r={r} />)}</ul>
-            </section>
-          );
-        }
-        if (sec.kind === 'tier') {
-          const n = options.findIndex((o) => o.tier === sec.tier);
-          const on = picked?.tier === sec.tier;
-          return (
-            <section key={si} className={`estimateSection estimateOption${on ? ' estimateOptionOn' : ''}`}>
-              <h2 className="estimateSectionHead">
-                {choose ? (
-                  <label className="estimatePick">
-                    <input type="radio" name="estimate-option" checked={on} onChange={() => choose.onTier(sec.tier!)} />
-                    <span>Option {n + 1}: {sec.tier}</span>
-                  </label>
-                ) : <span>Option {n + 1}: {sec.tier}{on && pdf.selection ? ' — chosen' : ''}</span>}
-                <span className="estimateSectionTotal">{formatLineMoney(options[n]?.total_cents ?? 0)}</span>
-              </h2>
-              <ul className="estimateRows">{sec.rows.map((r, i) => <Row key={i} r={r} />)}</ul>
-            </section>
-          );
-        }
-        return (
-          <section key={si} className="estimateSection">
+      ) : (<>
+        {/* The items first — a line in one option carries its name — then each option's total, then the extras. */}
+        <ul className="estimateRows">
+          {rows.filter((r) => !r.optional).map((r, i) => <Row key={i} r={r} />)}
+        </ul>
+
+        {options.length > 0 && (
+          <section className="estimateSection">
+            <h2 className="estimateSectionHead">{choose ? 'Choose your option' : 'Options'}</h2>
+            <ul className="estimateRows estimateOptionRows">
+              {options.map((o, n) => {
+                const on = picked?.tier === o.tier;
+                return (
+                  <li key={o.tier} className={`estimateOptionRow${on ? ' estimateOptionOn' : ''}`}>
+                    {choose ? (
+                      <label className="estimatePick">
+                        <input type="radio" name="estimate-option" checked={on} onChange={() => choose.onTier(o.tier)} />
+                        <span><strong>Option {n + 1}: {o.tier}</strong></span>
+                      </label>
+                    ) : <strong>Option {n + 1}: {o.tier}{on && pdf.selection ? ' — chosen' : ''}</strong>}
+                    <span>{formatLineMoney(o.total_cents)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {rows.some((r) => r.optional) && (
+          <section className="estimateSection">
             <h2 className="estimateSectionHead">Optional extras</h2>
             <ul className="estimateRows">
-              {sec.rows.map((r, i) => {
+              {rows.filter((r) => r.optional).map((r, i) => {
                 const src = r.source ?? -1;
                 const ticked = !!picked?.optional.includes(src);
                 return (
@@ -117,8 +118,8 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
               })}
             </ul>
           </section>
-        );
-      })}
+        )}
+      </>)}
 
       <div className="estimateTotal">
         <span>{choices ? (picked?.tier ? `Total — ${picked.tier}` : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>

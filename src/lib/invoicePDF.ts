@@ -1,4 +1,4 @@
-import { amountText, choiceSections, clientRows, defaultSelection, formatLineMoney, hasChoices, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
+import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
 import { dueNow } from './invoiceDeposit';
 
 export interface InvoiceForPDF {
@@ -45,21 +45,20 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
   const rows = clientRows(lines as LineItem[], !!invoice.totals_only);
   const plain = (r: (typeof rows)[number]): Row => ({ name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly) });
   if (!hasChoices(rows)) return rows.map(plain);
-  // Tiers and extras: what every option includes, each option with its total, then the extras.
+  // Tiers and extras: the items (a line in one option names it), then each option's total, then the extras.
   const totals = optionTotals(invoice);
   const chosen = invoice.selection;
-  const out: Row[] = [];
-  for (const sec of choiceSections(rows)) {
-    if (sec.kind === 'shared' && totals.length) out.push({ name: 'Included in every option', description: '', hours: null, amount: '', heading: true });
-    if (sec.kind === 'tier') {
-      const n = totals.findIndex((t) => t.tier === sec.tier);
-      const picked = chosen?.tier === sec.tier ? ' — chosen' : '';
-      out.push({ name: `Option ${n + 1}: ${sec.tier}${picked}`, description: 'Total with everything included in every option', hours: null, amount: formatLineMoney(totals[n]?.total_cents ?? 0), heading: true });
-    }
-    if (sec.kind === 'extras') out.push({ name: 'Optional extras', description: chosen ? 'Ticked extras are in the total' : 'Add any of these', hours: null, amount: '', heading: true });
-    for (const r of sec.rows) {
-      const ticked = chosen && r.optional && r.source !== undefined && chosen.optional.includes(r.source);
-      out.push({ ...plain(r), name: r.optional ? `${r.name}${ticked ? ' — added' : ' (optional)'}` : r.name });
+  const out: Row[] = rows.filter((r) => !r.optional).map((r) => ({ ...plain(r), name: r.tier ? `${r.name} — ${r.tier}` : r.name }));
+  if (totals.length) {
+    out.push({ name: chosen ? 'Options' : 'Choose one option', description: '', hours: null, amount: '', heading: true });
+    totals.forEach((t, n) => out.push({ name: `Option ${n + 1}: ${t.tier}${chosen?.tier === t.tier ? ' — chosen' : ''}`, description: '', hours: null, amount: formatLineMoney(t.total_cents) }));
+  }
+  const extras = rows.filter((r) => r.optional);
+  if (extras.length) {
+    out.push({ name: 'Optional extras', description: chosen ? 'Ticked extras are in the total' : 'Add any of these', hours: null, amount: '', heading: true });
+    for (const r of extras) {
+      const ticked = chosen && r.source !== undefined && chosen.optional.includes(r.source);
+      out.push({ ...plain(r), name: `${r.name}${ticked ? ' — added' : chosen ? '' : ' (optional)'}` });
     }
   }
   return out;

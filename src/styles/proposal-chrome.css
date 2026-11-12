@@ -635,3 +635,8 @@ button.proposalFooterAction { font-family: inherit; }
 .pdSummary dt { font-size: 13.5px; color: #555; }
 .pdSummary dd { margin: 0; font-weight: 700; }
 @media (max-width: 480px) { .pdActions .pdBtn { flex: 1; } }
+
+/* Estimate: options after the items (Nov 2026) */
+.estimateTierTag { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #3943b7; color: #fff; font-size: 11px; font-weight: 700; vertical-align: middle; }
+.estimateOptionRows li.estimateOptionRow { align-items: center; padding: 12px; border-radius: 12px; border: 2px solid transparent; }
+.estimateOptionRows li.estimateOptionOn { border-color: #e50586; background: #fff7fb; }

@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, choiceSections, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -1748,38 +1748,42 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you add them.</td></tr>
-          ) : !isInvoice && hasChoices(items) ? choiceSections(items).map((sec, si) => {
-            // Tiers and extras (migration 061): laid out as the client sees them.
+          ) : !isInvoice && hasChoices(items) ? (() => {
+            // Tiers and extras (migration 061), as the client sees them: the items, then each option's total, then the extras.
             const tiers = tiersOf(items);
-            const head = sec.kind === 'tier'
-              ? { label: `Option ${tiers.indexOf(sec.tier!) + 1}: ${sec.tier}`, amount: formatLineMoney(tierTotal(items, sec.tier!)) }
-              : sec.kind === 'extras' ? { label: 'Optional extras — the client can tick these', amount: '' }
-              : tiers.length ? { label: 'Included in every option', amount: '' } : null;
+            const line = (it: LineItem, i: number) => (
+              <tr key={`${it.name}-${i}`}>
+                <td>
+                  <div className={s.lineName}>{it.name}{it.tier ? <span className={s.badgeTier}>{it.tier}</span> : null}{it.optional ? ' (optional)' : ''}</div>
+                  {it.description && (
+                    <div className={`${s.lineDesc} ${it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
+                  )}
+                </td>
+                {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
+                <td className={s.num} style={{ fontWeight: 700 }}>
+                  {isMonthly(it) ? amountText(0, it.amount_cents) : amountText(it.amount_cents, 0)}
+                </td>
+              </tr>
+            );
             return (
-              <Fragment key={si}>
-                {head && (
-                  <tr className={s.catRow}>
-                    <td colSpan={showHours ? 2 : 1}>{head.label}</td>
-                    <td className={s.num}>{head.amount}</td>
-                  </tr>
+              <>
+                {items.filter((it) => !it.optional).map(line)}
+                {tiers.length > 0 && (
+                  <tr className={s.catRow}><td colSpan={showHours ? 3 : 2}>Choose one option</td></tr>
                 )}
-                {sec.rows.map((it, i) => (
-                  <tr key={i}>
-                    <td>
-                      <div className={s.lineName}>{it.name}{it.optional ? ' (optional)' : ''}</div>
-                      {it.description && (
-                        <div className={`${s.lineDesc} ${it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>
-                      )}
-                    </td>
-                    {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
-                    <td className={s.num} style={{ fontWeight: 700 }}>
-                      {isMonthly(it) ? amountText(0, it.amount_cents) : amountText(it.amount_cents, 0)}
-                    </td>
+                {tiers.map((t, n) => (
+                  <tr key={t}>
+                    <td colSpan={showHours ? 2 : 1}><div className={s.lineName}>Option {n + 1}: {t}</div></td>
+                    <td className={s.num} style={{ fontWeight: 700 }}>{formatLineMoney(tierTotal(items, t))}</td>
                   </tr>
                 ))}
-              </Fragment>
+                {items.some((it) => it.optional) && (
+                  <tr className={s.catRow}><td colSpan={showHours ? 3 : 2}>Optional extras — the client can tick these</td></tr>
+                )}
+                {items.filter((it) => it.optional).map(line)}
+              </>
             );
-          }) : groups.map((g) => {
+          })() : groups.map((g) => {
             // What the client sees with Totals only: a category with two or more
             // lines collapses to its subtotal; a lone or uncategorised line keeps its name.
             const collapsed = draft.totalsOnly && g.items.length > 1 && g.items.some((it) => it.category?.trim());

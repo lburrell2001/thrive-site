@@ -647,6 +647,22 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A line that belongs to one option: its name as a small tag. */
+.pricingTierTag {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--paper, #fff);
+  color: #141414;
+  font-family: inherit;
+  font-size: clamp(9px, 1.2cqw, 12px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 /* Tiers (Nov 2026): one card per option, its name and total. */
 .pricingOptions {
   display: grid;
