@@ -192,3 +192,7 @@
 .tierList li { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; padding: 5px 9px; border-radius: 9px; background: var(--a-surface-2, #f5f5f5); }
 .tierAdd { display: flex; gap: 8px; }
 .tierAdd input { flex: 1; min-width: 0; }
+.rowChoices { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 0 12px 10px; }
+.tierSelect { font: inherit; font-size: 13px; padding: 5px 10px; border: 1.5px solid #141414; border-radius: 999px; background: #fff; max-width: 100%; }
+.optionalTick { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.optionalTick input { width: 16px; height: 16px; accent-color: #e50586; margin: 0; }

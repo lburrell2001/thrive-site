@@ -155,8 +155,8 @@ export function PricingForm({
           <strong>Tiers</strong>
           <span className={s.hint}>
             {tiers.length
-              ? 'The client picks one option when they sign. Set each line’s tier (or “Every option”) by tapping it; optional lines are extras they can tick.'
-              : 'Offer options (e.g. Template store / Custom store): name a tier, then tap a line to set its tier.'}
+              ? 'The client picks one option when they sign. Use the menu under each line to put it in a tier (“Every option” = included in all). Tick Optional for extras they can add.'
+              : 'Offer options (e.g. Template store / Custom store): name a tier, then pick it from the menu under each line.'}
           </span>
           {tiers.length > 0 && (
             <ul className={pf.tierList}>
@@ -210,6 +210,20 @@ export function PricingForm({
                     <button type="button" className={pf.remove} aria-label={`Remove ${item.label || 'line'}`} disabled={!!locked}
                       title={locked ? `Required with ${locked}` : 'Remove'} onClick={() => remove(index)}>×</button>
                   </div>
+                  {/* Tier and optional, right on the row (migration 061). */}
+                  <div className={pf.rowChoices}>
+                    {tiers.length > 0 && (
+                      <select className={pf.tierSelect} value={item.tier?.trim() ?? ''} aria-label={`Tier for ${item.label || 'this line'}`}
+                        onChange={(e) => update(index, { tier: e.target.value || null })}>
+                        <option value="">Every option</option>
+                        {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    )}
+                    <label className={pf.optionalTick}>
+                      <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
+                      Optional
+                    </label>
+                  </div>
                   {open && (
                     <div className={pf.edit}>
                       <TextInput label="Name" value={item.label} onChange={(v) => update(index, { label: v })} />
@@ -224,20 +238,7 @@ export function PricingForm({
                           onChange={(e) => update(index, { description: [stripMo(item.description), e.target.checked ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
                         Monthly
                       </label>
-                      <label className={pf.check}>
-                        <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
-                        Optional — the client can tick it as an extra
-                      </label>
-                      {tiers.length > 0 && (
-                        <label className={pf.check} style={{ gap: 8 }}>
-                          Tier
-                          <select className={s.input} style={{ width: 'auto' }} value={item.tier?.trim() ?? ''}
-                            onChange={(e) => update(index, { tier: e.target.value || null })}>
-                            <option value="">Every option</option>
-                            {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </label>
-                      )}
+
                       {cat && <p className={s.hint}>Price list: {priceLabel(cat)}. Changing it here only changes this proposal.</p>}
                     </div>
                   )}
