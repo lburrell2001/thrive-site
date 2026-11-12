@@ -1,15 +1,16 @@
 export const runtime = 'nodejs';
 
-// The client accepts an estimate: recorded (who, when, from where), marked
-// accepted — which wins the deal — and turned into an invoice in the project
-// folder in their portal. Lauren is texted and emailed.
+// The client accepts an estimate (no login needed): recorded (who, when, from
+// where), marked accepted — which wins the deal. If they already have a portal,
+// it becomes an invoice in their project folder; if not, Lauren is asked to set
+// up their portal (src/lib/acceptedPortal.ts). Lauren is texted and emailed.
 
 import { NextResponse, after } from 'next/server';
 import { z } from 'zod';
 import { Resend } from 'resend';
 import { loadClientEstimate } from '@/lib/estimateAccess';
 import { proposalServiceClient } from '@/lib/proposalAccess';
-import { invoiceForEstimate } from '@/lib/estimateInvoice';
+import { afterAccept } from '@/lib/acceptedPortal';
 import { parseIpAddress } from '@/lib/proposalSignature';
 import { textAgency } from '@/lib/sms';
 import { formatLineMoney } from '@/lib/lineItems';
@@ -50,14 +51,18 @@ export async function POST(req: Request, { params }: Ctx) {
     if (error) return NextResponse.json({ error: 'We couldn’t record that. Please try again.' }, { status: 500 });
   }
 
-  // The invoice, in their project folder (once, however many times this runs).
-  const invoice = await invoiceForEstimate(db, id);
-  if (!invoice.ok) console.error('[estimate accept] invoice not made', id, invoice.error);
+  // The invoice in their project folder if they have a portal (once, however many
+  // times this runs); otherwise it waits for Lauren to set the portal up.
+  const next = await afterAccept(db, id);
+  if (next.error) console.error('[estimate accept] invoice not made', id, next.error);
+  const setupUrl = `${SITE_URL}/admin#portal-accepted`;
 
   if (!est.accepted_at) {
     after(async () => {
       const total = formatLineMoney(est.total_cents);
-      await textAgency(`Accepted: estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} by ${parsed.data.name} — ${total}. ${SITE_URL}/admin/invoices?estimate=${id}`);
+      await textAgency(next.needsSetup
+        ? `Accepted: estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} by ${parsed.data.name} — ${total}. Set up their portal: ${setupUrl}`
+        : `Accepted: estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} by ${parsed.data.name} — ${total}. ${SITE_URL}/admin/invoices?estimate=${id}`);
       const apiKey = process.env.RESEND_API_KEY;
       const from = process.env.CONTACT_NOTIFY_FROM;
       const to = process.env.CONTACT_NOTIFY_TO;
@@ -65,11 +70,13 @@ export async function POST(req: Request, { params }: Ctx) {
         await new Resend(apiKey).emails.send({
           from, to,
           subject: `Accepted: estimate ${est.estimate_number} — ${total}`,
-          text: `${parsed.data.name} accepted estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} for ${total}.\n\n${invoice.ok ? 'The invoice is in their portal and they’ve been told.' : `The invoice wasn’t made automatically: ${invoice.error}`}\n\n${SITE_URL}/admin/invoices?estimate=${id}`,
+          text: `${parsed.data.name} accepted estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} for ${total}.\n\n${next.needsSetup
+            ? `They don’t have a client portal yet. Set it up from Home (one click makes their login, the project and the invoice, and emails them):\n${setupUrl}`
+            : next.invoiceReady ? 'The invoice is in their portal and they’ve been told.' : `The invoice wasn’t made automatically: ${next.error}`}\n\n${SITE_URL}/admin/invoices?estimate=${id}`,
         }).catch((e) => console.error('[estimate accept] notify failed', e));
       }
     });
   }
 
-  return NextResponse.json({ ok: true, invoiceReady: invoice.ok, portalPath: '/portal/invoices' });
+  return NextResponse.json({ ok: true, invoiceReady: next.invoiceReady, needsSetup: next.needsSetup, portalPath: '/portal/invoices' });
 }

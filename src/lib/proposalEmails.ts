@@ -23,6 +23,10 @@ export interface SigningEmailData {
   printUrl: string;
   portalUrl: string;
   adminUrl: string;
+  /** No portal yet: the deposit invoice comes once Lauren sets one up (src/lib/acceptedPortal.ts). */
+  needsSetup?: boolean;
+  /** Where Lauren sets their portal up. */
+  setupUrl?: string;
   contentHash: string;
   ipAddress: string | null;
   /** The rendered proposal, attached to the client's receipt when available. */
@@ -47,8 +51,9 @@ function clientReceipt(d: SigningEmailData) {
         { label: 'Total', value: d.totalLabel },
         { label: `Deposit due (${d.depositPercent}%)`, value: d.depositLabel, strong: true },
       ]),
-      paragraph('Next step: pay the deposit in your client portal. Work begins as soon as it lands.'),
-      button(d.portalUrl, 'Pay the deposit'),
+      ...(d.needsSetup
+        ? [paragraph('Next step: we’ll set up your client portal and email you there, where your deposit invoice will be waiting. Work begins as soon as it lands.')]
+        : [paragraph('Next step: pay the deposit in your client portal. Work begins as soon as it lands.'), button(d.portalUrl, 'Pay the deposit')]),
       links([
         { href: d.proposalUrl, label: 'Read the proposal again' },
         { href: d.printUrl, label: 'Save a PDF copy' },
@@ -74,6 +79,9 @@ function agencyNotification(d: SigningEmailData) {
         { label: 'Content hash', value: d.contentHash, small: true },
         { label: 'Deposit due', value: d.depositLabel, strong: true },
       ]),
+      ...(d.needsSetup && d.setupUrl
+        ? [paragraph('They don’t have a client portal yet. Set it up from Home — one click makes their login, the project and the deposit invoice, and emails them.'), button(d.setupUrl, 'Set up their portal')]
+        : []),
       button(d.adminUrl, 'Open in admin'),
     ].join('\n'),
   });
@@ -194,7 +202,7 @@ export async function sendSigningEmails(data: SigningEmailData): Promise<void> {
       to: data.signerEmail,
       subject: `Approved — ${data.proposalTitle}`,
       html: clientReceipt(data),
-      text: `You approved ${data.proposalTitle} on ${data.signedAt}.\n\nTotal ${data.totalLabel}\nDeposit due (${data.depositPercent}%) ${data.depositLabel}\n\nPay the deposit: ${data.portalUrl}\nRead the proposal: ${data.proposalUrl}`,
+      text: `You approved ${data.proposalTitle} on ${data.signedAt}.\n\nTotal ${data.totalLabel}\nDeposit due (${data.depositPercent}%) ${data.depositLabel}\n\n${data.needsSetup ? 'Next step: we’ll set up your client portal and email you there, where your deposit invoice will be waiting.' : `Pay the deposit: ${data.portalUrl}`}\nRead the proposal: ${data.proposalUrl}`,
       // A signed proposal is a document the client should be able to keep
       // without depending on a link staying live.
       ...(data.pdf

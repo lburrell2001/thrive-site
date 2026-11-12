@@ -9,6 +9,8 @@ interface SignResult {
   depositLabel: string;
   depositPercent: number;
   portalPath: string;
+  /** No portal yet: Lauren sets it up and the deposit invoice waits there. */
+  needsSetup?: boolean;
   receiptEmail: string;
 }
 
@@ -279,7 +281,9 @@ function Confirmation({
       </dl>
 
       <p className="signIntro">
-        Pay the deposit in your client portal. Work begins as soon as it lands.
+        {result.needsSetup
+          ? 'Next, we’ll set up your client portal and email you there — your deposit invoice will be waiting. Work begins as soon as it lands.'
+          : 'Pay the deposit in your client portal. Work begins as soon as it lands.'}
       </p>
 
       <div className="signActions">
@@ -291,9 +295,11 @@ function Confirmation({
         >
           Save a PDF
         </a>
-        <a className="signButton" href={result.portalPath}>
-          Pay the deposit
-        </a>
+        {!result.needsSetup && (
+          <a className="signButton" href={result.portalPath}>
+            Pay the deposit
+          </a>
+        )}
       </div>
     </div>
   );

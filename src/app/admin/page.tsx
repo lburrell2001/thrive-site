@@ -13,6 +13,7 @@ import p from './proposals/proposals.module.css';
 import w from './crm/workspace.module.css';
 import h from './home.module.css';
 import { apiGet, apiSend, formatDate, formatMoneyCents } from './proposals/adminApi';
+import type { AcceptedWaiting } from '@/lib/acceptedPortal';
 import { useCrm } from './crm/CrmContext';
 import { ReminderDialog } from './ReminderDialog';
 import { MeetingLink } from './crm/MeetingLink';
@@ -52,10 +53,33 @@ export default function AdminHome() {
   const [work, setWork] = useState<WorkRow[]>([]);
   // New projects whose portal isn't set up yet (migration 057).
   const [setups, setSetups] = useState<{ project_id: string; project_name: string; client_id: string; client_name: string; contact_id: string | null; deal_id: string | null; created_at: string; steps: Record<string, boolean> }[]>([]);
+  // Accepted estimates / signed proposals from clients with no portal yet (src/lib/acceptedPortal.ts).
+  const [accepted, setAccepted] = useState<AcceptedWaiting[]>([]);
+  const [settingUp, setSettingUp] = useState<string | null>(null);
   useEffect(() => {
     // Only new clients' first projects need it; for existing clients it's optional (their Client tab only).
-    apiGet<{ setups: (typeof setups[number] & { required?: boolean })[] }>('/api/portal-setup').then((r) => setSetups(r.setups.filter((x) => x.required !== false))).catch(() => setSetups([]));
+    apiGet<{ setups: (typeof setups[number] & { required?: boolean })[]; accepted?: AcceptedWaiting[] }>('/api/portal-setup')
+      .then((r) => { setSetups(r.setups.filter((x) => x.required !== false)); setAccepted(r.accepted ?? []); })
+      .catch(() => { setSetups([]); setAccepted([]); });
   }, [version]);
+  // The text/email after an accept links to /admin#portal-accepted; the card loads late, so scroll once it's there.
+  useEffect(() => {
+    if (accepted.length && window.location.hash === '#portal-accepted') document.getElementById('portal-accepted')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [accepted.length]);
+  async function setUpPortal(a: AcceptedWaiting) {
+    const who = a.client_name || a.accepted_by || a.email || 'them';
+    if (!confirm(`Set up ${who}'s client portal?\n\nThis makes their login and the "${a.title || a.estimate_number}" project, puts the ${a.from_proposal ? 'deposit ' : ''}invoice in it, and emails them that their portal is ready${a.email ? ` (${a.email})` : ''}.`)) return;
+    setSettingUp(a.estimate_id);
+    try {
+      const r = await apiSend<{ invited: boolean; inviteError: string | null }>('/api/portal-setup', 'POST', { action: 'from_estimate', estimate_id: a.estimate_id });
+      notify(r.invited ? `Portal set up — ${who} has been emailed` : `Portal and invoice made, but the email didn’t send: ${r.inviteError}`, r.invited ? 'ok' : 'error');
+      refresh();
+    } catch (e) {
+      notify((e as Error).message, 'error');
+    } finally {
+      setSettingUp(null);
+    }
+  }
 
   // Work in progress (migration 052): open projects with a checklist.
   useEffect(() => {
@@ -150,6 +174,7 @@ export default function AdminHome() {
         // What needs her, in order; only the ones with something in them show.
         const needs = [
           { id: 'replies', title: 'Replies', count: replies.length, hot: true },
+          { id: 'portal-accepted', title: 'Accepted — set up their portal', count: accepted.length, hot: true, note: 'They said yes without a login. One click makes their portal, project and invoice, and emails them.' },
           { id: 'portal-setup', title: 'Set up the portal', count: setups.length, hot: true, note: 'New clients: invite, questionnaires, estimate or invoice, milestones' },
           { id: 'follow-ups', title: 'Follow-ups', count: d.followUps.length, hot: overdue > 0 },
           { id: 'inquiries', title: 'New inquiries', count: d.newInquiries.length, hot: true },
@@ -238,6 +263,21 @@ export default function AdminHome() {
                   </button>
                   <span className={w.itemWhen} style={inv.overdue ? { color: 'var(--a-danger)', fontWeight: 700 } : undefined}>{inv.overdue ? 'Overdue' : 'Due'} {formatDate(inv.due_date)}</span>
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: 'Remind about invoice', target: { kind: 'invoice', id: inv.id } })}>Remind</button>
+                </div>
+              ))}
+                      </>),
+          'portal-accepted': (<>
+              {accepted.map((a) => (
+                <div key={a.estimate_id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <span className={w.itemMain} style={{ flex: 1, minWidth: 0 }}>
+                    <span className={w.itemTitle}>{a.client_name || a.accepted_by || a.email || 'Client'} <span className={w.muted} style={{ fontWeight: 500 }}>· {formatMoneyCents(a.total_cents)}</span></span>
+                    <span className={w.itemSub}>{a.from_proposal ? 'Signed the proposal' : 'Accepted the estimate'} {a.title ? `“${a.title}”` : a.estimate_number}{a.accepted_by ? ` · ${a.accepted_by}` : ''}</span>
+                  </span>
+                  <span className={w.itemWhen}>{timeAgo(a.accepted_at)}</span>
+                  {a.contact_id && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => openContact(a.contact_id!)}>Open</button>}
+                  <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => setUpPortal(a)} disabled={settingUp === a.estimate_id}>
+                    {settingUp === a.estimate_id ? 'Setting up…' : 'Set up portal'}
+                  </button>
                 </div>
               ))}
                       </>),

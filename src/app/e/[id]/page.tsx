@@ -53,6 +53,7 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         accepted={accepted || est.status === 'invoiced'}
         canAccept={!accepted && !expired && est.status !== 'declined' && est.status !== 'invoiced'}
         declined={est.status === 'declined'}
+        invoiced={!!est.invoice_id}
       />
     </main>
   );

@@ -1,16 +1,17 @@
 'use client';
 
 // The estimate page's footer: the total, "Export PDF", and "Accept estimate"
-// with a short confirm (their name and a tick). Accepting turns it into an
-// invoice in their portal. "Not going ahead" declines it with a reason
+// with a short confirm (their name and a tick) — no login needed. Accepting
+// turns it into an invoice in their portal if they have one; if not, Lauren
+// sets their portal up and the invoice waits there (src/lib/acceptedPortal.ts). "Not going ahead" declines it with a reason
 // (migration 058), which Lauren is sent.
 
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false }: {
-  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean;
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false }: {
+  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean; invoiced?: boolean;
 }) {
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState('');
@@ -21,7 +22,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState<{ invoiceReady: boolean } | null>(null);
+  const [done, setDone] = useState<{ invoiceReady: boolean; needsSetup: boolean } | null>(null);
   const first = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,9 +51,9 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, name: name.trim(), agreed }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean };
+      const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean };
       if (!res.ok) { setError(body.error ?? 'Something went wrong. Please try again.'); setBusy(false); return; }
-      setDone({ invoiceReady: !!body.invoiceReady });
+      setDone({ invoiceReady: !!body.invoiceReady, needsSetup: !!body.needsSetup });
       setOpen(false);
     } catch {
       setError('Something went wrong. Please try again.');
@@ -93,7 +94,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             {pdfBusy ? 'Making the PDF…' : 'Export PDF'}
           </button>
           {isAccepted ? (
-            <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a>
+            (invoiced || done?.invoiceReady) ? <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a> : null
           ) : canAccept && !isDeclined ? (<>
             <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclining(true); }}>Not going ahead</button>
             <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setOpen(true); }}>Accept estimate</button>
@@ -103,7 +104,11 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
 
       {done && (
         <p className="proposalNotice proposalNoticeGood" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 96, zIndex: 40, margin: 0 }}>
-          Thank you! {done.invoiceReady ? 'Your invoice is ready in your client portal — we’ve emailed you the link.' : 'We’ve got it and will send your invoice shortly.'}
+          Thank you! {done.invoiceReady
+            ? 'Your invoice is ready in your client portal — we’ve emailed you the link.'
+            : done.needsSetup
+              ? 'Next, we’ll set up your client portal and email you there — your invoice will be waiting.'
+              : 'We’ve got it and will send your invoice shortly.'}
         </p>
       )}
 
@@ -142,7 +147,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
         <div className="signOverlay estimateDialog" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setOpen(false); }}>
           <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="accept-heading">
             <h2 id="accept-heading" className="signHeading">Accept this estimate</h2>
-            <p className="signIntro">Your invoice will be ready in your client portal straight away.</p>
+            <p className="signIntro">Once you accept, we’ll send your invoice to your client portal.</p>
             <div className="signField">
               <label htmlFor="accept-name">Your name</label>
               <input id="accept-name" ref={first} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />

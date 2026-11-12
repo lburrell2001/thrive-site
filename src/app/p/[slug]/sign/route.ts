@@ -18,7 +18,7 @@ import { pdfFilename } from '@/lib/proposalPdf';
 import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/proposalUrls';
 import { formatMoney } from '@/components/proposal/context';
 import { syncProposalEstimate } from '@/lib/proposalEstimate';
-import { invoiceForEstimate } from '@/lib/estimateInvoice';
+import { afterAccept } from '@/lib/acceptedPortal';
 
 /**
  * Fetch the proposal PDF over HTTP rather than rendering it in this function.
@@ -148,14 +148,17 @@ export async function POST(
 
   if (statusError) console.error('Signature saved but status not updated:', statusError.message);
 
-  // Signed: the estimate is accepted and becomes an invoice in their project
-  // folder — the deposit due now, the rest when Lauren opens it.
+  // Signed: the estimate is accepted. With a portal it becomes an invoice in
+  // their project folder (the deposit due now, the rest when Lauren opens it);
+  // without one, Lauren is asked to set the portal up (src/lib/acceptedPortal.ts).
   let invoiceReady = false;
+  let needsSetup = false;
   if (estimateId) {
     await db.from('estimates').update({ accepted_at: signedAt.toISOString(), accepted_by: input.signerName, accepted_ip: ipAddress }).eq('id', estimateId).is('accepted_at', null);
-    const inv = await invoiceForEstimate(db, estimateId, { depositPercent: renderable.depositPercent });
-    invoiceReady = inv.ok;
-    if (!inv.ok) console.error('[sign] invoice not made', row.id, inv.error);
+    const next = await afterAccept(db, estimateId, { depositPercent: renderable.depositPercent });
+    invoiceReady = next.invoiceReady;
+    needsSetup = next.needsSetup;
+    if (next.error) console.error('[sign] invoice not made', row.id, next.error);
   }
 
   await db.from('proposal_events').insert({
@@ -178,8 +181,9 @@ export async function POST(
   // after the response goes out rather than inside it.
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
-    await textAgency(
-      `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
+    await textAgency(needsSetup
+      ? `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
+      : `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(renderable.totalCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
     );
     const pdf = await fetchProposalPdf(site, row.id, row.access_token, renderable.title);
     await sendSigningEmails({
@@ -200,6 +204,8 @@ export async function POST(
       printUrl: `${proposalPrintUrl(site, slug, row.access_token)}&print=1`,
       portalUrl: `${site}/portal/invoices`,
       adminUrl: `${site}/admin/crm/proposals/${row.id}/edit`,
+      needsSetup,
+      setupUrl: `${site}/admin#portal-accepted`,
       contentHash: snapshot.contentHash,
       ipAddress,
       pdf,
@@ -215,6 +221,7 @@ export async function POST(
       depositPercent: renderable.depositPercent,
       portalPath: '/portal/invoices',
       invoiceReady,
+      needsSetup,
       receiptEmail: input.signerEmail,
     },
   });
