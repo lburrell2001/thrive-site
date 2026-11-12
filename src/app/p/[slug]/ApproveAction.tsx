@@ -8,7 +8,7 @@
 
 import { useState } from "react";
 import type { ProposalChoices } from "@/lib/proposalChoices";
-import { ProposalDialog } from "./ProposalDialog";
+import { ClientDialog } from "@/components/ClientDialog";
 
 interface ApproveResult {
   totalLabel: string;
@@ -90,7 +90,7 @@ export function ApproveAction({
         Approve proposal
       </button>
 
-      <ProposalDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="approve-title" locked={busy} wide={!!choices}>
+      <ClientDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="approve-title" locked={busy} wide={!!choices}>
         {result ? (
           <div className="pdDone">
             <span className="pdCheck" aria-hidden>✓</span>
@@ -204,7 +204,7 @@ export function ApproveAction({
             </div>
           </form>
         )}
-      </ProposalDialog>
+      </ClientDialog>
     </>
   );
 }

@@ -15,7 +15,7 @@ import { parseIpAddress } from '@/lib/proposalSignature';
 import { textAgency } from '@/lib/sms';
 import { formatLineMoney } from '@/lib/lineItems';
 import { SITE_URL } from '@/lib/seo';
-import { hasChoices, lineSelectionSchema } from '@/lib/lineItems';
+import { hasChoices, lineSelectionSchema, tiersOf } from '@/lib/lineItems';
 import { choiceTotal } from '@/lib/estimateChoice';
 
 const schema = z.object({
@@ -44,6 +44,11 @@ export async function POST(req: Request, { params }: Ctx) {
     }
     if (est.status === 'declined') {
       return NextResponse.json({ error: 'This estimate was marked declined. Reply to the email it came in and we’ll reopen it.' }, { status: 409 });
+    }
+    // With tiers they must have picked one (nothing is preselected on the page).
+    const tiers = tiersOf(est.line_items);
+    if (tiers.length && !tiers.includes(parsed.data.selection?.tier ?? '')) {
+      return NextResponse.json({ error: 'Choose an option before accepting.' }, { status: 400 });
     }
     // Their choice of option and extras, and its total (which the deal and invoice follow).
     const choice = hasChoices(est.line_items) ? choiceTotal(est.line_items, parsed.data.selection) : null;

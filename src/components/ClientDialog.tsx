@@ -1,6 +1,7 @@
 "use client";
 
-// The proposal page's dialogs (Approve, Not going ahead): a light, rounded
+// The client dialogs on proposal and estimate pages (Approve / Accept, Not
+// going ahead): a light, rounded
 // card over a dimmed page. Portalled to the body — the sticky footer has a
 // backdrop-filter, which would otherwise trap a fixed overlay inside it.
 // Escape closes (unless `locked`), Tab stays inside, focus returns on close.
@@ -8,7 +9,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-export function ProposalDialog({
+export function ClientDialog({
   open,
   onClose,
   labelledBy,

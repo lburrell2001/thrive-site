@@ -1,44 +1,53 @@
 'use client';
 
-// The estimate page's footer: the total, "Export PDF", and "Accept estimate"
-// with a short confirm (their name and a tick) — no login needed. Accepting
-// turns it into an invoice in their portal if they have one; if not, Lauren
-// sets their portal up and the invoice waits there (src/lib/acceptedPortal.ts). "Not going ahead" declines it with a reason
-// (migration 058), which Lauren is sent.
+// The estimate page's footer: the total, "Export PDF", "Not going ahead" and
+// "Accept estimate" — no login needed. Both open the same light dialogs as a
+// proposal (src/components/ClientDialog.tsx). With tiers (migration 061) the
+// client must pick an option — nothing is preselected — and can tick extras,
+// in the dialog or on the paper (one shared choice). Accepting turns it into
+// an invoice in their portal if they have one; if not, Lauren sets their
+// portal up and the invoice waits there (src/lib/acceptedPortal.ts). A decline
+// needs a reason (migration 058), which Lauren is sent.
 
-import { useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useState } from 'react';
+import { ClientDialog } from '@/components/ClientDialog';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
-import type { LineSelection } from '@/lib/lineItems';
+import { formatLineMoney, type LineSelection } from '@/lib/lineItems';
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, selection, choiceLabel, pricing = false }: {
+export type EstimateChooser = {
+  options: { tier: string; total_cents: number }[];
+  extras: { source: number; name: string; description: string; amount_cents: number }[];
+  selection: LineSelection;
+  onTier: (tier: string) => void;
+  onExtra: (source: number, on: boolean) => void;
+};
+
+const REASONS = ['The price', 'The timing', 'The scope isn’t right', 'We’re going another way', 'Something else'];
+
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, chooser, pricing = false }: {
   id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean; invoiced?: boolean;
-  /** Tiers and extras (migration 061): what the client picked, sent with Accept. */
-  selection?: LineSelection;
-  /** "Custom store + 1 extra", said back in the confirm. */
-  choiceLabel?: string;
+  /** Tiers and extras: the options, the extras and the shared choice. */
+  chooser?: EstimateChooser;
   /** The total is being worked out for a new choice. */
   pricing?: boolean;
 }) {
-  const [declining, setDeclining] = useState(false);
-  const [reason, setReason] = useState('');
-  const [declinedNow, setDeclinedNow] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [acceptOpen, setAcceptOpen] = useState(false);
+  const [declineOpen, setDeclineOpen] = useState(false);
   const [name, setName] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [chip, setChip] = useState<string | null>(null);
+  const [detail, setDetail] = useState('');
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState<{ invoiceReady: boolean; needsSetup: boolean } | null>(null);
-  const first = useRef<HTMLInputElement>(null);
+  const [declinedNow, setDeclinedNow] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    first.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) setOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, busy]);
+  const sel = chooser?.selection;
+  const needsTier = !!chooser?.options.length;
+  const chosen = !needsTier || !!sel?.tier;
+  const ready = chosen && !pricing && name.trim() && agreed;
+  const reason = [chip && chip !== 'Something else' ? chip : null, detail.trim() || null].filter(Boolean).join(' — ');
 
   async function exportPdf() {
     setPdfBusy(true);
@@ -50,38 +59,40 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
     }
   }
 
-  async function accept() {
+  async function accept(e: React.FormEvent) {
+    e.preventDefault();
+    if (!ready) return;
     setBusy(true); setError('');
     try {
       const res = await fetch(`/e/${id}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, name: name.trim(), agreed, ...(selection ? { selection } : {}) }),
+        body: JSON.stringify({ token, name: name.trim(), agreed, ...(sel ? { selection: sel } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean };
-      if (!res.ok) { setError(body.error ?? 'Something went wrong. Please try again.'); setBusy(false); return; }
-      setDone({ invoiceReady: !!body.invoiceReady, needsSetup: !!body.needsSetup });
-      setOpen(false);
+      if (!res.ok) setError(body.error ?? 'Something went wrong. Please try again.');
+      else setDone({ invoiceReady: !!body.invoiceReady, needsSetup: !!body.needsSetup });
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('We couldn’t reach the server. Check your connection and try again.');
     }
     setBusy(false);
   }
 
-  async function decline() {
+  async function decline(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reason) return;
     setBusy(true); setError('');
     try {
       const res = await fetch(`/e/${id}/decline`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, reason: reason.trim(), name: name.trim() || undefined }),
+        body: JSON.stringify({ token, reason, name: name.trim() || undefined }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) { setError(body.error ?? 'Something went wrong. Please try again.'); setBusy(false); return; }
-      setDeclinedNow(true);
-      setDeclining(false);
+      if (!res.ok) setError(body.error ?? 'Something went wrong. Please try again.');
+      else setDeclinedNow(true);
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError('We couldn’t reach the server. Check your connection and try again.');
     }
     setBusy(false);
   }
@@ -103,77 +114,147 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
           {isAccepted ? (
             (invoiced || done?.invoiceReady) ? <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a> : null
           ) : canAccept && !isDeclined ? (<>
-            <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclining(true); }}>Not going ahead</button>
-            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" disabled={pricing} onClick={() => { setError(''); setOpen(true); }}>Accept estimate</button>
+            <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclineOpen(true); }}>Not going ahead</button>
+            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setAcceptOpen(true); }}>Accept estimate</button>
           </>) : null}
         </div>
       </div>
 
-      {done && (
-        <p className="proposalNotice proposalNoticeGood" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 96, zIndex: 40, margin: 0 }}>
-          Thank you! {done.invoiceReady
-            ? 'Your invoice is ready in your client portal — we’ve emailed you the link.'
-            : done.needsSetup
-              ? 'Next, we’ll set up your client portal and email you there — your invoice will be waiting.'
-              : 'We’ve got it and will send your invoice shortly.'}
-        </p>
-      )}
-
-      {declinedNow && (
-        <p className="proposalNotice" role="status" style={{ position: 'fixed', left: 16, right: 16, bottom: 96, zIndex: 40, margin: 0 }}>
-          Thanks for letting us know. Lauren has your note. If anything changes, just reply to the email this came in.
-        </p>
-      )}
-
-      {declining && createPortal(
-        <div className="signOverlay estimateDialog" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setDeclining(false); }}>
-          <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="decline-heading">
-            <h2 id="decline-heading" className="signHeading">Not going ahead?</h2>
-            <p className="signIntro">That’s okay. A line on why helps us — price, timing, scope, or something else.</p>
-            <div className="signField">
-              <label htmlFor="decline-reason">Why not</label>
-              <textarea id="decline-reason" rows={4} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
-            </div>
-            <div className="signField">
-              <label htmlFor="decline-name">Your name (optional)</label>
-              <input id="decline-name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
-            </div>
-            {error && <p className="signError" role="alert">{error}</p>}
-            <div className="signActions">
-              <button type="button" className="signButtonGhost" onClick={() => setDeclining(false)} disabled={busy}>Cancel</button>
-              <button type="button" className="signButton" onClick={decline} disabled={busy || !reason.trim()}>
-                {busy ? 'Sending…' : 'Decline estimate'}
-              </button>
+      {/* Accept */}
+      <ClientDialog open={acceptOpen} onClose={() => { if (done) window.location.reload(); else setAcceptOpen(false); }} labelledBy="accept-title" locked={busy} wide={needsTier || !!chooser?.extras.length}>
+        {done ? (
+          <div className="pdDone">
+            <span className="pdCheck" aria-hidden>✓</span>
+            <h2 id="accept-title" className="pdTitle">Accepted — thank you!</h2>
+            <dl className="pdSummary">
+              {sel?.tier && <div><dt>Your option</dt><dd>{sel.tier}</dd></div>}
+              <div><dt>Total</dt><dd>{totalLabel}</dd></div>
+            </dl>
+            <p className="pdLead">
+              {done.invoiceReady
+                ? 'Your invoice is ready in your client portal — we’ve emailed you the link.'
+                : done.needsSetup
+                  ? 'Next, we’ll set up your client portal and email you there — your invoice will be waiting.'
+                  : 'We’ve got it and will send your invoice shortly.'}
+            </p>
+            <div className="pdActions">
+              {done.invoiceReady
+                ? <a className="pdBtn" href="/portal/invoices">Go to your invoice</a>
+                : <button type="button" className="pdBtn" onClick={() => window.location.reload()}>Done</button>}
             </div>
           </div>
-        </div>,
-        document.body,
-      )}
+        ) : (
+          <form onSubmit={accept} noValidate>
+            <h2 id="accept-title" className="pdTitle">Accept estimate</h2>
+            <p className="pdLead">
+              {needsTier ? 'Choose your option, add any extras, and accept. ' : ''}
+              Once you accept, we’ll send your invoice to your client portal.
+            </p>
 
-      {open && createPortal(
-        <div className="signOverlay estimateDialog" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setOpen(false); }}>
-          <div className="signDialog" role="dialog" aria-modal="true" aria-labelledby="accept-heading">
-            <h2 id="accept-heading" className="signHeading">Accept this estimate</h2>
-            <p className="signIntro">Once you accept, we’ll send your invoice to your client portal.</p>
-            <div className="signField">
-              <label htmlFor="accept-name">Your name</label>
-              <input id="accept-name" ref={first} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            {needsTier && (
+              <fieldset className="pdGroup">
+                <legend className="pdLabel">Choose your option <span className="pdReq">Required</span></legend>
+                <div className="pdOptions">
+                  {chooser!.options.map((o, i) => (
+                    <label key={o.tier} className={`pdOption${sel?.tier === o.tier ? ' pdOn' : ''}`}>
+                      <input type="radio" name="accept-tier" checked={sel?.tier === o.tier} onChange={() => chooser!.onTier(o.tier)} />
+                      <span className="pdOptionKicker">Option {i + 1}</span>
+                      <span className="pdOptionName">{o.tier}</span>
+                      <span className="pdOptionPrice">{formatLineMoney(o.total_cents)}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+
+            {!!chooser?.extras.length && (
+              <fieldset className="pdGroup">
+                <legend className="pdLabel">Add extras <span className="pdHint">optional</span></legend>
+                <div className="pdExtras">
+                  {chooser.extras.map((x) => {
+                    const on = !!sel?.optional.includes(x.source);
+                    return (
+                      <label key={x.source} className={`pdExtra${on ? ' pdOn' : ''}`}>
+                        <input type="checkbox" checked={on} onChange={(e) => chooser.onExtra(x.source, e.target.checked)} />
+                        <span className="pdExtraText">
+                          <span className="pdExtraName">{x.name}</span>
+                          {x.description && <span className="pdExtraDesc">{x.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</span>}
+                        </span>
+                        <span className="pdExtraPrice">+ {formatLineMoney(x.amount_cents)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+
+            <div className="pdTotal" aria-live="polite">
+              <div>
+                <span>{sel?.tier ? `Your total — ${sel.tier}` : 'Your total'}</span>
+                <strong>{!chosen ? 'Choose an option' : pricing ? '…' : totalLabel}</strong>
+              </div>
             </div>
-            <label className="signCheck">
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>I accept this estimate{choiceLabel ? ` (${choiceLabel})` : ''} for {totalLabel} and agree to be invoiced for it.</span>
+
+            <label className="pdField">
+              <span>Your name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
             </label>
-            {error && <p className="signError" role="alert">{error}</p>}
-            <div className="signActions">
-              <button type="button" className="signButtonGhost" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
-              <button type="button" className="signButton" onClick={accept} disabled={busy || !name.trim() || !agreed}>
-                {busy ? 'Accepting…' : 'Accept estimate'}
+
+            <label className="pdAgree">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+              <span>I accept this estimate{chosen && !pricing ? ` for ${totalLabel}` : ''} and agree to be invoiced for it.</span>
+            </label>
+
+            {error && <p className="pdError" role="alert">{error}</p>}
+
+            <div className="pdActions">
+              <button type="button" className="pdBtn pdBtnGhost" onClick={() => setAcceptOpen(false)} disabled={busy}>Cancel</button>
+              <button type="submit" className="pdBtn" disabled={busy || !ready}>
+                {busy ? 'Accepting…' : !chosen ? 'Choose an option first' : 'Accept estimate'}
               </button>
             </div>
+          </form>
+        )}
+      </ClientDialog>
+
+      {/* Not going ahead */}
+      <ClientDialog open={declineOpen} onClose={() => { if (declinedNow) window.location.reload(); else setDeclineOpen(false); }} labelledBy="decline-title" locked={busy}>
+        {declinedNow ? (
+          <div className="pdDone">
+            <span className="pdCheck pdCheckQuiet" aria-hidden>✓</span>
+            <h2 id="decline-title" className="pdTitle">Thanks for letting us know</h2>
+            <p className="pdLead">Lauren has your note. If anything changes, just reply to the email this estimate came in.</p>
+            <div className="pdActions"><button type="button" className="pdBtn" onClick={() => window.location.reload()}>Close</button></div>
           </div>
-        </div>,
-        document.body,
-      )}
+        ) : (
+          <form onSubmit={decline} noValidate>
+            <h2 id="decline-title" className="pdTitle">Not going ahead?</h2>
+            <p className="pdLead">That’s okay. A quick reason helps us — it goes straight to Lauren.</p>
+            <fieldset className="pdGroup">
+              <legend className="pdLabel">What’s the main reason? <span className="pdReq">Required</span></legend>
+              <div className="pdChips">
+                {REASONS.map((r) => (
+                  <button key={r} type="button" className={`pdChip${chip === r ? ' pdOn' : ''}`} aria-pressed={chip === r}
+                    onClick={() => setChip(chip === r ? null : r)}>{r}</button>
+                ))}
+              </div>
+            </fieldset>
+            <label className="pdField">
+              <span>{chip === 'Something else' || !chip ? 'Tell us why' : 'Anything to add?'} {chip && chip !== 'Something else' ? <em>optional</em> : null}</span>
+              <textarea rows={3} value={detail} onChange={(e) => setDetail(e.target.value)} />
+            </label>
+            <label className="pdField">
+              <span>Your name <em>optional</em></span>
+              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+            </label>
+            {error && <p className="pdError" role="alert">{error}</p>}
+            <div className="pdActions">
+              <button type="button" className="pdBtn pdBtnGhost" onClick={() => setDeclineOpen(false)} disabled={busy}>Cancel</button>
+              <button type="submit" className="pdBtn pdBtnDark" disabled={busy || !reason}>{busy ? 'Sending…' : 'Send'}</button>
+            </div>
+          </form>
+        )}
+      </ClientDialog>
     </>
   );
 }

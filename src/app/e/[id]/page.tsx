@@ -53,7 +53,8 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
           token={token!}
           pdf={pdf}
           clientName={est.client_name || null}
-          initial={choiceTotal(est.line_items, est.selection).selection}
+          // Nothing is preselected: the client picks an option before accepting.
+          initial={{ tier: est.selection?.tier ?? null, optional: est.selection?.optional ?? [] }}
           initialTotal={(() => { const c = choiceTotal(est.line_items, est.selection); return { cents: c.total_cents, label: c.label }; })()}
           canAccept={!expired && est.status !== 'declined' && est.status !== 'invoiced'}
           declined={est.status === 'declined'}

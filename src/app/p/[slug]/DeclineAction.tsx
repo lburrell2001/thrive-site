@@ -6,7 +6,7 @@
 // (an email gets them a short acknowledgement). Posts to ./decline as before.
 
 import { useState } from "react";
-import { ProposalDialog } from "./ProposalDialog";
+import { ClientDialog } from "@/components/ClientDialog";
 
 interface DeclineResult {
   declinedAt: string;
@@ -62,7 +62,7 @@ export function DeclineAction({
         Not going ahead
       </button>
 
-      <ProposalDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="decline-title" locked={busy}>
+      <ClientDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="decline-title" locked={busy}>
         {result ? (
           <div className="pdDone">
             <span className="pdCheck pdCheckQuiet" aria-hidden>✓</span>
@@ -114,7 +114,7 @@ export function DeclineAction({
             </div>
           </form>
         )}
-      </ProposalDialog>
+      </ClientDialog>
     </>
   );
 }
