@@ -113,7 +113,7 @@
    at 1440px, and on Letter. */
 
 .headingClip {
-  margin: 0 0 clamp(12px, 2cqw, 24px);
+  margin: 0 0 clamp(6px, 1.2cqw, 14px);
   /* Line 2 is sized to fit this box exactly; overflow:hidden is only a guard
      against a sub-pixel rounding error, not a design device. */
   overflow: hidden;
@@ -191,6 +191,13 @@
     var(--heading-size),
     calc(var(--display-2-fill) * var(--heading-fill) / var(--l2-em, 6))
   );
+}
+
+/* The tight line-height puts line 2's letters partly below its box, and the
+   clip's overflow:hidden then trimmed their bottoms (Nov 2026). This gives
+   the glyphs room inside the box; the margin below is trimmed to match. */
+.headingClip .headingLine2 {
+  padding-bottom: 0.14em;
 }
 
 /* A line 2 that opens with "&" sets it oversized, rising into line 1. */
