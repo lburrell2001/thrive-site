@@ -19,7 +19,7 @@ import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/propo
 import { formatMoney } from '@/components/proposal/context';
 import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { afterAccept } from '@/lib/acceptedPortal';
-import { choiceTotalFor } from '@/lib/proposalChoices';
+import { choiceTotalFor, proposalChoices } from '@/lib/proposalChoices';
 import { totalCents, type LineItem } from '@/lib/lineItems';
 
 /**
@@ -111,7 +111,12 @@ export async function POST(
     return fail('This proposal is no longer open for approval.', 409);
   }
 
-  // Their choice of option and extras decides the total they're signing for.
+  // With tiers, they must have picked one (nothing is preselected on the page).
+  const offered = proposalChoices(renderable.lineItems);
+  if (offered?.tiers.length && !offered.tiers.some((t) => t.name === input.selection?.tier)) {
+    return fail('Choose an option before approving.');
+  }
+  // Their choice of option and extras decides the total they're approving.
   const choice = choiceTotalFor(renderable.lineItems, input.selection);
   const agreedCents = choice ? choice.total_cents : renderable.totalCents;
 
@@ -202,8 +207,8 @@ export async function POST(
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
     await textAgency(needsSetup
-      ? `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
-      : `Signed: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
+      ? `Approved: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
+      : `Approved: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
     );
     const pdf = await fetchProposalPdf(site, row.id, row.access_token, renderable.title);
     await sendSigningEmails({

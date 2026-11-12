@@ -144,6 +144,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         clientName={renderable.client?.company || renderable.client?.name || null}
         choices={choices}
         currency={renderable.currency}
+        totalCents={renderable.totalCents}
+        depositPercent={renderable.depositPercent}
       />
     </main>
   );

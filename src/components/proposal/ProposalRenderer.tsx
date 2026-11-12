@@ -78,6 +78,8 @@ export function ProposalRenderer({
 
   const ordered = blocks
     .filter((block) => block.visible)
+    // No signature box (Nov 2026): clients approve in the browser ("Approve proposal").
+    .filter((block) => block.type !== 'signature')
     .sort((a, b) => a.position - b.position);
 
   return (

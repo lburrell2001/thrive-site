@@ -1,6 +1,6 @@
 import type { ProposalChoices } from '@/lib/proposalChoices';
 import { DeclineAction } from './DeclineAction';
-import { SignAction } from './SignAction';
+import { ApproveAction } from './ApproveAction';
 import { EstimateDownload } from './EstimateDownload';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 
@@ -25,6 +25,8 @@ export function ProposalFooter({
   clientName,
   choices,
   currency,
+  totalCents,
+  depositPercent,
 }: {
   slug: string;
   token: string;
@@ -42,6 +44,8 @@ export function ProposalFooter({
   /** Tiers and optional extras (migration 061), chosen in the sign dialog. */
   choices?: ProposalChoices | null;
   currency?: string;
+  totalCents?: number;
+  depositPercent?: number;
 }) {
   return (
     <div className="proposalFooter">
@@ -82,7 +86,8 @@ export function ProposalFooter({
         {!signed && !declined && (
           <>
             <DeclineAction slug={slug} token={token} />
-            <SignAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} choices={choices} currency={currency} />
+            <ApproveAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} choices={choices} currency={currency}
+              totalCents={totalCents ?? 0} depositPercent={depositPercent ?? 0} />
           </>
         )}
       </div>

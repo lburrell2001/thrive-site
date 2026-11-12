@@ -674,6 +674,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
                 quantity: item.quantity,
                 unit_price_cents: item.unit_price_cents,
                 position: item.position,
+                tier: item.tier ?? null,
+                is_optional: !!item.is_optional,
               }))}
               imageUrls={imageUrls}
               headerNote={doc.headerNote}

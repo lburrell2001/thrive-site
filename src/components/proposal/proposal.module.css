@@ -647,6 +647,43 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tiers (Nov 2026): one card per option, its name and total. */
+.pricingOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: clamp(8px, 1.4cqw, 14px);
+  margin: clamp(10px, 1.7cqw, 18px) 0;
+}
+.pricingOption {
+  composes: panel;
+  display: grid;
+  gap: clamp(4px, 0.8cqw, 8px);
+  align-content: start;
+}
+.pricingOptionKicker {
+  font-size: clamp(10px, 1.3cqw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-2, var(--accent));
+}
+.pricingOptionName {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(16px, 2.6cqw, 26px);
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--white);
+}
+.pricingOptionTotal {
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(24px, 4.6cqw, 46px);
+  line-height: 1;
+  color: var(--white);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Tiers and optional extras (migration 061): a heading per option, with its total. */
 .pricingOptionHead {
   display: flex;

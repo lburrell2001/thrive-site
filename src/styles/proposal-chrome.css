@@ -506,3 +506,132 @@ button.proposalFooterAction { font-family: inherit; }
 .signChoicesTotal { display: flex; justify-content: space-between; margin: 4px 0 0; padding-top: 8px; border-top: 1px solid #2e2e2e; }
 .signChoicesTotal span { font-weight: 600; }
 .signChoicesTotal strong { font-size: 18px; }
+
+/* ── Approve / Not going ahead dialogs (Nov 2026): light and modern ── */
+.pdOverlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  padding: 16px;
+  background: rgba(10, 10, 10, 0.62);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  overflow-y: auto;
+  animation: pdFade 0.18s ease-out;
+}
+.pdCard {
+  position: relative;
+  width: min(100%, 520px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: clamp(22px, 4vw, 34px);
+  border-radius: 24px;
+  background: #fff;
+  color: #141414;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  animation: pdRise 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-align: left;
+}
+.pdCardWide { width: min(100%, 620px); }
+@keyframes pdFade { from { opacity: 0; } }
+@keyframes pdRise { from { opacity: 0; transform: translateY(12px) scale(0.98); } }
+@media (prefers-reduced-motion: reduce) { .pdOverlay, .pdCard { animation: none; } }
+
+.pdClose {
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; border-radius: 999px; border: 0;
+  background: #f2f2f2; color: #141414; font-size: 20px; line-height: 1; cursor: pointer;
+}
+.pdClose:hover { background: #e50586; color: #fff; }
+.pdTitle { margin: 0 44px 6px 0; font-size: clamp(24px, 4vw, 30px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; text-transform: none; color: #141414; }
+.pdLead { margin: 0 0 18px; font-size: 14.5px; line-height: 1.55; color: #555; }
+
+.pdGroup { border: 0; margin: 0 0 16px; padding: 0; min-width: 0; }
+.pdLabel { display: flex; align-items: center; gap: 8px; padding: 0; margin: 0 0 8px; font-size: 13px; font-weight: 700; color: #141414; }
+.pdReq { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: #fde7f2; color: #c4046f; }
+.pdHint { font-size: 12px; font-weight: 500; color: #8a8a8a; }
+
+.pdOptions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 10px; }
+.pdOption {
+  position: relative; display: grid; gap: 2px; padding: 14px 16px 16px;
+  border: 2px solid #e6e6e6; border-radius: 16px; cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.pdOption:hover { border-color: #bdbdbd; }
+.pdOption input { position: absolute; opacity: 0; pointer-events: none; }
+.pdOption.pdOn { border-color: #e50586; box-shadow: 0 0 0 4px rgba(229, 5, 134, 0.12); }
+.pdOption:has(input:focus-visible) { outline: 3px solid #3943b7; outline-offset: 2px; }
+.pdOptionKicker { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #8a8a8a; }
+.pdOn .pdOptionKicker { color: #e50586; }
+.pdOptionName { font-size: 16px; font-weight: 700; }
+.pdOptionPrice { margin-top: 6px; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+
+.pdExtras { display: grid; gap: 8px; }
+.pdExtra {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1.5px solid #e6e6e6; border-radius: 14px; cursor: pointer; transition: border-color 0.15s;
+}
+.pdExtra.pdOn { border-color: #e50586; background: #fff7fb; }
+.pdExtra input { width: 20px; height: 20px; margin: 0; accent-color: #e50586; flex: 0 0 auto; }
+.pdExtraText { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.pdExtraName { font-size: 14.5px; font-weight: 600; }
+.pdExtraDesc { font-size: 12.5px; color: #777; }
+.pdExtraPrice { font-weight: 700; white-space: nowrap; }
+
+.pdTotal {
+  display: grid; gap: 6px; margin: 4px 0 18px; padding: 14px 16px;
+  border-radius: 16px; background: #141414; color: #fff;
+}
+.pdTotal > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.pdTotal span { font-size: 13px; color: #bdbdbd; }
+.pdTotal strong { font-size: 22px; letter-spacing: -0.02em; }
+.pdTotal > div + div strong { font-size: 16px; color: #0cf574; }
+
+.pdFields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.pdField { display: grid; gap: 6px; margin-bottom: 12px; font-size: 13px; font-weight: 600; color: #141414; }
+.pdField em { font-style: normal; font-weight: 500; color: #8a8a8a; }
+.pdField input, .pdField textarea {
+  width: 100%; box-sizing: border-box; padding: 12px 14px;
+  border: 1.5px solid #dcdcdc; border-radius: 12px; background: #fff; color: #141414;
+  font: inherit; font-size: 15px; font-weight: 500; outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pdField textarea { resize: vertical; min-height: 84px; line-height: 1.5; }
+.pdField input:focus, .pdField textarea:focus { border-color: #e50586; box-shadow: 0 0 0 4px rgba(229, 5, 134, 0.12); }
+
+.pdChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.pdChip {
+  padding: 9px 14px; border-radius: 999px; border: 1.5px solid #dcdcdc; background: #fff; color: #141414;
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.pdChip:hover { border-color: #141414; }
+.pdChip.pdOn { background: #141414; border-color: #141414; color: #fff; }
+
+.pdAgree { display: flex; align-items: flex-start; gap: 10px; margin: 2px 0 16px; font-size: 13.5px; line-height: 1.5; color: #333; cursor: pointer; }
+.pdAgree input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #e50586; flex: 0 0 auto; }
+.pdAgree a { color: #c4046f; font-weight: 600; }
+.pdError { margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: #fde7f2; color: #a0035a; font-size: 13.5px; font-weight: 600; }
+
+.pdActions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.pdBtn {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px;
+  border-radius: 999px; border: 0; background: #e50586; color: #fff; text-decoration: none;
+  font: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+}
+.pdBtn:hover:not(:disabled) { background: #c4046f; }
+.pdBtn:active:not(:disabled) { transform: scale(0.98); }
+.pdBtn:disabled { background: #e6e6e6; color: #9a9a9a; cursor: not-allowed; }
+.pdBtnGhost { background: #fff; color: #141414; box-shadow: inset 0 0 0 1.5px #dcdcdc; }
+.pdBtnGhost:hover:not(:disabled) { background: #f4f4f4; }
+.pdBtnDark { background: #141414; }
+.pdBtnDark:hover:not(:disabled) { background: #000; }
+
+.pdDone { text-align: center; padding-top: 6px; }
+.pdDone .pdTitle { margin: 12px 0 6px; }
+.pdDone .pdActions { justify-content: center; }
+.pdCheck { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 999px; background: #0cf574; color: #141414; font-size: 30px; font-weight: 800; }
+.pdCheckQuiet { background: #f2f2f2; }
+.pdSummary { display: grid; gap: 8px; margin: 0 0 16px; padding: 14px 16px; border-radius: 16px; background: #f6f6f6; text-align: left; }
+.pdSummary > div { display: flex; justify-content: space-between; gap: 12px; }
+.pdSummary dt { font-size: 13.5px; color: #555; }
+.pdSummary dd { margin: 0; font-weight: 700; }
+@media (max-width: 480px) { .pdActions .pdBtn { flex: 1; } }
