@@ -38,7 +38,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
       { icon: 'edit', title: 'Edit It Yourself', desc: 'With Large and Custom sites, an admin area so your team can edit text and photos.' },
       { icon: 'analytics', title: 'Forms, Analytics & SEO', desc: 'Forms that reach the right inbox, visitor insights and search groundwork, built in.' },
       { icon: 'mobile', title: 'Mobile-First Layouts', desc: 'Every page designed for phones first and tested on phones and desktops.' },
-      { icon: 'web', title: 'Shopify Stores', desc: 'Online stores on Shopify — a premium theme in your brand or a fully custom storefront, with payments, shipping and taxes set up.' },
+      { icon: 'web', title: 'Shopify Stores', desc: 'Need to sell online? We design, build and launch your Shopify store — themed in your brand, products loaded, payments, shipping and your domain set up — as a registered Shopify Partner, with a walkthrough so you can run it yourself.' },
       { icon: 'ux', title: 'App & Website Prototypes', desc: 'Clickable prototypes of an app or site you can tap through on a phone before anything is built.' },
     ],
     processHeading: 'From brief to live site',

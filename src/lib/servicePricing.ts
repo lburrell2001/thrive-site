@@ -116,7 +116,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
       {
         id: 'shopify',
         heading: 'Shopify stores',
-        intro: 'Selling products? We build your store on Shopify, set up so you can run it yourself: payments, shipping, taxes and inventory included.',
+        intro: 'Need to sell online? We design, build, and launch your Shopify store — themed in your brand, products loaded, payments and shipping set up, and your domain connected. Built as a registered Shopify Partner, so it’s done right and ready to sell. We hand it off to you clean, with a walkthrough so you can run it yourself.',
         cards: [
           {
             name: 'Template store',

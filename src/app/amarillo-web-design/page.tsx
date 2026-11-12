@@ -92,8 +92,8 @@ const FAQS = [
     a: "Yes, when our founder is in Amarillo. Otherwise we meet virtually, by phone or video, and the project runs the same way.",
   },
   {
-    q: "Can you work on my WordPress, Wix or Squarespace site?",
-    a: "Yes. We can work with your site on WordPress, Wix, Squarespace and other platforms. If your site needs more than the platform can do, we build it from scratch.",
+    q: "Can you work on my WordPress, Wix, Squarespace or Shopify site?",
+    a: "Yes. We can work with your site on WordPress, Wix, Squarespace, Shopify and other platforms. If your site needs more than the platform can do, we build it from scratch.",
   },
   {
     q: "How long does a website take?",
@@ -181,7 +181,7 @@ export default function AmarilloPage() {
             </div>
             <div className={s.serviceBody}>
               <p>
-                We build websites for Amarillo businesses and nonprofits. Already on WordPress, Wix, Squarespace or
+                We build websites for Amarillo businesses and nonprofits. Already on WordPress, Wix, Squarespace, Shopify or
                 another platform? We can work with your site where it is. If it needs more than the platform can do,
                 we build it from scratch.
               </p>
