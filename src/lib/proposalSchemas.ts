@@ -100,6 +100,7 @@ const pricingContent = z.object({
   deliverables: z.array(titleDescription).default([]),
   totalLabel: z.string().default('TOTAL'),
   footnote: z.string().optional(),
+  paymentTerms: z.string().optional(),
 });
 
 const phasesContent = z.object({

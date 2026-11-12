@@ -17,7 +17,8 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
   const accent = resolveAccent(block, ctx.theme);
   const c = block.content;
   const itemised = c.showLineItemPrices && ctx.lineItems.length > 0;
-  const deposit = depositLine(ctx.depositPercent);
+  // The line under the total: Lauren's own wording, none (''), or from the deposit.
+  const deposit = c.paymentTerms !== undefined ? (c.paymentTerms.trim() || null) : depositLine(ctx.depositPercent);
   const hasRows = itemised || c.deliverables.length > 0;
   // Monthly lines (from the price list, description ending "/mo") are shown
   // apart from the one-time total. Only the sums are rendered, never a line.

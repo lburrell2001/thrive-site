@@ -259,6 +259,18 @@ export function PricingForm({
         <TextInput label="Kicker" value={c.kicker ?? ''} onChange={(v) => set({ kicker: v || undefined })} />
         <TextArea label="Intro" value={c.intro} rows={3} onChange={(v) => set({ intro: v })} />
         <TextInput label="Total label" value={c.totalLabel} onChange={(v) => set({ totalLabel: v })} />
+        <div style={{ margin: '4px 0 14px' }}>
+          <Checkbox
+            label="Write my own payment terms"
+            hint="Off: the line under the total follows the deposit (e.g. “Half due at signing · half due at completion”). On: type your own — or leave it empty for no line."
+            checked={c.paymentTerms !== undefined}
+            onChange={(v) => set({ paymentTerms: v ? '' : undefined })}
+          />
+          {c.paymentTerms !== undefined && (
+            <TextInput label="Payment terms under the total" value={c.paymentTerms} placeholder="25% to start · 25% at final approval · 50% at launch"
+              onChange={(v) => set({ paymentTerms: v })} />
+          )}
+        </div>
         <TextArea label="Fine print under the total" value={c.footnote ?? ''} rows={2} onChange={(v) => set({ footnote: v || undefined })} />
       </div>
 

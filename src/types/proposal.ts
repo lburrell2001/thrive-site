@@ -102,6 +102,9 @@ export interface PricingBlock extends BaseBlock {
     totalLabel: string;       // "TOTAL"
     /** Optional fine print under the total, e.g. the revision policy. */
     footnote?: string;
+    /** The payment line under the total. Unset = from the deposit ("Half due at
+     *  signing · half due at completion"); text = shown as typed; '' = no line. */
+    paymentTerms?: string;
   };
   // amounts live in proposal_line_items, not here
 }
