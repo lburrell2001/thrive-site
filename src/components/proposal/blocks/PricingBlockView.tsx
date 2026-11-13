@@ -186,6 +186,14 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
         </div>
       </div>
 
+      <p className={styles.pricingPhaseNote}>
+        {tiers.length > 0
+          ? `Pick the option that fits when you approve, and ${ranged ? 'we’ll send the final estimate with your exact price' : 'we’ll send your invoice to get started'}. Torn between options, or pricing not quite right?`
+          : ranged
+          ? 'Approve, and we’ll send the final estimate with your exact price. Pricing not quite right?'
+          : `Approve, and we’ll send your ${(ctx.depositPercent ?? 0) > 0 && (ctx.depositPercent ?? 0) < 100 ? 'deposit invoice' : 'invoice'} to get started. Pricing not quite right?`}
+        {' '}Decline with a note — we’re always happy to talk it through and find something that fits your budget.
+      </p>
       {c.footnote && <Markdown source={c.footnote} className={styles.pricingFootnote} />}
     </Page>
   );
