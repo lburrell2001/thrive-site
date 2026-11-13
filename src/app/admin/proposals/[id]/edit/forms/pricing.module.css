@@ -225,3 +225,9 @@
 .groupAdd { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin: 0 0 12px; }
 .groupAdd:has(> :nth-child(2):last-child) { grid-template-columns: 1fr auto; }
 @media (max-width: 640px) { .groupAdd { grid-template-columns: 1fr; } }
+
+/* Out-of-scope work: what the work is, always shown to the client */
+.workDesc { display: grid; gap: 4px; padding: 0 12px 10px; }
+.workDesc > span { font-size: 12px; font-weight: 700; }
+.workDesc em { font-style: normal; font-weight: 600; color: #e50586; margin-left: 4px; }
+.workDescMissing { border-color: #e50586 !important; }

@@ -21,6 +21,7 @@ import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
 import { setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
+import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import SendLater, { laterAt, scheduledFor } from '../SendLater';
@@ -304,7 +305,14 @@ export default function InvoiceBuilder() {
   // An invoice bills everything on it: "optional" only means something on an estimate (migration 061).
   // …and phases (migration 062) only on an estimate: an invoice is one bill.
   const items: LineItem[] = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, phase: _p, phase_terms: _t, phase_timeline: _l, ...it }) => { void _o; void _p; void _t; void _l; return it; }) : parsedLines.items;
-  const { problems } = parsedLines;
+  // Out-of-scope work always says what the work is, on paper (src/lib/scopeWork.ts).
+  const problems = [
+    ...parsedLines.problems,
+    ...lineBlocks(draft.text).flatMap((b) => {
+      const message = b.item ? scopeWorkProblem(b.item) : null;
+      return message ? [{ line: b.start + 1, message }] : [];
+    }),
+  ];
   const total = totalCents(items);
   const split = splitTotals(items);
   const depositCents = isDepositOn(draft) ? depositFor(draft, total) : 0;
@@ -840,6 +848,18 @@ export default function InvoiceBuilder() {
     set('text', kept.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+/, ''));
   }
 
+  /** Out-of-scope work: what the work is, typed on its row (always shown to the client). */
+  function describeBlock(b: LineBlock, text: string) {
+    if (!b.item) return;
+    const lines = draft.text.split('\n');
+    const monthly = isMonthly(b.item);
+    const clean = text.replace(/[|\t\r\n]+/g, ' ').replace(/^[~\s]+/, '');
+    const next: LineItem = { ...b.item, description: monthly ? `${clean} /mo` : clean };
+    delete next.hide_description;
+    lines.splice(b.start, b.end - b.start + 1, ...lineText(next).split('\n'));
+    set('text', lines.join('\n'));
+  }
+
   /** "Show description" on one line: rewrites just that item's lines. */
   function toggleDescription(b: LineBlock) {
     if (!b.item) return;
@@ -1343,7 +1363,7 @@ export default function InvoiceBuilder() {
               <>
                 {isInvoice || priceMode === 'list' ? (
                   <>
-                    <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
+                    <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription} onDescribe={describeBlock}
                       onOptional={isInvoice ? undefined : toggleOptional} />
                     <div className={s.itemsTools}>
                       <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => addTo(null, 'list')}
@@ -1390,7 +1410,7 @@ export default function InvoiceBuilder() {
                             </div>
                           )}
                           {mine.length > 0
-                            ? <ItemRows blocks={mine} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
+                            ? <ItemRows blocks={mine} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription} onDescribe={describeBlock}
                                 onOptional={priceMode === 'tiers' ? toggleOptional : undefined}
                                 move={{ groups: groups.filter((x) => x.kind !== 'loose'), current: g, label: groupLabel, onMove: moveBlock }} />
                             : <p className={s.groupEmpty}>{g.kind === 'shared' ? 'Nothing yet — add what every option includes, or leave it empty.' : 'No items yet.'}</p>}
@@ -1587,10 +1607,12 @@ export default function InvoiceBuilder() {
 }
 
 /** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
-function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, onOptional, move }: {
+function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, onDescribe, onOptional, move }: {
   blocks: LineBlock[]; catalog: Catalog | null;
   onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
   onToggleDescription: (b: LineBlock) => void;
+  /** Out-of-scope work: its description, typed on the row. */
+  onDescribe: (b: LineBlock, text: string) => void;
   /** Estimates (migration 061): the Optional tick (an extra the client can add). */
   onOptional?: (b: LineBlock) => void;
   /** In a tier or phase card: move the line to another one. */
@@ -1633,7 +1655,15 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, onOpt
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                     {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
-                  {b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '') && (
+                  {isScopeWork(b.item) ? (
+                    <label className={s.workDesc}>
+                      <span>What’s the work? <em>Required — always on the client’s paper</em></span>
+                      <input className={`${p.input} ${needsWorkDescription(b.item) ? s.workDescMissing : ''}`}
+                        value={needsWorkDescription(b.item) ? '' : b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}
+                        placeholder="e.g. Extra admin report for ticket sales, not in the original scope"
+                        onChange={(e) => onDescribe(b, e.target.value)} />
+                    </label>
+                  ) : b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '') && (
                     <>
                       <span className={`${s.itemRowDesc} ${b.item.hide_description ? s.descHidden : ''}`}>
                         {b.item.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}

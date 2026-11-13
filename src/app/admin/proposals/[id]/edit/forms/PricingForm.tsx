@@ -11,6 +11,7 @@ import {
   type Catalog, type PriceItem,
 } from '@/lib/priceCatalog';
 import type { PricingBlock } from '@/types/proposal';
+import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
 import type { FormProps } from './types';
 
 export interface BuilderLineItem {
@@ -290,12 +291,25 @@ export function PricingForm({
   const groupTitle = (g: Group, n: number) =>
     g.kind === 'shared' ? 'In every option' : g.kind === 'tier' ? `Option ${n}` : g.kind === 'phase' ? `Phase ${n + 1}` : g.kind === 'loose' ? 'Not in a phase' : '';
 
+  /** Out-of-scope work: what the work is, on the line and on its deliverable (so the client sees it either way). */
+  function describe(index: number, text: string) {
+    const item = lineItems[index];
+    const clean = text.replace(/[\r\n]+/g, ' ').slice(0, 480);
+    update(index, { description: [clean, isMonthly(item.description) ? '/mo' : ''].filter(Boolean).join(' ') || null });
+    const key = item.label.trim().toLowerCase();
+    if (c.deliverables.some((d) => d.title.trim().toLowerCase() === key)) {
+      set({ deliverables: c.deliverables.map((d) => (d.title.trim().toLowerCase() === key ? { ...d, description: clean } : d)) });
+    }
+  }
+
   function row(item: BuilderLineItem, index: number) {
     const cat = catalog ? itemForLine(catalog.items, item.label) : undefined;
     const locked = lockedBy(item.label);
     const open = editing === index;
     const perUnit = cat?.unit && cat.price_type !== 'hourly';
     const here = groups.find((g) => inGroup(g, item));
+    const scope = isScopeWork({ name: item.label, description: item.description });
+    const missing = scope && needsWorkDescription({ name: item.label, description: item.description });
     return (
       <li key={item.id ?? `new-${index}`} className={`${pf.row} ${open ? pf.rowOpen : ''}`}>
         <div className={pf.rowTop}>
@@ -305,7 +319,7 @@ export function PricingForm({
               {!cat && item.label && <span className={pf.badgeCustom}>Custom</span>}
               {item.is_optional && <span className={pf.badgeCustom}>Optional</span>}
             </span>
-            {stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
+            {!scope && stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
             {locked && <span className={pf.lock}>Required with {locked}</span>}
           </button>
           {perUnit ? (
@@ -319,6 +333,14 @@ export function PricingForm({
           <button type="button" className={pf.remove} aria-label={`Remove ${item.label || 'line'}`} disabled={!!locked}
             title={locked ? `Required with ${locked}` : 'Remove'} onClick={() => remove(index)}>×</button>
         </div>
+        {scope && (
+          <label className={pf.workDesc}>
+            <span>What’s the work? <em>Required — always shown to the client</em></span>
+            <input className={`${s.input} ${missing ? pf.workDescMissing : ''}`} value={missing ? '' : stripMo(item.description)}
+              placeholder="e.g. Extra admin report for ticket sales, not in the original scope"
+              onChange={(e) => describe(index, e.target.value)} />
+          </label>
+        )}
         {open && (
           <div className={pf.edit}>
             <TextInput label="Name" value={item.label} onChange={(v) => update(index, { label: v })} />
@@ -451,6 +473,11 @@ export function PricingForm({
         )}
 
         {note && <p className={pf.note}>{note}</p>}
+        {lineItems.some((i) => scopeWorkProblem({ name: i.label, description: i.description })) && (
+          <div className={pf.required} role="alert">
+            <p>Describe the out-of-scope work before sending — the client always sees what it is.</p>
+          </div>
+        )}
         {missing.length > 0 && (
           <div className={pf.required} role="alert">
             {missing.map(({ item, required }) => (

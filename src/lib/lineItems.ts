@@ -37,6 +37,7 @@
 // don't mix with tiers or optional extras.
 
 import { z } from 'zod';
+import { isScopeWork, scopeWorkProblem } from './scopeWork';
 
 export type LineItem = {
   name: string;
@@ -605,6 +606,16 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
     ...(it.phase ? phaseFields({ name: it.phase, terms: it.phase_terms, timeline: it.phase_timeline }) : {}),
   });
   if (!totalsOnly) return items.map((it, i) => one(it, i));
+  // A category's subtotal row — except out-of-scope work, which always shows on its own with its description.
+  const collapse = (g: CategoryTotal, tag: Partial<ClientRow>): ClientRow[] => {
+    const own = g.items.filter((it) => isScopeWork(it));
+    const rest = g.items.filter((it) => !isScopeWork(it));
+    const sum = (part: LineItem[], monthly: boolean) => part.filter((it) => isMonthly(it) === monthly).reduce((n, it) => n + it.amount_cents, 0);
+    const rows: ClientRow[] = rest.length > 1
+      ? [{ name: g.category, description: '', hours: null, oneTime: sum(rest, false), monthly: sum(rest, true), group: true, ...tag }]
+      : rest.map((it) => ({ ...one(it), hours: null }));
+    return [...rows, ...own.map((it) => ({ ...one(it), hours: null }))];
+  };
   if (isPhased(items)) {
     // Each phase summed on its own, its rows carrying the phase.
     return phasesOf(items).flatMap((ph) => {
@@ -612,7 +623,7 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
       return categoryTotals(items.filter((it) => it.phase === ph.name)).flatMap((g): ClientRow[] => {
         const uncategorised = g.items.every((it) => !it.category?.trim());
         if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
-        return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true, ...tag }];
+        return collapse(g, tag);
       });
     });
   }
@@ -623,7 +634,7 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
       categoryTotals(part.map((p) => p.it)).flatMap((g): ClientRow[] => {
         const uncategorised = g.items.every((it) => !it.category?.trim());
         if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
-        return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true, ...(tier ? { tier } : {}) }];
+        return collapse(g, tier ? { tier } : {});
       });
     return [
       ...rowsOf(shared),
@@ -635,7 +646,7 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
     const uncategorised = g.items.every((it) => !it.category?.trim());
     // Shown on its own: keeps its description unless "Show description" is off.
     if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
-    return [{ name: g.category, description: '', hours: null, oneTime: g.oneTime, monthly: g.monthly, group: true }];
+    return collapse(g, {});
   });
 }
 
@@ -690,4 +701,12 @@ export const lineSelectionSchema = z.object({
 });
 
 /** Percentage discounts are worked out again on the server, so a saved total always matches its lines. */
-export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200).transform((items) => applyPercents(items));
+export const lineItemsSchema = z.array(lineItemSchema).min(1, 'Add at least one item').max(200)
+  // Out-of-scope work always says what the work is, on paper (src/lib/scopeWork.ts).
+  .superRefine((items, ctx) => {
+    for (const it of items) {
+      const problem = scopeWorkProblem(it);
+      if (problem) { ctx.addIssue({ code: 'custom', message: problem }); return; }
+    }
+  })
+  .transform((items) => applyPercents(items));

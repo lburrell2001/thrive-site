@@ -5,6 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { syncProposalEstimate } from './proposalEstimate';
+import { scopeWorkProblem } from './scopeWork';
 import { SITE_URL } from './seo';
 
 export type Published = { ok: true; url: string; path: string; clientId: string | null; title: string } | { ok: false; error: string; status?: number };
@@ -19,8 +20,13 @@ export async function publishProposal(db: SupabaseClient, id: string): Promise<P
   // first sent_at and doesn't knock 'viewed' back to 'sent'. A declined one
   // reopens on the same link (the 'declined' event stays in the log).
   if (proposal.status === 'draft' || proposal.status === 'declined') {
-    const { count } = await db.from('proposal_line_items').select('id', { count: 'exact', head: true }).eq('proposal_id', id);
-    if (!count) return { ok: false, error: 'Add pricing first: every proposal goes out with its estimate.' };
+    const { data: lines } = await db.from('proposal_line_items').select('label, description').eq('proposal_id', id);
+    if (!lines?.length) return { ok: false, error: 'Add pricing first: every proposal goes out with its estimate.' };
+    // Out-of-scope work always says what the work is (src/lib/scopeWork.ts).
+    for (const l of lines) {
+      const problem = scopeWorkProblem({ name: l.label, description: l.description });
+      if (problem) return { ok: false, error: `${problem}. Add it on the Pricing tab.` };
+    }
     const synced = await syncProposalEstimate(db, id);
     if (!synced.ok) return { ok: false, error: synced.error };
     const { error: updateError } = await db.from('proposals').update({
