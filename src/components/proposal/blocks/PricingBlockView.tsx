@@ -40,8 +40,10 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
   const shownLines = choices ? inOption(lowest) : defaultLines;
   const oneTimeCents = choices ? sum(shownLines) - shownLines.filter((item) => isMonthly(item.description)).reduce((n, item) => n + Math.round(item.quantity * item.unit_price_cents), 0) : ctx.totalCents - monthlyCents;
   const stripMo = (d: string) => d.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
+  // How many of a per-unit item, when it's more than one: "Additional screen × 6", "$150 each" under the price.
+  const qtyOf = (item: { quantity: number }) => (Number(item.quantity) !== 1 ? String(Number(item.quantity)) : null);
   // Phases (migration 062): each phase's lines, subtotal and payment terms — no grand total.
-  const phases = proposalPhases(ctx.lineItems);
+  const phases = proposalPhases(ctx.lineItems, c.phaseTimelines);
   if (phases) {
     const sorted = [...ctx.lineItems].sort((a, b) => a.position - b.position);
     return (
@@ -51,16 +53,17 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
         {phases.map((ph, n) => (
           <div key={ph.name} className={styles.pricingPhase}>
             <div className={styles.pricingList}>
-              <p className={styles.pricingOptionHead}><span>Phase {n + 1} · {ph.name}</span></p>
+              <p className={styles.pricingOptionHead}><span>Phase {n + 1} · {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ''}</span></p>
               {sorted.filter((item) => item.phase?.trim() === ph.name && item.label.trim()).map((item) => (
                 <div key={item.id} className={styles.pricingRow}>
                   <div className={styles.pricingRowText}>
-                    <p className={styles.pricingRowTitle}>{item.label}</p>
+                    <p className={styles.pricingRowTitle}>{item.label}{qtyOf(item) ? ` × ${qtyOf(item)}` : ''}</p>
                     {item.description && stripMo(item.description) && <p className={styles.pricingRowDescription}>{stripMo(item.description)}</p>}
                   </div>
                   {c.showLineItemPrices && (
                     <div className={styles.pricingRowAmount}>
                       {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}{isMonthly(item.description) ? '/mo' : ''}
+                      {qtyOf(item) && <span className={styles.pricingRowQty}>{formatMoney(item.unit_price_cents, ctx.currency)} each</span>}
                     </div>
                   )}
                 </div>
@@ -96,7 +99,7 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
               <div key={item.id} className={styles.pricingRow}>
                 <div className={styles.pricingRowText}>
                   <p className={styles.pricingRowTitle}>
-                    {item.label}
+                    {item.label}{qtyOf(item) ? ` × ${qtyOf(item)}` : ''}
                     {tierOf(item) && <span className={styles.pricingTierTag}>{tierOf(item)}</span>}
                   </p>
                   {item.description && stripMo(item.description) && (
@@ -107,6 +110,7 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
                   <div className={styles.pricingRowAmount}>
                     {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}
                     {isMonthly(item.description) ? '/mo' : ''}
+                    {qtyOf(item) && <span className={styles.pricingRowQty}>{formatMoney(item.unit_price_cents, ctx.currency)} each</span>}
                   </div>
                 )}
               </div>

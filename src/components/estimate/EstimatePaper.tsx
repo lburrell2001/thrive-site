@@ -53,9 +53,9 @@ function Phases({ pdf, approve }: { pdf: InvoiceForPDF; approve?: EstimateApprov
             {approve ? (
               <label className="estimatePick">
                 <input type="checkbox" checked={on} onChange={(e) => approve.onToggle(g.name, e.target.checked)} />
-                <span>Phase {n + 1}: {g.name}</span>
+                <span>Phase {n + 1}: {g.name}{g.timeline ? ` · ${g.timeline}` : ''}</span>
               </label>
-            ) : <span>Phase {n + 1}: {g.name}{approved ? (on ? ' — approved' : '') : ''}</span>}
+            ) : <span>Phase {n + 1}: {g.name}{g.timeline ? ` · ${g.timeline}` : ''}{approved ? (on ? ' — approved' : '') : ''}</span>}
           </h2>
           <ul className="estimateRows">
             {(pdf.line_items ?? []).filter((r) => r.phase === g.name).map((r, i) => <Row key={i} r={r} />)}

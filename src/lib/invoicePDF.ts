@@ -48,7 +48,7 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
     // Phases (migration 062): each phase with its terms, its lines and its subtotal — no grand total.
     const approved = invoice.selection?.phases;
     return phaseGroups(rows).flatMap((g, n): Row[] => [
-      { name: `Phase ${n + 1}: ${g.name}${approved?.includes(g.name) ? ' — approved' : ''}`, description: g.terms ? `Payment terms: ${g.terms}` : '', hours: null, amount: '', heading: true },
+      { name: `Phase ${n + 1}: ${g.name}${g.timeline ? ` · ${g.timeline}` : ''}${approved?.includes(g.name) ? ' — approved' : ''}`, description: g.terms ? `Payment terms: ${g.terms}` : '', hours: null, amount: '', heading: true },
       ...g.rows.map(plain),
       { name: `Phase ${n + 1} total`, description: '', hours: null, amount: amountText(g.oneTime, g.monthly) },
     ]);
@@ -74,13 +74,14 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
 }
 
 /** Client rows grouped by phase, in order, with each phase's terms and subtotal (from the rows, which may be collapsed). */
-export function phaseGroups<R extends { phase?: string; phase_terms?: string; oneTime: number; monthly: number }>(rows: R[]) {
-  const out: { name: string; terms: string; rows: R[]; oneTime: number; monthly: number }[] = [];
+export function phaseGroups<R extends { phase?: string; phase_terms?: string; phase_timeline?: string; oneTime: number; monthly: number }>(rows: R[]) {
+  const out: { name: string; terms: string; timeline: string; rows: R[]; oneTime: number; monthly: number }[] = [];
   for (const r of rows) {
     if (!r.phase) continue;
     let g = out.find((x) => x.name === r.phase);
-    if (!g) { g = { name: r.phase, terms: '', rows: [], oneTime: 0, monthly: 0 }; out.push(g); }
+    if (!g) { g = { name: r.phase, terms: '', timeline: '', rows: [], oneTime: 0, monthly: 0 }; out.push(g); }
     if (!g.terms && r.phase_terms) g.terms = r.phase_terms;
+    if (!g.timeline && r.phase_timeline) g.timeline = r.phase_timeline;
     g.rows.push(r);
     g.oneTime += r.oneTime;
     g.monthly += r.monthly;

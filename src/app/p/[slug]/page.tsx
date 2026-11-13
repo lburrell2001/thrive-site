@@ -65,7 +65,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   // Tiers and optional extras (migration 061): the client picks in the sign dialog; the footer shows the lowest option.
   const choices = proposalChoices(renderable.lineItems);
   // Phases (migration 062): approved phase by phase, no total or deposit.
-  const phases = proposalPhases(renderable.lineItems);
+  const pricingBlock = renderable.blocks.find((b) => b.type === 'pricing');
+  const phases = proposalPhases(renderable.lineItems, pricingBlock?.type === 'pricing' ? pricingBlock.content.phaseTimelines : null);
   const fromCents = choices?.tiers.length ? Math.min(...choices.tiers.map((t) => t.total_cents)) : renderable.totalCents;
   const estimate = await estimateForClient(row.estimate_id ?? null);
 

@@ -1042,6 +1042,9 @@
   .signatureGrid { flex-direction: column; align-items: stretch; }
 }
 
+/* A per-unit line's count under its amount: "10 × $90". */
+.pricingRowQty { display: block; margin-top: 2px; font-size: 0.72em; font-weight: 400; opacity: 0.85; text-align: right; white-space: nowrap; }
+
 /* Phases (migration 062): one block per phase, its own subtotal and terms. */
 .pricingPhase + .pricingPhase { margin-top: clamp(14px, 2.4cqw, 28px); }
 .pricingPhaseTotal .pricingTotalLabel,

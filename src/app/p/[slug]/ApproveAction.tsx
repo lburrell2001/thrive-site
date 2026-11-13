@@ -154,7 +154,7 @@ export function ApproveAction({
                         <input type="checkbox" checked={on}
                           onChange={(e) => setPicked((cur) => phases.map((p) => p.name).filter((n) => (n === ph.name ? e.target.checked : cur.includes(n))))} />
                         <span className="pdExtraText">
-                          <span className="pdExtraName">Phase {i + 1}: {ph.name}</span>
+                          <span className="pdExtraName">Phase {i + 1}: {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ""}</span>
                           <span className="pdExtraDesc">{ph.terms ? `Payment terms: ${ph.terms}` : "Payment terms to follow"}</span>
                         </span>
                         <span className="pdExtraPrice">

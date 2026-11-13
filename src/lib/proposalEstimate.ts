@@ -38,7 +38,8 @@ export async function syncProposalEstimate(db: SupabaseClient, proposalId: strin
   // What was agreed, or already billed, stays as it is.
   if (existing && (existing.status === 'invoiced' || proposal.status === 'signed')) return { ok: true, estimate: summary(existing) };
 
-  const lines = proposalToEstimateLines(((items ?? []) as ProposalLine[]).map((i) => ({ ...i, quantity: Number(i.quantity) })), existing?.line_items ?? []);
+  const lines = proposalToEstimateLines(((items ?? []) as ProposalLine[]).map((i) => ({ ...i, quantity: Number(i.quantity) })), existing?.line_items ?? [],
+    (pricing?.content as { phaseTimelines?: Record<string, string> } | null)?.phaseTimelines);
   // Nothing priced yet: nothing to estimate (an estimate needs a line).
   if (!lines.length) return { ok: true, estimate: summary(existing) };
 

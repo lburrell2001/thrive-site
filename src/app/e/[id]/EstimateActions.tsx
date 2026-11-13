@@ -25,7 +25,7 @@ export type EstimateChooser = {
 };
 
 export type EstimatePhaser = {
-  all: { name: string; terms: string; amount: string }[];
+  all: { name: string; terms: string; timeline?: string; amount: string }[];
   selected: string[];
   onToggle: (phase: string, on: boolean) => void;
 };
@@ -156,7 +156,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
                     <label key={ph.name} className={`pdExtra${on ? ' pdOn' : ''}`}>
                       <input type="checkbox" checked={on} onChange={(e) => phaser.onToggle(ph.name, e.target.checked)} />
                       <span className="pdExtraText">
-                        <span className="pdExtraName">Phase {i + 1}: {ph.name}</span>
+                        <span className="pdExtraName">Phase {i + 1}: {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ''}</span>
                         <span className="pdExtraDesc">{ph.terms ? `Payment terms: ${ph.terms}` : 'Payment terms to follow'}</span>
                       </span>
                       <span className="pdExtraPrice">{ph.amount}</span>

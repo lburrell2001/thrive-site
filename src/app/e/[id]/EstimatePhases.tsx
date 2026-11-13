@@ -32,7 +32,7 @@ export function EstimatePhases({ id, token, pdf, clientName, canAccept, declined
         canAccept={canAccept}
         declined={declined}
         phaser={{
-          all: groups.map((g) => ({ name: g.name, terms: g.terms, amount: amountText(g.oneTime, g.monthly) })),
+          all: groups.map((g) => ({ name: g.name, terms: g.terms, timeline: g.timeline, amount: amountText(g.oneTime, g.monthly) })),
           selected: phases,
           onToggle,
         }}

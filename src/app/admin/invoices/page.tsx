@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -183,7 +183,7 @@ export default function InvoiceBuilder() {
   const [target, setTarget] = useState<Group | null>(null);
   const [groupDraft, setGroupDraft] = useState({ name: '', terms: '' });
   /** Phases named in the bar but not given any items yet (migration 062). */
-  const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
+  const [newPhases, setNewPhases] = useState<{ name: string; terms: string; timeline?: string }[]>([]);
   /** A new estimate made from a phased one's phases: saving links it back there and files it under that deal. */
   const [fromPhases, setFromPhases] = useState<{ estimate_id: string; estimate_number: string; phases: string[]; crm_deal_id: string | null } | null>(null);
 
@@ -303,7 +303,7 @@ export default function InvoiceBuilder() {
   const parsedLines = parseLineItems(draft.text);
   // An invoice bills everything on it: "optional" only means something on an estimate (migration 061).
   // …and phases (migration 062) only on an estimate: an invoice is one bill.
-  const items: LineItem[] = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, phase: _p, phase_terms: _t, ...it }) => { void _o; void _p; void _t; return it; }) : parsedLines.items;
+  const items: LineItem[] = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, phase: _p, phase_terms: _t, phase_timeline: _l, ...it }) => { void _o; void _p; void _t; void _l; return it; }) : parsedLines.items;
   const { problems } = parsedLines;
   const total = totalCents(items);
   const split = splitTotals(items);
@@ -710,14 +710,18 @@ export default function InvoiceBuilder() {
   // List · Tiers · Phases (migration 061/062): the lines decide once they're grouped.
   const priceMode: PriceMode = isPhased(items) ? 'phases' : tiersOf(items).length ? 'tiers' : chosenMode;
   const tierNames = [...new Set([...tiersOf(items), ...newTiers])];
-  const phaseList = [...phasesOf(items).map((ph) => ({ name: ph.name, terms: ph.terms })), ...newPhases.filter((x) => !items.some((it) => it.phase === x.name))];
+  const phaseList: { name: string; terms: string; timeline?: string }[] = [...phasesOf(items).map((ph) => ({ name: ph.name, terms: ph.terms, timeline: ph.timeline })), ...newPhases.filter((x) => !items.some((it) => it.phase === x.name))];
   const groups: Group[] = priceMode === 'list' ? []
     : priceMode === 'tiers' ? [{ kind: 'shared', name: '' }, ...tierNames.map((name) => ({ kind: 'tier' as const, name }))]
     : [...phaseList.map((ph) => ({ kind: 'phase' as const, name: ph.name })), ...(items.some((it) => !it.phase) ? [{ kind: 'loose' as const, name: '' }] : [])];
   const inGroup = (g: Group, it: LineItem) =>
     g.kind === 'shared' ? !it.tier : g.kind === 'tier' ? it.tier === g.name : g.kind === 'loose' ? !it.phase : it.phase === g.name;
   const tagOf = (g: Group | null) =>
-    g?.kind === 'tier' ? { tier: g.name } : g?.kind === 'phase' ? { phase: g.name, phase_terms: phaseList.find((x) => x.name === g.name)?.terms || undefined } : {};
+    g?.kind === 'tier' ? { tier: g.name } : g?.kind === 'phase' ? {
+      phase: g.name,
+      phase_terms: phaseList.find((x) => x.name === g.name)?.terms || undefined,
+      phase_timeline: phaseList.find((x) => x.name === g.name)?.timeline || undefined,
+    } : {};
   const groupLabel = (g: Group) => g.kind === 'shared' ? 'Every option' : g.kind === 'tier' ? g.name : g.kind === 'phase' ? g.name : 'Not in a phase';
 
   /** Adds catalog items (and anything they require): under their category headings, into the card they were added from. */
@@ -754,7 +758,7 @@ export default function InvoiceBuilder() {
   /** List · Tiers · Phases. Tiers and phases swap one for one; the list takes every line out of its group. */
   function switchPriceMode(next: PriceMode) {
     if (next === priceMode) return;
-    const strip = (it: LineItem): LineItem => { const n = { ...it }; delete n.tier; delete n.phase; delete n.phase_terms; return n; };
+    const strip = (it: LineItem): LineItem => { const n = { ...it }; delete n.tier; delete n.phase; delete n.phase_terms; delete n.phase_timeline; return n; };
     if (next === 'list') {
       if (items.some((it) => it.tier || it.phase) && !window.confirm(`Take every item out of its ${priceMode === 'tiers' ? 'tier' : 'phase'}? The items stay, as one list.`)) return;
       if (items.length) set('text', lineItemsToText(items.map(strip)));
@@ -859,6 +863,12 @@ export default function InvoiceBuilder() {
   function setPhaseTerms(name: string, terms: string) {
     setNewPhases((cur) => cur.map((p) => (p.name === name ? { ...p, terms } : p)));
     if (items.some((it) => it.phase === name)) set('text', setPhaseTermsInText(draft.text, name, terms));
+  }
+
+  /** A phase's timeline ("4–6 weeks"), shown in its title. */
+  function setPhaseTimeline(name: string, timeline: string) {
+    setNewPhases((cur) => cur.map((p) => (p.name === name ? { ...p, timeline } : p)));
+    if (items.some((it) => it.phase === name)) set('text', setPhaseTimelineInText(draft.text, name, timeline));
   }
 
   /** "Make an estimate" from a phased estimate's phases: a new draft with just those lines and their terms. */
@@ -1368,6 +1378,8 @@ export default function InvoiceBuilder() {
                           </div>
                           {g.kind === 'phase' && (
                             <div className={s.groupTerms}>
+                              <input className={p.input} value={phaseList.find((x) => x.name === g.name)?.timeline ?? ''} placeholder="Timeline, e.g. 4–6 weeks or Dec–Feb"
+                                aria-label={`Timeline for ${g.name}`} onChange={(e) => setPhaseTimeline(g.name, e.target.value.replace(/[|\r\n]+/g, ' '))} />
                               <input className={p.input} value={terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
                                 aria-label={`Payment terms for ${g.name}`} onChange={(e) => setPhaseTerms(g.name, e.target.value.replace(/[|\r\n]+/g, ' '))} />
                               <div className={s.quickDates}>
@@ -1712,7 +1724,7 @@ function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolea
               <label className={s.phasePick}>
                 <input type="checkbox" checked={picked.includes(ph.name)}
                   onChange={(e) => setPicked((cur) => phases.map((x) => x.name).filter((n) => (n === ph.name ? e.target.checked : cur.includes(n))))} />
-                <span>Phase {i + 1}: {ph.name}</span>
+                <span>Phase {i + 1}: {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ''}</span>
                 {approved.includes(ph.name) && <span className={s.badgeTier}>Approved</span>}
                 {m && <span className={s.badgeCustom}>{m.estimate_number} made</span>}
                 <strong>{amountText(ph.oneTime, ph.monthly)}</strong>
@@ -2033,7 +2045,7 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
             // Phases (migration 062), as the client sees them: each phase, its lines, its subtotal and terms.
             phasesOf(items).map((ph, n) => (
               <Fragment key={ph.name}>
-                <tr className={s.catRow}><td colSpan={showHours ? 3 : 2}>Phase {n + 1}: {ph.name}{ph.terms ? ` · ${ph.terms}` : ''}</td></tr>
+                <tr className={s.catRow}><td colSpan={showHours ? 3 : 2}>Phase {n + 1}: {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ''}{ph.terms ? ` · ${ph.terms}` : ''}</td></tr>
                 {items.filter((it) => it.phase === ph.name).map((it, i) => (
                   <tr key={`${ph.name}-${i}`}>
                     <td>

@@ -57,6 +57,8 @@ export type LineItem = {
   /** The phase this line is in (migration 062), and that phase's payment terms (the same on each of its lines). */
   phase?: string;
   phase_terms?: string;
+  /** That phase's timeline ("4–6 weeks", "Dec–Feb"), shown in its title. */
+  phase_timeline?: string;
   /** Display only (rows sent to the client's page): the line's index in the estimate, for ticking an extra. */
   source?: number;
 };
@@ -97,12 +99,22 @@ const RE_TIER = /^\s*tier\s*:\s*(.*?)\s*$/i;
 const RE_OPTIONAL = /\s*\(optional\)\s*$/i;
 const RE_PHASE = /^\s*phase\s*:\s*(.*?)\s*$/i;
 /** "Discovery | 50% to start" → the name and its terms; "none" (or nothing) ends the phase. */
-function phaseHead(s: string): { name: string; terms: string } {
-  const [name = '', ...rest] = s.split('|');
+function phaseHead(s: string): { name: string; terms: string; timeline: string } {
+  const [name = '', terms = '', timeline = ''] = s.split('|');
   const n = name.trim();
-  if (/^(none|end|no phase)?$/i.test(n)) return { name: '', terms: '' };
-  return { name: n.slice(0, 80), terms: rest.join('|').trim().slice(0, 300) };
+  if (/^(none|end|no phase)?$/i.test(n)) return { name: '', terms: '', timeline: '' };
+  return { name: n.slice(0, 80), terms: terms.trim().slice(0, 300), timeline: timeline.trim().slice(0, 80) };
 }
+
+/** A line's phase fields, leaving out the empty ones. */
+const phaseFields = (p: { name: string; terms?: string; timeline?: string }) =>
+  p.name ? { phase: p.name, ...(p.terms ? { phase_terms: p.terms } : {}), ...(p.timeline ? { phase_timeline: p.timeline } : {}) } : {};
+
+/** "Phase: Discovery | 50% to start | 4 weeks", the line that starts a phase. */
+const phaseLineText = (name: string, terms?: string, timeline?: string) => {
+  const clean = (v?: string) => (v ?? '').replace(/[\r\n|]+/g, ' ').trim();
+  return `Phase: ${name}${clean(terms) || clean(timeline) ? ` | ${clean(terms)}` : ''}${clean(timeline) ? ` | ${clean(timeline)}` : ''}`;
+};
 /** "none", "all", "shared" or nothing: back to lines every tier includes. */
 const tierName = (s: string) => (/^(none|all|shared|everyone|every tier)?$/i.test(s.trim()) ? '' : s.trim().slice(0, 80));
 
@@ -147,7 +159,7 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
   const problems: LineProblem[] = [];
   let category = '';
   let tier = '';
-  let phase = { name: '', terms: '' };
+  let phase = { name: '', terms: '', timeline: '' };
   const lineOf: number[] = [];
 
   text.split(/\r?\n/).forEach((raw, i) => {
@@ -222,7 +234,7 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       ...(money.percent !== undefined ? { percent: money.percent } : {}),
       ...(tier ? { tier } : {}),
       ...(optional ? { optional: true } : {}),
-      ...(phase.name ? { phase: phase.name, ...(phase.terms ? { phase_terms: phase.terms } : {}) } : {}),
+      ...phaseFields(phase),
     });
     lineOf.push(line);
   });
@@ -321,7 +333,7 @@ export function tierTotal(items: LineItem[], tier: string | null): number {
 
 export const isPhased = (items: Pick<LineItem, 'phase'>[]) => items.some((it) => it.phase);
 
-export type PhaseSummary = { name: string; terms: string; total_cents: number; oneTime: number; monthly: number; count: number };
+export type PhaseSummary = { name: string; terms: string; timeline: string; total_cents: number; oneTime: number; monthly: number; count: number };
 
 /** Each phase in order, with its payment terms and subtotal (a discount only comes off its own phase). */
 export function phasesOf(items: LineItem[]): PhaseSummary[] {
@@ -329,8 +341,9 @@ export function phasesOf(items: LineItem[]): PhaseSummary[] {
   for (const it of items) {
     if (!it.phase) continue;
     let p = out.find((x) => x.name === it.phase);
-    if (!p) { p = { name: it.phase, terms: '', total_cents: 0, oneTime: 0, monthly: 0, count: 0 }; out.push(p); }
+    if (!p) { p = { name: it.phase, terms: '', timeline: '', total_cents: 0, oneTime: 0, monthly: 0, count: 0 }; out.push(p); }
     if (!p.terms && it.phase_terms) p.terms = it.phase_terms;
+    if (!p.timeline && it.phase_timeline) p.timeline = it.phase_timeline;
     p.count += 1;
     if (isMonthly(it)) p.monthly += it.amount_cents; else p.oneTime += it.amount_cents;
     p.total_cents += it.amount_cents;
@@ -345,8 +358,8 @@ export function phasesOf(items: LineItem[]): PhaseSummary[] {
 export function phaseLines(items: LineItem[], phases: string[]): LineItem[] {
   const want = new Set(phases);
   return applyPercents(items.filter((it) => it.phase && want.has(it.phase)).map((it) => {
-    const { phase: _p, phase_terms: _t, ...rest } = it;
-    void _p; void _t;
+    const { phase: _p, phase_terms: _t, phase_timeline: _l, ...rest } = it;
+    void _p; void _t; void _l;
     return rest as LineItem;
   }));
 }
@@ -369,11 +382,13 @@ export function setPhaseInText(text: string, index: number, phase: string | null
   const { items } = parseLineItems(text);
   if (!items[index]) return text;
   const moved: LineItem = { ...items[index] };
-  delete moved.phase; delete moved.phase_terms;
+  delete moved.phase; delete moved.phase_terms; delete moved.phase_timeline;
   if (phase) {
     const known = items.find((it) => it.phase === phase && it.phase_terms)?.phase_terms ?? terms.trim();
+    const timeline = items.find((it) => it.phase === phase && it.phase_timeline)?.phase_timeline;
     moved.phase = phase;
     if (known) moved.phase_terms = known;
+    if (timeline) moved.phase_timeline = timeline;
   }
   const rest = items.filter((_, i) => i !== index);
   const order = [...new Set([...rest.map((it) => it.phase).filter((p): p is string => !!p), ...(phase ? [phase] : [])])];
@@ -392,14 +407,15 @@ export function groupedText(items: LineItem[]): string {
 }
 
 /** Adds items to a tier or a phase (or neither) and returns the typed text. */
-export function addToGroupInText(text: string, add: LineItem[], tag: { tier?: string; phase?: string; phase_terms?: string }): string {
+export function addToGroupInText(text: string, add: LineItem[], tag: { tier?: string; phase?: string; phase_terms?: string; phase_timeline?: string }): string {
   const { items } = parseLineItems(text);
   const terms = tag.phase ? items.find((it) => it.phase === tag.phase && it.phase_terms)?.phase_terms ?? tag.phase_terms : undefined;
+  const timeline = tag.phase ? items.find((it) => it.phase === tag.phase && it.phase_timeline)?.phase_timeline ?? tag.phase_timeline : undefined;
   const tagged = add.map((it) => {
     const next: LineItem = { ...it };
-    delete next.tier; delete next.phase; delete next.phase_terms;
+    delete next.tier; delete next.phase; delete next.phase_terms; delete next.phase_timeline;
     if (tag.tier) next.tier = tag.tier;
-    if (tag.phase) { next.phase = tag.phase; delete next.optional; if (terms) next.phase_terms = terms; }
+    if (tag.phase) { next.phase = tag.phase; delete next.optional; if (terms) next.phase_terms = terms; if (timeline) next.phase_timeline = timeline; }
     return next;
   });
   return groupedText([...items, ...tagged]);
@@ -413,11 +429,21 @@ export function setAllPhaseInText(text: string, phase: string, terms = ''): stri
 
 /** A phase's payment terms, changed on its "Phase:" lines (and so on every line in it). */
 export function setPhaseTermsInText(text: string, phase: string, terms: string): string {
-  const clean = terms.replace(/[\r\n|]+/g, ' ').trim().slice(0, 300);
+  return setPhaseHeadInText(text, phase, { terms: terms.slice(0, 300) });
+}
+
+/** A phase's timeline ("4–6 weeks"), changed on its "Phase:" lines. */
+export function setPhaseTimelineInText(text: string, phase: string, timeline: string): string {
+  return setPhaseHeadInText(text, phase, { timeline: timeline.slice(0, 80) });
+}
+
+function setPhaseHeadInText(text: string, phase: string, patch: { terms?: string; timeline?: string }): string {
   return text.split('\n').map((raw) => {
     const m = raw.match(RE_PHASE);
-    if (!m || phaseHead(m[1]).name !== phase) return raw;
-    return `Phase: ${phase}${clean ? ` | ${clean}` : ''}`;
+    if (!m) return raw;
+    const head = phaseHead(m[1]);
+    if (head.name !== phase) return raw;
+    return phaseLineText(phase, patch.terms ?? head.terms, patch.timeline ?? head.timeline);
   }).join('\n');
 }
 
@@ -431,10 +457,10 @@ export type LineBlock = { start: number; end: number; item: LineItem | null };
  */
 export function lineBlocks(text: string): LineBlock[] {
   const lines = text.split(/\r?\n/);
-  const blocks: { start: number; end: number; category: string; tier: string; phase: { name: string; terms: string } }[] = [];
+  const blocks: { start: number; end: number; category: string; tier: string; phase: { name: string; terms: string; timeline: string } }[] = [];
   let category = '';
   let tier = '';
-  let phase = { name: '', terms: '' };
+  let phase = { name: '', terms: '', timeline: '' };
   lines.forEach((raw, i) => {
     if (!raw.trim() || raw.trim().startsWith('//')) return;
     const tierLine = raw.match(RE_TIER);
@@ -455,7 +481,7 @@ export function lineBlocks(text: string): LineBlock[] {
     const item = parseLineItems(own).items[0] ?? null;
     return { start: b.start, end: b.end, item: item ? {
       ...item, ...(b.category ? { category: b.category } : {}), ...(b.tier ? { tier: b.tier } : {}),
-      ...(b.phase.name ? { phase: b.phase.name, ...(b.phase.terms ? { phase_terms: b.phase.terms } : {}) } : {}),
+      ...phaseFields(b.phase),
     } : null };
   }).map((b, _i, all) => {
     // A percentage discount read on its own has nothing to take off: use every row.
@@ -491,7 +517,7 @@ export function lineItemsToText(items: LineItem[]): string {
     let head = '';
     if ((it.phase ?? '') !== phase) {
       phase = it.phase ?? '';
-      head += phase ? `Phase: ${phase}${it.phase_terms ? ` | ${it.phase_terms.replace(/[\r\n|]+/g, ' ')}` : ''}\n` : 'Phase: none\n';
+      head += phase ? `${phaseLineText(phase, it.phase_terms, it.phase_timeline)}\n` : 'Phase: none\n';
     }
     if ((it.tier ?? '') !== tier) {
       tier = it.tier ?? '';
@@ -555,7 +581,7 @@ export type ClientRow = {
   /** Tiers and extras (migration 061): which option the row is in, whether the client can tick it, and its line index. */
   tier?: string; optional?: boolean; source?: number;
   /** Phases (migration 062): the row's phase and that phase's payment terms. */
-  phase?: string; phase_terms?: string;
+  phase?: string; phase_terms?: string; phase_timeline?: string;
 };
 
 /**
@@ -576,13 +602,13 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
     ...(it.tier ? { tier: it.tier } : {}),
     // Rows already collapsed for a client keep the index they came with.
     ...(it.optional ? { optional: true, source: it.source ?? source } : {}),
-    ...(it.phase ? { phase: it.phase, ...(it.phase_terms ? { phase_terms: it.phase_terms } : {}) } : {}),
+    ...(it.phase ? phaseFields({ name: it.phase, terms: it.phase_terms, timeline: it.phase_timeline }) : {}),
   });
   if (!totalsOnly) return items.map((it, i) => one(it, i));
   if (isPhased(items)) {
     // Each phase summed on its own, its rows carrying the phase.
     return phasesOf(items).flatMap((ph) => {
-      const tag = { phase: ph.name, ...(ph.terms ? { phase_terms: ph.terms } : {}) };
+      const tag = phaseFields(ph);
       return categoryTotals(items.filter((it) => it.phase === ph.name)).flatMap((g): ClientRow[] => {
         const uncategorised = g.items.every((it) => !it.category?.trim());
         if (uncategorised || g.items.length === 1) return g.items.map((it) => ({ ...one(it), hours: null }));
@@ -653,6 +679,7 @@ export const lineItemSchema = z.object({
   optional: z.boolean().optional(),
   phase: z.string().trim().min(1).max(80).optional(),
   phase_terms: z.string().trim().max(300).optional(),
+  phase_timeline: z.string().trim().max(80).optional(),
 });
 
 export const lineSelectionSchema = z.object({

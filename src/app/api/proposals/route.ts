@@ -101,7 +101,15 @@ export async function POST(req: Request) {
     skipped = converted.skipped;
     blocks = starterBlocks({ cover, clientName: est.client_name || null, projectName: est.title || null }).map((block) =>
       block.type === 'pricing'
-        ? { ...block, content: { ...block.content, deliverables: converted.deliverables } }
+        ? { ...block, content: {
+            ...block.content, deliverables: converted.deliverables,
+            // Phase timelines (migration 062) live on the pricing block.
+            ...(() => {
+              const tl: Record<string, string> = {};
+              for (const l of (est.line_items ?? []) as LineItem[]) if (l.phase && l.phase_timeline && !tl[l.phase]) tl[l.phase] = l.phase_timeline;
+              return Object.keys(tl).length ? { phaseTimelines: tl } : {};
+            })(),
+          } }
         : block,
     );
     theme = { accent: 'magenta', headerNote: headerDate() };

@@ -123,7 +123,7 @@ export function proposalInvoiceText(
  * estimate knew about each line (its category, hours × rate, a hidden
  * description) is kept when the line is still there, matched by name.
  */
-export function proposalToEstimateLines(items: ProposalLine[], previous: LineItem[] = []): LineItem[] {
+export function proposalToEstimateLines(items: ProposalLine[], previous: LineItem[] = [], timelines?: Record<string, string> | null): LineItem[] {
   const base = (n: string) => n.replace(/\s*\(x[\d.]+\)/i, '').trim().toLowerCase();
   return [...items].sort((a, b) => a.position - b.position).filter((i) => i.label.trim()).map((i) => {
     const before = previous.find((p) => base(p.name) === base(i.label));
@@ -144,6 +144,7 @@ export function proposalToEstimateLines(items: ProposalLine[], previous: LineIte
     if (i.phase?.trim()) {
       line.phase = i.phase.trim();
       if (i.phase_terms?.trim()) line.phase_terms = i.phase_terms.trim();
+      if (timelines?.[line.phase]?.trim()) line.phase_timeline = timelines[line.phase].trim().slice(0, 80);
     }
     return line;
   });

@@ -63,7 +63,7 @@ export function estimateForClientPdf(est: Pick<ClientEstimate, 'estimate_number'
       amount_cents: r.oneTime + r.monthly,
       ...(r.tier ? { tier: r.tier } : {}),
       ...(r.optional ? { optional: true, source: r.source } : {}),
-      ...(r.phase ? { phase: r.phase, ...(r.phase_terms ? { phase_terms: r.phase_terms } : {}) } : {}),
+      ...(r.phase ? { phase: r.phase, ...(r.phase_terms ? { phase_terms: r.phase_terms } : {}), ...(r.phase_timeline ? { phase_timeline: r.phase_timeline } : {}) } : {}),
     })),
     // Worked out from the full lines here, since the rows may be collapsed.
     options: tiers.length ? tiers.map((tier) => ({ tier, total_cents: tierTotal(est.line_items, tier) })) : null,

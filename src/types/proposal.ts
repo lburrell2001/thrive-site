@@ -105,6 +105,8 @@ export interface PricingBlock extends BaseBlock {
     /** The payment line under the total. Unset = from the deposit ("Half due at
      *  signing · half due at completion"); text = shown as typed; '' = no line. */
     paymentTerms?: string;
+    /** Phases (migration 062): each phase's timeline ("4–6 weeks"), by phase name, shown in its title. */
+    phaseTimelines?: Record<string, string>;
   };
   // amounts live in proposal_line_items, not here
 }

@@ -242,8 +242,18 @@ export function PricingForm({
     } else {
       setNewPhases((cur) => cur.map((p) => (p.name === g.name ? { ...p, name } : p)));
       onLineItemsChange(lineItems.map((i) => (phaseOf(i) === g.name ? { ...i, phase: name } : i)));
+      // Its timeline follows the new name.
+      const tl = { ...(c.phaseTimelines ?? {}) };
+      if (tl[g.name] !== undefined) { tl[name] = tl[g.name]; delete tl[g.name]; set({ phaseTimelines: tl }); }
     }
   }
+
+  /** A phase's timeline ("4–6 weeks"), shown in its title on the proposal. */
+  const setPhaseTimeline = (name: string, timeline: string) => {
+    const tl = { ...(c.phaseTimelines ?? {}) };
+    if (timeline.trim()) tl[name] = timeline.slice(0, 80); else delete tl[name];
+    set({ phaseTimelines: tl });
+  };
 
   function removeGroup(g: Group) {
     const count = lineItems.filter((i) => inGroup(g, i)).length;
@@ -393,6 +403,8 @@ export function PricingForm({
               )}
               {g.kind === 'phase' && (
                 <div className={pf.groupTerms}>
+                  <input className={s.input} value={c.phaseTimelines?.[g.name] ?? ''} placeholder="Timeline, e.g. 4–6 weeks or Dec–Feb"
+                    aria-label={`Timeline for ${g.name}`} onChange={(e) => setPhaseTimeline(g.name, e.target.value)} />
                   <input className={s.input} value={terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
                     aria-label={`Payment terms for ${g.name}`} onChange={(e) => setPhaseTerms(g.name, e.target.value)} />
                   <div className={pf.chips}>

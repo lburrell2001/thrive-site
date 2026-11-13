@@ -101,6 +101,8 @@ const pricingContent = z.object({
   totalLabel: z.string().default('TOTAL'),
   footnote: z.string().optional(),
   paymentTerms: z.string().optional(),
+  /** Phases (migration 062): each phase's timeline ("4–6 weeks"), by phase name, shown in its title. */
+  phaseTimelines: z.record(z.string().max(80), z.string().max(80)).optional(),
 });
 
 const phasesContent = z.object({
