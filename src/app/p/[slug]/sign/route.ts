@@ -19,7 +19,7 @@ import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/propo
 import { formatMoney } from '@/components/proposal/context';
 import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { afterAccept } from '@/lib/acceptedPortal';
-import { choiceTotalFor, proposalChoices, proposalPhases } from '@/lib/proposalChoices';
+import { choiceTotalFor, endTotals, hasProposalRange, proposalChoices, proposalPhases, rangeLabel } from '@/lib/proposalChoices';
 import { recordPhaseApproval } from '@/lib/phaseApproval';
 import { totalCents, type LineItem } from '@/lib/lineItems';
 
@@ -128,6 +128,15 @@ export async function POST(
   const choice = offeredPhases ? null : choiceTotalFor(renderable.lineItems, input.selection);
   const agreedCents = approvedPhases ? approvedPhases.reduce((n, p) => n + p.total_cents + p.monthly_cents, 0)
     : choice ? choice.total_cents : renderable.totalCents;
+  // Price ranges (migration 063): approving a range makes no invoice — Lauren makes the final estimate.
+  const chosenLines = renderable.lineItems.filter((i) => !i.is_optional && (!choice?.selection.tier || !i.tier?.trim() || i.tier.trim() === choice.selection.tier));
+  const rangeEnds = !approvedPhases && hasProposalRange(chosenLines) ? endTotals(chosenLines) : null;
+  const rangeText = rangeEnds
+    ? rangeLabel(
+        choice ? { oneTime: choice.total_cents, monthly: 0 } : rangeEnds.low,
+        choice ? { oneTime: choice.high_cents, monthly: 0 } : rangeEnds.high,
+        (c) => formatMoney(c, renderable.currency))
+    : null;
 
   const db = proposalServiceClient();
   const signedAt = new Date();
@@ -193,10 +202,12 @@ export async function POST(
       if (selErr) console.error('[sign] selection not saved (run migration 061?)', row.id, selErr.message);
     }
     await db.from('estimates').update({ accepted_at: signedAt.toISOString(), accepted_by: input.signerName, accepted_ip: ipAddress }).eq('id', estimateId).is('accepted_at', null);
-    const next = await afterAccept(db, estimateId, { depositPercent: renderable.depositPercent });
-    invoiceReady = next.invoiceReady;
-    needsSetup = next.needsSetup;
-    if (next.error) console.error('[sign] invoice not made', row.id, next.error);
+    if (!rangeEnds) {
+      const next = await afterAccept(db, estimateId, { depositPercent: renderable.depositPercent });
+      invoiceReady = next.invoiceReady;
+      needsSetup = next.needsSetup;
+      if (next.error) console.error('[sign] invoice not made', row.id, next.error);
+    }
   }
 
   await db.from('proposal_events').insert({
@@ -209,6 +220,7 @@ export async function POST(
       content_hash: snapshot.contentHash,
       total_cents: agreedCents,
       ...(approvedPhases ? { phases: approvedPhases.map((p) => p.name) } : {}),
+      ...(rangeText ? { range: rangeText } : {}),
     },
   });
 
@@ -221,7 +233,9 @@ export async function POST(
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
     const makeUrl = `${site}/admin/invoices?estimate=${estimateId ?? ''}`;
-    await textAgency(approvedPhases
+    await textAgency(rangeText
+      ? `Approved with a price range: ${renderable.title} by ${input.signerName} — ${rangeText}${choice?.selection.tier ? ` (${choice.selection.tier})` : ''}. Make the final estimate: ${estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit`}`
+      : approvedPhases
       ? `Phases approved: ${renderable.title} by ${input.signerName} — ${approvedPhases.map((p) => p.name).join(', ')}. Make the estimate: ${estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit`}`
       : needsSetup
       ? `Approved: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
@@ -251,6 +265,7 @@ export async function POST(
       contentHash: snapshot.contentHash,
       ipAddress,
       phases: approvedPhases ? { names: approvedPhases.map((p) => p.name), makeUrl: estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit` } : null,
+      range: rangeText ? { label: rangeText, makeUrl: estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit` } : null,
       pdf,
     });
   });

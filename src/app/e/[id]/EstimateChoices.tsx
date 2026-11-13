@@ -12,8 +12,8 @@ import { optionTotals, type InvoiceForPDF } from '@/lib/invoicePDF';
 import { formatLineMoney, type LineSelection } from '@/lib/lineItems';
 import { EstimateActions } from './EstimateActions';
 
-export function EstimateChoices({ id, token, pdf, clientName, initial, initialTotal, canAccept, declined, invoiced }: {
-  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null;
+export function EstimateChoices({ id, token, pdf, clientName, initial, initialTotal, canAccept, declined, invoiced, ranged = false }: {
+  id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; ranged?: boolean;
   initial: LineSelection; initialTotal: { cents: number; label: string };
   canAccept: boolean; declined: boolean; invoiced: boolean;
 }) {
@@ -79,6 +79,7 @@ export function EstimateChoices({ id, token, pdf, clientName, initial, initialTo
         canAccept={canAccept}
         declined={declined}
         invoiced={invoiced}
+        ranged={ranged}
         chooser={{ options, extras: extrasList, selection, onTier, onExtra }}
         pricing={pricing}
       />

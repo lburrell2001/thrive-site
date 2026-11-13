@@ -10,7 +10,7 @@
 // subtotal, and no grand total. With `approve`, each phase has a checkbox (the
 // estimate page, before approving).
 
-import { amountText, clientRows, formatLineMoney, hasChoices, isMonthly, isPhased, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { amountText, clientRows, formatLineMoney, hasChoices, hasRange, isMonthly, isPhased, rangeText, rangeTotals, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
 import { optionTotals, phaseGroups, type InvoiceForPDF } from '@/lib/invoicePDF';
 
 export type EstimateApprove = { phases: string[]; onToggle: (phase: string, on: boolean) => void };
@@ -28,6 +28,11 @@ const stripMo = (d: string) => d.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
 export function estimateTotalLabel(pdf: InvoiceForPDF): string {
   // Phases have no grand total.
   if (isPhased(pdf.line_items ?? [])) return phasesLabel(pdf);
+  // A price range (migration 063): "$4,000 – $7,500".
+  if (!hasChoices(pdf.line_items ?? []) && hasRange(pdf.line_items ?? [])) {
+    const ends = rangeTotals(pdf.line_items ?? []);
+    return rangeText(ends.low, ends.high);
+  }
 
   // With choices the rows can't be re-added (discounts follow the choice): the saved total is the default or chosen one.
   if (hasChoices(pdf.line_items ?? [])) return formatLineMoney(pdf.amount_cents);
@@ -62,7 +67,7 @@ function Phases({ pdf, approve }: { pdf: InvoiceForPDF; approve?: EstimateApprov
           </ul>
           <div className="estimatePhaseFoot">
             <span className="estimatePhaseTerms">{g.terms ? <>Payment terms: <strong>{g.terms}</strong></> : 'Payment terms to follow'}</span>
-            <strong className="estimatePhaseTotal">{amountText(g.oneTime, g.monthly)}</strong>
+            <strong className="estimatePhaseTotal">{g.ranged ? rangeText(g.low, g.high) : amountText(g.oneTime, g.monthly)}</strong>
           </div>
         </section>
       );
@@ -75,7 +80,7 @@ function Row({ r, control }: { r: LineItem; control?: React.ReactNode }) {
     <li className={control ? 'estimateRowChoice' : undefined}>
       {control}
       <div>
-        <strong>{r.name}{r.tier ? <span className="estimateTierTag">{r.tier}</span> : null}{r.optional && !control ? <span className="estimateTag"> Optional</span> : null}</strong>
+        <strong>{r.name}{r.tier ? <span className="estimateTierTag">{r.tier}</span> : null}{r.range ? <span className="estimateTierTag">{r.range === 'low' ? 'Low end' : 'High end'}</span> : null}{r.optional && !control ? <span className="estimateTag"> Optional</span> : null}</strong>
         {stripMo(r.description) && <p>{stripMo(r.description)}</p>}
       </div>
       <span>{isMonthly(r) ? amountText(0, r.amount_cents) : amountText(r.amount_cents, 0)}</span>
@@ -142,7 +147,7 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: 
                         <span><strong>Option {n + 1}: {o.tier}</strong></span>
                       </label>
                     ) : <strong>Option {n + 1}: {o.tier}{on && pdf.selection ? ' — chosen' : ''}</strong>}
-                    <span>{formatLineMoney(o.total_cents)}</span>
+                    <span>{o.label ?? formatLineMoney(o.total_cents)}</span>
                   </li>
                 );
               })}
@@ -170,10 +175,10 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: 
 
       {!phased && <>
       <div className="estimateTotal">
-        <span>{choices ? (picked?.tier ? `Total — ${picked.tier}` : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>
+        <span>{!choices && hasRange(rows) ? 'Price range' : choices ? (picked?.tier ? `${hasRange(rows) ? 'Price range' : 'Total'} — ${picked.tier}` : hasRange(rows) ? 'Price range' : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>
         <strong>{totalLabel ?? estimateTotalLabel(pdf)}</strong>
       </div>
-      {split.monthly > 0 && split.oneTime > 0 && (
+      {!hasRange(rows) && split.monthly > 0 && split.oneTime > 0 && (
         <div className="estimateTotal estimateTotalSub"><span>Monthly</span><strong>{formatLineMoney(split.monthly)}/mo</strong></div>
       )}
       </>}

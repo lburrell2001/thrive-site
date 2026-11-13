@@ -79,6 +79,7 @@ export async function POST(req: Request, { params }: Ctx) {
       ...(row.is_optional ? { is_optional: true } : {}),
       // Migration 062.
       ...(row.phase ? { phase: row.phase, phase_terms: row.phase_terms ?? null } : {}),
+      ...(row.range_end ? { range_end: row.range_end } : {}),
     })),
   });
   if (saveError) return badRequest(saveError.message);

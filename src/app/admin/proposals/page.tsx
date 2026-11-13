@@ -38,6 +38,7 @@ interface ProposalRow {
   /** Migration 050 / 062: its estimate, and whether it's in phases (approved phase by phase). */
   estimate_id?: string | null;
   phased?: boolean;
+  ranged?: boolean;
   proposal_clients: { id: string; name: string; company: string | null } | null;
 }
 
@@ -236,11 +237,11 @@ export default function ProposalsListPage() {
                   {(row.status === 'sent' || row.status === 'viewed') && (
                     <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={() => setReminding(row)}>Remind</button>
                   )}
-                  {row.status === 'signed' && row.phased && row.estimate_id && (
+                  {row.status === 'signed' && (row.phased || row.ranged) && row.estimate_id && (
                     <Link href={`/admin/invoices?estimate=${row.estimate_id}`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
-                      title="Make an estimate from the phases they approved">Make estimate</Link>
+                      title={row.phased ? 'Make an estimate from the phases they approved' : 'Make the final estimate from the low or high end'}>Make estimate</Link>
                   )}
-                  {row.status === 'signed' && !row.phased && (
+                  {row.status === 'signed' && !row.phased && !row.ranged && (
                     <Link href={`/admin/invoices?proposal=${row.id}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
                       title={pct > 0 && pct < 100 ? `One invoice: the ${pct}% deposit first, the rest when you open it` : undefined}>Invoice</Link>
                   )}

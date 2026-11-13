@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { hasRange, rangeLines, rangeText, rangeTotals, setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
@@ -892,7 +892,7 @@ export default function InvoiceBuilder() {
   }
 
   /** "Make an estimate" from a phased estimate's phases: a new draft with just those lines and their terms. */
-  function estimateFromPhases(est: Estimate, phases: string[]) {
+  function estimateFromPhases(est: Estimate, phases: string[], end: 'low' | 'high' = 'low') {
     if (!phases.length) return;
     if (hasDraft && !window.confirm('Start a new estimate from these phases? The unsaved draft you had will be replaced.')) return;
     const terms = phaseTermsNote(est.line_items, phases);
@@ -905,12 +905,34 @@ export default function InvoiceBuilder() {
       ...blankDraft('estimate'), client: clientKeyFor(est), clientName: est.client_name,
       title: [est.title, phases.join(' + ')].filter(Boolean).join(' — ').slice(0, 200),
       issueDate: t, dueDate: addDays(t, 30),
-      text: lineItemsToText(phaseLines(est.line_items, phases)),
+      text: lineItemsToText(phaseLines(est.line_items, phases, end)),
       notes: terms, totalsOnly: est.totals_only ?? false,
     });
     setView('edit');
     scrollTop();
     show(`New estimate from ${phases.join(', ')}. Check it, save, then send.`);
+  }
+
+  /** The final estimate from a price range (migration 063): the chosen end's items, as a plain estimate. */
+  function estimateFromRange(est: Estimate, end: 'low' | 'high') {
+    if (hasDraft && !window.confirm('Start the final estimate? The unsaved draft you had will be replaced.')) return;
+    const sel = (est as { selection?: LineSelection | null }).selection ?? null;
+    const t = today();
+    setEditingId(null);
+    setFromEstimateId(null);
+    setNewPhases([]);
+    setNewTiers([]);
+    setChosenMode('list');
+    setFromPhases({ estimate_id: est.id, estimate_number: est.estimate_number, phases: ['Final estimate'], crm_deal_id: est.crm_deal_id ?? null });
+    setDraft({
+      ...blankDraft('estimate'), client: clientKeyFor(est), clientName: est.client_name,
+      title: est.title, issueDate: t, dueDate: addDays(t, 30),
+      text: lineItemsToText(rangeLines(est.line_items, end, sel)),
+      notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
+    });
+    setView('edit');
+    scrollTop();
+    show(`Final estimate from the ${end} end. Adjust it, save, then send.`);
   }
 
   /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
@@ -1082,6 +1104,9 @@ export default function InvoiceBuilder() {
                         <span className={s.docNumber}>{est.estimate_number}</span>
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
                         {proposalOf(est.id) && <span className={`${s.status} ${s.stDraft}`}>With a proposal</span>}
+                        {!isPhased(est.line_items) && hasRange(est.line_items) && est.status === 'accepted' && !((est as { selection?: LineSelection | null }).selection?.made ?? []).length && (
+                          <span className={`${s.status} ${s.stDeclined}`}>Make the final estimate</span>
+                        )}
                         {isPhased(est.line_items) && (() => {
                           // Phases (migration 062): approved phases still waiting on their estimate.
                           const sel = (est as { selection?: LineSelection | null }).selection;
@@ -1101,7 +1126,9 @@ export default function InvoiceBuilder() {
                       <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
                       {est.status === 'declined' && est.decline_reason && <span className={s.docMeta} style={{ color: '#e50586' }}>Declined{est.declined_by ? ` by ${est.declined_by}` : ''}: “{est.decline_reason}”</span>}
                     </button>
-                    <span className={s.docAmount}>{isPhased(est.line_items) ? `${phasesOf(est.line_items).length} phases` : formatLineMoney(est.total_cents)}</span>
+                    <span className={s.docAmount}>{isPhased(est.line_items) ? `${phasesOf(est.line_items).length} phases`
+                      : hasRange(est.line_items) ? (() => { const e = rangeTotals(est.line_items, (est as { selection?: LineSelection | null }).selection ?? null); return rangeText(e.low, e.high); })()
+                      : formatLineMoney(est.total_cents)}</span>
                     <div className={s.docActions}>
                       {est.status !== 'invoiced' && (
                         <select className={s.statusSelect} value={est.status} aria-label={`Status of ${est.estimate_number}`}
@@ -1124,7 +1151,7 @@ export default function InvoiceBuilder() {
                       ) : (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
                       )}
-                      {est.status !== 'invoiced' && !isPhased(est.line_items) && (
+                      {est.status !== 'invoiced' && !isPhased(est.line_items) && !hasRange(est.line_items) && (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Invoice it</button>
                       )}
                       <button type="button" className={s.iconBtn} aria-label={`Delete ${est.estimate_number}`} title="Delete" onClick={() => remove(est)}>×</button>
@@ -1530,7 +1557,10 @@ export default function InvoiceBuilder() {
               <p className={s.phaseFrom}>From {fromPhases.estimate_number}: {fromPhases.phases.join(', ')}. Saving files it under the same deal and marks those phases as estimated.</p>
             )}
             {editingEstimate && isPhased(editingEstimate.line_items) && (
-              <PhaseMaker est={editingEstimate} disabled={dirty || busy} onMake={(phases) => estimateFromPhases(editingEstimate, phases)} />
+              <PhaseMaker est={editingEstimate} disabled={dirty || busy} onMake={(phases, end) => estimateFromPhases(editingEstimate, phases, end)} />
+            )}
+            {editingEstimate && !isPhased(editingEstimate.line_items) && hasRange(editingEstimate.line_items) && (
+              <FinalMaker est={editingEstimate} disabled={dirty || busy} onMake={(end) => estimateFromRange(editingEstimate, end)} />
             )}
             {editingEstimate && (
               <div className={s.finishLinks}>
@@ -1541,7 +1571,7 @@ export default function InvoiceBuilder() {
                     onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
                 )}
                 {editingEstimate.status !== 'invoiced' && <>
-                  {!isPhased(editingEstimate.line_items) && (
+                  {!isPhased(editingEstimate.line_items) && !hasRange(editingEstimate.line_items) && (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
                     onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
                   )}
@@ -1652,6 +1682,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, onDes
                   <span className={s.itemRowName}>
                     {name}
                     {optional && <span className={s.badgeOptional}>Optional</span>}
+                    {b.item.range && <span className={s.badgeTier}>{b.item.range === 'low' ? 'Low end' : 'High end'}</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                     {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
@@ -1726,7 +1757,51 @@ const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on c
  * A saved phased estimate (migration 062): which phases the client approved,
  * which already have an estimate, and "Make estimate" from the ticked ones.
  */
-function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolean; onMake: (phases: string[]) => void }) {
+/** Low end / High end: where the final estimate starts from (price ranges, migration 063). */
+function EndPick({ end, onEnd }: { end: 'low' | 'high'; onEnd: (end: 'low' | 'high') => void }) {
+  return (
+    <div className={s.quickDates} role="group" aria-label="Start from">
+      <span className={s.tierHint} style={{ alignSelf: 'center' }}>Start from:</span>
+      {(['low', 'high'] as const).map((e) => (
+        <button key={e} type="button" className={`${s.chip} ${end === e ? s.chipOn : ''}`} onClick={() => onEnd(e)}>{e === 'low' ? 'Low end' : 'High end'}</button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * A saved estimate with a price range and no phases (migration 063): the
+ * client accepts a range; the final estimate starts from its low or high end.
+ */
+function FinalMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolean; onMake: (end: 'low' | 'high') => void }) {
+  const sel = ((est as { selection?: LineSelection | null }).selection ?? null);
+  const [end, setEnd] = useState<'low' | 'high'>('low');
+  const ends = rangeTotals(est.line_items, sel);
+  const made = sel?.made ?? [];
+  const accepted = (est as { accepted_by?: string | null }).accepted_by;
+  return (
+    <div className={s.tierBar} style={{ marginTop: 16 }}>
+      <div className={s.tierBarHead}>
+        <strong>Make the final estimate</strong>
+        <span className={s.tierHint}>
+          {est.status === 'accepted' ? `${accepted ?? 'The client'} accepted the range ${rangeText(ends.low, ends.high)}${sel?.tier ? ` (${sel.tier})` : ''}.` : `Price range ${rangeText(ends.low, ends.high)}.`}
+          {' '}The final estimate starts with that end’s items (and everything in both) — adjust it, save and send.
+          {made.length ? ` Made so far: ${made.map((m) => m.estimate_number).join(', ')}.` : ''}
+        </span>
+      </div>
+      <EndPick end={end} onEnd={setEnd} />
+      <div>
+        <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={disabled}
+          title={disabled ? 'Save your changes first' : undefined} onClick={() => onMake(end)}>
+          Make the final estimate ({end === 'low' ? 'low end' : 'high end'}: {amountText(ends[end].oneTime, ends[end].monthly)})
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolean; onMake: (phases: string[], end: 'low' | 'high') => void }) {
+  const [end, setEnd] = useState<'low' | 'high'>('low');
   const sel = ((est as { selection?: LineSelection | null }).selection ?? null);
   const approved = sel?.phases ?? [];
   const made = sel?.made ?? [];
@@ -1757,16 +1832,17 @@ function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolea
                 <span>Phase {i + 1}: {ph.name}{ph.timeline ? ` · ${ph.timeline}` : ''}</span>
                 {approved.includes(ph.name) && <span className={s.badgeTier}>Approved</span>}
                 {m && <span className={s.badgeCustom}>{m.estimate_number} made</span>}
-                <strong>{amountText(ph.oneTime, ph.monthly)}</strong>
+                <strong>{ph.range ? rangeText(ph.range.low, ph.range.high) : amountText(ph.oneTime, ph.monthly)}</strong>
               </label>
               {ph.terms && <span className={s.tierHint}>Payment terms: {ph.terms}</span>}
             </li>
           );
         })}
       </ul>
+      {phases.some((ph) => ph.range && picked.includes(ph.name)) && <EndPick end={end} onEnd={setEnd} />}
       <div>
         <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={disabled || !picked.length}
-          title={disabled ? 'Save your changes first' : undefined} onClick={() => onMake(picked)}>
+          title={disabled ? 'Save your changes first' : undefined} onClick={() => onMake(picked, end)}>
           Make estimate{picked.length ? ` from ${picked.length === 1 ? picked[0] : `${picked.length} phases`}` : ''}
         </button>
       </div>

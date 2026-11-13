@@ -28,6 +28,9 @@ export function ProposalFooter({
   totalCents,
   depositPercent,
   phases,
+  ranged,
+  rangeLowCents,
+  rangeHighCents,
 }: {
   slug: string;
   token: string;
@@ -49,12 +52,16 @@ export function ProposalFooter({
   depositPercent?: number;
   /** Phases (migration 062): approved phase by phase. */
   phases?: ProposalPhase[] | null;
+  /** Price ranges (migration 063): approved for a low – high price, finalised in an estimate. */
+  ranged?: boolean;
+  rangeLowCents?: number;
+  rangeHighCents?: number;
 }) {
   return (
     <div className="proposalFooter">
       <div style={{ minWidth: 0 }}>
         <div className="proposalFooterLabel">
-          {signed ? 'Approved' : phases ? 'Phased' : 'Total'} · {depositLabel}
+          {signed ? 'Approved' : phases ? 'Phased' : ranged ? 'Price range' : 'Total'} · {depositLabel}
         </div>
         <div className="proposalFooterTotal">{totalLabel}</div>
       </div>
@@ -90,7 +97,7 @@ export function ProposalFooter({
           <>
             <DeclineAction slug={slug} token={token} />
             <ApproveAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} choices={choices} currency={currency}
-              totalCents={totalCents ?? 0} depositPercent={depositPercent ?? 0} phases={phases} />
+              totalCents={ranged && rangeLowCents !== undefined ? rangeLowCents : totalCents ?? 0} depositPercent={depositPercent ?? 0} phases={phases} ranged={ranged} rangeHighCents={rangeHighCents} />
           </>
         )}
       </div>

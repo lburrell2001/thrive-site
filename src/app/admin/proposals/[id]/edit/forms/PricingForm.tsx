@@ -12,6 +12,7 @@ import {
 } from '@/lib/priceCatalog';
 import type { PricingBlock } from '@/types/proposal';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
+import { endTotals, hasProposalRange, rangeLabel } from '@/lib/proposalChoices';
 import type { FormProps } from './types';
 
 export interface BuilderLineItem {
@@ -27,6 +28,8 @@ export interface BuilderLineItem {
   /** Phases (migration 062). */
   phase?: string | null;
   phase_terms?: string | null;
+  /** Price ranges (migration 063). */
+  range_end?: 'low' | 'high' | null;
 }
 
 /** One-tap payment terms for a phase. */
@@ -94,6 +97,8 @@ export function PricingForm({
   const [newTiers, setNewTiers] = useState<string[]>([]);
   const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
   const [groupDraft, setGroupDraft] = useState({ name: '', terms: '' });
+  // Price ranges (migration 063): groups switched to a range before any line is tagged.
+  const [rangeGroups, setRangeGroups] = useState<string[]>([]);
   // List · Tiers · Phases: how the prices are laid out (from the lines when it opens).
   const [mode, setMode] = useState<Mode>(() =>
     lineItems.some((i) => i.phase?.trim()) ? 'phases' : lineItems.some((i) => i.tier?.trim()) ? 'tiers' : 'list');
@@ -119,11 +124,13 @@ export function PricingForm({
 
   // Tiers and extras (migration 061): the total is the first option with no extras, as the client first sees it.
   const firstTier = lineItems.find((i) => tierOf(i))?.tier?.trim() ?? null;
-  const counted = lineItems.filter((i) => !i.is_optional && (!tierOf(i) || tierOf(i) === firstTier));
+  const counted = lineItems.filter((i) => !i.is_optional && i.range_end !== 'high' && (!tierOf(i) || tierOf(i) === firstTier));
   const monthly = counted.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
   const total = counted.reduce((n, i) => n + lineCents(i), 0);
   const oneTime = total - monthly;
   const sumOf = (items: BuilderLineItem[]) => {
+    // A price range (migration 063): "$4,000 – $7,500".
+    if (hasProposalRange(items)) { const e = endTotals(items); return rangeLabel(e.low, e.high, (cents) => formatMoneyCents(cents, currency)); }
     const all = items.reduce((n, i) => n + lineCents(i), 0);
     const mo = items.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
     return mo && all === mo ? `${formatMoneyCents(mo, currency)}/mo`
@@ -271,6 +278,17 @@ export function PricingForm({
     onLineItemsChange(lineItems.map((i) => (phaseOf(i) === name ? { ...i, phase_terms: terms || null } : i)));
   };
 
+  const keyOf = (g: Group) => `${g.kind}:${g.name}`;
+  /** A group priced as a range: switched on, or any of its lines tagged low or high end. */
+  const rangeOn = (g: Group) => rangeGroups.includes(keyOf(g)) || lineItems.some((i) => inGroup(g, i) && i.range_end);
+  function toggleRange(g: Group, on: boolean) {
+    if (on) { setRangeGroups((cur) => [...new Set([...cur, keyOf(g)])]); return; }
+    const tagged = lineItems.filter((i) => inGroup(g, i) && i.range_end);
+    if (tagged.length && !window.confirm('Take off the price range? Low-end and high-end items will then count in one price.')) return;
+    setRangeGroups((cur) => cur.filter((k) => k !== keyOf(g)));
+    if (tagged.length) onLineItemsChange(lineItems.map((i) => (inGroup(g, i) ? { ...i, range_end: null } : i)));
+  }
+
   /** Moves a line to another group. */
   function moveTo(index: number, g: Group) {
     const base = { ...lineItems[index], tier: null, phase: null, phase_terms: null };
@@ -333,6 +351,15 @@ export function PricingForm({
           <button type="button" className={pf.remove} aria-label={`Remove ${item.label || 'line'}`} disabled={!!locked}
             title={locked ? `Required with ${locked}` : 'Remove'} onClick={() => remove(index)}>×</button>
         </div>
+        {here && rangeOn(here) && (
+          <div className={pf.endPick} role="group" aria-label={`Price range end for ${item.label || 'this line'}`}>
+            {([[null, 'Both'], ['low', 'Low end'], ['high', 'High end']] as const).map(([v, label]) => (
+              <button key={label} type="button" aria-pressed={(item.range_end ?? null) === v}
+                className={`${pf.endBtn} ${(item.range_end ?? null) === v ? pf.endOn : ''}`}
+                onClick={() => update(index, { range_end: v })}>{label}</button>
+            ))}
+          </div>
+        )}
         {scope && (
           <label className={pf.workDesc}>
             <span>What’s the work? <em>Required — always shown to the client</em></span>
@@ -385,8 +412,10 @@ export function PricingForm({
         <div className={pf.sectionHead}>
           <strong>Prices</strong>
           <span className={pf.total}>
-            {mode === 'phases' ? `${phases.length} phase${phases.length === 1 ? '' : 's'}` : monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
-            {mode !== 'phases' && monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
+            {mode === 'phases' ? `${phases.length} phase${phases.length === 1 ? '' : 's'}`
+              : mode === 'list' && hasProposalRange(lineItems) ? sumOf(lineItems.filter((i) => !i.is_optional))
+              : monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
+            {mode !== 'phases' && !(mode === 'list' && hasProposalRange(lineItems)) && monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
           </span>
         </div>
 
@@ -435,6 +464,17 @@ export function PricingForm({
                     ))}
                   </div>
                 </div>
+              )}
+              {g.kind !== 'loose' && (
+                <label className={pf.rangeSwitch}>
+                  <input type="checkbox" role="switch" checked={rangeOn(g)} onChange={(e) => toggleRange(g, e.target.checked)} />
+                  <span>
+                    <strong>Price range</strong>
+                    {rangeOn(g)
+                      ? <small>Tag each item Low end, High end or Both. The client sees {items.length ? sumOf(items.map((x) => x.item).filter((i) => !i.is_optional)) : 'a low – high price'}.</small>
+                      : <small>Show a low – high price instead of one number.</small>}
+                  </span>
+                </label>
               )}
               {items.length > 0 ? (
                 <ul className={pf.rows}>{items.map(({ item, index }) => row(item, index))}</ul>

@@ -17,7 +17,7 @@ import type { InvoiceForPDF } from '@/lib/invoicePDF';
 import { formatLineMoney, type LineSelection } from '@/lib/lineItems';
 
 export type EstimateChooser = {
-  options: { tier: string; total_cents: number }[];
+  options: { tier: string; total_cents: number; label?: string }[];
   extras: { source: number; name: string; description: string; amount_cents: number }[];
   selection: LineSelection;
   onTier: (tier: string) => void;
@@ -32,7 +32,7 @@ export type EstimatePhaser = {
 
 const REASONS = ['The price', 'The timing', 'The scope isn’t right', 'We’re going another way', 'Something else'];
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, chooser, pricing = false, phaser }: {
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, chooser, pricing = false, phaser, ranged = false }: {
   id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean; invoiced?: boolean;
   /** Tiers and extras: the options, the extras and the shared choice. */
   chooser?: EstimateChooser;
@@ -40,6 +40,8 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
   pricing?: boolean;
   /** Phases: which ones they're approving. */
   phaser?: EstimatePhaser;
+  /** A price range (migration 063): approved at low – high, the final price comes in a later estimate. */
+  ranged?: boolean;
 }) {
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -50,7 +52,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [error, setError] = useState('');
-  const [done, setDone] = useState<{ invoiceReady: boolean; needsSetup: boolean } | null>(null);
+  const [done, setDone] = useState<{ invoiceReady: boolean; needsSetup: boolean; ranged?: boolean } | null>(null);
   const [declinedNow, setDeclinedNow] = useState(false);
 
   const sel = chooser?.selection;
@@ -80,9 +82,9 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
         body: JSON.stringify({ token, name: name.trim(), agreed,
           ...(phaser ? { selection: { tier: null, optional: [], phases: phaser.selected } } : sel ? { selection: sel } : {}) }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean };
+      const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean; ranged?: boolean };
       if (!res.ok) setError(body.error ?? 'Something went wrong. Please try again.');
-      else setDone({ invoiceReady: !!body.invoiceReady, needsSetup: !!body.needsSetup });
+      else setDone({ invoiceReady: !!body.invoiceReady, needsSetup: !!body.needsSetup, ranged: !!body.ranged });
     } catch {
       setError('We couldn’t reach the server. Check your connection and try again.');
     }
@@ -115,7 +117,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
     <>
       <div className="proposalFooter">
         <div style={{ minWidth: 0 }}>
-          <div className="proposalFooterLabel">{isAccepted ? (phaser ? 'Approved' : 'Accepted') : isDeclined ? 'Declined' : phaser ? 'Phased estimate' : 'Estimate total'}</div>
+          <div className="proposalFooterLabel">{isAccepted ? (phaser ? 'Approved' : 'Accepted') : isDeclined ? 'Declined' : phaser ? 'Phased estimate' : ranged ? 'Price range' : 'Estimate total'}</div>
           <div className="proposalFooterTotal">{totalLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -187,10 +189,11 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             <h2 id="accept-title" className="pdTitle">Accepted — thank you!</h2>
             <dl className="pdSummary">
               {sel?.tier && <div><dt>Your option</dt><dd>{sel.tier}</dd></div>}
-              <div><dt>Total</dt><dd>{totalLabel}</dd></div>
+              <div><dt>{done.ranged ? 'Price range' : 'Total'}</dt><dd>{totalLabel}</dd></div>
             </dl>
             <p className="pdLead">
-              {done.invoiceReady
+              {done.ranged ? 'Lauren will send you the estimate with the final price next — nothing is invoiced until you accept it.'
+                : done.invoiceReady
                 ? 'Your invoice is ready in your client portal — we’ve emailed you the link.'
                 : done.needsSetup
                   ? 'Next, we’ll set up your client portal and email you there — your invoice will be waiting.'
@@ -207,7 +210,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             <h2 id="accept-title" className="pdTitle">Accept estimate</h2>
             <p className="pdLead">
               {needsTier ? 'Choose your option, add any extras, and accept. ' : ''}
-              Once you accept, we’ll send your invoice to your client portal.
+              {ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.' : 'Once you accept, we’ll send your invoice to your client portal.'}
             </p>
 
             {needsTier && (
@@ -219,7 +222,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
                       <input type="radio" name="accept-tier" checked={sel?.tier === o.tier} onChange={() => chooser!.onTier(o.tier)} />
                       <span className="pdOptionKicker">Option {i + 1}</span>
                       <span className="pdOptionName">{o.tier}</span>
-                      <span className="pdOptionPrice">{formatLineMoney(o.total_cents)}</span>
+                      <span className="pdOptionPrice">{o.label ?? formatLineMoney(o.total_cents)}</span>
                     </label>
                   ))}
                 </div>
@@ -249,7 +252,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
 
             <div className="pdTotal" aria-live="polite">
               <div>
-                <span>{sel?.tier ? `Your total — ${sel.tier}` : 'Your total'}</span>
+                <span>{ranged ? 'Price range' : 'Your total'}{sel?.tier ? ` — ${sel.tier}` : ''}</span>
                 <strong>{!chosen ? 'Choose an option' : pricing ? '…' : totalLabel}</strong>
               </div>
             </div>
@@ -261,7 +264,9 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
 
             <label className="pdAgree">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
-              <span>I accept this estimate{chosen && !pricing ? ` for ${totalLabel}` : ''} and agree to be invoiced for it.</span>
+              <span>{ranged
+                ? `I accept this estimate${chosen && !pricing ? ` at ${totalLabel}` : ''} and understand the final price comes in an estimate I accept before I’m invoiced.`
+                : `I accept this estimate${chosen && !pricing ? ` for ${totalLabel}` : ''} and agree to be invoiced for it.`}</span>
             </label>
 
             {error && <p className="pdError" role="alert">{error}</p>}

@@ -15,7 +15,8 @@ import { parseIpAddress } from '@/lib/proposalSignature';
 import { textAgency } from '@/lib/sms';
 import { formatLineMoney } from '@/lib/lineItems';
 import { SITE_URL } from '@/lib/seo';
-import { hasChoices, isPhased, lineSelectionSchema, tiersOf } from '@/lib/lineItems';
+import { hasChoices, isPhased, lineSelectionSchema, tiersOf, type LineSelection } from '@/lib/lineItems';
+import { tellLauren } from '@/lib/agencyNotify';
 import { cleanPhases, recordPhaseApproval, tellPhasesApproved } from '@/lib/phaseApproval';
 import { choiceTotal } from '@/lib/estimateChoice';
 
@@ -84,6 +85,20 @@ export async function POST(req: Request, { params }: Ctx) {
 
   // Already approved phases: nothing more happens here.
   if (isPhased(est.line_items)) return NextResponse.json({ ok: true, phased: true, invoiceReady: false, needsSetup: false });
+
+  // A price range (migration 063): accepted, but nothing is invoiced — Lauren makes the final estimate.
+  const { data: fresh } = await db.from('estimates').select('selection').eq('id', id).maybeSingle();
+  const chosen = choiceTotal(est.line_items, (fresh?.selection ?? null) as Partial<LineSelection> | null);
+  if (chosen.ranged) {
+    if (!est.accepted_at) {
+      after(() => tellLauren(
+        `Accepted with a price range: estimate ${est.estimate_number} — ${chosen.label}`,
+        `${parsed.data.name} accepted estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} at ${chosen.label}${chosen.selection.tier ? ` (${chosen.selection.tier})` : ''}.\n\nNothing has been invoiced. Make the final estimate (start from the low or high end) and send it:\n${SITE_URL}/admin/invoices?estimate=${id}`,
+        `Accepted with a price range: estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''} by ${parsed.data.name} — ${chosen.label}. Make the final estimate: ${SITE_URL}/admin/invoices?estimate=${id}`,
+      ));
+    }
+    return NextResponse.json({ ok: true, ranged: true, invoiceReady: false, needsSetup: false });
+  }
 
   // The invoice in their project folder if they have a portal (once, however many
   // times this runs); otherwise it waits for Lauren to set the portal up.

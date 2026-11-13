@@ -7,7 +7,7 @@ import { estimateForClientPdf, loadClientEstimate } from '@/lib/estimateAccess';
 import { EstimatePaper, estimateTotalLabel } from '@/components/estimate/EstimatePaper';
 import { EstimateActions } from './EstimateActions';
 import { EstimateChoices } from './EstimateChoices';
-import { hasChoices, isPhased } from '@/lib/lineItems';
+import { hasChoices, hasRange, isPhased } from '@/lib/lineItems';
 import { EstimatePhases } from './EstimatePhases';
 import { choiceTotal } from '@/lib/estimateChoice';
 
@@ -38,7 +38,12 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
           {approvedPhases.length ? `: ${approvedPhases.join(', ')}` : ''}. We’ll send you the estimate for {approvedPhases.length === 1 ? 'that phase' : 'each phase'} before any invoice.
         </p>
       )}
-      {accepted && !phased && (
+      {accepted && !phased && hasRange(est.line_items) && !est.invoice_id && (
+        <p className="proposalNotice proposalNoticeGood">
+          Accepted{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}. We’ll send you the estimate with the final price before anything is invoiced.
+        </p>
+      )}
+      {accepted && !phased && !(hasRange(est.line_items) && !est.invoice_id) && (
         <p className="proposalNotice proposalNoticeGood">
           Accepted{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}.{' '}
           {est.invoice_id ? (<>Your invoice is ready in your client portal.{' '}
@@ -78,6 +83,7 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
           canAccept={!expired && est.status !== 'declined' && est.status !== 'invoiced'}
           declined={est.status === 'declined'}
           invoiced={!!est.invoice_id}
+          ranged={hasRange(est.line_items)}
         />
       ) : (<>
       <EstimatePaper pdf={pdf} clientName={est.client_name || null} />
@@ -92,6 +98,7 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         canAccept={!accepted && !expired && est.status !== 'declined' && est.status !== 'invoiced'}
         declined={est.status === 'declined'}
         invoiced={!!est.invoice_id}
+        ranged={hasRange(est.line_items)}
       />
       </>)}
     </main>

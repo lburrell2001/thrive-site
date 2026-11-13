@@ -17,7 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { makePortalClient } from './portalClient';
 import { nextInvoiceNumberFor } from './invoiceHelpers';
 import { notifyPortalClient } from './clientNotify';
-import { formatLineMoney, hasChoices, isPhased, selectLines, totalCents, type LineItem, type LineSelection } from './lineItems';
+import { formatLineMoney, hasChoices, hasRange, isPhased, selectLines, totalCents, type LineItem, type LineSelection } from './lineItems';
 import { SITE_URL } from './seo';
 import { projectChecklistFromEstimate } from './projectWork';
 
@@ -45,6 +45,8 @@ export async function invoiceForEstimate(
   const all = (est.line_items ?? []) as LineItem[];
   // Phases (migration 062) are never invoiced as a whole: Lauren makes an estimate per phase.
   if (isPhased(all)) return { ok: false, error: 'A phased estimate isn’t invoiced directly — make an estimate from its phases' };
+  // Nor is a price range (migration 063): the final estimate settles the price.
+  if (hasRange(selectLines(all, (est.selection ?? null) as LineSelection | null))) return { ok: false, error: 'A price range isn’t invoiced directly — make the final estimate from its low or high end' };
   const selection = (est.selection ?? null) as LineSelection | null;
   const lines = hasChoices(all) ? selectLines(all, selection) : all;
   const total = hasChoices(all) ? totalCents(all, selection) : est.total_cents;

@@ -40,6 +40,9 @@ export async function GET(req: Request) {
   // Phased proposals (migration 062): approved phase by phase, no total. Nothing before 062.
   const { data: phasedRows } = await auth.db.from('proposal_line_items').select('proposal_id').not('phase', 'is', null);
   const phased = new Set((phasedRows ?? []).map((r) => r.proposal_id as string));
+  // Price ranges (migration 063): approved at low – high, finalised in an estimate. Nothing before 063.
+  const { data: rangedRows } = await auth.db.from('proposal_line_items').select('proposal_id').not('range_end', 'is', null);
+  const ranged = new Set((rangedRows ?? []).map((r) => r.proposal_id as string));
   const lastReminded = new Map<string, string>();
   for (const r of reminders ?? []) {
     if (r.target_id && !lastReminded.has(r.target_id)) lastReminded.set(r.target_id, r.created_at);
@@ -47,7 +50,7 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     ok: true,
-    data: (data ?? []).map((row) => ({ ...row, last_reminded_at: lastReminded.get(row.id) ?? null, phased: phased.has(row.id) })),
+    data: (data ?? []).map((row) => ({ ...row, last_reminded_at: lastReminded.get(row.id) ?? null, phased: phased.has(row.id), ranged: ranged.has(row.id) })),
   });
 }
 
@@ -75,7 +78,7 @@ export async function POST(req: Request) {
 
   // Work out the starting blocks.
   let blocks: ProposalBlock[] = [];
-  let lineItems: { label: string; description: string | null; quantity: number; unit_price_cents: number; position: number; tier?: string | null; is_optional?: boolean; phase?: string | null; phase_terms?: string | null }[] = [];
+  let lineItems: { label: string; description: string | null; quantity: number; unit_price_cents: number; position: number; tier?: string | null; is_optional?: boolean; phase?: string | null; phase_terms?: string | null; range_end?: 'low' | 'high' | null }[] = [];
   let theme: unknown = {};
   let depositPercent = 50;
   let currency = 'USD';
@@ -142,6 +145,7 @@ export async function POST(req: Request) {
       ...(row.is_optional ? { is_optional: true } : {}),
       // Migration 062.
       ...(row.phase ? { phase: row.phase, phase_terms: row.phase_terms ?? null } : {}),
+      ...(row.range_end ? { range_end: row.range_end } : {}),
     }));
     theme = source.data.theme ?? {};
     depositPercent = source.data.deposit_percent;

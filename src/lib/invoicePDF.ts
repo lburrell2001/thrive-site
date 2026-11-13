@@ -1,4 +1,4 @@
-import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, isPhased, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
+import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, hasRange, isPhased, rangeText, rangeTotals, splitTotals, tierTotal, tiersOf, type EndTotals, type LineItem, type LineSelection } from './lineItems';
 import { dueNow } from './invoiceDeposit';
 
 export interface InvoiceForPDF {
@@ -21,7 +21,7 @@ export interface InvoiceForPDF {
   deposit_paid_at?: string | null;
   balance_open?: boolean | null;
   /** Tiers (migration 061): each option's total — shared lines included, no extras. Worked out from the lines when absent. */
-  options?: { tier: string; total_cents: number }[] | null;
+  options?: { tier: string; total_cents: number; label?: string }[] | null;
   /** The client's choice, once they've accepted. */
   selection?: LineSelection | null;
 }
@@ -29,10 +29,13 @@ export interface InvoiceForPDF {
 type Row = { name: string; description: string; hours: number | null; amount: string; heading?: boolean };
 
 /** Each option's total, from the PDF data or worked out from full lines. */
-export function optionTotals(invoice: Pick<InvoiceForPDF, 'line_items' | 'options'>): { tier: string; total_cents: number }[] {
+export function optionTotals(invoice: Pick<InvoiceForPDF, 'line_items' | 'options'>): { tier: string; total_cents: number; label?: string }[] {
   if (invoice.options?.length) return invoice.options;
   const lines = (invoice.line_items ?? []) as LineItem[];
-  return tiersOf(lines).map((tier) => ({ tier, total_cents: tierTotal(lines, tier) }));
+  return tiersOf(lines).map((tier) => {
+    const ends = rangeTotals(lines, { tier, optional: [] });
+    return { tier, total_cents: tierTotal(lines, tier), label: rangeText(ends.low, ends.high) };
+  });
 }
 
 
@@ -43,14 +46,15 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
     return [{ name: invoice.project_name || 'Creative Services', description: '', hours: null, amount: fmtMoney(invoice.amount_cents) }];
   }
   const rows = clientRows(lines as LineItem[], !!invoice.totals_only);
-  const plain = (r: (typeof rows)[number]): Row => ({ name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly) });
+  // A line in only one end of a price range (migration 063) says so.
+  const plain = (r: (typeof rows)[number]): Row => ({ name: `${r.name}${r.range ? ` (${r.range} end)` : ''}`, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly) });
   if (isPhased(rows)) {
     // Phases (migration 062): each phase with its terms, its lines and its subtotal — no grand total.
     const approved = invoice.selection?.phases;
     return phaseGroups(rows).flatMap((g, n): Row[] => [
       { name: `Phase ${n + 1}: ${g.name}${g.timeline ? ` · ${g.timeline}` : ''}${approved?.includes(g.name) ? ' — approved' : ''}`, description: g.terms ? `Payment terms: ${g.terms}` : '', hours: null, amount: '', heading: true },
       ...g.rows.map(plain),
-      { name: `Phase ${n + 1} total`, description: '', hours: null, amount: amountText(g.oneTime, g.monthly) },
+      { name: `Phase ${n + 1} ${g.ranged ? 'price range' : 'total'}`, description: '', hours: null, amount: g.ranged ? rangeText(g.low, g.high) : amountText(g.oneTime, g.monthly) },
     ]);
   }
   if (!hasChoices(rows)) return rows.map(plain);
@@ -60,7 +64,7 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
   const out: Row[] = rows.filter((r) => !r.optional).map((r) => ({ ...plain(r), name: r.tier ? `${r.name} — ${r.tier}` : r.name }));
   if (totals.length) {
     out.push({ name: chosen ? 'Options' : 'Choose one option', description: '', hours: null, amount: '', heading: true });
-    totals.forEach((t, n) => out.push({ name: `Option ${n + 1}: ${t.tier}${chosen?.tier === t.tier ? ' — chosen' : ''}`, description: '', hours: null, amount: formatLineMoney(t.total_cents) }));
+    totals.forEach((t, n) => out.push({ name: `Option ${n + 1}: ${t.tier}${chosen?.tier === t.tier ? ' — chosen' : ''}`, description: '', hours: null, amount: t.label ?? formatLineMoney(t.total_cents) }));
   }
   const extras = rows.filter((r) => r.optional);
   if (extras.length) {
@@ -74,17 +78,19 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
 }
 
 /** Client rows grouped by phase, in order, with each phase's terms and subtotal (from the rows, which may be collapsed). */
-export function phaseGroups<R extends { phase?: string; phase_terms?: string; phase_timeline?: string; oneTime: number; monthly: number }>(rows: R[]) {
-  const out: { name: string; terms: string; timeline: string; rows: R[]; oneTime: number; monthly: number }[] = [];
+export function phaseGroups<R extends { phase?: string; phase_terms?: string; phase_timeline?: string; range?: 'low' | 'high'; oneTime: number; monthly: number }>(rows: R[]) {
+  // oneTime / monthly are the low end; with a price range (migration 063), low and high are both ends.
+  const out: { name: string; terms: string; timeline: string; rows: R[]; oneTime: number; monthly: number; ranged: boolean; low: EndTotals; high: EndTotals }[] = [];
   for (const r of rows) {
     if (!r.phase) continue;
     let g = out.find((x) => x.name === r.phase);
-    if (!g) { g = { name: r.phase, terms: '', timeline: '', rows: [], oneTime: 0, monthly: 0 }; out.push(g); }
+    if (!g) { g = { name: r.phase, terms: '', timeline: '', rows: [], oneTime: 0, monthly: 0, ranged: false, low: { oneTime: 0, monthly: 0 }, high: { oneTime: 0, monthly: 0 } }; out.push(g); }
     if (!g.terms && r.phase_terms) g.terms = r.phase_terms;
     if (!g.timeline && r.phase_timeline) g.timeline = r.phase_timeline;
     g.rows.push(r);
-    g.oneTime += r.oneTime;
-    g.monthly += r.monthly;
+    if (r.range) g.ranged = true;
+    if (r.range !== 'high') { g.oneTime += r.oneTime; g.monthly += r.monthly; g.low.oneTime += r.oneTime; g.low.monthly += r.monthly; }
+    if (r.range !== 'low') { g.high.oneTime += r.oneTime; g.high.monthly += r.monthly; }
   }
   return out;
 }
@@ -281,7 +287,11 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
   const split = invoice.line_items?.length ? splitTotals(invoice.line_items as LineItem[], sel) : { oneTime: invoice.amount_cents, monthly: 0 };
   const choiceLabel = sel?.tier ? ` — ${sel.tier.toUpperCase()}${invoice.selection ? '' : ', NO EXTRAS'}` : sel && !invoice.selection ? ' — NO EXTRAS' : '';
   // A phased estimate has no grand total: each phase's subtotal is in the table.
+  const ranged = !!invoice.line_items?.length && hasRange(invoice.line_items as LineItem[]);
+  const ends = ranged ? rangeTotals(invoice.line_items as LineItem[], sel) : null;
   const totals: { label: string; value: string }[] = invoice.line_items?.length && isPhased(invoice.line_items as LineItem[]) ? []
+    // A price range (migration 063): low – high, the final price comes in a later estimate.
+    : ends ? [{ label: `PRICE RANGE${sel?.tier ? ` — ${sel.tier.toUpperCase()}` : ''}`, value: rangeText(ends.low, ends.high) }]
     : sel && !split.monthly
     ? [{ label: `${isEstimate ? 'ESTIMATE TOTAL' : 'TOTAL DUE'}${choiceLabel}`, value: fmtMoney(split.oneTime) }]
     : isEstimate && split.monthly

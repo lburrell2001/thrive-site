@@ -34,7 +34,7 @@ export async function loadClientEstimate(id: string, token: string | undefined):
   return data as ClientEstimate;
 }
 
-import { clientRows, tierTotal, tiersOf } from './lineItems';
+import { clientRows, rangeText, rangeTotals, tierTotal, tiersOf } from './lineItems';
 import type { InvoiceForPDF } from './invoicePDF';
 
 /**
@@ -63,10 +63,15 @@ export function estimateForClientPdf(est: Pick<ClientEstimate, 'estimate_number'
       amount_cents: r.oneTime + r.monthly,
       ...(r.tier ? { tier: r.tier } : {}),
       ...(r.optional ? { optional: true, source: r.source } : {}),
+      ...(r.range ? { range: r.range } : {}),
       ...(r.phase ? { phase: r.phase, ...(r.phase_terms ? { phase_terms: r.phase_terms } : {}), ...(r.phase_timeline ? { phase_timeline: r.phase_timeline } : {}) } : {}),
     })),
     // Worked out from the full lines here, since the rows may be collapsed.
-    options: tiers.length ? tiers.map((tier) => ({ tier, total_cents: tierTotal(est.line_items, tier) })) : null,
+    options: tiers.length ? tiers.map((tier) => {
+      // A price range (migration 063) shows as "$4,000 – $7,500".
+      const ends = rangeTotals(est.line_items, { tier, optional: [] });
+      return { tier, total_cents: tierTotal(est.line_items, tier), label: rangeText(ends.low, ends.high) };
+    }) : null,
     selection: est.selection ?? null,
   };
 }

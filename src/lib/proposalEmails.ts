@@ -31,6 +31,8 @@ export interface SigningEmailData {
   ipAddress: string | null;
   /** Phases (migration 062): what they approved, and where Lauren makes the estimate. No deposit then. */
   phases?: { names: string[]; makeUrl: string } | null;
+  /** Price ranges (migration 063): approved at a low – high price; Lauren makes the final estimate. No deposit then. */
+  range?: { label: string; makeUrl: string } | null;
   /** The rendered proposal, attached to the client's receipt when available. */
   pdf?: { filename: string; content: Buffer } | null;
 }
@@ -39,7 +41,7 @@ export interface SigningEmailData {
 function clientReceipt(d: SigningEmailData) {
   return brandEmail({
     title: `Approved — ${d.proposalTitle}`,
-    preheader: d.phases ? `Your receipt for ${d.proposalTitle}. Next step: the estimate for your first phase.` : `Your receipt for ${d.proposalTitle}. Next step: the ${d.depositPercent}% deposit.`,
+    preheader: d.range ? `Your receipt for ${d.proposalTitle}. Next step: the estimate with your final price.` : d.phases ? `Your receipt for ${d.proposalTitle}. Next step: the estimate for your first phase.` : `Your receipt for ${d.proposalTitle}. Next step: the ${d.depositPercent}% deposit.`,
     eyebrow: 'Proposal approved',
     accent: 'green',
     heading: 'Thank you!',
@@ -48,7 +50,13 @@ function clientReceipt(d: SigningEmailData) {
         `You approved <strong style="color:#000;">${esc(d.proposalTitle)}</strong> on ${esc(d.signedAt)}. This email is your receipt, so keep it for your records.`,
         { html: true },
       ),
-      ...(d.phases ? [
+      ...(d.range ? [
+        rows([
+          { label: 'Signed by', value: d.typedName },
+          { label: 'Price range', value: d.range.label, strong: true },
+        ]),
+        paragraph('Next step: Lauren will send you the estimate with the final price. Nothing is invoiced until you accept it.'),
+      ] : d.phases ? [
         rows([
           { label: 'Signed by', value: d.typedName },
           { label: d.phases.names.length === 1 ? 'Phase approved' : 'Phases approved', value: d.phases.names.join(', '), strong: true },
@@ -86,12 +94,14 @@ function agencyNotification(d: SigningEmailData) {
         { label: 'Typed signature', value: d.typedName },
         ...(d.phases
           ? [{ label: 'Phases approved', value: d.phases.names.join(', '), strong: true }]
+          : d.range ? [{ label: 'Price range', value: d.range.label, strong: true }]
           : [{ label: 'Total', value: d.totalLabel }]),
         { label: 'IP address', value: d.ipAddress ?? 'not recorded' },
         { label: 'Content hash', value: d.contentHash, small: true },
-        ...(d.phases ? [] : [{ label: 'Deposit due', value: d.depositLabel, strong: true }]),
+        ...(d.phases || d.range ? [] : [{ label: 'Deposit due', value: d.depositLabel, strong: true }]),
       ]),
       ...(d.phases ? [paragraph('Nothing has been invoiced. Make the estimate for the phase you’re starting and send it.'), button(d.phases.makeUrl, 'Make the estimate')] : []),
+      ...(d.range && !d.phases ? [paragraph('Nothing has been invoiced. Make the final estimate (start from the low or high end) and send it.'), button(d.range.makeUrl, 'Make the final estimate')] : []),
       ...(d.needsSetup && d.setupUrl
         ? [paragraph('They don’t have a client portal yet. Set it up from Home — one click makes their login, the project and the deposit invoice, and emails them.'), button(d.setupUrl, 'Set up their portal')]
         : []),
@@ -215,7 +225,9 @@ export async function sendSigningEmails(data: SigningEmailData): Promise<void> {
       to: data.signerEmail,
       subject: `Approved — ${data.proposalTitle}`,
       html: clientReceipt(data),
-      text: data.phases
+      text: data.range
+        ? `You approved ${data.proposalTitle} on ${data.signedAt}.\n\nPrice range: ${data.range.label}\n\nNext step: Lauren will send you the estimate with the final price. Nothing is invoiced until you accept it.\nRead the proposal: ${data.proposalUrl}`
+        : data.phases
         ? `You approved ${data.proposalTitle} on ${data.signedAt}.\n\nPhases approved: ${data.phases.names.join(', ')}\n\nNext step: Lauren will send you the estimate for each phase you approved. Nothing is invoiced until you accept it.\nRead the proposal: ${data.proposalUrl}`
         : `You approved ${data.proposalTitle} on ${data.signedAt}.\n\nTotal ${data.totalLabel}\nDeposit due (${data.depositPercent}%) ${data.depositLabel}\n\n${data.needsSetup ? 'Next step: we’ll set up your client portal and email you there, where your deposit invoice will be waiting.' : `Pay the deposit: ${data.portalUrl}`}\nRead the proposal: ${data.proposalUrl}`,
       // A signed proposal is a document the client should be able to keep
@@ -230,7 +242,7 @@ export async function sendSigningEmails(data: SigningEmailData): Promise<void> {
           to: notifyTo,
           subject: `Signed: ${data.proposalTitle}`,
           html: agencyNotification(data),
-          text: `${data.proposalTitle} was signed by ${data.signerName} <${data.signerEmail}> on ${data.signedAt}.\n\n${data.phases ? `Phases approved: ${data.phases.names.join(', ')}\nMake the estimate: ${data.phases.makeUrl}` : `Total ${data.totalLabel}\nDeposit ${data.depositLabel}`}\nIP ${data.ipAddress ?? 'not recorded'}\nHash ${data.contentHash}\n\n${data.adminUrl}`,
+          text: `${data.proposalTitle} was signed by ${data.signerName} <${data.signerEmail}> on ${data.signedAt}.\n\n${data.phases ? `Phases approved: ${data.phases.names.join(', ')}\nMake the estimate: ${data.phases.makeUrl}` : data.range ? `Price range: ${data.range.label}\nMake the final estimate: ${data.range.makeUrl}` : `Total ${data.totalLabel}\nDeposit ${data.depositLabel}`}\nIP ${data.ipAddress ?? 'not recorded'}\nHash ${data.contentHash}\n\n${data.adminUrl}`,
         })
       : Promise.resolve(null),
   ]);

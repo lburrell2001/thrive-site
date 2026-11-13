@@ -58,6 +58,8 @@ export const lineItemSchema = z.object({
   /** Migration 062: the phase this line is in, and that phase's payment terms. */
   phase: z.string().trim().max(80).nullable().optional(),
   phase_terms: z.string().trim().max(300).nullable().optional(),
+  /** Migration 063: only in the low or high end of a price range. */
+  range_end: z.enum(['low', 'high']).nullable().optional(),
 });
 
 /** The autosave payload. Every part is optional so a save can be partial. */

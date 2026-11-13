@@ -495,7 +495,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
 
           {signatures.length > 0 && (
             <SignedBanner signature={signatures[0]} currency={meta.currency} proposalId={id} depositPercent={doc.depositPercent}
-              phasedEstimateId={doc.lineItems.some((i) => i.phase?.trim()) ? estimate?.id ?? null : undefined} />
+              phasedEstimateId={doc.lineItems.some((i) => i.phase?.trim() || i.range_end) ? estimate?.id ?? null : undefined} />
           )}
           {meta.status === 'declined' && <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />}
           {scheduledSend && (
@@ -679,6 +679,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
                 is_optional: !!item.is_optional,
                 phase: item.phase ?? null,
                 phase_terms: item.phase_terms ?? null,
+                range_end: item.range_end ?? null,
               }))}
               imageUrls={imageUrls}
               headerNote={doc.headerNote}
@@ -763,7 +764,7 @@ function SignedBanner({
         {phasedEstimateId !== undefined ? (
           phasedEstimateId ? (
             <Link href={`/admin/invoices?estimate=${phasedEstimateId}`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>
-              Make an estimate from the approved phases
+              Make the estimate from what they approved
             </Link>
           ) : null
         ) : (

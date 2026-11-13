@@ -21,6 +21,8 @@ export type ProposalLine = {
   /** Phases (migration 062). */
   phase?: string | null;
   phase_terms?: string | null;
+  /** Price ranges (migration 063). */
+  range_end?: 'low' | 'high' | null;
 };
 
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
@@ -58,6 +60,7 @@ export function estimateToProposalLines(lines: LineItem[]): {
       ...(line.tier ? { tier: line.tier } : {}),
       ...(line.optional ? { is_optional: true } : {}),
       ...(line.phase ? { phase: line.phase, phase_terms: line.phase_terms ?? null } : {}),
+      ...(line.range ? { range_end: line.range } : {}),
     });
     const title = label.replace(/\s*\(optional\)\s*$/i, '');
     if (!deliverables.some((d) => d.title === title)) {
@@ -74,6 +77,8 @@ export function proposalTotals(items: ProposalLine[]): { oneTime: number; monthl
   let oneTime = 0;
   let monthly = 0;
   for (const i of items) {
+    // A price range (migration 063) counts its low end.
+    if (i.range_end === 'high') continue;
     const cents = Math.round(i.quantity * i.unit_price_cents);
     if (isMonthly(i.description)) monthly += cents;
     else oneTime += cents;
@@ -141,6 +146,7 @@ export function proposalToEstimateLines(items: ProposalLine[], previous: LineIte
     if (before?.hide_description) line.hide_description = true;
     if (i.tier?.trim()) line.tier = i.tier.trim();
     if (i.is_optional) line.optional = true;
+    if (i.range_end === 'low' || i.range_end === 'high') line.range = i.range_end;
     if (i.phase?.trim()) {
       line.phase = i.phase.trim();
       if (i.phase_terms?.trim()) line.phase_terms = i.phase_terms.trim();

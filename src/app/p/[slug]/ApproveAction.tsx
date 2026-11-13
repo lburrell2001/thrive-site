@@ -7,7 +7,7 @@
 // IP, a snapshot of what they approved) exactly as a signature was.
 
 import { useState } from "react";
-import type { ProposalChoices, ProposalPhase } from "@/lib/proposalChoices";
+import { rangeLabel, type ProposalChoices, type ProposalPhase } from "@/lib/proposalChoices";
 import { ClientDialog } from "@/components/ClientDialog";
 
 interface ApproveResult {
@@ -31,6 +31,8 @@ export function ApproveAction({
   totalCents,
   depositPercent,
   phases,
+  ranged = false,
+  rangeHighCents,
 }: {
   slug: string;
   token: string;
@@ -43,6 +45,10 @@ export function ApproveAction({
   depositPercent: number;
   /** Phases (migration 062): approved phase by phase — no total, no deposit. */
   phases?: ProposalPhase[] | null;
+  /** Price ranges (migration 063): a low – high price, finalised in an estimate (no deposit, no invoice yet). */
+  ranged?: boolean;
+  /** The high end when there are no tiers (totalCents is the low end). */
+  rangeHighCents?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [tier, setTier] = useState<string | null>(null);
@@ -60,7 +66,10 @@ export function ApproveAction({
   const needsTier = !!choices?.tiers.length;
   const base = needsTier ? choices!.tiers.find((t) => t.name === tier)?.total_cents ?? null : totalCents;
   const total = base === null ? null : base + (choices?.extras.filter((e) => extras.includes(e.id)).reduce((n, e) => n + e.amount_cents, 0) ?? 0);
-  const deposit = total !== null && depositPercent > 0 && depositPercent < 100 ? Math.round((total * depositPercent) / 100) : null;
+  const highBase = ranged ? (needsTier ? choices!.tiers.find((t) => t.name === tier)?.high_cents ?? null : rangeHighCents ?? totalCents) : base;
+  const high = highBase === null ? null : highBase + (choices?.extras.filter((e) => extras.includes(e.id)).reduce((n, e) => n + e.amount_cents, 0) ?? 0);
+  const totalText = total === null ? null : ranged && high !== null && high !== total ? `${money(total)} – ${money(high)}` : money(total);
+  const deposit = !ranged && total !== null && depositPercent > 0 && depositPercent < 100 ? Math.round((total * depositPercent) / 100) : null;
   const ready = (!needsTier || !!tier) && (!phases || picked.length > 0) && name.trim() && /\S+@\S+\.\S+/.test(email) && agreed;
 
   async function approve(e: React.FormEvent) {
@@ -97,7 +106,22 @@ export function ApproveAction({
       </button>
 
       <ClientDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="approve-title" locked={busy} wide={!!choices || !!phases}>
-        {result && phases ? (
+        {result && ranged && !phases ? (
+          <div className="pdDone">
+            <span className="pdCheck" aria-hidden>✓</span>
+            <h2 id="approve-title" className="pdTitle">Approved — thank you!</h2>
+            <p className="pdLead">Your receipt is on its way to {result.receiptEmail}.</p>
+            <dl className="pdSummary">
+              {tier && <div><dt>Your option</dt><dd>{tier}</dd></div>}
+              <div><dt>Price range</dt><dd>{totalText}</dd></div>
+            </dl>
+            <p className="pdLead">Lauren will send you the estimate with the final price next — nothing is invoiced until you accept it.</p>
+            <div className="pdActions">
+              <a className="pdBtn pdBtnGhost" href={pdfHref} target="_blank" rel="noopener noreferrer">Save a PDF</a>
+              <button type="button" className="pdBtn" onClick={() => window.location.reload()}>Done</button>
+            </div>
+          </div>
+        ) : result && phases ? (
           <div className="pdDone">
             <span className="pdCheck" aria-hidden>✓</span>
             <h2 id="approve-title" className="pdTitle">Approved — thank you!</h2>
@@ -158,8 +182,8 @@ export function ApproveAction({
                           <span className="pdExtraDesc">{ph.terms ? `Payment terms: ${ph.terms}` : "Payment terms to follow"}</span>
                         </span>
                         <span className="pdExtraPrice">
-                          {ph.total_cents > 0 || !ph.monthly_cents ? money(ph.total_cents) : ""}
-                          {ph.monthly_cents > 0 ? `${ph.total_cents > 0 ? " + " : ""}${money(ph.monthly_cents)}/mo` : ""}
+                          {ph.range ? rangeLabel(ph.range.low, ph.range.high, money) : ph.total_cents > 0 || !ph.monthly_cents ? money(ph.total_cents) : ""}
+                          {!ph.range && ph.monthly_cents > 0 ? `${ph.total_cents > 0 ? " + " : ""}${money(ph.monthly_cents)}/mo` : ""}
                         </span>
                       </label>
                     );
@@ -208,8 +232,8 @@ export function ApproveAction({
 
             {!phases && <div className="pdTotal" aria-live="polite">
               <div>
-                <span>Your total</span>
-                <strong>{total === null ? "Choose an option" : money(total)}</strong>
+                <span>{ranged ? "Price range" : "Your total"}</span>
+                <strong>{totalText ?? "Choose an option"}</strong>
               </div>
               {deposit !== null && (
                 <div>
@@ -235,6 +259,8 @@ export function ApproveAction({
               <span>
                 {phases
                   ? `I approve ${picked.length === 1 ? "this phase" : "these phases"} (each invoiced only after I accept its estimate) and agree to`
+                  : ranged
+                  ? `I approve this proposal${totalText ? ` at ${totalText}` : ""} (the final price comes in an estimate I accept before anything is invoiced) and agree to`
                   : `I approve this proposal${total !== null ? ` for ${money(total)}` : ""} and agree to`}
                 {termsUrl
                   ? <> the <a href={termsUrl} target="_blank" rel="noopener noreferrer">terms of engagement</a>.</>

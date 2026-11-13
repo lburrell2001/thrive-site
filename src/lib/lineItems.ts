@@ -29,6 +29,12 @@
 // tick. Totals, the invoice and the deposit follow the client's choice
 // (selectLines); until they choose, the first tier and no extras.
 //
+// Price ranges (migration 063): a name ending "(Low end)" or "(High end)" is
+// only in that end of the price; every other line is in both. The total is
+// then a range ("$4,000 – $7,500"); the stored total is the low end. A range
+// is never invoiced as it stands: Lauren makes the final estimate from one end
+// (rangeLines / phaseLines).
+//
 // Phases (migration 062): a line "Phase: Discovery | 50% to start · 50% on
 // delivery" starts a phase — the items under it belong to it, with those
 // payment terms ("Phase: none" ends it). A phased list shows each phase's
@@ -60,6 +66,8 @@ export type LineItem = {
   phase_terms?: string;
   /** That phase's timeline ("4–6 weeks", "Dec–Feb"), shown in its title. */
   phase_timeline?: string;
+  /** Price ranges (migration 063): only in the low end or the high end of the price; absent = both. */
+  range?: 'low' | 'high';
   /** Display only (rows sent to the client's page): the line's index in the estimate, for ticking an extra. */
   source?: number;
 };
@@ -98,6 +106,7 @@ const RE_TAIL_HOURS = new RegExp(String.raw`\s(${NUM}\s*${HOURS_WORD})$`, 'i');
 
 const RE_TIER = /^\s*tier\s*:\s*(.*?)\s*$/i;
 const RE_OPTIONAL = /\s*\(optional\)\s*$/i;
+const RE_RANGE = /\s*\((low|high)[\s-]*end\)\s*$/i;
 const RE_PHASE = /^\s*phase\s*:\s*(.*?)\s*$/i;
 /** "Discovery | 50% to start" → the name and its terms; "none" (or nothing) ends the phase. */
 function phaseHead(s: string): { name: string; terms: string; timeline: string } {
@@ -201,8 +210,14 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
 
     let name = words.shift() ?? '';
     // "Hosting (Optional)": an extra the client can tick.
-    const optional = RE_OPTIONAL.test(name);
-    if (optional) name = name.replace(RE_OPTIONAL, '').trim();
+    // "(Optional)" and "(Low end)" / "(High end)", in either order.
+    let optional = false;
+    let range: 'low' | 'high' | undefined;
+    for (let k = 0; k < 2; k++) {
+      if (RE_OPTIONAL.test(name)) { optional = true; name = name.replace(RE_OPTIONAL, '').trim(); }
+      const r = name.match(RE_RANGE);
+      if (r) { range = r[1].toLowerCase() as 'low' | 'high'; name = name.replace(RE_RANGE, '').trim(); }
+    }
     if (!name) { problems.push({ line, message: 'Add a name for this item' }); return; }
     // "~description": hidden from the client.
     const hidden = words.length > 0 && words[0].startsWith('~');
@@ -235,6 +250,7 @@ export function parseLineItems(text: string): { items: LineItem[]; problems: Lin
       ...(money.percent !== undefined ? { percent: money.percent } : {}),
       ...(tier ? { tier } : {}),
       ...(optional ? { optional: true } : {}),
+      ...(range ? { range } : {}),
       ...phaseFields(phase),
     });
     lineOf.push(line);
@@ -327,14 +343,49 @@ export function setTierInText(text: string, index: number, tier: string | null):
 
 /** One tier's total with no extras (shared lines included), for "Template store — $1,550". */
 export function tierTotal(items: LineItem[], tier: string | null): number {
-  return selectLines(items, { tier, optional: [] }).reduce((sum, it) => sum + it.amount_cents, 0);
+  return endOf(selectLines(items, { tier, optional: [] }), 'low').reduce((sum, it) => sum + it.amount_cents, 0);
+}
+
+// ── Price ranges (migration 063) ─────────────────────────────────────────────
+
+export const hasRange = (items: Pick<LineItem, 'range'>[]) => items.some((it) => it.range);
+
+/** The lines in one end of the price (lines in both ends included). */
+export function endOf<T extends Pick<LineItem, 'range'>>(items: T[], end: 'low' | 'high'): T[] {
+  return items.filter((it) => !it.range || it.range === end);
+}
+
+export type EndTotals = { oneTime: number; monthly: number };
+const split = (items: LineItem[]): EndTotals => items.reduce((acc, it) => (isMonthly(it)
+  ? { ...acc, monthly: acc.monthly + it.amount_cents } : { ...acc, oneTime: acc.oneTime + it.amount_cents }), { oneTime: 0, monthly: 0 });
+
+/** Low and high ends of these lines (of the client's choice, with tiers or extras). */
+export function rangeTotals(items: LineItem[], selection?: Partial<LineSelection> | null): { low: EndTotals; high: EndTotals } {
+  const chosen = selectLines(items, selection);
+  return { low: split(applyPercents(endOf(chosen, 'low'))), high: split(applyPercents(endOf(chosen, 'high'))) };
+}
+
+/** "$4,000 – $7,500" (or one amount when both ends match). */
+export function rangeText(low: EndTotals, high: EndTotals): string {
+  const a = amountText(low.oneTime, low.monthly);
+  const b = amountText(high.oneTime, high.monthly);
+  if (a === b) return a;
+  if (!low.monthly && !high.monthly) return `${money(low.oneTime)} – ${money(high.oneTime)}`;
+  return `${a} – ${b}`;
+}
+
+/** The lines of one end, as a plain estimate's (the range tag taken off) — for the final estimate. */
+export function rangeLines(items: LineItem[], end: 'low' | 'high', selection?: Partial<LineSelection> | null): LineItem[] {
+  return applyPercents(endOf(selectLines(items, selection), end).map((it) => { const n = { ...it }; delete n.range; return n; }));
 }
 
 // ── Phases (migration 062) ──────────────────────────────────────────────────
 
 export const isPhased = (items: Pick<LineItem, 'phase'>[]) => items.some((it) => it.phase);
 
-export type PhaseSummary = { name: string; terms: string; timeline: string; total_cents: number; oneTime: number; monthly: number; count: number };
+export type PhaseSummary = { name: string; terms: string; timeline: string;
+  /** Price ranges (migration 063): the low and high ends, when the phase has range lines (total_cents etc. are the low end). */
+  range: { low: EndTotals; high: EndTotals } | null; total_cents: number; oneTime: number; monthly: number; count: number };
 
 /** Each phase in order, with its payment terms and subtotal (a discount only comes off its own phase). */
 export function phasesOf(items: LineItem[]): PhaseSummary[] {
@@ -342,12 +393,17 @@ export function phasesOf(items: LineItem[]): PhaseSummary[] {
   for (const it of items) {
     if (!it.phase) continue;
     let p = out.find((x) => x.name === it.phase);
-    if (!p) { p = { name: it.phase, terms: '', timeline: '', total_cents: 0, oneTime: 0, monthly: 0, count: 0 }; out.push(p); }
+    if (!p) { p = { name: it.phase, terms: '', timeline: '', range: null, total_cents: 0, oneTime: 0, monthly: 0, count: 0 }; out.push(p); }
     if (!p.terms && it.phase_terms) p.terms = it.phase_terms;
     if (!p.timeline && it.phase_timeline) p.timeline = it.phase_timeline;
     p.count += 1;
+    if (it.range === 'high') continue;
     if (isMonthly(it)) p.monthly += it.amount_cents; else p.oneTime += it.amount_cents;
     p.total_cents += it.amount_cents;
+  }
+  for (const p of out) {
+    const mine = items.filter((it) => it.phase === p.name);
+    if (hasRange(mine)) p.range = { low: split(endOf(mine, 'low')), high: split(endOf(mine, 'high')) };
   }
   return out;
 }
@@ -356,11 +412,11 @@ export function phasesOf(items: LineItem[]): PhaseSummary[] {
  * The lines of the chosen phases, as a plain estimate's (the phase taken off
  * each line) — for the estimate Lauren makes once the client approves.
  */
-export function phaseLines(items: LineItem[], phases: string[]): LineItem[] {
+export function phaseLines(items: LineItem[], phases: string[], end: 'low' | 'high' = 'low'): LineItem[] {
   const want = new Set(phases);
-  return applyPercents(items.filter((it) => it.phase && want.has(it.phase)).map((it) => {
-    const { phase: _p, phase_terms: _t, phase_timeline: _l, ...rest } = it;
-    void _p; void _t; void _l;
+  return applyPercents(endOf(items.filter((it) => it.phase && want.has(it.phase)), end).map((it) => {
+    const { phase: _p, phase_terms: _t, phase_timeline: _l, range: _r, ...rest } = it;
+    void _p; void _t; void _l; void _r;
     return rest as LineItem;
   }));
 }
@@ -506,7 +562,8 @@ export function lineText(it: LineItem): string {
     : it.hours !== null && it.rate_cents !== null
     ? `${it.hours}h @ ${money(it.rate_cents)}`
     : [it.hours !== null ? `${it.hours}h` : '', it.amount_cents === 0 ? 'Included' : money(it.amount_cents)].filter(Boolean).join(' | ');
-  const main = [it.optional ? `${it.name} (Optional)` : it.name, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
+  const tagged = `${it.name}${it.range ? ` (${it.range === 'low' ? 'Low' : 'High'} end)` : ''}${it.optional ? ' (Optional)' : ''}`;
+  const main = [tagged, first && it.hide_description ? `~${first}` : first, price].filter(Boolean).join(' | ');
   return [main, ...more.map((d) => `  - ${d}`)].join('\n');
 }
 
@@ -535,7 +592,8 @@ export function lineItemsToText(items: LineItem[]): string {
 
 /** The total: with tiers or optional extras, of the client's choice (or the default one: first tier, no extras). */
 export const totalCents = (items: LineItem[], selection?: Partial<LineSelection> | null) =>
-  selectLines(items, selection).reduce((sum, it) => sum + it.amount_cents, 0);
+  // With a price range: the low end.
+  endOf(selectLines(items, selection), 'low').reduce((sum, it) => sum + it.amount_cents, 0);
 
 /** A monthly charge: its description ends in "/mo" (the price list adds it). */
 export const isMonthly = (it: LineItem) => /\/\s*mo(nth)?\.?\s*$/i.test(it.description.trim());
@@ -544,7 +602,7 @@ export const isMonthly = (it: LineItem) => /\/\s*mo(nth)?\.?\s*$/i.test(it.descr
 export function splitTotals(items: LineItem[], selection?: Partial<LineSelection> | null): { oneTime: number; monthly: number } {
   let oneTime = 0;
   let monthly = 0;
-  for (const it of selectLines(items, selection)) {
+  for (const it of endOf(selectLines(items, selection), 'low')) {
     if (isMonthly(it)) monthly += it.amount_cents;
     else oneTime += it.amount_cents;
   }
@@ -583,6 +641,8 @@ export type ClientRow = {
   tier?: string; optional?: boolean; source?: number;
   /** Phases (migration 062): the row's phase and that phase's payment terms. */
   phase?: string; phase_terms?: string; phase_timeline?: string;
+  /** Price ranges (migration 063): only in the low or high end. */
+  range?: 'low' | 'high';
 };
 
 /**
@@ -604,12 +664,14 @@ export function clientRows(items: LineItem[], totalsOnly: boolean): ClientRow[] 
     // Rows already collapsed for a client keep the index they came with.
     ...(it.optional ? { optional: true, source: it.source ?? source } : {}),
     ...(it.phase ? phaseFields({ name: it.phase, terms: it.phase_terms, timeline: it.phase_timeline }) : {}),
+    ...(it.range ? { range: it.range } : {}),
   });
   if (!totalsOnly) return items.map((it, i) => one(it, i));
   // A category's subtotal row — except out-of-scope work, which always shows on its own with its description.
   const collapse = (g: CategoryTotal, tag: Partial<ClientRow>): ClientRow[] => {
-    const own = g.items.filter((it) => isScopeWork(it));
-    const rest = g.items.filter((it) => !isScopeWork(it));
+    // …and a line in only one end of a range, which can't share a subtotal with the other end.
+    const own = g.items.filter((it) => isScopeWork(it) || it.range);
+    const rest = g.items.filter((it) => !isScopeWork(it) && !it.range);
     const sum = (part: LineItem[], monthly: boolean) => part.filter((it) => isMonthly(it) === monthly).reduce((n, it) => n + it.amount_cents, 0);
     const rows: ClientRow[] = rest.length > 1
       ? [{ name: g.category, description: '', hours: null, oneTime: sum(rest, false), monthly: sum(rest, true), group: true, ...tag }]
@@ -688,6 +750,7 @@ export const lineItemSchema = z.object({
   percent: z.number().gt(0).max(100).optional(),
   tier: z.string().trim().min(1).max(80).optional(),
   optional: z.boolean().optional(),
+  range: z.enum(['low', 'high']).optional(),
   phase: z.string().trim().min(1).max(80).optional(),
   phase_terms: z.string().trim().max(300).optional(),
   phase_timeline: z.string().trim().max(80).optional(),

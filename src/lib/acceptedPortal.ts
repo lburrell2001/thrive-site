@@ -14,7 +14,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { invoiceForEstimate } from './estimateInvoice';
 import { sendPortalInvite } from './portalSetup';
-import { formatLineMoney, isPhased, type LineItem } from './lineItems';
+import { formatLineMoney, hasRange, isPhased, type LineItem } from './lineItems';
 
 type Est = { id: string; portal_client_id: string | null; crm_contact_id: string | null; sent_to: string | null };
 
@@ -61,7 +61,8 @@ export async function acceptedWaiting(db: SupabaseClient): Promise<AcceptedWaiti
     .order('accepted_at', { ascending: false }).limit(50);
   if (res.error || !res.data) return [];
   // Approved phases (migration 062) wait on Lauren's phase estimate instead, not a portal.
-  const data = res.data.filter((e) => !isPhased((e.line_items ?? []) as LineItem[]));
+  // …and so does a price range (migration 063), which waits on the final estimate.
+  const data = res.data.filter((e) => !isPhased((e.line_items ?? []) as LineItem[]) && !hasRange((e.line_items ?? []) as LineItem[]));
   const ids = data.map((e) => e.id);
   const { data: props } = ids.length
     ? await db.from('proposals').select('estimate_id').in('estimate_id', ids).eq('status', 'signed')

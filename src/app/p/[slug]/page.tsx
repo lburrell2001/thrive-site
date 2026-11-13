@@ -21,7 +21,7 @@ import { ProposalFooter } from './ProposalFooter';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 import { estimateForClientPdf } from '@/lib/estimateAccess';
 import { EstimatePaper } from '@/components/estimate/EstimatePaper';
-import { proposalChoices, proposalPhases } from '@/lib/proposalChoices';
+import { endTotals, hasProposalRange, proposalChoices, proposalPhases, rangeLabel } from '@/lib/proposalChoices';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -67,6 +67,9 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   // Phases (migration 062): approved phase by phase, no total or deposit.
   const pricingBlock = renderable.blocks.find((b) => b.type === 'pricing');
   const phases = proposalPhases(renderable.lineItems, pricingBlock?.type === 'pricing' ? pricingBlock.content.phaseTimelines : null);
+  // Price ranges (migration 063): a low – high price, finalised in an estimate after approval.
+  const rangeLines = renderable.lineItems.filter((i) => !i.is_optional);
+  const ranged = !phases && hasProposalRange(rangeLines);
   const fromCents = choices?.tiers.length ? Math.min(...choices.tiers.map((t) => t.total_cents)) : renderable.totalCents;
   const estimate = await estimateForClient(row.estimate_id ?? null);
 
@@ -98,6 +101,13 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         </Notice>
       )}
 
+      {renderable.status === 'signed' && ranged && (
+        <Notice tone="good">
+          Approved — thank you. We’ll send you the estimate with the final price before anything is
+          invoiced.
+        </Notice>
+      )}
+
       {renderable.status === 'signed' && phases && (
         <Notice tone="good">
           Approved — thank you. We’ll send you the estimate for each phase you approved before
@@ -105,7 +115,7 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         </Notice>
       )}
 
-      {renderable.status === 'signed' && !phases && (
+      {renderable.status === 'signed' && !phases && !ranged && (
         <Notice tone="good">
           Approved. A receipt has been emailed to you — the deposit can be paid in your client
           portal.
@@ -144,9 +154,13 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         slug={slug}
         token={token ?? ''}
         totalLabel={phases ? `${phases.length} phase${phases.length === 1 ? '' : 's'}`
+          : ranged && !choices?.tiers.length ? (() => { const e = endTotals(rangeLines); return rangeLabel(e.low, e.high, (c) => formatMoney(c, renderable.currency)); })()
           : choices?.tiers.length && renderable.status !== 'signed' ? `From ${formatMoney(fromCents, renderable.currency)}` : formatMoney(renderable.totalCents, renderable.currency)}
-        depositLabel={phases ? 'Each phase on its own terms' : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
+        depositLabel={phases ? 'Each phase on its own terms' : ranged ? 'Price range · final price in your estimate' : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
         phases={phases}
+        ranged={ranged}
+        rangeLowCents={ranged ? (() => { const e = endTotals(rangeLines); return e.low.oneTime + e.low.monthly; })() : undefined}
+        rangeHighCents={ranged ? (() => { const e = endTotals(rangeLines); return e.high.oneTime + e.high.monthly; })() : undefined}
         pdfHref={`/api/proposals/${row.id}/pdf?t=${encodeURIComponent(token ?? '')}`}
         signed={renderable.status === 'signed'}
         signedAt={row.signed_at}

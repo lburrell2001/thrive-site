@@ -215,6 +215,8 @@ export interface ProposalLineItem {
   /** Phases (migration 062): the phase this line is in, and that phase's payment terms. */
   phase?: string | null;
   phase_terms?: string | null;
+  /** Price ranges (migration 063): only in the low or high end of its group's price (null = both). */
+  range_end?: 'low' | 'high' | null;
 }
 
 export interface ProposalClient {
