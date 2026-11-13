@@ -173,7 +173,8 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: 
         )}
       </>)}
 
-      {!phased && <>
+      {/* Tiers: no total until the client picks an option (then theirs). */}
+      {!phased && !(options.length > 0 && !picked?.tier) && <>
       <div className="estimateTotal">
         <span>{!choices && hasRange(rows) ? 'Price range' : choices ? (picked?.tier ? `${hasRange(rows) ? 'Price range' : 'Total'} — ${picked.tier}` : hasRange(rows) ? 'Price range' : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>
         <strong>{totalLabel ?? estimateTotalLabel(pdf)}</strong>

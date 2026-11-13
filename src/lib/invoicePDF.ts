@@ -34,10 +34,12 @@ export interface InvoiceForPDF {
  * is invoiced later." Not for phases or a price range (their own estimates
  * come later).
  */
-export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'>): string | null {
+export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'> & { selection?: LineSelection | null }): string | null {
   const pct = Number(e.deposit_percent ?? 0);
   const lines = (e.line_items ?? []) as LineItem[];
   if (!(pct > 0 && pct < 100) || isPhased(lines) || hasRange(lines)) return null;
+  // Tiers, before the client picks: no amounts — the deposit is a share of the option they choose.
+  if (tiersOf(lines).length && !e.selection?.tier) return `Payment terms: ${pct}% deposit to start on the option you choose, invoiced when you accept. The rest is invoiced later.`;
   const deposit = Math.round((e.amount_cents * pct) / 100);
   return `Payment terms: ${pct}% deposit to start — ${formatLineMoney(deposit)}, invoiced when you accept. The remaining ${formatLineMoney(e.amount_cents - deposit)} is invoiced later.`;
 }
@@ -305,7 +307,10 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
   // A phased estimate has no grand total: each phase's subtotal is in the table.
   const ranged = !!invoice.line_items?.length && hasRange(invoice.line_items as LineItem[]);
   const ends = ranged ? rangeTotals(invoice.line_items as LineItem[], sel) : null;
+  const tiersUnchosen = !!invoice.line_items?.length && tiersOf(invoice.line_items as LineItem[]).length > 0 && !invoice.selection?.tier;
   const totals: { label: string; value: string }[] = invoice.line_items?.length && isPhased(invoice.line_items as LineItem[]) ? []
+    // Tiers before the client picks: no total — each option's price is in the table.
+    : tiersUnchosen ? []
     // A price range (migration 063): low – high, the final price comes in a later estimate.
     : ends ? [{ label: `PRICE RANGE${sel?.tier ? ` — ${sel.tier.toUpperCase()}` : ''}`, value: rangeText(ends.low, ends.high) }]
     : sel && !split.monthly

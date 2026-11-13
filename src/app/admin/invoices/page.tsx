@@ -1614,9 +1614,11 @@ export default function InvoiceBuilder() {
 
       <div className={s.bar}>
         <div className={s.barTotal}>
-          <span className={s.barLabel}>{isInvoice ? 'Total due' : split.monthly && split.oneTime ? 'One-time + monthly' : 'Estimate total'}</span>
+          <span className={s.barLabel}>{isInvoice ? 'Total due' : tiersOf(items).length ? 'Options' : split.monthly && split.oneTime ? 'One-time + monthly' : 'Estimate total'}</span>
           <span className={s.barValue}>
-            {isInvoice || !split.monthly ? formatLineMoney(total) : amountText(split.oneTime, split.monthly)}
+            {/* Tiers: the client picks one, so there's no single total. */}
+            {!isInvoice && tiersOf(items).length ? `${tiersOf(items).length} option${tiersOf(items).length === 1 ? '' : 's'}`
+              : isInvoice || !split.monthly ? formatLineMoney(total) : amountText(split.oneTime, split.monthly)}
           </span>
           <span className={s.barMeta}>{blocker || `${items.length} item${items.length === 1 ? '' : 's'}${depositCents ? ` · ${formatLineMoney(depositCents)} deposit first` : ''}${isInvoice && split.monthly ? ` · first month of ${formatLineMoney(split.monthly)}/mo included` : ''}`}</span>
         </div>
@@ -2291,6 +2293,9 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
 
       {!isInvoice && isPhased(items) ? (
         <p className={s.paperNotes}>Phased: no grand total. The client approves phases, then you make an estimate for them.</p>
+      ) : !isInvoice && tiersOf(items).length > 0 ? (
+        // Tiers: no total until the client picks an option.
+        <p className={s.paperNotes}>No total until the client picks an option — each option’s price is listed above.</p>
       ) : !isInvoice && split.monthly ? (
         <>
           {split.oneTime !== 0 && (
