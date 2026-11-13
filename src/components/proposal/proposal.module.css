@@ -1134,6 +1134,14 @@
 
 /* Phases (migration 062): one block per phase, its own subtotal and terms. */
 .pricingPhase + .pricingPhase { margin-top: clamp(14px, 2.4cqw, 28px); }
+.pricingPhaseNote {
+  margin: clamp(12px, 2cqw, 22px) 0 0;
+  max-width: 70ch;
+  font-size: clamp(10px, 1.5cqw, 15px);
+  line-height: 1.5;
+  color: var(--white);
+  opacity: 0.8;
+}
 .pricingPhaseTotal .pricingTotalLabel,
 .pricingPhaseTotal .pricingTotalValue { font-size: clamp(16px, 3cqw, 30px); }
 

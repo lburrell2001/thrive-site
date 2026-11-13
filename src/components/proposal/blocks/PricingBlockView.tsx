@@ -89,6 +89,10 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
             </div>
           </div>
         ))}
+        <p className={styles.pricingPhaseNote}>
+          Approve, and we’ll send the final estimate for {phases[0].name ? `Phase 1 (${phases[0].name})` : 'Phase 1'}. Pricing not quite right?
+          Decline with a note — we’re always happy to talk it through and find something that fits your budget.
+        </p>
         {c.footnote && <Markdown source={c.footnote} className={styles.pricingFootnote} />}
       </Page>
     );
