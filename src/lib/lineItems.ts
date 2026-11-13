@@ -381,6 +381,30 @@ export function setPhaseInText(text: string, index: number, phase: string | null
   return lineItemsToText([...all.filter((it) => !it.phase), ...order.flatMap((p) => all.filter((it) => it.phase === p))]);
 }
 
+/**
+ * The typed text again with each tier's and each phase's lines kept together
+ * (ungrouped lines first, then each group in the order it first appears).
+ */
+export function groupedText(items: LineItem[]): string {
+  const key = (it: LineItem) => it.phase ?? it.tier ?? '';
+  const order = [...new Set(items.map(key).filter(Boolean))];
+  return lineItemsToText([...items.filter((it) => !key(it)), ...order.flatMap((k) => items.filter((it) => key(it) === k))]);
+}
+
+/** Adds items to a tier or a phase (or neither) and returns the typed text. */
+export function addToGroupInText(text: string, add: LineItem[], tag: { tier?: string; phase?: string; phase_terms?: string }): string {
+  const { items } = parseLineItems(text);
+  const terms = tag.phase ? items.find((it) => it.phase === tag.phase && it.phase_terms)?.phase_terms ?? tag.phase_terms : undefined;
+  const tagged = add.map((it) => {
+    const next: LineItem = { ...it };
+    delete next.tier; delete next.phase; delete next.phase_terms;
+    if (tag.tier) next.tier = tag.tier;
+    if (tag.phase) { next.phase = tag.phase; delete next.optional; if (terms) next.phase_terms = terms; }
+    return next;
+  });
+  return groupedText([...items, ...tagged]);
+}
+
 /** Every line into one phase: the first phase added takes everything already on the list. */
 export function setAllPhaseInText(text: string, phase: string, terms = ''): string {
   const { items } = parseLineItems(text);

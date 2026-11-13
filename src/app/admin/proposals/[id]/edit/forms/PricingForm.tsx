@@ -31,6 +31,21 @@ export interface BuilderLineItem {
 /** One-tap payment terms for a phase. */
 const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on completion', 'Monthly'];
 
+type Mode = 'list' | 'tiers' | 'phases';
+/** A card of lines: the whole list, what every option includes, one tier, or one phase. */
+type Group = { kind: 'list' | 'shared' | 'tier' | 'phase' | 'loose'; name: string };
+
+/** A tier's or phase's name, saved when you leave the box (so typing doesn't reshuffle the cards). */
+function NameField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [v, setV] = useState(value);
+  useEffect(() => { setV(value); }, [value]);
+  return (
+    <input className={pf.groupNameInput} value={v} aria-label="Name" onChange={(e) => setV(e.target.value)}
+      onBlur={() => { if (v.trim() && v !== value) onCommit(v); else setV(value); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }} />
+  );
+}
+
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
 const stripMo = (d: string | null) => (d ?? '').replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
 const lineCents = (item: BuilderLineItem) => Math.round(item.quantity * item.unit_price_cents);
@@ -70,14 +85,17 @@ export function PricingForm({
   const c = block.content;
   const set = (patch: Partial<PricingBlock['content']>) => onContentChange({ ...c, ...patch });
   const [catalog, setCatalog] = useState<Catalog | null>(null);
-  const [drawer, setDrawer] = useState(false);
+  /** The drawer is open, adding to this group. */
+  const [drawerFor, setDrawerFor] = useState<Group | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [note, setNote] = useState('');
+  // Tiers and phases named but not given any lines yet.
   const [newTiers, setNewTiers] = useState<string[]>([]);
-  const [tierName, setTierName] = useState('');
-  // Phases (migration 062): named in the bar, with their payment terms.
   const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
-  const [phaseDraft, setPhaseDraft] = useState({ name: '', terms: '' });
+  const [groupDraft, setGroupDraft] = useState({ name: '', terms: '' });
+  // List · Tiers · Phases: how the prices are laid out (from the lines when it opens).
+  const [mode, setMode] = useState<Mode>(() =>
+    lineItems.some((i) => i.phase?.trim()) ? 'phases' : lineItems.some((i) => i.tier?.trim()) ? 'tiers' : 'list');
 
   useEffect(() => {
     apiGet<Catalog & { ready: boolean }>('/api/price-list')
@@ -85,73 +103,76 @@ export function PricingForm({
       .catch(() => { /* custom lines still work */ });
   }, []);
 
-  // Tiers and extras (migration 061): the total is the first option with no extras, as the client first sees it.
-  const tiers = [...new Set([...lineItems.map((i) => i.tier?.trim()).filter((t): t is string => !!t), ...newTiers])];
-  const firstTier = lineItems.find((i) => i.tier?.trim())?.tier?.trim() ?? null;
-  const counted = lineItems.filter((i) => !i.is_optional && (!i.tier?.trim() || i.tier.trim() === firstTier));
-  const monthly = counted.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
-  const total = counted.reduce((n, i) => n + lineCents(i), 0);
-  const oneTime = total - monthly;
-  const tierTotal = (t: string) => lineItems.filter((i) => !i.is_optional && (!i.tier?.trim() || i.tier.trim() === t)).reduce((n, i) => n + lineCents(i), 0);
-  // Phases: each with its terms (from its lines, or as typed in the bar) and subtotal.
+  const tierOf = (i: BuilderLineItem) => i.tier?.trim() || '';
+  const phaseOf = (i: BuilderLineItem) => i.phase?.trim() || '';
+  const tiers = [...new Set([...lineItems.map(tierOf).filter(Boolean), ...newTiers])];
   const phases: { name: string; terms: string }[] = [];
   for (const i of lineItems) {
-    const name = i.phase?.trim();
+    const name = phaseOf(i);
     if (!name) continue;
     const found = phases.find((p) => p.name === name);
     if (!found) phases.push({ name, terms: i.phase_terms?.trim() ?? '' });
     else if (!found.terms && i.phase_terms?.trim()) found.terms = i.phase_terms.trim();
   }
   for (const p of newPhases) if (!phases.some((x) => x.name === p.name)) phases.push(p);
-  const phased = lineItems.some((i) => i.phase?.trim());
-  const hasTierChoices = lineItems.some((i) => i.tier?.trim() || i.is_optional) || newTiers.length > 0;
-  const phaseTotal = (name: string) => lineItems.filter((i) => i.phase?.trim() === name).reduce((n, i) => n + lineCents(i), 0);
+
+  // Tiers and extras (migration 061): the total is the first option with no extras, as the client first sees it.
+  const firstTier = lineItems.find((i) => tierOf(i))?.tier?.trim() ?? null;
+  const counted = lineItems.filter((i) => !i.is_optional && (!tierOf(i) || tierOf(i) === firstTier));
+  const monthly = counted.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
+  const total = counted.reduce((n, i) => n + lineCents(i), 0);
+  const oneTime = total - monthly;
+  const sumOf = (items: BuilderLineItem[]) => {
+    const all = items.reduce((n, i) => n + lineCents(i), 0);
+    const mo = items.filter((i) => isMonthly(i.description)).reduce((n, i) => n + lineCents(i), 0);
+    return mo && all === mo ? `${formatMoneyCents(mo, currency)}/mo`
+      : mo ? `${formatMoneyCents(all - mo, currency)} + ${formatMoneyCents(mo, currency)}/mo` : formatMoneyCents(all, currency);
+  };
 
   const names = lineItems.map((i) => i.label);
   const missing = catalog ? missingRequired(catalog, names) : [];
   const suggestions = catalog ? suggestionsFor(catalog, names) : [];
 
-  // Once there are phases, every line is in one: a new line joins the last phase.
+  /** The groups shown as cards: the whole list, or what every option has + each tier, or each phase. */
+  const groups: Group[] = mode === 'list' ? [{ kind: 'list', name: '' }]
+    : mode === 'tiers' ? [{ kind: 'shared', name: '' }, ...tiers.map((name) => ({ kind: 'tier' as const, name }))]
+    : [
+      ...phases.map((p) => ({ kind: 'phase' as const, name: p.name })),
+      // Lines that somehow have no phase stay visible, to be moved into one.
+      ...(lineItems.some((i) => !phaseOf(i)) ? [{ kind: 'loose' as const, name: '' }] : []),
+    ];
+  const inGroup = (g: Group, i: BuilderLineItem) =>
+    g.kind === 'list' ? true : g.kind === 'shared' ? !tierOf(i) : g.kind === 'tier' ? tierOf(i) === g.name
+      : g.kind === 'loose' ? !phaseOf(i) : phaseOf(i) === g.name;
+  /** What a new line in this group carries. */
+  const tagFor = (g: Group): Partial<BuilderLineItem> =>
+    g.kind === 'tier' ? { tier: g.name } : g.kind === 'phase' ? { phase: g.name, phase_terms: phases.find((p) => p.name === g.name)?.terms || null } : {};
+
+  /** Keeps each group's lines together, in the order the groups are shown. */
   const setItems = (items: BuilderLineItem[]) => {
-    const last = [...items].reverse().find((i) => i.phase?.trim())
-      ?? (newPhases[0] ? { phase: newPhases[0].name, phase_terms: newPhases[0].terms || null } : undefined);
-    onLineItemsChange(items.map((item, index) => ({
-      ...item, position: index,
-      ...(last && !item.phase?.trim() ? { phase: last.phase!.trim(), phase_terms: last.phase_terms ?? null } : {}),
-    })));
+    const order = (i: BuilderLineItem) => {
+      if (mode === 'tiers') return tierOf(i) ? 1 + Math.max(0, tiers.indexOf(tierOf(i))) : 0;
+      if (mode === 'phases') return Math.max(0, phases.findIndex((p) => p.name === phaseOf(i)));
+      return 0;
+    };
+    const sorted = items.map((item, n) => ({ item, n })).sort((a, b) => order(a.item) - order(b.item) || a.n - b.n).map((x) => x.item);
+    onLineItemsChange(sorted.map((item, index) => ({ ...item, position: index })));
+    return sorted;
   };
-  /** A line into a phase, taking that phase's terms. */
-  const toPhase = (index: number, name: string) => {
-    const terms = phases.find((p) => p.name === name)?.terms ?? '';
-    update(index, { phase: name, phase_terms: terms || null });
-  };
-  /** A phase's terms, on every line in it. */
-  const setPhaseTerms = (name: string, terms: string) => {
-    setNewPhases((cur) => cur.map((p) => (p.name === name ? { ...p, terms } : p)));
-    if (lineItems.some((i) => i.phase?.trim() === name)) {
-      setItems(lineItems.map((i) => (i.phase?.trim() === name ? { ...i, phase_terms: terms || null } : i)));
-    }
-  };
-  function addPhase() {
-    const name = phaseDraft.name.trim().slice(0, 80);
-    const terms = phaseDraft.terms.trim().slice(0, 300);
-    if (!name || phases.some((p) => p.name === name)) return;
-    // The first phase takes every line already there.
-    if (!phased && lineItems.length) setItems(lineItems.map((i) => ({ ...i, phase: name, phase_terms: terms || null })));
-    else setNewPhases((cur) => [...cur, { name, terms }]);
-    setPhaseDraft({ name: '', terms: '' });
-  }
-
   const update = (index: number, patch: Partial<BuilderLineItem>) =>
-    setItems(lineItems.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+    onLineItemsChange(lineItems.map((item, i) => (i === index ? { ...item, ...patch } : item)));
 
-  /** Adds price list items (and what they require), plus a matching deliverable each. */
-  function insert(picks: Pick[]) {
+  /** Adds price list items (and what they require) to a group, plus a matching deliverable each. */
+  function insert(picks: Pick[], into: Group | null = drawerFor) {
     if (!catalog) return;
+    const tag = tagFor(into ?? groups[0] ?? { kind: 'list', name: '' });
     const items = [...lineItems];
     const deliverables = [...c.deliverables];
     const add = (item: PriceItem, qty: number) => {
-      items.push({ ...lineFor(item, qty), position: items.length });
+      const line = { ...lineFor(item, qty), ...tag, position: items.length };
+      // Phases don't have optional extras.
+      if (tag.phase) delete line.is_optional;
+      items.push(line);
       if (!deliverables.some((d) => d.title.trim().toLowerCase() === item.name.toLowerCase())) {
         deliverables.push({ title: item.name, description: item.description });
       }
@@ -164,22 +185,86 @@ export function PricingForm({
     }
     setItems(items);
     set({ deliverables });
-    setDrawer(false);
+    setDrawerFor(null);
     setNote(added.join('. '));
   }
 
   function remove(index: number) {
     const item = lineItems[index];
     const cat = catalog ? itemForLine(catalog.items, item.label) : undefined;
-    setItems(lineItems.filter((_, i) => i !== index));
+    onLineItemsChange(lineItems.filter((_, i) => i !== index).map((it, n) => ({ ...it, position: n })));
     // Its deliverable goes too, when it came from the price list unchanged.
     if (cat) set({ deliverables: c.deliverables.filter((d) => d.title.trim().toLowerCase() !== cat.name.toLowerCase()) });
     setEditing(null);
   }
 
-  function addCustom() {
-    setItems([...lineItems, { label: '', description: null, quantity: 1, unit_price_cents: 0, position: lineItems.length }]);
-    setEditing(lineItems.length);
+  function addCustom(g: Group) {
+    const line: BuilderLineItem = { label: '', description: null, quantity: 1, unit_price_cents: 0, position: lineItems.length, ...tagFor(g) };
+    // Open it where it lands once each group's lines are kept together.
+    setEditing(setItems([...lineItems, line]).indexOf(line));
+  }
+
+  /** List · Tiers · Phases. Tiers and phases swap one for one; the list takes every line out of its group. */
+  function switchMode(next: Mode) {
+    if (next === mode) return;
+    const grouped = lineItems.some((i) => tierOf(i) || phaseOf(i));
+    if (next === 'list') {
+      if (grouped && !window.confirm(`Take every line out of its ${mode === 'tiers' ? 'tier' : 'phase'}? The lines stay, as one list.`)) return;
+      onLineItemsChange(lineItems.map((i) => ({ ...i, tier: null, phase: null, phase_terms: null })));
+    } else if (next === 'phases') {
+      // Each tier becomes a phase; lines in every option (or the whole list) go in the first.
+      const first = tiers[0] ?? 'Phase 1';
+      onLineItemsChange(lineItems.map((i) => ({ ...i, tier: null, is_optional: undefined, phase: tierOf(i) || first, phase_terms: null })));
+      setNewPhases([...new Set([first, ...tiers])].map((name) => ({ name, terms: '' })));
+    } else {
+      // Each phase becomes a tier.
+      onLineItemsChange(lineItems.map((i) => ({ ...i, tier: phaseOf(i) || null, phase: null, phase_terms: null })));
+      setNewTiers(phases.map((p) => p.name));
+    }
+    setEditing(null);
+    setMode(next);
+  }
+
+  function addGroup() {
+    const name = groupDraft.name.trim().replace(/\|/g, ' ').slice(0, 80);
+    if (!name) return;
+    if (mode === 'tiers' && !tiers.includes(name)) setNewTiers((cur) => [...cur, name]);
+    if (mode === 'phases' && !phases.some((p) => p.name === name)) setNewPhases((cur) => [...cur, { name, terms: groupDraft.terms.trim().slice(0, 300) }]);
+    setGroupDraft({ name: '', terms: '' });
+  }
+
+  function renameGroup(g: Group, to: string) {
+    const name = to.trim().replace(/\|/g, ' ').slice(0, 80);
+    if (!name || name === g.name || (g.kind === 'tier' ? tiers.includes(name) : phases.some((p) => p.name === name))) return;
+    if (g.kind === 'tier') {
+      setNewTiers((cur) => cur.map((t) => (t === g.name ? name : t)));
+      onLineItemsChange(lineItems.map((i) => (tierOf(i) === g.name ? { ...i, tier: name } : i)));
+    } else {
+      setNewPhases((cur) => cur.map((p) => (p.name === g.name ? { ...p, name } : p)));
+      onLineItemsChange(lineItems.map((i) => (phaseOf(i) === g.name ? { ...i, phase: name } : i)));
+    }
+  }
+
+  function removeGroup(g: Group) {
+    const count = lineItems.filter((i) => inGroup(g, i)).length;
+    if (count && !window.confirm(`Remove ${g.name} and its ${count} line${count === 1 ? '' : 's'}?`)) return;
+    if (g.kind === 'tier') setNewTiers((cur) => cur.filter((t) => t !== g.name));
+    else setNewPhases((cur) => cur.filter((p) => p.name !== g.name));
+    onLineItemsChange(lineItems.filter((i) => !inGroup(g, i)).map((it, n) => ({ ...it, position: n })));
+    setEditing(null);
+  }
+
+  /** A phase's terms, on every line in it. */
+  const setPhaseTerms = (name: string, terms: string) => {
+    setNewPhases((cur) => (cur.some((p) => p.name === name) ? cur.map((p) => (p.name === name ? { ...p, terms } : p)) : [...cur, { name, terms }]));
+    onLineItemsChange(lineItems.map((i) => (phaseOf(i) === name ? { ...i, phase_terms: terms || null } : i)));
+  };
+
+  /** Moves a line to another group. */
+  function moveTo(index: number, g: Group) {
+    const base = { ...lineItems[index], tier: null, phase: null, phase_terms: null };
+    setItems(lineItems.map((item, i) => (i === index ? { ...base, ...tagFor(g) } : item)));
+    setEditing(null);
   }
 
   /** Which item requires this one, if any: it can't be removed while that's on. */
@@ -192,169 +277,164 @@ export function PricingForm({
     return rule ? catalog.items.find((i) => i.id === rule.item_id)?.name ?? '' : '';
   };
 
+  const groupTitle = (g: Group, n: number) =>
+    g.kind === 'shared' ? 'In every option' : g.kind === 'tier' ? `Option ${n}` : g.kind === 'phase' ? `Phase ${n + 1}` : g.kind === 'loose' ? 'Not in a phase' : '';
+
+  function row(item: BuilderLineItem, index: number) {
+    const cat = catalog ? itemForLine(catalog.items, item.label) : undefined;
+    const locked = lockedBy(item.label);
+    const open = editing === index;
+    const perUnit = cat?.unit && cat.price_type !== 'hourly';
+    const here = groups.find((g) => inGroup(g, item));
+    return (
+      <li key={item.id ?? `new-${index}`} className={`${pf.row} ${open ? pf.rowOpen : ''}`}>
+        <div className={pf.rowTop}>
+          <button type="button" className={pf.rowMain} onClick={() => setEditing(open ? null : index)} aria-expanded={open}>
+            <span className={pf.rowName}>
+              {item.label || <em>New line</em>}
+              {!cat && item.label && <span className={pf.badgeCustom}>Custom</span>}
+              {item.is_optional && <span className={pf.badgeCustom}>Optional</span>}
+            </span>
+            {stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
+            {locked && <span className={pf.lock}>Required with {locked}</span>}
+          </button>
+          {perUnit ? (
+            <span className={pf.stepper} role="group" aria-label={`How many ${cat!.unit}s`}>
+              <button type="button" aria-label="One fewer" disabled={item.quantity <= 1} onClick={() => update(index, { quantity: item.quantity - 1 })}>−</button>
+              <span>{item.quantity}</span>
+              <button type="button" aria-label="One more" onClick={() => update(index, { quantity: item.quantity + 1 })}>+</button>
+            </span>
+          ) : <span />}
+          <span className={pf.amount}>{formatMoneyCents(lineCents(item), currency)}{isMonthly(item.description) ? '/mo' : ''}</span>
+          <button type="button" className={pf.remove} aria-label={`Remove ${item.label || 'line'}`} disabled={!!locked}
+            title={locked ? `Required with ${locked}` : 'Remove'} onClick={() => remove(index)}>×</button>
+        </div>
+        {open && (
+          <div className={pf.edit}>
+            <TextInput label="Name" value={item.label} onChange={(v) => update(index, { label: v })} />
+            <TextInput label="Description" value={stripMo(item.description)}
+              onChange={(v) => update(index, { description: [v, isMonthly(item.description) ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
+            <div className={s.inlineRow}>
+              <MoneyInput label="Unit price" cents={item.unit_price_cents} currency={currency} onChange={(cents) => update(index, { unit_price_cents: cents })} />
+              <QuantityInput value={item.quantity} onChange={(quantity) => update(index, { quantity })} />
+            </div>
+            <div className={pf.rowChoices} style={{ padding: 0 }}>
+              <label className={pf.check}>
+                <input type="checkbox" checked={isMonthly(item.description)}
+                  onChange={(e) => update(index, { description: [stripMo(item.description), e.target.checked ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
+                Monthly
+              </label>
+              {mode !== 'phases' && (
+                <label className={pf.check}>
+                  <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
+                  Optional extra (the client can add it)
+                </label>
+              )}
+              {groups.filter((g) => g.kind !== 'loose').length > 1 || here?.kind === 'loose' ? (
+                <select className={pf.tierSelect} value={here ? `${here.kind}:${here.name}` : ''} aria-label={`Move ${item.label || 'this line'}`}
+                  onChange={(e) => { const g = groups.find((x) => x.kind !== 'loose' && `${x.kind}:${x.name}` === e.target.value); if (g) moveTo(index, g); }}>
+                  {here?.kind === 'loose' && <option value="loose:">Move to a phase…</option>}
+                  {groups.map((g, n) => g.kind === 'loose' ? null : <option key={`${g.kind}:${g.name}`} value={`${g.kind}:${g.name}`}>
+                    {here && here.kind === g.kind && here.name === g.name ? 'In' : 'Move to'}: {g.kind === 'shared' ? 'Every option' : `${groupTitle(g, n)} · ${g.name}`}
+                  </option>)}
+                </select>
+              ) : null}
+            </div>
+            {cat && <p className={s.hint}>Price list: {priceLabel(cat)}. Changing it here only changes this proposal.</p>}
+          </div>
+        )}
+      </li>
+    );
+  }
+
   return (
     <>
       <div className={pf.section}>
         <div className={pf.sectionHead}>
           <strong>Prices</strong>
           <span className={pf.total}>
-            {phased ? `${phases.length} phase${phases.length === 1 ? '' : 's'}` : monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
-            {!phased && monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
+            {mode === 'phases' ? `${phases.length} phase${phases.length === 1 ? '' : 's'}` : monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
+            {mode !== 'phases' && monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
           </span>
         </div>
 
-        {/* Phases (migration 062): each phase paid on its own terms; the client approves phases, no total. */}
-        <div className={pf.tierBar}>
-          <strong>Phases</strong>
-          <span className={s.hint}>
-            {hasTierChoices
-              ? 'Phases can’t be mixed with tiers or optional extras. Remove those to work in phases.'
-              : phases.length
-                ? 'Each phase shows its own subtotal and payment terms — no grand total. The client approves the phases they want, and you get a text to make the estimate for them.'
-                : 'Split the work into phases (e.g. Discovery, Build), each with its own payment terms. The first phase you add takes every line already here.'}
-          </span>
-          {phases.length > 0 && (
-            <ul className={pf.phaseList}>
-              {phases.map((p, i) => (
-                <li key={p.name}>
-                  <div className={pf.phaseTop}>
-                    <span>Phase {i + 1}: {p.name}</span>
-                    <strong>{lineItems.some((it) => it.phase?.trim() === p.name) ? formatMoneyCents(phaseTotal(p.name), currency) : 'no lines yet'}</strong>
-                  </div>
-                  <input className={s.input} value={p.terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
-                    aria-label={`Payment terms for ${p.name}`} onChange={(e) => setPhaseTerms(p.name, e.target.value)} />
+        <div className={pf.modes} role="tablist" aria-label="How the prices are laid out">
+          {(['list', 'tiers', 'phases'] as const).map((m) => (
+            <button key={m} type="button" role="tab" aria-selected={mode === m} className={`${pf.mode} ${mode === m ? pf.modeOn : ''}`} onClick={() => switchMode(m)}>
+              {m === 'list' ? 'List' : m === 'tiers' ? 'Tiers' : 'Phases'}
+            </button>
+          ))}
+        </div>
+        <p className={s.hint} style={{ margin: '0 0 12px' }}>
+          {mode === 'list' ? 'One price for everything. Tick “Optional extra” on a line for add-ons the client can choose.'
+            : mode === 'tiers' ? 'The client picks one option when they approve. Lines in “In every option” are part of all of them.'
+            : 'Each phase has its own items, subtotal and payment terms — no grand total. The client approves phases, and you get a text to make the estimate for them.'}
+        </p>
+
+        {groups.map((g, n) => {
+          const items = lineItems.map((item, index) => ({ item, index })).filter(({ item }) => inGroup(g, item));
+          const terms = g.kind === 'phase' ? phases.find((p) => p.name === g.name)?.terms ?? '' : '';
+          const shared = lineItems.filter((i) => !tierOf(i) && !i.is_optional);
+          return (
+            <div key={`${g.kind}:${g.name}`} className={g.kind === 'list' ? undefined : pf.group}>
+              {g.kind !== 'list' && (
+                <div className={pf.groupHead}>
+                  <span className={pf.groupKicker}>{groupTitle(g, n)}</span>
+                  {g.kind === 'shared' ? <strong className={pf.groupName}>Included in every option</strong>
+                    : g.kind === 'loose' ? <strong className={pf.groupName}>Move these into a phase</strong>
+                    : <NameField value={g.name} onCommit={(v) => renameGroup(g, v)} />}
+                  <strong className={pf.groupTotal}>
+                    {g.kind === 'tier' ? sumOf([...shared, ...items.map((x) => x.item).filter((i) => !i.is_optional)]) : items.length ? sumOf(items.map((x) => x.item).filter((i) => !i.is_optional)) : '—'}
+                  </strong>
+                  {g.kind !== 'shared' && g.kind !== 'loose' && (
+                    <button type="button" className={pf.remove} aria-label={`Remove ${g.name}`} title="Remove" onClick={() => removeGroup(g)}>×</button>
+                  )}
+                </div>
+              )}
+              {g.kind === 'phase' && (
+                <div className={pf.groupTerms}>
+                  <input className={s.input} value={terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
+                    aria-label={`Payment terms for ${g.name}`} onChange={(e) => setPhaseTerms(g.name, e.target.value)} />
                   <div className={pf.chips}>
                     {PHASE_TERMS.map((t) => (
-                      <button key={t} type="button" className={`${pf.chip} ${p.terms === t ? pf.chipOn : ''}`} onClick={() => setPhaseTerms(p.name, t)}>{t}</button>
+                      <button key={t} type="button" className={`${pf.chip} ${terms === t ? pf.chipOn : ''}`} onClick={() => setPhaseTerms(g.name, t)}>{t}</button>
                     ))}
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {!hasTierChoices && (
-            <div className={pf.phaseAdd}>
-              <input className={s.input} value={phaseDraft.name} placeholder="New phase, e.g. Discovery"
-                onChange={(e) => setPhaseDraft((d) => ({ ...d, name: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPhase(); } }} />
-              <input className={s.input} value={phaseDraft.terms} placeholder="Payment terms (optional)"
-                onChange={(e) => setPhaseDraft((d) => ({ ...d, terms: e.target.value }))}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPhase(); } }} />
-              <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!phaseDraft.name.trim()} onClick={addPhase}>Add phase</button>
+                </div>
+              )}
+              {items.length > 0 ? (
+                <ul className={pf.rows}>{items.map(({ item, index }) => row(item, index))}</ul>
+              ) : g.kind === 'list' ? (
+                <div className={pf.empty}>
+                  <button type="button" className={`${s.btn} ${s.btnPrimary}`} disabled={!catalog} onClick={() => setDrawerFor(g)}
+                    title={catalog ? undefined : 'Run migration 047 to use the price list'}>Choose from price list</button>
+                  <button type="button" className={pf.link} onClick={() => addCustom(g)}>or add a custom line</button>
+                </div>
+              ) : <p className={pf.groupEmpty}>{g.kind === 'shared' ? 'Nothing yet — add what every option includes, or leave it empty.' : 'No items yet.'}</p>}
+              {(items.length > 0 || g.kind !== 'list') && g.kind !== 'loose' && (
+                <div className={pf.tools}>
+                  <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`} disabled={!catalog} onClick={() => setDrawerFor(g)}
+                    title={catalog ? undefined : 'Run migration 047 to use the price list'}>+ From price list</button>
+                  <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={() => addCustom(g)}>+ Custom line</button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })}
 
-        {!phased && newPhases.length === 0 && <div className={pf.tierBar}>
-          <strong>Tiers</strong>
-          <span className={s.hint}>
-            {tiers.length
-              ? 'The client picks one option when they sign. Use the menu under each line to put it in a tier (“Every option” = included in all). Tick Optional for extras they can add.'
-              : 'Offer options (e.g. Template store / Custom store): name a tier, then pick it from the menu under each line.'}
-          </span>
-          {tiers.length > 0 && (
-            <ul className={pf.tierList}>
-              {tiers.map((t, i) => <li key={t}><span>Option {i + 1}: {t}</span><strong>{lineItems.some((it) => it.tier?.trim() === t) ? formatMoneyCents(tierTotal(t), currency) : 'no lines yet'}</strong></li>)}
-            </ul>
-          )}
-          <div className={pf.tierAdd}>
-            <input className={s.input} value={tierName} placeholder="New tier, e.g. Custom store" onChange={(e) => setTierName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const t = tierName.trim().slice(0, 80); if (t) { setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t])); setTierName(''); } } }} />
-            <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!tierName.trim()}
-              onClick={() => { const t = tierName.trim().slice(0, 80); if (t) { setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t])); setTierName(''); } }}>Add tier</button>
-          </div>
-        </div>}
-
-        {lineItems.length === 0 ? (
-          <div className={pf.empty}>
-            <button type="button" className={`${s.btn} ${s.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
-              title={catalog ? undefined : 'Run migration 047 to use the price list'}>
-              Choose from price list
+        {mode !== 'list' && (
+          <div className={pf.groupAdd}>
+            <input className={s.input} value={groupDraft.name} placeholder={mode === 'tiers' ? 'New tier, e.g. Custom store' : 'New phase, e.g. Discovery'}
+              onChange={(e) => setGroupDraft((d) => ({ ...d, name: e.target.value }))}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } }} />
+            {mode === 'phases' && (
+              <input className={s.input} value={groupDraft.terms} placeholder="Payment terms (optional)"
+                onChange={(e) => setGroupDraft((d) => ({ ...d, terms: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } }} />
+            )}
+            <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!groupDraft.name.trim()} onClick={addGroup}>
+              {mode === 'tiers' ? 'Add tier' : 'Add phase'}
             </button>
-            <button type="button" className={pf.link} onClick={addCustom}>or add a custom line</button>
-          </div>
-        ) : (
-          <ul className={pf.rows}>
-            {lineItems.map((item, index) => {
-              const cat = catalog ? itemForLine(catalog.items, item.label) : undefined;
-              const locked = lockedBy(item.label);
-              const open = editing === index;
-              const perUnit = cat?.unit && cat.price_type !== 'hourly';
-              return (
-                <li key={item.id ?? `new-${index}`} className={`${pf.row} ${open ? pf.rowOpen : ''}`}>
-                  <div className={pf.rowTop}>
-                    <button type="button" className={pf.rowMain} onClick={() => setEditing(open ? null : index)} aria-expanded={open}>
-                      <span className={pf.rowName}>
-                        {item.label || <em>New line</em>}
-                        {!cat && item.label && <span className={pf.badgeCustom}>Custom</span>}
-                        {item.is_optional && <span className={pf.badgeCustom}>Optional</span>}
-                        {item.tier?.trim() && <span className={pf.badgeTier}>{item.tier.trim()}</span>}
-                        {item.phase?.trim() && <span className={pf.badgeTier}>{item.phase.trim()}</span>}
-                      </span>
-                      {stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
-                      {locked && <span className={pf.lock}>Required with {locked}</span>}
-                    </button>
-                    {perUnit ? (
-                      <span className={pf.stepper} role="group" aria-label={`How many ${cat!.unit}s`}>
-                        <button type="button" aria-label="One fewer" disabled={item.quantity <= 1} onClick={() => update(index, { quantity: item.quantity - 1 })}>−</button>
-                        <span>{item.quantity}</span>
-                        <button type="button" aria-label="One more" onClick={() => update(index, { quantity: item.quantity + 1 })}>+</button>
-                      </span>
-                    ) : <span />}
-                    <span className={pf.amount}>{formatMoneyCents(lineCents(item), currency)}{isMonthly(item.description) ? '/mo' : ''}</span>
-                    <button type="button" className={pf.remove} aria-label={`Remove ${item.label || 'line'}`} disabled={!!locked}
-                      title={locked ? `Required with ${locked}` : 'Remove'} onClick={() => remove(index)}>×</button>
-                  </div>
-                  {/* Tier and optional, right on the row (migration 061). */}
-                  <div className={pf.rowChoices}>
-                    {phases.length > 0 && (phased || newPhases.length > 0) && !hasTierChoices ? (
-                      <select className={pf.tierSelect} value={item.phase?.trim() ?? ''} aria-label={`Phase for ${item.label || 'this line'}`}
-                        onChange={(e) => { if (e.target.value) toPhase(index, e.target.value); }}>
-                        {!item.phase?.trim() && <option value="">Pick a phase</option>}
-                        {phases.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
-                      </select>
-                    ) : <>
-                    {tiers.length > 0 && (
-                      <select className={pf.tierSelect} value={item.tier?.trim() ?? ''} aria-label={`Tier for ${item.label || 'this line'}`}
-                        onChange={(e) => update(index, { tier: e.target.value || null })}>
-                        <option value="">Every option</option>
-                        {tiers.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    )}
-                    <label className={pf.optionalTick}>
-                      <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
-                      Optional
-                    </label>
-                    </>}
-                  </div>
-                  {open && (
-                    <div className={pf.edit}>
-                      <TextInput label="Name" value={item.label} onChange={(v) => update(index, { label: v })} />
-                      <TextInput label="Description" value={stripMo(item.description)}
-                        onChange={(v) => update(index, { description: [v, isMonthly(item.description) ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
-                      <div className={s.inlineRow}>
-                        <MoneyInput label="Unit price" cents={item.unit_price_cents} currency={currency} onChange={(cents) => update(index, { unit_price_cents: cents })} />
-                        <QuantityInput value={item.quantity} onChange={(quantity) => update(index, { quantity })} />
-                      </div>
-                      <label className={pf.check}>
-                        <input type="checkbox" checked={isMonthly(item.description)}
-                          onChange={(e) => update(index, { description: [stripMo(item.description), e.target.checked ? '/mo' : ''].filter(Boolean).join(' ') || null })} />
-                        Monthly
-                      </label>
-
-                      {cat && <p className={s.hint}>Price list: {priceLabel(cat)}. Changing it here only changes this proposal.</p>}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-
-        {lineItems.length > 0 && (
-          <div className={pf.tools}>
-            <button type="button" className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`} disabled={!catalog} onClick={() => setDrawer(true)}>+ Add from price list</button>
-            <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={addCustom}>+ Custom line</button>
           </div>
         )}
 
@@ -364,7 +444,11 @@ export function PricingForm({
             {missing.map(({ item, required }) => (
               <p key={required.id}>
                 {required.name} is required with {item.name}.
-                <button type="button" onClick={() => insert([{ item: required, qty: 1 }])}>Add it back</button>
+                <button type="button" onClick={() => {
+                  // Back into the same tier or phase as the item that needs it.
+                  const owner = lineItems.find((i) => i.label.trim().toLowerCase() === item.name.toLowerCase());
+                  insert([{ item: required, qty: 1 }], (owner && groups.find((g) => inGroup(g, owner))) ?? null);
+                }}>Add it back</button>
               </p>
             ))}
           </div>
@@ -427,7 +511,7 @@ export function PricingForm({
       </div>
 
       {/* Percentage discounts go on the estimate or invoice; proposal lines can't be negative. */}
-      {drawer && catalog && <PriceListDrawer catalog={{ ...catalog, items: catalog.items.filter((i) => i.price_type !== 'percent') }} onInsert={insert} onClose={() => setDrawer(false)} />}
+      {drawerFor && catalog && <PriceListDrawer catalog={{ ...catalog, items: catalog.items.filter((i) => i.price_type !== 'percent') }} onInsert={(picks) => insert(picks)} onClose={() => setDrawerFor(null)} />}
     </>
   );
 }

@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setAllPhaseInText, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -177,6 +177,11 @@ export default function InvoiceBuilder() {
   const [drawer, setDrawer] = useState(false);
   /** Tiers named in the bar but not given any items yet (migration 061). */
   const [newTiers, setNewTiers] = useState<string[]>([]);
+  /** List · Tiers · Phases, while no line is in a tier or phase yet (after that the lines decide). */
+  const [chosenMode, setChosenMode] = useState<PriceMode>('list');
+  /** Where "+ From price list" / "+ Custom item" adds: a tier or phase card (null = the plain list). */
+  const [target, setTarget] = useState<Group | null>(null);
+  const [groupDraft, setGroupDraft] = useState({ name: '', terms: '' });
   /** Phases named in the bar but not given any items yet (migration 062). */
   const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
   /** A new estimate made from a phased one's phases: saving links it back there and files it under that deal. */
@@ -385,6 +390,9 @@ export default function InvoiceBuilder() {
     setFromEstimateId(null);
     setFromPhases(null);
     setNewPhases([]);
+    setNewTiers([]);
+    setChosenMode('list');
+    setTarget(null);
     setDraft(blankDraft(mode));
     setView('edit');
     scrollTop();
@@ -423,6 +431,9 @@ export default function InvoiceBuilder() {
     setEditingId(est.id);
     setFromEstimateId(null);
     setNewPhases([]);
+    setNewTiers([]);
+    setChosenMode('list');
+    setTarget(null);
     setDraft(next);
     setSnapshot(JSON.stringify(next));
     setView('edit');
@@ -696,25 +707,115 @@ export default function InvoiceBuilder() {
 
   const categoryName = (item: PriceItem) => catalog?.categories.find((c) => c.id === item.category_id)?.name ?? 'Other';
 
-  /** Adds catalog items under their category headings, plus anything they require. */
-  function insertItems(picks: Pick[]) {
+  // List · Tiers · Phases (migration 061/062): the lines decide once they're grouped.
+  const priceMode: PriceMode = isPhased(items) ? 'phases' : tiersOf(items).length ? 'tiers' : chosenMode;
+  const tierNames = [...new Set([...tiersOf(items), ...newTiers])];
+  const phaseList = [...phasesOf(items).map((ph) => ({ name: ph.name, terms: ph.terms })), ...newPhases.filter((x) => !items.some((it) => it.phase === x.name))];
+  const groups: Group[] = priceMode === 'list' ? []
+    : priceMode === 'tiers' ? [{ kind: 'shared', name: '' }, ...tierNames.map((name) => ({ kind: 'tier' as const, name }))]
+    : [...phaseList.map((ph) => ({ kind: 'phase' as const, name: ph.name })), ...(items.some((it) => !it.phase) ? [{ kind: 'loose' as const, name: '' }] : [])];
+  const inGroup = (g: Group, it: LineItem) =>
+    g.kind === 'shared' ? !it.tier : g.kind === 'tier' ? it.tier === g.name : g.kind === 'loose' ? !it.phase : it.phase === g.name;
+  const tagOf = (g: Group | null) =>
+    g?.kind === 'tier' ? { tier: g.name } : g?.kind === 'phase' ? { phase: g.name, phase_terms: phaseList.find((x) => x.name === g.name)?.terms || undefined } : {};
+  const groupLabel = (g: Group) => g.kind === 'shared' ? 'Every option' : g.kind === 'tier' ? g.name : g.kind === 'phase' ? g.name : 'Not in a phase';
+
+  /** Adds catalog items (and anything they require): under their category headings, into the card they were added from. */
+  function insertItems(picks: Pick[], into: Group | null = target) {
     if (!catalog) return;
-    let text = draft.text;
-    const byCategory = new Map<string, string[]>();
-    for (const { item, qty } of picks) {
-      const cat = categoryName(item);
-      byCategory.set(cat, [...(byCategory.get(cat) ?? []), itemLine(item, qty)]);
-    }
-    for (const [cat, lines] of byCategory) text = insertUnderHeading(text, cat, lines);
-    // Required items come along automatically.
     const added: string[] = [];
-    for (const { item, required } of missingRequired(catalog, parseLineItems(text).items.map((it) => it.name))) {
-      text = insertUnderHeading(text, categoryName(required), [itemLine(required)]);
-      added.push(`${required.name} added: required with ${item.name}`);
+    let text = draft.text;
+    if (!into || isInvoice) {
+      const byCategory = new Map<string, string[]>();
+      for (const { item, qty } of picks) {
+        const cat = categoryName(item);
+        byCategory.set(cat, [...(byCategory.get(cat) ?? []), itemLine(item, qty)]);
+      }
+      for (const [cat, lines] of byCategory) text = insertUnderHeading(text, cat, lines);
+      for (const { item, required } of missingRequired(catalog, parseLineItems(text).items.map((it) => it.name))) {
+        text = insertUnderHeading(text, categoryName(required), [itemLine(required)]);
+        added.push(`${required.name} added: required with ${item.name}`);
+      }
+    } else {
+      const asItem = (item: PriceItem, qty = 1) => ({ ...parseLineItems(itemLine(item, qty)).items[0], category: categoryName(item) });
+      const fresh = picks.map(({ item, qty }) => asItem(item, qty)).filter((x) => x.name);
+      const names = [...items.map((it) => it.name), ...fresh.map((x) => x.name)];
+      for (const { item, required } of missingRequired(catalog, names)) {
+        fresh.push(asItem(required));
+        added.push(`${required.name} added: required with ${item.name}`);
+      }
+      text = addToGroupInText(text, fresh, tagOf(into));
     }
     set('text', text);
     setDrawer(false);
-    show(added.length ? added.join('. ') : `Added ${picks.length} item${picks.length === 1 ? '' : 's'}.`);
+    show(added.length ? added.join('. ') : `Added ${picks.length} item${picks.length === 1 ? '' : 's'}${into && !isInvoice ? ` to ${groupLabel(into)}` : ''}.`);
+  }
+
+  /** List · Tiers · Phases. Tiers and phases swap one for one; the list takes every line out of its group. */
+  function switchPriceMode(next: PriceMode) {
+    if (next === priceMode) return;
+    const strip = (it: LineItem): LineItem => { const n = { ...it }; delete n.tier; delete n.phase; delete n.phase_terms; return n; };
+    if (next === 'list') {
+      if (items.some((it) => it.tier || it.phase) && !window.confirm(`Take every item out of its ${priceMode === 'tiers' ? 'tier' : 'phase'}? The items stay, as one list.`)) return;
+      if (items.length) set('text', lineItemsToText(items.map(strip)));
+      setNewTiers([]); setNewPhases([]);
+    } else if (next === 'phases') {
+      const first = tierNames[0] ?? 'Phase 1';
+      if (items.length) set('text', groupedText(items.map((it) => { const n = strip(it); delete n.optional; n.phase = it.tier || first; return n; })));
+      setNewPhases([...new Set([first, ...tierNames])].map((name) => ({ name, terms: '' })));
+      setNewTiers([]);
+    } else {
+      if (items.length) set('text', groupedText(items.map((it) => { const n = strip(it); if (it.phase) n.tier = it.phase; return n; })));
+      setNewTiers(phaseList.map((ph) => ph.name));
+      setNewPhases([]);
+    }
+    setChosenMode(next);
+    setTarget(null);
+  }
+
+  function addGroup() {
+    const name = groupDraft.name.trim().replace(/\|/g, ' ').slice(0, 80);
+    if (!name || /^(none|end|no phase|all|shared)$/i.test(name)) return;
+    if (priceMode === 'tiers' && !tierNames.includes(name)) setNewTiers((cur) => [...cur, name]);
+    if (priceMode === 'phases' && !phaseList.some((x) => x.name === name)) setNewPhases((cur) => [...cur, { name, terms: groupDraft.terms.replace(/[|\r\n]+/g, ' ').trim().slice(0, 300) }]);
+    setGroupDraft({ name: '', terms: '' });
+  }
+
+  function renameGroup(g: Group, to: string) {
+    const name = to.trim().replace(/\|/g, ' ').slice(0, 80);
+    if (!name || name === g.name || (g.kind === 'tier' ? tierNames.includes(name) : phaseList.some((x) => x.name === name))) return;
+    if (g.kind === 'tier') {
+      setNewTiers((cur) => cur.map((t) => (t === g.name ? name : t)));
+      if (items.some((it) => it.tier === g.name)) set('text', lineItemsToText(items.map((it) => (it.tier === g.name ? { ...it, tier: name } : it))));
+    } else {
+      setNewPhases((cur) => cur.map((x) => (x.name === g.name ? { ...x, name } : x)));
+      if (items.some((it) => it.phase === g.name)) set('text', lineItemsToText(items.map((it) => (it.phase === g.name ? { ...it, phase: name } : it))));
+    }
+    if (target?.kind === g.kind && target.name === g.name) setTarget({ ...g, name });
+  }
+
+  function removeGroup(g: Group) {
+    const count = items.filter((it) => inGroup(g, it)).length;
+    if (count && !window.confirm(`Remove ${g.name} and its ${count} item${count === 1 ? '' : 's'}?`)) return;
+    if (g.kind === 'tier') setNewTiers((cur) => cur.filter((t) => t !== g.name));
+    else setNewPhases((cur) => cur.filter((x) => x.name !== g.name));
+    if (count) set('text', lineItemsToText(items.filter((it) => !inGroup(g, it))));
+    if (target?.kind === g.kind && target.name === g.name) setTarget(null);
+  }
+
+  /** Moves a line to another tier or phase. */
+  function moveBlock(b: LineBlock, g: Group) {
+    const idx = blocks.filter((x) => x.item).indexOf(b);
+    if (idx < 0) return;
+    if (g.kind === 'phase') set('text', setPhaseInText(draft.text, idx, g.name, phaseList.find((x) => x.name === g.name)?.terms ?? ''));
+    else if (g.kind === 'tier' || g.kind === 'shared') set('text', setTierInText(draft.text, idx, g.kind === 'tier' ? g.name : null));
+  }
+
+  /** Opens the price list or the custom item form for one card. */
+  function addTo(g: Group | null, how: 'list' | 'custom') {
+    setTarget(g);
+    if (how === 'list') setDrawer(true);
+    else setCustomOpen(true);
   }
 
   const blocks = lineBlocks(draft.text);
@@ -753,25 +854,6 @@ export default function InvoiceBuilder() {
     if (!next.optional) delete next.optional;
     lines.splice(b.start, b.end - b.start + 1, ...lineText(next).split('\n'));
     set('text', lines.join('\n'));
-  }
-
-  /** Tier (migration 061): which option a line belongs to (null = every option). Rewrites the list, keeping each tier's lines together. */
-  function setBlockTier(b: LineBlock, tier: string | null) {
-    const idx = blocks.filter((x) => x.item).indexOf(b);
-    if (idx >= 0) set('text', setTierInText(draft.text, idx, tier));
-  }
-
-  /** Phase (migration 062): which phase a line is in. Rewrites the list, keeping each phase's lines together. */
-  function setBlockPhase(b: LineBlock, phase: string) {
-    const idx = blocks.filter((x) => x.item).indexOf(b);
-    const terms = newPhases.find((p) => p.name === phase)?.terms ?? '';
-    if (idx >= 0) set('text', setPhaseInText(draft.text, idx, phase, terms));
-  }
-
-  /** A new phase: the first one takes every line already on the list. */
-  function addPhase(name: string, terms: string) {
-    if (!isPhased(items) && items.length) set('text', setAllPhaseInText(draft.text, name, terms));
-    else setNewPhases((cur) => (cur.some((p) => p.name === name) ? cur : [...cur, { name, terms }]));
   }
 
   function setPhaseTerms(name: string, terms: string) {
@@ -816,13 +898,15 @@ export default function InvoiceBuilder() {
     if (!custom.name.trim()) { setCustomError('Give it a name'); return; }
     if (custom.name.includes('|') || custom.description.includes('|')) { setCustomError('Leave out the | character'); return; }
     if (parsed.problems.length || !parsed.items.length) { setCustomError('Try a price like $500, 3h @ $45, -$100 or Included'); return; }
-    const text = /^#+\s+/m.test(draft.text)
+    const text = target
+      ? addToGroupInText(draft.text, parsed.items, tagOf(target))
+      : /^#+\s+/m.test(draft.text)
       ? insertUnderHeading(draft.text, 'Custom items', [line])
       : `${draft.text.replace(/\s+$/, '')}${draft.text.trim() ? '\n' : ''}${line}\n`;
     set('text', text);
     setCustom({ name: '', description: '', price: '', monthly: false });
     setCustomError('');
-    show(`Added ${custom.name.trim()}.`);
+    show(`Added ${custom.name.trim()}${target ? ` to ${groupLabel(target)}` : ''}.`);
   }
 
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
@@ -831,6 +915,47 @@ export default function InvoiceBuilder() {
   /** The proposal an estimate belongs to: its pricing is the source. */
   const proposalOf = (estId: string | undefined) => (estId ? data.proposalLinks?.find((l) => l.estimate_id === estId) : undefined);
   const linkedProposal = proposalOf(editingEstimate?.id);
+
+  // The custom item form: inside the tier or phase card it was opened from, else under the list.
+  const customForm = (
+              <div className={s.customForm}>
+                <div className={s.customHead}>
+                  <strong>Custom item{target ? ` — ${groupLabel(target)}` : ''}</strong>
+                  <button type="button" className={s.iconBtn} aria-label="Close custom item" onClick={() => { setCustomOpen(false); setCustomError(''); }}>×</button>
+                </div>
+                <div className={s.customFields}>
+                  <label className={s.wide}>
+                    <span className={p.label}>Name</span>
+                    <input className={p.input} value={custom.name} autoFocus placeholder="e.g. Event signage"
+                      onChange={(e) => setCustom((c) => ({ ...c, name: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label className={s.wide}>
+                    <span className={p.label}>Description (optional)</span>
+                    <input className={p.input} value={custom.description} placeholder="What’s included"
+                      onChange={(e) => setCustom((c) => ({ ...c, description: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label>
+                    <span className={p.label}>Price</span>
+                    <input className={p.input} value={custom.price} placeholder="$250, 3h @ $45, Included" inputMode="text"
+                      onChange={(e) => setCustom((c) => ({ ...c, price: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
+                  </label>
+                  <label className={s.monthlyCheck}>
+                    <input type="checkbox" checked={custom.monthly} onChange={(e) => setCustom((c) => ({ ...c, monthly: e.target.checked }))} />
+                    Monthly
+                  </label>
+                </div>
+                {customError && <p className={s.warn}>{customError}</p>}
+                <div className={s.customActions}>
+                  <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={addCustom}>Add item</button>
+                  <button type="button" className={s.textLink} aria-expanded={textOpen} onClick={() => setTextOpen((v) => !v)}>
+                    {textOpen ? 'Hide the text editor' : 'Or edit the whole list as text'}
+                  </button>
+                </div>
+              </div>
+  );
 
   // ── List view ─────────────────────────────────────────────────────────────
   if (view === 'list') {
@@ -1180,32 +1305,107 @@ export default function InvoiceBuilder() {
           <section className={s.step}>
             <StepHead n={3} title="Items" hint="Choose from your price list. Need something that isn’t on it? Add a custom item." />
 
-            {blocks.length === 0 && !textOpen ? (
+            {!isInvoice && (
+              <>
+                <div className={s.modes} role="tablist" aria-label="How the prices are laid out">
+                  {(['list', 'tiers', 'phases'] as const).map((m) => (
+                    <button key={m} type="button" role="tab" aria-selected={priceMode === m} className={`${s.mode} ${priceMode === m ? s.modeOn : ''}`} onClick={() => switchPriceMode(m)}>
+                      {m === 'list' ? 'List' : m === 'tiers' ? 'Tiers' : 'Phases'}
+                    </button>
+                  ))}
+                </div>
+                <p className={s.tierHint} style={{ margin: '0 0 12px' }}>
+                  {priceMode === 'list' ? 'One price for everything. Tick Optional on a line for add-ons the client can choose.'
+                    : priceMode === 'tiers' ? 'The client picks one option when they accept. Items in “Included in every option” are part of all of them. The total shows the first option until they choose.'
+                    : 'Each phase has its own items, subtotal and payment terms — no grand total. The client approves phases, and you get a text to make the estimate for them.'}
+                </p>
+              </>
+            )}
+            {blocks.length === 0 && !textOpen && (isInvoice || priceMode === 'list') ? (
               <div className={s.itemsEmpty}>
-                <button type="button" className={`${p.btn} ${p.btnPrimary} ${s.bigBtn}`} disabled={!catalog} onClick={() => setDrawer(true)}
+                <button type="button" className={`${p.btn} ${p.btnPrimary} ${s.bigBtn}`} disabled={!catalog} onClick={() => addTo(null, 'list')}
                   title={catalog ? undefined : 'Run migration 047 to use the price list'}>
                   Choose from price list
                 </button>
-                {!customOpen && <button type="button" className={s.textLink} onClick={() => setCustomOpen(true)}>or add a custom item</button>}
+                {!customOpen && <button type="button" className={s.textLink} onClick={() => addTo(null, 'custom')}>or add a custom item</button>}
               </div>
             ) : (
               <>
-                {!isInvoice && (
-                  <PhaseBar items={items} extra={newPhases} blocked={hasChoices(items) || newTiers.length > 0} onAdd={addPhase} onTerms={setPhaseTerms} />
+                {isInvoice || priceMode === 'list' ? (
+                  <>
+                    <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
+                      onOptional={isInvoice ? undefined : toggleOptional} />
+                    <div className={s.itemsTools}>
+                      <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => addTo(null, 'list')}
+                        title={catalog ? undefined : 'Run migration 047 to use the price list'}>
+                        + Add from price list
+                      </button>
+                      {!customOpen && <button type="button" className={p.btn} onClick={() => addTo(null, 'custom')}>+ Custom item</button>}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {groups.map((g, n) => {
+                      const mine = blocks.filter((b) => b.item && inGroup(g, b.item));
+                      const lines = mine.map((b) => b.item!);
+                      const terms = phaseList.find((x) => x.name === g.name)?.terms ?? '';
+                      const sharedLines = items.filter((it) => !it.tier && !it.optional);
+                      const sumText = g.kind === 'tier' ? (lines.length || sharedLines.length ? formatLineMoney(tierTotal(items, g.name)) : '—')
+                        : g.kind === 'phase' ? (lines.length ? (() => { const ph = phasesOf(items).find((x) => x.name === g.name); return ph ? amountText(ph.oneTime, ph.monthly) : '—'; })() : '—')
+                        : lines.length ? amountText(lines.filter((it) => !it.optional && !isMonthly(it)).reduce((a, it) => a + it.amount_cents, 0), lines.filter((it) => !it.optional && isMonthly(it)).reduce((a, it) => a + it.amount_cents, 0)) : '—';
+                      const isTarget = customOpen && target?.kind === g.kind && target.name === g.name;
+                      return (
+                        <div key={`${g.kind}:${g.name}`} className={s.group}>
+                          <div className={s.groupHead}>
+                            <span className={s.groupKicker}>{g.kind === 'shared' ? 'In every option' : g.kind === 'tier' ? `Option ${n}` : g.kind === 'phase' ? `Phase ${n + 1}` : 'Not in a phase'}</span>
+                            {g.kind === 'shared' ? <strong className={s.groupName}>Included in every option</strong>
+                              : g.kind === 'loose' ? <strong className={s.groupName}>Move these into a phase</strong>
+                              : <NameField value={g.name} onCommit={(v) => renameGroup(g, v)} />}
+                            <strong className={s.groupTotal}>{sumText}</strong>
+                            {(g.kind === 'tier' || g.kind === 'phase') && (
+                              <button type="button" className={s.iconBtn} aria-label={`Remove ${g.name}`} title="Remove" onClick={() => removeGroup(g)}>×</button>
+                            )}
+                          </div>
+                          {g.kind === 'phase' && (
+                            <div className={s.groupTerms}>
+                              <input className={p.input} value={terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
+                                aria-label={`Payment terms for ${g.name}`} onChange={(e) => setPhaseTerms(g.name, e.target.value.replace(/[|\r\n]+/g, ' '))} />
+                              <div className={s.quickDates}>
+                                {PHASE_TERMS.map((t) => (
+                                  <button key={t} type="button" className={`${s.chip} ${terms === t ? s.chipOn : ''}`} onClick={() => setPhaseTerms(g.name, t)}>{t}</button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {mine.length > 0
+                            ? <ItemRows blocks={mine} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
+                                onOptional={priceMode === 'tiers' ? toggleOptional : undefined}
+                                move={{ groups: groups.filter((x) => x.kind !== 'loose'), current: g, label: groupLabel, onMove: moveBlock }} />
+                            : <p className={s.groupEmpty}>{g.kind === 'shared' ? 'Nothing yet — add what every option includes, or leave it empty.' : 'No items yet.'}</p>}
+                          {isTarget && customForm}
+                          {g.kind !== 'loose' && (
+                            <div className={s.itemsTools} style={{ marginTop: 0 }}>
+                              <button type="button" className={`${p.btn} ${p.btnPrimary} ${p.btnSmall}`} disabled={!catalog} onClick={() => addTo(g, 'list')}
+                                title={catalog ? undefined : 'Run migration 047 to use the price list'}>+ From price list</button>
+                              {!isTarget && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => addTo(g, 'custom')}>+ Custom item</button>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <div className={s.phaseAdd} style={priceMode === 'tiers' ? { gridTemplateColumns: '1fr auto' } : undefined}>
+                      <input className={p.input} value={groupDraft.name} placeholder={priceMode === 'tiers' ? 'New tier, e.g. Custom store' : 'New phase, e.g. Discovery'}
+                        onChange={(e) => setGroupDraft((d) => ({ ...d, name: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } }} />
+                      {priceMode === 'phases' && (
+                        <input className={p.input} value={groupDraft.terms} placeholder="Payment terms (optional)"
+                          onChange={(e) => setGroupDraft((d) => ({ ...d, terms: e.target.value }))}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addGroup(); } }} />
+                      )}
+                      <button type="button" className={p.btn} disabled={!groupDraft.name.trim()} onClick={addGroup}>{priceMode === 'tiers' ? 'Add tier' : 'Add phase'}</button>
+                    </div>
+                  </>
                 )}
-                {!isInvoice && !isPhased(items) && newPhases.length === 0 && (
-                  <TierBar items={items} extra={newTiers} onAdd={(t) => setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t]))} />
-                )}
-                <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
-                  choices={isInvoice || isPhased(items) || newPhases.length ? undefined : { tiers: [...new Set([...tiersOf(items), ...newTiers])], onTier: setBlockTier, onOptional: toggleOptional }}
-                  phases={!isInvoice && (isPhased(items) || newPhases.length) ? { names: [...new Set([...phasesOf(items).map((p) => p.name), ...newPhases.map((p) => p.name)])], onPhase: setBlockPhase } : undefined} />
-                <div className={s.itemsTools}>
-                  <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
-                    title={catalog ? undefined : 'Run migration 047 to use the price list'}>
-                    + Add from price list
-                  </button>
-                  {!customOpen && <button type="button" className={p.btn} onClick={() => setCustomOpen(true)}>+ Custom item</button>}
-                </div>
               </>
             )}
 
@@ -1216,45 +1416,7 @@ export default function InvoiceBuilder() {
               </div>
             )}
 
-            {customOpen && (
-              <div className={s.customForm}>
-                <div className={s.customHead}>
-                  <strong>Custom item</strong>
-                  <button type="button" className={s.iconBtn} aria-label="Close custom item" onClick={() => { setCustomOpen(false); setCustomError(''); }}>×</button>
-                </div>
-                <div className={s.customFields}>
-                  <label className={s.wide}>
-                    <span className={p.label}>Name</span>
-                    <input className={p.input} value={custom.name} autoFocus placeholder="e.g. Event signage"
-                      onChange={(e) => setCustom((c) => ({ ...c, name: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
-                  </label>
-                  <label className={s.wide}>
-                    <span className={p.label}>Description (optional)</span>
-                    <input className={p.input} value={custom.description} placeholder="What’s included"
-                      onChange={(e) => setCustom((c) => ({ ...c, description: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
-                  </label>
-                  <label>
-                    <span className={p.label}>Price</span>
-                    <input className={p.input} value={custom.price} placeholder="$250, 3h @ $45, Included" inputMode="text"
-                      onChange={(e) => setCustom((c) => ({ ...c, price: e.target.value }))}
-                      onKeyDown={(e) => e.key === 'Enter' && addCustom()} />
-                  </label>
-                  <label className={s.monthlyCheck}>
-                    <input type="checkbox" checked={custom.monthly} onChange={(e) => setCustom((c) => ({ ...c, monthly: e.target.checked }))} />
-                    Monthly
-                  </label>
-                </div>
-                {customError && <p className={s.warn}>{customError}</p>}
-                <div className={s.customActions}>
-                  <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={addCustom}>Add item</button>
-                  <button type="button" className={s.textLink} aria-expanded={textOpen} onClick={() => setTextOpen((v) => !v)}>
-                    {textOpen ? 'Hide the text editor' : 'Or edit the whole list as text'}
-                  </button>
-                </div>
-              </div>
-            )}
+            {customOpen && !(target && groups.some((g) => g.kind === target.kind && g.name === target.name)) && customForm}
 
             {textOpen && (
               <div className={s.textEditor}>
@@ -1288,7 +1450,11 @@ export default function InvoiceBuilder() {
                 {missing.map(({ item, required }) => (
                   <p key={required.id}>
                     {required.name} is required with {item.name}.
-                    <button type="button" onClick={() => insertItems([{ item: required, qty: 1 }])}>Add it back</button>
+                    <button type="button" onClick={() => {
+                      // Back into the same tier or phase as the item that needs it.
+                      const owner = items.find((it) => it.name.replace(/\s*\(x\d+\)/i, '').toLowerCase() === item.name.toLowerCase());
+                      insertItems([{ item: required, qty: 1 }], (owner && groups.find((g) => g.kind !== 'loose' && inGroup(g, owner))) ?? null);
+                    }}>Add it back</button>
                   </p>
                 ))}
               </div>
@@ -1298,7 +1464,7 @@ export default function InvoiceBuilder() {
                 <span className={s.suggestedLabel}>Suggested add-ons</span>
                 <div className={s.suggestedList}>
                   {suggestions.map((sg) => (
-                    <button key={sg.id} type="button" className={s.suggestedChip} onClick={() => insertItems([{ item: sg, qty: 1 }])}>
+                    <button key={sg.id} type="button" className={s.suggestedChip} onClick={() => insertItems([{ item: sg, qty: 1 }], priceMode === 'phases' ? groups[0] ?? null : null)}>
                       + {sg.name} · {priceLabel(sg)}
                     </button>
                   ))}
@@ -1409,14 +1575,14 @@ export default function InvoiceBuilder() {
 }
 
 /** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
-function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choices, phases }: {
+function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, onOptional, move }: {
   blocks: LineBlock[]; catalog: Catalog | null;
   onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
   onToggleDescription: (b: LineBlock) => void;
-  /** Estimates (migration 061): each line's tier and whether it's optional. */
-  choices?: { tiers: string[]; onTier: (b: LineBlock, tier: string | null) => void; onOptional: (b: LineBlock) => void };
-  /** Phased estimates (migration 062): each line's phase. */
-  phases?: { names: string[]; onPhase: (b: LineBlock, phase: string) => void };
+  /** Estimates (migration 061): the Optional tick (an extra the client can add). */
+  onOptional?: (b: LineBlock) => void;
+  /** In a tier or phase card: move the line to another one. */
+  move?: { groups: Group[]; current: Group; label: (g: Group) => string; onMove: (b: LineBlock, g: Group) => void };
 }) {
   const valid = blocks.filter((b): b is LineBlock & { item: LineItem } => b.item !== null);
   const names = valid.map((b) => b.item.name);
@@ -1437,7 +1603,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
             <div className={s.rowGroupHead}>
               <span>{g.category}</span>
               {/* With tiers or extras a category's sum would mix options: the Tiers box has the totals. */}
-              {!(choices && hasChoices(valid.map((b) => b.item))) && !phases && <span>{amountText(g.oneTime, g.monthly)}</span>}
+              {!move && !hasChoices(valid.map((b) => b.item)) && <span>{amountText(g.oneTime, g.monthly)}</span>}
             </div>
           )}
           {valid.filter((b) => (b.item.category?.trim() || 'Other') === g.category).map((b) => {
@@ -1452,8 +1618,6 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                   <span className={s.itemRowName}>
                     {name}
                     {optional && <span className={s.badgeOptional}>Optional</span>}
-                    {b.item.tier && <span className={s.badgeTier}>{b.item.tier}</span>}
-                    {b.item.phase && <span className={s.badgeTier}>{b.item.phase}</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                     {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
@@ -1470,28 +1634,25 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                     </>
                   )}
                   {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
-                  {phases && (
+                  {(move || onOptional) && !b.item.percent && (
                     <span className={s.choiceControls}>
-                      <select className={s.tierSelect} value={b.item.phase ?? ''} aria-label={`Phase for ${name}`}
-                        onChange={(e) => { if (e.target.value) phases.onPhase(b, e.target.value); }}>
-                        {!b.item.phase && <option value="">Pick a phase</option>}
-                        {phases.names.map((ph) => <option key={ph} value={ph}>{ph}</option>)}
-                      </select>
-                    </span>
-                  )}
-                  {choices && !b.item.percent && (
-                    <span className={s.choiceControls}>
-                      {choices.tiers.length > 0 && (
-                        <select className={s.tierSelect} value={b.item.tier ?? ''} aria-label={`Tier for ${name}`}
-                          onChange={(e) => choices.onTier(b, e.target.value || null)}>
-                          <option value="">Every option</option>
-                          {choices.tiers.map((t) => <option key={t} value={t}>{t}</option>)}
+                      {move && move.groups.length > 1 && (
+                        <select className={s.tierSelect} value={`${move.current.kind}:${move.current.name}`} aria-label={`Move ${name}`}
+                          onChange={(e) => { const g = move.groups.find((x) => `${x.kind}:${x.name}` === e.target.value); if (g) move.onMove(b, g); }}>
+                          {move.current.kind === 'loose' && <option value="loose:">Move to a phase…</option>}
+                          {move.groups.map((g) => (
+                            <option key={`${g.kind}:${g.name}`} value={`${g.kind}:${g.name}`}>
+                              {g.kind === move.current.kind && g.name === move.current.name ? 'In' : 'Move to'}: {move.label(g)}
+                            </option>
+                          ))}
                         </select>
                       )}
-                      <label className={s.optionalTick}>
-                        <input type="checkbox" checked={optional} onChange={() => choices.onOptional(b)} />
-                        Optional
-                      </label>
+                      {onOptional && (
+                        <label className={s.optionalTick}>
+                          <input type="checkbox" checked={optional} onChange={() => onOptional(b)} />
+                          Optional
+                        </label>
+                      )}
                     </span>
                   )}
                 </div>
@@ -1518,64 +1679,6 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
 
 /** One-tap payment terms for a phase. */
 const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on completion', 'Monthly'];
-
-/**
- * Phases (migration 062): each phase's subtotal and payment terms, and a box
- * to add one. The client approves phases (no grand total); you then make an
- * estimate from the approved ones.
- */
-function PhaseBar({ items, extra, blocked, onAdd, onTerms }: {
-  items: LineItem[]; extra: { name: string; terms: string }[]; blocked: boolean;
-  onAdd: (name: string, terms: string) => void; onTerms: (name: string, terms: string) => void;
-}) {
-  const [name, setName] = useState('');
-  const [terms, setTerms] = useState('');
-  const known = phasesOf(items);
-  const phases = [...known, ...extra.filter((x) => !known.some((k) => k.name === x.name)).map((x) => ({ ...x, total_cents: 0, oneTime: 0, monthly: 0, count: 0 }))];
-  const add = () => {
-    const n = name.trim().replace(/\|/g, ' ').slice(0, 80);
-    if (!n || /^(none|end|no phase)$/i.test(n) || phases.some((p) => p.name === n)) return;
-    onAdd(n, terms.replace(/[|\r\n]+/g, ' ').trim().slice(0, 300));
-    setName(''); setTerms('');
-  };
-  return (
-    <div className={s.tierBar}>
-      <div className={s.tierBarHead}>
-        <strong>Phases</strong>
-        <span className={s.tierHint}>
-          {blocked ? 'Phases can’t be mixed with tiers or optional extras. Remove those to work in phases.'
-            : phases.length ? 'Each phase shows its own subtotal and payment terms — no grand total. The client approves the phases they want; you get a text to make the estimate for them.'
-            : 'Split the work into phases (e.g. Discovery, Build), each with its own payment terms. The first phase takes every item already on the list.'}
-        </span>
-      </div>
-      {phases.length > 0 && (
-        <ul className={s.phaseList}>
-          {phases.map((ph, i) => (
-            <li key={ph.name}>
-              <div className={s.phaseTop}><span>Phase {i + 1}: {ph.name}</span><strong>{ph.count ? amountText(ph.oneTime, ph.monthly) : 'no lines yet'}</strong></div>
-              <input className={p.input} value={ph.terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
-                aria-label={`Payment terms for ${ph.name}`} onChange={(e) => onTerms(ph.name, e.target.value)} />
-              <div className={s.quickDates}>
-                {PHASE_TERMS.map((t) => (
-                  <button key={t} type="button" className={`${s.chip} ${ph.terms === t ? s.chipOn : ''}`} onClick={() => onTerms(ph.name, t)}>{t}</button>
-                ))}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {!blocked && (
-        <div className={s.phaseAdd}>
-          <input className={p.input} value={name} placeholder="New phase, e.g. Discovery" onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-          <input className={p.input} value={terms} placeholder="Payment terms (optional)" onChange={(e) => setTerms(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-          <button type="button" className={p.btn} onClick={add} disabled={!name.trim()}>Add phase</button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 /**
  * A saved phased estimate (migration 062): which phases the client approved,
@@ -1629,38 +1732,18 @@ function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolea
   );
 }
 
-/**
- * Tiers (migration 061): each option's total, and a box to name a new one.
- * Lines join a tier from their row's menu; the client picks one tier.
- */
-function TierBar({ items, extra, onAdd }: { items: LineItem[]; extra: string[]; onAdd: (tier: string) => void }) {
-  const [name, setName] = useState('');
-  const tiers = [...new Set([...tiersOf(items), ...extra])];
-  const add = () => { const t = name.trim().slice(0, 80); if (t && !/^(none|all|shared)$/i.test(t)) { onAdd(t); setName(''); } };
+type PriceMode = 'list' | 'tiers' | 'phases';
+/** A card of items: what every option includes, one tier, one phase, or items not in a phase yet. */
+type Group = { kind: 'shared' | 'tier' | 'phase' | 'loose'; name: string };
+
+/** A tier's or phase's name, saved when you leave the box (so typing doesn't reshuffle the cards). */
+function NameField({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [v, setV] = useState(value);
+  useEffect(() => { setV(value); }, [value]);
   return (
-    <div className={s.tierBar}>
-      <div className={s.tierBarHead}>
-        <strong>Tiers</strong>
-        <span className={s.tierHint}>
-          {tiers.length
-            ? 'The client picks one option when they accept. Use the menu under each line to put it in a tier (“Every option” = included in all). Tick Optional for extras they can add.'
-            : 'Offer options (e.g. Template store / Custom store): name a tier, then pick it from the menu under each line.'}
-        </span>
-      </div>
-      {tiers.length > 0 && (
-        <ul className={s.tierList}>
-          {tiers.map((t, i) => (
-            <li key={t}><span>Option {i + 1}: {t}</span><strong>{items.some((it) => it.tier === t) ? formatLineMoney(tierTotal(items, t)) : 'no lines yet'}</strong></li>
-          ))}
-        </ul>
-      )}
-      {hasChoices(items) && <p className={s.tierHint}>The estimate total shows the first option with no extras until the client chooses.</p>}
-      <div className={s.tierAdd}>
-        <input className={p.input} value={name} placeholder="New tier, e.g. Custom store" onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-        <button type="button" className={p.btn} onClick={add} disabled={!name.trim()}>Add tier</button>
-      </div>
-    </div>
+    <input className={s.groupNameInput} value={v} aria-label="Name" onChange={(e) => setV(e.target.value)}
+      onBlur={() => { if (v.trim() && v !== value) onCommit(v); else setV(value); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }} />
   );
 }
 
