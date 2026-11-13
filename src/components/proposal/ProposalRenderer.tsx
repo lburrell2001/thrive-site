@@ -19,6 +19,7 @@ import { PhasesBlockView } from './blocks/PhasesBlockView';
 import { SplitNarrativeBlockView } from './blocks/SplitNarrativeBlockView';
 import { ActionItemsBlockView } from './blocks/ActionItemsBlockView';
 import { DeliveryTimelineBlockView } from './blocks/DeliveryTimelineBlockView';
+import { TimelineBlockView } from './blocks/TimelineBlockView';
 import { SignatureBlockView } from './blocks/SignatureBlockView';
 
 export interface ProposalRendererProps {
@@ -108,6 +109,7 @@ function startsPage(block: ProposalBlock): boolean {
       return true;
     case 'narrative':
     case 'moodboard':
+    case 'timeline':
       return Boolean(block.content.headingLine1 || block.content.headingLine2);
     default:
       return false;
@@ -144,6 +146,8 @@ function BlockView({
       return <ActionItemsBlockView block={block} ctx={ctx} startsPage={startsPage} />;
     case 'delivery_timeline':
       return <DeliveryTimelineBlockView block={block} ctx={ctx} startsPage={startsPage} />;
+    case 'timeline':
+      return <TimelineBlockView block={block} ctx={ctx} startsPage={startsPage} />;
     case 'signature':
       return <SignatureBlockView block={block} ctx={ctx} startsPage={startsPage} />;
     default: {

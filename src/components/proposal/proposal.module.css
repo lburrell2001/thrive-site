@@ -911,6 +911,91 @@
 .timelineLabel { composes: panelTitle; }
 .timelineDescription { composes: panelBody; }
 
+/* ------------------------------------------------------------- timeline */
+/* A rule down the left in the accent, a dot on it per step. The dates sit in
+   the accent, the title in the display face, one light line under it. */
+
+.tlIntro {
+  margin: clamp(10px, 1.6cqw, 18px) 0 0;
+  max-width: 62ch;
+  font-size: var(--body);
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--paper);
+}
+
+.tlList {
+  --tl-dot: clamp(11px, 1.5cqw, 15px);
+  --tl-rule: 2px;
+  list-style: none;
+  margin: clamp(16px, 2.6cqw, 30px) 0 0;
+  padding: 0 0 0 calc(var(--tl-dot) + clamp(14px, 2.4cqw, 28px));
+}
+
+.tlItem {
+  position: relative;
+  padding-bottom: clamp(16px, 2.8cqw, 32px);
+}
+
+.tlItem:last-child { padding-bottom: 0; }
+
+/* Each step draws the rule from under its dot down to the next dot. */
+.tlItem:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: calc(-1 * (var(--tl-dot) + clamp(14px, 2.4cqw, 28px)) + (var(--tl-dot) - var(--tl-rule)) / 2);
+  top: calc(0.2em + var(--tl-dot));
+  bottom: -0.2em;
+  width: var(--tl-rule);
+  background: var(--accent);
+}
+
+.tlDot {
+  position: absolute;
+  left: calc(-1 * (var(--tl-dot) + clamp(14px, 2.4cqw, 28px)));
+  top: 0.2em;
+  width: var(--tl-dot);
+  height: var(--tl-dot);
+  border-radius: 50%;
+  border: var(--tl-rule) solid var(--accent);
+  background: var(--ink);
+  box-sizing: border-box;
+  z-index: 1;
+}
+
+.tlItem:first-child .tlDot,
+.tlItem:last-child .tlDot { background: var(--accent); }
+
+.tlWhen {
+  margin: 0;
+  font-size: clamp(10px, 1.5cqw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.tlTitle {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-weight: var(--display-weight);
+  font-size: clamp(16px, 3cqw, 30px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--white);
+}
+
+.tlBody {
+  margin: 4px 0 0;
+  max-width: 60ch;
+  font-size: var(--body);
+  font-weight: 300;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.94);
+}
+
 /* ------------------------------------------------------------ signature */
 
 .signaturePanel {
@@ -1095,6 +1180,7 @@
   .phaseItem,
   .actionItem,
   .timelineItem,
+  .tlItem,
   .pricingRow {
     break-inside: avoid;
   }

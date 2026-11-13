@@ -15,6 +15,7 @@ export type BlockType =
   | 'split_narrative'
   | 'action_items'
   | 'delivery_timeline'
+  | 'timeline'
   | 'signature';
 
 export type AccentName = 'green' | 'orange' | 'magenta' | 'purple' | 'blue';
@@ -137,6 +138,17 @@ export interface ActionItemsBlock extends BaseBlock {
   };
 }
 
+/** A vertical timeline: when, what, and a line about it, joined down the left. */
+export interface TimelineBlock extends BaseBlock {
+  type: 'timeline';
+  content: {
+    headingLine1: string;     // "Timeline"
+    headingLine2: string;     // second line renders in accent color ("to Launch")
+    intro?: string;
+    entries: { when: string; title: string; description: string }[];
+  };
+}
+
 export interface DeliveryTimelineBlock extends BaseBlock {
   type: 'delivery_timeline';
   content: {
@@ -166,6 +178,7 @@ export type ProposalBlock =
   | SplitNarrativeBlock
   | ActionItemsBlock
   | DeliveryTimelineBlock
+  | TimelineBlock
   | SignatureBlock;
 
 /** Narrow a ProposalBlock to one variant. */
@@ -271,6 +284,7 @@ export const BLOCK_LABELS: Record<BlockType, string> = {
   split_narrative: 'Split narrative',
   action_items: 'Action items',
   delivery_timeline: 'Delivery timeline',
+  timeline: 'Timeline',
   signature: 'Signature',
 };
 
@@ -285,5 +299,6 @@ export const BLOCK_DESCRIPTIONS: Record<BlockType, string> = {
   split_narrative: 'Two side-by-side prose columns with their own headings.',
   action_items: 'A numbered checklist of what the client needs to do.',
   delivery_timeline: 'Milestone labels paired with what lands at each one.',
+  timeline: 'A vertical timeline: each step’s dates, title and a line about it, joined down the left.',
   signature: 'Client approval line, agency signature line, and dates.',
 };

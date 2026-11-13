@@ -37,6 +37,7 @@ export function blockSummary(block: ProposalBlock): string {
       return first('subtitle', 'titleLine2', 'titleLine1') || 'Cover';
     case 'narrative':
     case 'moodboard':
+    case 'timeline':
       return (
         [first('headingLine1'), first('headingLine2')].filter(Boolean).join(' ') ||
         BLOCK_LABELS[block.type]

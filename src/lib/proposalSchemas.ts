@@ -105,6 +105,21 @@ const pricingContent = z.object({
   phaseTimelines: z.record(z.string().max(80), z.string().max(80)).optional(),
 });
 
+const timelineContent = z.object({
+  headingLine1: z.string().default('Timeline'),
+  headingLine2: z.string().default(''),
+  intro: z.string().optional(),
+  entries: z
+    .array(
+      z.object({
+        when: z.string().default(''),
+        title: z.string().default(''),
+        description: z.string().default(''),
+      }),
+    )
+    .default([]),
+});
+
 const phasesContent = z.object({
   kicker: z.string().optional(),
   phases: z
@@ -154,6 +169,7 @@ export const BLOCK_CONTENT_SCHEMAS = {
   split_narrative: splitNarrativeContent,
   action_items: actionItemsContent,
   delivery_timeline: deliveryTimelineContent,
+  timeline: timelineContent,
   signature: signatureContent,
 } as const;
 
@@ -180,6 +196,7 @@ export const proposalBlockSchema = z.discriminatedUnion('type', [
   z.object({ ...base, type: z.literal('split_narrative'), content: splitNarrativeContent }),
   z.object({ ...base, type: z.literal('action_items'), content: actionItemsContent }),
   z.object({ ...base, type: z.literal('delivery_timeline'), content: deliveryTimelineContent }),
+  z.object({ ...base, type: z.literal('timeline'), content: timelineContent }),
   z.object({ ...base, type: z.literal('signature'), content: signatureContent }),
 ]);
 
@@ -246,5 +263,6 @@ const emptySeed: Record<BlockType, Record<string, unknown>> = {
   split_narrative: { left: { heading: '', body: '' }, right: { heading: '', body: '' } },
   action_items: { items: [{ title: '', description: '' }] },
   delivery_timeline: { milestones: [{ label: '', description: '' }] },
+  timeline: { entries: [{ when: '', title: '', description: '' }] },
   signature: {},
 };

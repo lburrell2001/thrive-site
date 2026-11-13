@@ -12,6 +12,7 @@ import { PhasesForm } from './forms/PhasesForm';
 import { SplitNarrativeForm } from './forms/SplitNarrativeForm';
 import { ActionItemsForm } from './forms/ActionItemsForm';
 import { DeliveryTimelineForm } from './forms/DeliveryTimelineForm';
+import { TimelineForm } from './forms/TimelineForm';
 import { SignatureForm } from './forms/SignatureForm';
 import { BLOCK_LABELS, type ProposalBlock } from '@/types/proposal';
 
@@ -104,6 +105,8 @@ export function BlockEditor({
             onContentChange={(content) => onChange({ ...block, content })}
           />
         );
+      case 'timeline':
+        return <TimelineForm block={block} onContentChange={(content) => onChange({ ...block, content })} />;
       case 'delivery_timeline':
         return (
           <DeliveryTimelineForm
