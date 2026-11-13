@@ -215,6 +215,15 @@ export default function PipelinePage() {
   );
 }
 
+/** The proposal on a deal card, in plain words. */
+const PROPOSAL_CHIP: Record<string, string> = {
+  draft: 'Proposal draft',
+  sent: 'Proposal sent',
+  viewed: 'Proposal viewed',
+  signed: 'Approved',
+  declined: 'Proposal declined',
+};
+
 function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: {
   deal: CrmDealCard;
   today: string;
@@ -255,8 +264,9 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
             {progress.status === 'active' ? `Month ${progress.month} of ${progress.term}` : progress.status === 'upcoming' ? `Starts ${formatDate(progress.startsOn)}` : 'Ended — renew?'}
           </span>
         )}
-        {d.latest_proposal && d.stage === 'proposal' && (
-          <span className={s.chip}>{d.latest_proposal.status}</span>
+        {/* Its proposal at any stage — a draft on a Contacted deal is still this deal's proposal. */}
+        {d.latest_proposal && (
+          <span className={s.chip}>{PROPOSAL_CHIP[d.latest_proposal.status] ?? `Proposal ${d.latest_proposal.status}`}</span>
         )}
         {d.next_task_due ? (
           <span className={`${s.chip} ${late ? s.chipLate : dueToday ? s.chipDue : ''}`} title={d.next_task_title ?? undefined}>
@@ -268,7 +278,7 @@ function DealCard({ deal: d, today, dragging, onOpen, onDragStart, onDragEnd }: 
         {/* A portal login they've used reads "Client"; one never used reads "Sent" (unless the proposal already says it). */}
         {d.contact.portal_client_id && d.stage !== 'won' && (d.portal_signed_in
           ? <span className={s.chip}>Client</span>
-          : !(d.latest_proposal && d.stage === 'proposal') && <span className={s.chip}>Sent</span>)}
+          : !d.latest_proposal && <span className={s.chip}>Sent</span>)}
         {d.contact.tags.slice(0, 2).map((t) => <span key={t} className={s.chip}>{t}</span>)}
       </div>
       <p className={s.cardSub} style={{ marginTop: 6 }}>
