@@ -95,6 +95,10 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
   return out;
 }
 
+/** The line under a tiered estimate before an option is picked, and under a phased one — in Lauren's voice, to the client. */
+export const TIERS_NOTE = 'Choose the option that fits you best — your total is the price of the option you pick.';
+export const PHASES_NOTE = 'Each phase is priced and paid on its own terms. Approve the phases you’re ready for, and I’ll send the estimate for each one.';
+
 /** Client rows grouped by phase, in order, with each phase's terms and subtotal (from the rows, which may be collapsed). */
 export function phaseGroups<R extends { phase?: string; phase_terms?: string; phase_timeline?: string; range?: 'low' | 'high'; oneTime: number; monthly: number }>(rows: R[]) {
   // oneTime / monthly are the low end; with a price range (migration 063), low and high are both ends.

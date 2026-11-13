@@ -11,7 +11,7 @@
 // estimate page, before approving).
 
 import { amountText, clientRows, formatLineMoney, hasChoices, hasRange, isMonthly, isPhased, rangeText, rangeTotals, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
-import { estimateTermsLine, optionTotals, phaseGroups, type InvoiceForPDF } from '@/lib/invoicePDF';
+import { estimateTermsLine, optionTotals, phaseGroups, PHASES_NOTE, TIERS_NOTE, type InvoiceForPDF } from '@/lib/invoicePDF';
 
 export type EstimateApprove = { phases: string[]; onToggle: (phase: string, on: boolean) => void };
 
@@ -173,7 +173,9 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: 
         )}
       </>)}
 
-      {/* Tiers: no total until the client picks an option (then theirs). */}
+      {/* Tiers: no total until the client picks an option (then theirs) — just a line saying so. Phases: how they're paid. */}
+      {options.length > 0 && !picked?.tier && <p className="estimateNotes">{TIERS_NOTE}</p>}
+      {phased && <p className="estimateNotes">{PHASES_NOTE}</p>}
       {!phased && !(options.length > 0 && !picked?.tier) && <>
       <div className="estimateTotal">
         <span>{!choices && hasRange(rows) ? 'Price range' : choices ? (picked?.tier ? `${hasRange(rows) ? 'Price range' : 'Total'} — ${picked.tier}` : hasRange(rows) ? 'Price range' : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>

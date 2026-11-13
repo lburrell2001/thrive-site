@@ -22,7 +22,7 @@ import { Toast, useToast } from '../proposals/Toast';
 import { depositPercentFromTerms, hasRange, rangeLines, rangeText, rangeTotals, setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
-import { estimateTermsLine } from '@/lib/invoicePDF';
+import { estimateTermsLine, PHASES_NOTE, TIERS_NOTE } from '@/lib/invoicePDF';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import SendLater, { laterAt, scheduledFor } from '../SendLater';
@@ -2292,10 +2292,10 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
       </table>
 
       {!isInvoice && isPhased(items) ? (
-        <p className={s.paperNotes}>Phased: no grand total. The client approves phases, then you make an estimate for them.</p>
+        <p className={s.paperNotes}>{PHASES_NOTE}</p>
       ) : !isInvoice && tiersOf(items).length > 0 ? (
         // Tiers: no total until the client picks an option.
-        <p className={s.paperNotes}>No total until the client picks an option — each option’s price is listed above.</p>
+        <p className={s.paperNotes}>{TIERS_NOTE}</p>
       ) : !isInvoice && split.monthly ? (
         <>
           {split.oneTime !== 0 && (
