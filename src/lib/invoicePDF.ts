@@ -31,7 +31,7 @@ export interface InvoiceForPDF {
 /**
  * An estimate's payment terms as one line (migration 064), or null: "50%
  * deposit to start — $1,200, invoiced when you accept. The remaining $1,200
- * is invoiced later." Not for phases or a price range (their own estimates
+ * is invoiced upon final approval." Not for phases or a price range (their own estimates
  * come later).
  */
 export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'> & { selection?: LineSelection | null }): string | null {
@@ -39,9 +39,9 @@ export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'am
   const lines = (e.line_items ?? []) as LineItem[];
   if (!(pct > 0 && pct < 100) || isPhased(lines) || hasRange(lines)) return null;
   // Tiers, before the client picks: no amounts — the deposit is a share of the option they choose.
-  if (tiersOf(lines).length && !e.selection?.tier) return `Payment terms: ${pct}% deposit to start on the option you choose, invoiced when you accept. The rest is invoiced later.`;
+  if (tiersOf(lines).length && !e.selection?.tier) return `Payment terms: ${pct}% deposit to start on the option you choose, invoiced when you accept. The rest is invoiced upon final approval.`;
   const deposit = Math.round((e.amount_cents * pct) / 100);
-  return `Payment terms: ${pct}% deposit to start — ${formatLineMoney(deposit)}, invoiced when you accept. The remaining ${formatLineMoney(e.amount_cents - deposit)} is invoiced later.`;
+  return `Payment terms: ${pct}% deposit to start — ${formatLineMoney(deposit)}, invoiced when you accept. The remaining ${formatLineMoney(e.amount_cents - deposit)} is invoiced upon final approval.`;
 }
 
 type Row = { name: string; description: string; hours: number | null; amount: string; heading?: boolean };

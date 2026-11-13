@@ -213,7 +213,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             <p className="pdLead">
               {needsTier ? 'Choose your option, add any extras, and accept. ' : ''}
               {ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.'
-                : depositPct ? `Once you accept, we’ll send your invoice for the ${depositPct}% deposit${chosen && !pricing ? ` (${formatLineMoney(Math.round((pdf.amount_cents * depositPct) / 100))})` : ''} to your client portal. The rest is invoiced later.`
+                : depositPct ? `Once you accept, we’ll send your invoice for the ${depositPct}% deposit${chosen && !pricing ? ` (${formatLineMoney(Math.round((pdf.amount_cents * depositPct) / 100))})` : ''} to your client portal. The rest is invoiced upon final approval.`
                 : 'Once you accept, we’ll send your invoice to your client portal.'}
             </p>
 
