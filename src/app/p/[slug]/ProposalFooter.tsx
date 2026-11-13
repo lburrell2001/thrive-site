@@ -29,6 +29,7 @@ export function ProposalFooter({
   depositPercent,
   phases,
   ranged,
+  tiered,
   rangeLowCents,
   rangeHighCents,
 }: {
@@ -54,6 +55,8 @@ export function ProposalFooter({
   phases?: ProposalPhase[] | null;
   /** Price ranges (migration 063): approved for a low – high price, finalised in an estimate. */
   ranged?: boolean;
+  /** Tiers, before approval: options to choose from, no single total. */
+  tiered?: boolean;
   rangeLowCents?: number;
   rangeHighCents?: number;
 }) {
@@ -61,7 +64,7 @@ export function ProposalFooter({
     <div className="proposalFooter">
       <div style={{ minWidth: 0 }}>
         <div className="proposalFooterLabel">
-          {signed ? 'Approved' : phases ? 'Phased' : ranged ? 'Price range' : 'Total'} · {depositLabel}
+          {signed ? 'Approved' : phases ? 'Phased' : ranged ? 'Price range' : tiered ? 'Options' : 'Total'} · {depositLabel}
         </div>
         <div className="proposalFooterTotal">{totalLabel}</div>
       </div>

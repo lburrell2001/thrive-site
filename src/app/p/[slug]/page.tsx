@@ -70,7 +70,6 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   // Price ranges (migration 063): a low – high price, finalised in an estimate after approval.
   const rangeLines = renderable.lineItems.filter((i) => !i.is_optional);
   const ranged = !phases && hasProposalRange(rangeLines);
-  const fromCents = choices?.tiers.length ? Math.min(...choices.tiers.map((t) => t.total_cents)) : renderable.totalCents;
   const estimate = await estimateForClient(row.estimate_id ?? null);
 
   // The terms link lives on the signature block, and the modal needs it.
@@ -155,10 +154,12 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         token={token ?? ''}
         totalLabel={phases ? `${phases.length} phase${phases.length === 1 ? '' : 's'}`
           : ranged && !choices?.tiers.length ? (() => { const e = endTotals(rangeLines); return rangeLabel(e.low, e.high, (c) => formatMoney(c, renderable.currency)); })()
-          : choices?.tiers.length && renderable.status !== 'signed' ? `From ${formatMoney(fromCents, renderable.currency)}` : formatMoney(renderable.totalCents, renderable.currency)}
-        depositLabel={phases ? 'Each phase on its own terms' : ranged ? 'Price range · final price in your estimate' : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
+          : choices?.tiers.length && renderable.status !== 'signed' ? `${choices.tiers.length} options` : formatMoney(renderable.totalCents, renderable.currency)}
+        depositLabel={phases ? 'Each phase on its own terms' : ranged ? 'Price range · final price in your estimate'
+          : choices?.tiers.length && renderable.status !== 'signed' ? (renderable.depositPercent > 0 && renderable.depositPercent < 100 ? `${renderable.depositPercent}% deposit on the option you choose` : 'Choose one when you approve') : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
         phases={phases}
         ranged={ranged}
+        tiered={!!choices?.tiers.length && renderable.status !== 'signed'}
         rangeLowCents={ranged ? (() => { const e = endTotals(rangeLines); return e.low.oneTime + e.low.monthly; })() : undefined}
         rangeHighCents={ranged ? (() => { const e = endTotals(rangeLines); return e.high.oneTime + e.high.monthly; })() : undefined}
         pdfHref={`/api/proposals/${row.id}/pdf?t=${encodeURIComponent(token ?? '')}`}

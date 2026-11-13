@@ -168,8 +168,9 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
         </div>
       )}
 
-      <div className={styles.pricingTotal}>
-        <span className={styles.pricingTotalLabel}>{tiers.length > 0 ? 'Starting at' : c.totalLabel}</span>
+      {/* Tiers: no total — each option's price is on its card; the client picks one when they approve. */}
+      {tiers.length > 0 ? (deposit && <p className={styles.pricingPhaseNote}>{deposit}</p>) : <div className={styles.pricingTotal}>
+        <span className={styles.pricingTotalLabel}>{c.totalLabel}</span>
         <div className={styles.pricingTotalRight}>
           <div className={styles.pricingTotalValue}>
             {ranged ? (() => { const e = endTotals(shownLines); return rangeLabel(e.low, e.high, money); })()
@@ -184,7 +185,7 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
           {choices && <div className={styles.pricingDeposit}>{tiers.length ? 'Choose your option when you approve' : 'Plus any extras you add when you approve'}</div>}
           {deposit && <div className={styles.pricingDeposit}>{deposit}</div>}
         </div>
-      </div>
+      </div>}
 
       <p className={styles.pricingPhaseNote}>
         {tiers.length > 0
