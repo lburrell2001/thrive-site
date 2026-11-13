@@ -7,7 +7,7 @@
 // IP, a snapshot of what they approved) exactly as a signature was.
 
 import { useState } from "react";
-import type { ProposalChoices } from "@/lib/proposalChoices";
+import type { ProposalChoices, ProposalPhase } from "@/lib/proposalChoices";
 import { ClientDialog } from "@/components/ClientDialog";
 
 interface ApproveResult {
@@ -17,6 +17,8 @@ interface ApproveResult {
   portalPath: string;
   needsSetup?: boolean;
   receiptEmail: string;
+  /** Phases (migration 062): what they approved. */
+  phases?: string[];
 }
 
 export function ApproveAction({
@@ -28,6 +30,7 @@ export function ApproveAction({
   currency = "USD",
   totalCents,
   depositPercent,
+  phases,
 }: {
   slug: string;
   token: string;
@@ -38,10 +41,13 @@ export function ApproveAction({
   /** The total when there's nothing to choose. */
   totalCents: number;
   depositPercent: number;
+  /** Phases (migration 062): approved phase by phase — no total, no deposit. */
+  phases?: ProposalPhase[] | null;
 }) {
   const [open, setOpen] = useState(false);
   const [tier, setTier] = useState<string | null>(null);
   const [extras, setExtras] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>(() => (phases ?? []).map((p) => p.name));
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [agreed, setAgreed] = useState(false);
@@ -55,7 +61,7 @@ export function ApproveAction({
   const base = needsTier ? choices!.tiers.find((t) => t.name === tier)?.total_cents ?? null : totalCents;
   const total = base === null ? null : base + (choices?.extras.filter((e) => extras.includes(e.id)).reduce((n, e) => n + e.amount_cents, 0) ?? 0);
   const deposit = total !== null && depositPercent > 0 && depositPercent < 100 ? Math.round((total * depositPercent) / 100) : null;
-  const ready = (!needsTier || !!tier) && name.trim() && /\S+@\S+\.\S+/.test(email) && agreed;
+  const ready = (!needsTier || !!tier) && (!phases || picked.length > 0) && name.trim() && /\S+@\S+\.\S+/.test(email) && agreed;
 
   async function approve(e: React.FormEvent) {
     e.preventDefault();
@@ -72,7 +78,7 @@ export function ApproveAction({
           typedName: name.trim(),
           agreedTerms: true,
           token,
-          ...(choices ? { selection: { tier, optional: extras } } : {}),
+          ...(phases ? { phases: picked } : choices ? { selection: { tier, optional: extras } } : {}),
         }),
       });
       const body = (await res.json().catch(() => ({}))) as { data?: ApproveResult; error?: string };
@@ -90,8 +96,22 @@ export function ApproveAction({
         Approve proposal
       </button>
 
-      <ClientDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="approve-title" locked={busy} wide={!!choices}>
-        {result ? (
+      <ClientDialog open={open} onClose={() => { if (result) window.location.reload(); else setOpen(false); }} labelledBy="approve-title" locked={busy} wide={!!choices || !!phases}>
+        {result && phases ? (
+          <div className="pdDone">
+            <span className="pdCheck" aria-hidden>✓</span>
+            <h2 id="approve-title" className="pdTitle">Approved — thank you!</h2>
+            <p className="pdLead">Your receipt is on its way to {result.receiptEmail}.</p>
+            <dl className="pdSummary">
+              <div><dt>{(result.phases ?? picked).length === 1 ? "Phase" : "Phases"}</dt><dd>{(result.phases ?? picked).join(", ")}</dd></div>
+            </dl>
+            <p className="pdLead">Lauren will send you the estimate for {(result.phases ?? picked).length === 1 ? "this phase" : "each phase"} next — nothing is invoiced until you accept it.</p>
+            <div className="pdActions">
+              <a className="pdBtn pdBtnGhost" href={pdfHref} target="_blank" rel="noopener noreferrer">Save a PDF</a>
+              <button type="button" className="pdBtn" onClick={() => window.location.reload()}>Done</button>
+            </div>
+          </div>
+        ) : result ? (
           <div className="pdDone">
             <span className="pdCheck" aria-hidden>✓</span>
             <h2 id="approve-title" className="pdTitle">Approved — thank you!</h2>
@@ -116,11 +136,37 @@ export function ApproveAction({
           </div>
         ) : (
           <form onSubmit={approve} noValidate>
-            <h2 id="approve-title" className="pdTitle">Approve proposal</h2>
+            <h2 id="approve-title" className="pdTitle">{phases ? "Approve phases" : "Approve proposal"}</h2>
             <p className="pdLead">
-              {needsTier ? "Choose your option, add any extras, and approve. " : ""}
+              {phases ? "Tick the phases you’d like to go ahead with. Each phase is paid on its own terms — we’ll send you its estimate next. "
+                : needsTier ? "Choose your option, add any extras, and approve. " : ""}
               We’ll record the date and time and keep a copy of exactly what you approved.
             </p>
+
+            {phases && (
+              <fieldset className="pdGroup">
+                <legend className="pdLabel">Phases <span className="pdReq">At least one</span></legend>
+                <div className="pdExtras">
+                  {phases.map((ph, i) => {
+                    const on = picked.includes(ph.name);
+                    return (
+                      <label key={ph.name} className={`pdExtra${on ? " pdOn" : ""}`}>
+                        <input type="checkbox" checked={on}
+                          onChange={(e) => setPicked((cur) => phases.map((p) => p.name).filter((n) => (n === ph.name ? e.target.checked : cur.includes(n))))} />
+                        <span className="pdExtraText">
+                          <span className="pdExtraName">Phase {i + 1}: {ph.name}</span>
+                          <span className="pdExtraDesc">{ph.terms ? `Payment terms: ${ph.terms}` : "Payment terms to follow"}</span>
+                        </span>
+                        <span className="pdExtraPrice">
+                          {ph.total_cents > 0 || !ph.monthly_cents ? money(ph.total_cents) : ""}
+                          {ph.monthly_cents > 0 ? `${ph.total_cents > 0 ? " + " : ""}${money(ph.monthly_cents)}/mo` : ""}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
 
             {needsTier && (
               <fieldset className="pdGroup">
@@ -160,7 +206,7 @@ export function ApproveAction({
               </fieldset>
             )}
 
-            <div className="pdTotal" aria-live="polite">
+            {!phases && <div className="pdTotal" aria-live="polite">
               <div>
                 <span>Your total</span>
                 <strong>{total === null ? "Choose an option" : money(total)}</strong>
@@ -171,7 +217,7 @@ export function ApproveAction({
                   <strong>{money(deposit)}</strong>
                 </div>
               )}
-            </div>
+            </div>}
 
             <div className="pdFields">
               <label className="pdField">
@@ -187,7 +233,9 @@ export function ApproveAction({
             <label className="pdAgree">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
               <span>
-                I approve this proposal{total !== null ? ` for ${money(total)}` : ""} and agree to
+                {phases
+                  ? `I approve ${picked.length === 1 ? "this phase" : "these phases"} (each invoiced only after I accept its estimate) and agree to`
+                  : `I approve this proposal${total !== null ? ` for ${money(total)}` : ""} and agree to`}
                 {termsUrl
                   ? <> the <a href={termsUrl} target="_blank" rel="noopener noreferrer">terms of engagement</a>.</>
                   : " the scope and pricing set out in it."}
@@ -199,7 +247,8 @@ export function ApproveAction({
             <div className="pdActions">
               <button type="button" className="pdBtn pdBtnGhost" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
               <button type="submit" className="pdBtn" disabled={busy || !ready}>
-                {busy ? "Approving…" : needsTier && !tier ? "Choose an option first" : "Approve proposal"}
+                {busy ? "Approving…" : phases ? (picked.length ? `Approve ${picked.length === 1 ? "phase" : `${picked.length} phases`}` : "Tick a phase first")
+                  : needsTier && !tier ? "Choose an option first" : "Approve proposal"}
               </button>
             </div>
           </form>

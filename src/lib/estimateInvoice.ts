@@ -17,7 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { makePortalClient } from './portalClient';
 import { nextInvoiceNumberFor } from './invoiceHelpers';
 import { notifyPortalClient } from './clientNotify';
-import { formatLineMoney, hasChoices, selectLines, totalCents, type LineItem, type LineSelection } from './lineItems';
+import { formatLineMoney, hasChoices, isPhased, selectLines, totalCents, type LineItem, type LineSelection } from './lineItems';
 import { SITE_URL } from './seo';
 import { projectChecklistFromEstimate } from './projectWork';
 
@@ -43,6 +43,8 @@ export async function invoiceForEstimate(
   }
   // Tiers and extras (migration 061): only the chosen option, the shared lines and the ticked extras.
   const all = (est.line_items ?? []) as LineItem[];
+  // Phases (migration 062) are never invoiced as a whole: Lauren makes an estimate per phase.
+  if (isPhased(all)) return { ok: false, error: 'A phased estimate isn’t invoiced directly — make an estimate from its phases' };
   const selection = (est.selection ?? null) as LineSelection | null;
   const lines = hasChoices(all) ? selectLines(all, selection) : all;
   const total = hasChoices(all) ? totalCents(all, selection) : est.total_cents;

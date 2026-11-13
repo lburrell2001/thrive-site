@@ -14,7 +14,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { invoiceForEstimate } from './estimateInvoice';
 import { sendPortalInvite } from './portalSetup';
-import { formatLineMoney } from './lineItems';
+import { formatLineMoney, isPhased, type LineItem } from './lineItems';
 
 type Est = { id: string; portal_client_id: string | null; crm_contact_id: string | null; sent_to: string | null };
 
@@ -55,11 +55,13 @@ export type AcceptedWaiting = {
 
 /** Accepted estimates and signed proposals still waiting for a portal. */
 export async function acceptedWaiting(db: SupabaseClient): Promise<AcceptedWaiting[]> {
-  const { data, error } = await db.from('estimates')
-    .select('id, estimate_number, title, client_name, total_cents, accepted_at, accepted_by, crm_contact_id, sent_to, portal_client_id, invoice_id, status')
+  const res = await db.from('estimates')
+    .select('id, estimate_number, title, client_name, total_cents, accepted_at, accepted_by, crm_contact_id, sent_to, portal_client_id, invoice_id, status, line_items')
     .not('accepted_at', 'is', null).is('invoice_id', null).neq('status', 'declined')
     .order('accepted_at', { ascending: false }).limit(50);
-  if (error || !data) return [];
+  if (res.error || !res.data) return [];
+  // Approved phases (migration 062) wait on Lauren's phase estimate instead, not a portal.
+  const data = res.data.filter((e) => !isPhased((e.line_items ?? []) as LineItem[]));
   const ids = data.map((e) => e.id);
   const { data: props } = ids.length
     ? await db.from('proposals').select('estimate_id').in('estimate_id', ids).eq('status', 'signed')

@@ -77,6 +77,8 @@ export async function POST(req: Request, { params }: Ctx) {
       // Migration 061 (absent before it).
       ...(row.tier ? { tier: row.tier } : {}),
       ...(row.is_optional ? { is_optional: true } : {}),
+      // Migration 062.
+      ...(row.phase ? { phase: row.phase, phase_terms: row.phase_terms ?? null } : {}),
     })),
   });
   if (saveError) return badRequest(saveError.message);

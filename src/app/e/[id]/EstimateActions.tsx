@@ -7,7 +7,9 @@
 // in the dialog or on the paper (one shared choice). Accepting turns it into
 // an invoice in their portal if they have one; if not, Lauren sets their
 // portal up and the invoice waits there (src/lib/acceptedPortal.ts). A decline
-// needs a reason (migration 058), which Lauren is sent.
+// needs a reason (migration 058), which Lauren is sent. A phased estimate
+// (migration 062) is approved phase by phase instead: no total, no invoice —
+// Lauren is texted and sends the estimate for the approved phases.
 
 import { useState } from 'react';
 import { ClientDialog } from '@/components/ClientDialog';
@@ -22,14 +24,22 @@ export type EstimateChooser = {
   onExtra: (source: number, on: boolean) => void;
 };
 
+export type EstimatePhaser = {
+  all: { name: string; terms: string; amount: string }[];
+  selected: string[];
+  onToggle: (phase: string, on: boolean) => void;
+};
+
 const REASONS = ['The price', 'The timing', 'The scope isn’t right', 'We’re going another way', 'Something else'];
 
-export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, chooser, pricing = false }: {
+export function EstimateActions({ id, token, pdf, clientName, totalLabel, accepted, canAccept, declined = false, invoiced = false, chooser, pricing = false, phaser }: {
   id: string; token: string; pdf: InvoiceForPDF; clientName: string | null; totalLabel: string; accepted: boolean; canAccept: boolean; declined?: boolean; invoiced?: boolean;
   /** Tiers and extras: the options, the extras and the shared choice. */
   chooser?: EstimateChooser;
   /** The total is being worked out for a new choice. */
   pricing?: boolean;
+  /** Phases: which ones they're approving. */
+  phaser?: EstimatePhaser;
 }) {
   const [acceptOpen, setAcceptOpen] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
@@ -46,7 +56,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
   const sel = chooser?.selection;
   const needsTier = !!chooser?.options.length;
   const chosen = !needsTier || !!sel?.tier;
-  const ready = chosen && !pricing && name.trim() && agreed;
+  const ready = chosen && !pricing && name.trim() && agreed && (!phaser || phaser.selected.length > 0);
   const reason = [chip && chip !== 'Something else' ? chip : null, detail.trim() || null].filter(Boolean).join(' — ');
 
   async function exportPdf() {
@@ -67,7 +77,8 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
       const res = await fetch(`/e/${id}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, name: name.trim(), agreed, ...(sel ? { selection: sel } : {}) }),
+        body: JSON.stringify({ token, name: name.trim(), agreed,
+          ...(phaser ? { selection: { tier: null, optional: [], phases: phaser.selected } } : sel ? { selection: sel } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { error?: string; invoiceReady?: boolean; needsSetup?: boolean };
       if (!res.ok) setError(body.error ?? 'Something went wrong. Please try again.');
@@ -104,7 +115,7 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
     <>
       <div className="proposalFooter">
         <div style={{ minWidth: 0 }}>
-          <div className="proposalFooterLabel">{isAccepted ? 'Accepted' : isDeclined ? 'Declined' : 'Estimate total'}</div>
+          <div className="proposalFooterLabel">{isAccepted ? (phaser ? 'Approved' : 'Accepted') : isDeclined ? 'Declined' : phaser ? 'Phased estimate' : 'Estimate total'}</div>
           <div className="proposalFooterTotal">{totalLabel}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -115,14 +126,62 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             (invoiced || done?.invoiceReady) ? <a className="proposalFooterAction proposalFooterActionPrimary" href="/portal/invoices">Go to your invoice</a> : null
           ) : canAccept && !isDeclined ? (<>
             <button type="button" className="proposalFooterAction" onClick={() => { setError(''); setDeclineOpen(true); }}>Not going ahead</button>
-            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setAcceptOpen(true); }}>Accept estimate</button>
+            <button type="button" className="proposalFooterAction proposalFooterActionPrimary" onClick={() => { setError(''); setAcceptOpen(true); }}>{phaser ? 'Approve phases' : 'Accept estimate'}</button>
           </>) : null}
         </div>
       </div>
 
       {/* Accept */}
-      <ClientDialog open={acceptOpen} onClose={() => { if (done) window.location.reload(); else setAcceptOpen(false); }} labelledBy="accept-title" locked={busy} wide={needsTier || !!chooser?.extras.length}>
-        {done ? (
+      <ClientDialog open={acceptOpen} onClose={() => { if (done) window.location.reload(); else setAcceptOpen(false); }} labelledBy="accept-title" locked={busy} wide={needsTier || !!chooser?.extras.length || !!phaser}>
+        {phaser ? (done ? (
+          <div className="pdDone">
+            <span className="pdCheck" aria-hidden>✓</span>
+            <h2 id="accept-title" className="pdTitle">Approved — thank you!</h2>
+            <dl className="pdSummary">
+              <div><dt>{phaser.selected.length === 1 ? 'Phase' : 'Phases'}</dt><dd>{phaser.selected.join(', ')}</dd></div>
+            </dl>
+            <p className="pdLead">Lauren will send you the estimate for {phaser.selected.length === 1 ? 'this phase' : 'each phase'} next — nothing is invoiced until you accept it.</p>
+            <div className="pdActions"><button type="button" className="pdBtn" onClick={() => window.location.reload()}>Done</button></div>
+          </div>
+        ) : (
+          <form onSubmit={accept} noValidate>
+            <h2 id="accept-title" className="pdTitle">Approve phases</h2>
+            <p className="pdLead">Tick the phases you’d like to go ahead with. Each phase is paid on its own terms — we’ll send you its estimate next.</p>
+            <fieldset className="pdGroup">
+              <legend className="pdLabel">Phases <span className="pdReq">At least one</span></legend>
+              <div className="pdExtras">
+                {phaser.all.map((ph, i) => {
+                  const on = phaser.selected.includes(ph.name);
+                  return (
+                    <label key={ph.name} className={`pdExtra${on ? ' pdOn' : ''}`}>
+                      <input type="checkbox" checked={on} onChange={(e) => phaser.onToggle(ph.name, e.target.checked)} />
+                      <span className="pdExtraText">
+                        <span className="pdExtraName">Phase {i + 1}: {ph.name}</span>
+                        <span className="pdExtraDesc">{ph.terms ? `Payment terms: ${ph.terms}` : 'Payment terms to follow'}</span>
+                      </span>
+                      <span className="pdExtraPrice">{ph.amount}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <label className="pdField">
+              <span>Your name</span>
+              <input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" required />
+            </label>
+            <label className="pdAgree">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+              <span>I approve {phaser.selected.length === 1 ? 'this phase' : 'these phases'} and understand each one is invoiced only after I accept its estimate.</span>
+            </label>
+            {error && <p className="pdError" role="alert">{error}</p>}
+            <div className="pdActions">
+              <button type="button" className="pdBtn pdBtnGhost" onClick={() => setAcceptOpen(false)} disabled={busy}>Cancel</button>
+              <button type="submit" className="pdBtn" disabled={busy || !ready}>
+                {busy ? 'Approving…' : !phaser.selected.length ? 'Tick a phase first' : `Approve ${phaser.selected.length === 1 ? 'phase' : `${phaser.selected.length} phases`}`}
+              </button>
+            </div>
+          </form>
+        )) : done ? (
           <div className="pdDone">
             <span className="pdCheck" aria-hidden>✓</span>
             <h2 id="accept-title" className="pdTitle">Accepted — thank you!</h2>

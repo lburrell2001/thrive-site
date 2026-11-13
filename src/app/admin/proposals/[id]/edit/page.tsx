@@ -494,7 +494,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
           </div>
 
           {signatures.length > 0 && (
-            <SignedBanner signature={signatures[0]} currency={meta.currency} proposalId={id} depositPercent={doc.depositPercent} />
+            <SignedBanner signature={signatures[0]} currency={meta.currency} proposalId={id} depositPercent={doc.depositPercent}
+              phasedEstimateId={doc.lineItems.some((i) => i.phase?.trim()) ? estimate?.id ?? null : undefined} />
           )}
           {meta.status === 'declined' && <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />}
           {scheduledSend && (
@@ -676,6 +677,8 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
                 position: item.position,
                 tier: item.tier ?? null,
                 is_optional: !!item.is_optional,
+                phase: item.phase ?? null,
+                phase_terms: item.phase_terms ?? null,
               }))}
               imageUrls={imageUrls}
               headerNote={doc.headerNote}
@@ -738,7 +741,10 @@ function SignedBanner({
   currency,
   proposalId,
   depositPercent,
+  phasedEstimateId,
 }: {
+  /** Phases (migration 062): approved phase by phase — make an estimate from them, not an invoice. */
+  phasedEstimateId?: string | null;
   signature: SignatureRow;
   currency: string;
   proposalId: string;
@@ -754,9 +760,17 @@ function SignedBanner({
         {signature.ip_address ? ` · ${signature.ip_address}` : ''}
       </p>
       <div className={pb.bannerActions}>
-        <Link href={`/admin/invoices?proposal=${proposalId}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>
-          {split ? `Make the invoice (${depositPercent}% deposit first)` : 'Make the invoice'}
-        </Link>
+        {phasedEstimateId !== undefined ? (
+          phasedEstimateId ? (
+            <Link href={`/admin/invoices?estimate=${phasedEstimateId}`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>
+              Make an estimate from the approved phases
+            </Link>
+          ) : null
+        ) : (
+          <Link href={`/admin/invoices?proposal=${proposalId}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}>
+            {split ? `Make the invoice (${depositPercent}% deposit first)` : 'Make the invoice'}
+          </Link>
+        )}
       </div>
       <p className={pb.bannerSmall}>
         Editing changes the live document only. What was signed is frozen on the signature record.

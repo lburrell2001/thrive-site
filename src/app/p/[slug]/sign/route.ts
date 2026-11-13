@@ -19,7 +19,8 @@ import { proposalPdfUrl, proposalPrintUrl, resolveSiteOrigin } from '@/lib/propo
 import { formatMoney } from '@/components/proposal/context';
 import { syncProposalEstimate } from '@/lib/proposalEstimate';
 import { afterAccept } from '@/lib/acceptedPortal';
-import { choiceTotalFor, proposalChoices } from '@/lib/proposalChoices';
+import { choiceTotalFor, proposalChoices, proposalPhases } from '@/lib/proposalChoices';
+import { recordPhaseApproval } from '@/lib/phaseApproval';
 import { totalCents, type LineItem } from '@/lib/lineItems';
 
 /**
@@ -65,6 +66,8 @@ const signRequestSchema = z.object({
     tier: z.string().trim().max(80).nullable(),
     optional: z.array(z.string().uuid()).max(100),
   }).optional(),
+  /** Phases (migration 062): the phases they approve, by name. */
+  phases: z.array(z.string().trim().min(1).max(80)).max(50).optional(),
 });
 
 function fail(message: string, status = 400) {
@@ -111,14 +114,20 @@ export async function POST(
     return fail('This proposal is no longer open for approval.', 409);
   }
 
+  // Phases (migration 062): at least one approved; the approval is for those phases' subtotals.
+  const offeredPhases = proposalPhases(renderable.lineItems);
+  const approvedPhases = offeredPhases ? offeredPhases.filter((p) => input.phases?.includes(p.name)) : null;
+  if (approvedPhases && !approvedPhases.length) return fail('Tick at least one phase to approve.');
+
   // With tiers, they must have picked one (nothing is preselected on the page).
-  const offered = proposalChoices(renderable.lineItems);
+  const offered = offeredPhases ? null : proposalChoices(renderable.lineItems);
   if (offered?.tiers.length && !offered.tiers.some((t) => t.name === input.selection?.tier)) {
     return fail('Choose an option before approving.');
   }
   // Their choice of option and extras decides the total they're approving.
-  const choice = choiceTotalFor(renderable.lineItems, input.selection);
-  const agreedCents = choice ? choice.total_cents : renderable.totalCents;
+  const choice = offeredPhases ? null : choiceTotalFor(renderable.lineItems, input.selection);
+  const agreedCents = approvedPhases ? approvedPhases.reduce((n, p) => n + p.total_cents + p.monthly_cents, 0)
+    : choice ? choice.total_cents : renderable.totalCents;
 
   const db = proposalServiceClient();
   const signedAt = new Date();
@@ -169,7 +178,11 @@ export async function POST(
   // without one, Lauren is asked to set the portal up (src/lib/acceptedPortal.ts).
   let invoiceReady = false;
   let needsSetup = false;
-  if (estimateId) {
+  if (estimateId && approvedPhases) {
+    // Phases: no invoice — the estimate records the phases, and Lauren makes the estimate for them.
+    const { error: phaseErr } = await recordPhaseApproval(db, estimateId, approvedPhases.map((p) => p.name), { name: input.signerName, ip: ipAddress, at: signedAt.toISOString() });
+    if (phaseErr) console.error('[sign] phases not saved', row.id, phaseErr.message);
+  } else if (estimateId) {
     // The estimate's lines follow the proposal's (by position): the chosen extras by index.
     if (choice) {
       const order = [...renderable.lineItems].sort((a, b) => a.position - b.position).filter((i) => i.label.trim());
@@ -195,6 +208,7 @@ export async function POST(
       user_agent: userAgent,
       content_hash: snapshot.contentHash,
       total_cents: agreedCents,
+      ...(approvedPhases ? { phases: approvedPhases.map((p) => p.name) } : {}),
     },
   });
 
@@ -206,7 +220,10 @@ export async function POST(
   // after the response goes out rather than inside it.
   after(async () => {
     // First, so a slow PDF render does not delay the good news.
-    await textAgency(needsSetup
+    const makeUrl = `${site}/admin/invoices?estimate=${estimateId ?? ''}`;
+    await textAgency(approvedPhases
+      ? `Phases approved: ${renderable.title} by ${input.signerName} — ${approvedPhases.map((p) => p.name).join(', ')}. Make the estimate: ${estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit`}`
+      : needsSetup
       ? `Approved: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. Set up their portal: ${site}/admin#portal-accepted`
       : `Approved: ${renderable.title} by ${input.signerName} — ${formatMoney(agreedCents, renderable.currency)}. ${site}/admin/crm/proposals/${row.id}/edit`,
     );
@@ -233,6 +250,7 @@ export async function POST(
       setupUrl: `${site}/admin#portal-accepted`,
       contentHash: snapshot.contentHash,
       ipAddress,
+      phases: approvedPhases ? { names: approvedPhases.map((p) => p.name), makeUrl: estimateId ? makeUrl : `${site}/admin/crm/proposals/${row.id}/edit` } : null,
       pdf,
     });
   });
@@ -248,6 +266,7 @@ export async function POST(
       invoiceReady,
       needsSetup,
       receiptEmail: input.signerEmail,
+      ...(approvedPhases ? { phases: approvedPhases.map((p) => p.name) } : {}),
     },
   });
 }

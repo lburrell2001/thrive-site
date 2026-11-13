@@ -1,4 +1,4 @@
-import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
+import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, isPhased, splitTotals, tierTotal, tiersOf, type LineItem, type LineSelection } from './lineItems';
 import { dueNow } from './invoiceDeposit';
 
 export interface InvoiceForPDF {
@@ -44,6 +44,15 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
   }
   const rows = clientRows(lines as LineItem[], !!invoice.totals_only);
   const plain = (r: (typeof rows)[number]): Row => ({ name: r.name, description: r.description.trim(), hours: r.hours, amount: amountText(r.oneTime, r.monthly) });
+  if (isPhased(rows)) {
+    // Phases (migration 062): each phase with its terms, its lines and its subtotal — no grand total.
+    const approved = invoice.selection?.phases;
+    return phaseGroups(rows).flatMap((g, n): Row[] => [
+      { name: `Phase ${n + 1}: ${g.name}${approved?.includes(g.name) ? ' — approved' : ''}`, description: g.terms ? `Payment terms: ${g.terms}` : '', hours: null, amount: '', heading: true },
+      ...g.rows.map(plain),
+      { name: `Phase ${n + 1} total`, description: '', hours: null, amount: amountText(g.oneTime, g.monthly) },
+    ]);
+  }
   if (!hasChoices(rows)) return rows.map(plain);
   // Tiers and extras: the items (a line in one option names it), then each option's total, then the extras.
   const totals = optionTotals(invoice);
@@ -60,6 +69,21 @@ export function tableRows(invoice: InvoiceForPDF): Row[] {
       const ticked = chosen && r.source !== undefined && chosen.optional.includes(r.source);
       out.push({ ...plain(r), name: `${r.name}${ticked ? ' — added' : chosen ? '' : ' (optional)'}` });
     }
+  }
+  return out;
+}
+
+/** Client rows grouped by phase, in order, with each phase's terms and subtotal (from the rows, which may be collapsed). */
+export function phaseGroups<R extends { phase?: string; phase_terms?: string; oneTime: number; monthly: number }>(rows: R[]) {
+  const out: { name: string; terms: string; rows: R[]; oneTime: number; monthly: number }[] = [];
+  for (const r of rows) {
+    if (!r.phase) continue;
+    let g = out.find((x) => x.name === r.phase);
+    if (!g) { g = { name: r.phase, terms: '', rows: [], oneTime: 0, monthly: 0 }; out.push(g); }
+    if (!g.terms && r.phase_terms) g.terms = r.phase_terms;
+    g.rows.push(r);
+    g.oneTime += r.oneTime;
+    g.monthly += r.monthly;
   }
   return out;
 }
@@ -255,7 +279,9 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     ? defaultSelection(invoice.line_items as LineItem[], invoice.selection) : null;
   const split = invoice.line_items?.length ? splitTotals(invoice.line_items as LineItem[], sel) : { oneTime: invoice.amount_cents, monthly: 0 };
   const choiceLabel = sel?.tier ? ` — ${sel.tier.toUpperCase()}${invoice.selection ? '' : ', NO EXTRAS'}` : sel && !invoice.selection ? ' — NO EXTRAS' : '';
-  const totals: { label: string; value: string }[] = sel && !split.monthly
+  // A phased estimate has no grand total: each phase's subtotal is in the table.
+  const totals: { label: string; value: string }[] = invoice.line_items?.length && isPhased(invoice.line_items as LineItem[]) ? []
+    : sel && !split.monthly
     ? [{ label: `${isEstimate ? 'ESTIMATE TOTAL' : 'TOTAL DUE'}${choiceLabel}`, value: fmtMoney(split.oneTime) }]
     : isEstimate && split.monthly
     ? [

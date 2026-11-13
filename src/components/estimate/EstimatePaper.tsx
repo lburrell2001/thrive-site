@@ -5,9 +5,15 @@
 // Tiers and extras (migration 061): the items (a line in one option tagged
 // with its name), then each option's total, then the extras. With `choose`, the options are radio
 // buttons and the extras checkboxes (the estimate page, before accepting).
+//
+// Phases (migration 062): each phase with its payment terms, its lines and its
+// subtotal, and no grand total. With `approve`, each phase has a checkbox (the
+// estimate page, before approving).
 
-import { amountText, formatLineMoney, hasChoices, isMonthly, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
-import { optionTotals, type InvoiceForPDF } from '@/lib/invoicePDF';
+import { amountText, clientRows, formatLineMoney, hasChoices, isMonthly, isPhased, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { optionTotals, phaseGroups, type InvoiceForPDF } from '@/lib/invoicePDF';
+
+export type EstimateApprove = { phases: string[]; onToggle: (phase: string, on: boolean) => void };
 
 export type EstimateChoose = {
   selection: LineSelection;
@@ -20,10 +26,48 @@ const stripMo = (d: string) => d.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
 
 /** "$1,250", "$100/mo": the headline figure for a footer. */
 export function estimateTotalLabel(pdf: InvoiceForPDF): string {
+  // Phases have no grand total.
+  if (isPhased(pdf.line_items ?? [])) return phasesLabel(pdf);
+
   // With choices the rows can't be re-added (discounts follow the choice): the saved total is the default or chosen one.
   if (hasChoices(pdf.line_items ?? [])) return formatLineMoney(pdf.amount_cents);
   const split = splitTotals(pdf.line_items ?? []);
   return split.monthly && !split.oneTime ? `${formatLineMoney(split.monthly)}/mo` : formatLineMoney(split.oneTime);
+}
+
+/** "3 phases", for where a total would go. */
+export function phasesLabel(pdf: InvoiceForPDF): string {
+  const n = new Set((pdf.line_items ?? []).map((r) => r.phase).filter(Boolean)).size;
+  return `${n} phase${n === 1 ? '' : 's'}`;
+}
+
+function Phases({ pdf, approve }: { pdf: InvoiceForPDF; approve?: EstimateApprove }) {
+  const groups = phaseGroups(clientRows(pdf.line_items ?? [], false));
+  const approved = pdf.selection?.phases;
+  return (<>
+    {groups.map((g, n) => {
+      const on = approve ? approve.phases.includes(g.name) : !!approved?.includes(g.name);
+      return (
+        <section key={g.name} className={`estimateSection estimatePhase${on ? ' estimateOptionOn' : ''}`}>
+          <h2 className="estimateSectionHead estimatePhaseHead">
+            {approve ? (
+              <label className="estimatePick">
+                <input type="checkbox" checked={on} onChange={(e) => approve.onToggle(g.name, e.target.checked)} />
+                <span>Phase {n + 1}: {g.name}</span>
+              </label>
+            ) : <span>Phase {n + 1}: {g.name}{approved ? (on ? ' — approved' : '') : ''}</span>}
+          </h2>
+          <ul className="estimateRows">
+            {(pdf.line_items ?? []).filter((r) => r.phase === g.name).map((r, i) => <Row key={i} r={r} />)}
+          </ul>
+          <div className="estimatePhaseFoot">
+            <span className="estimatePhaseTerms">{g.terms ? <>Payment terms: <strong>{g.terms}</strong></> : 'Payment terms to follow'}</span>
+            <strong className="estimatePhaseTotal">{amountText(g.oneTime, g.monthly)}</strong>
+          </div>
+        </section>
+      );
+    })}
+  </>);
 }
 
 function Row({ r, control }: { r: LineItem; control?: React.ReactNode }) {
@@ -39,14 +83,17 @@ function Row({ r, control }: { r: LineItem; control?: React.ReactNode }) {
   );
 }
 
-export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
+export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: {
   pdf: InvoiceForPDF; clientName: string | null;
+  /** Phases: the client can still tick the phases they approve. */
+  approve?: EstimateApprove;
   /** The client can still pick an option and extras. */
   choose?: EstimateChoose;
   /** The live total for the current choice. */
   totalLabel?: string;
 }) {
   const rows = pdf.line_items ?? [];
+  const phased = isPhased(rows);
   const choices = hasChoices(rows);
   const split = choices ? { oneTime: pdf.amount_cents, monthly: 0 } : splitTotals(rows);
   const options = choices ? optionTotals(pdf) : [];
@@ -71,7 +118,7 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
         </div>
       </div>
 
-      {!choices ? (
+      {phased ? <Phases pdf={pdf} approve={approve} /> : !choices ? (
         <ul className="estimateRows">
           {rows.map((r, i) => <Row key={i} r={r} />)}
         </ul>
@@ -121,6 +168,7 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
         )}
       </>)}
 
+      {!phased && <>
       <div className="estimateTotal">
         <span>{choices ? (picked?.tier ? `Total — ${picked.tier}` : 'Estimate total') : split.monthly && split.oneTime ? 'One-time total' : split.monthly ? 'Monthly' : 'Estimate total'}</span>
         <strong>{totalLabel ?? estimateTotalLabel(pdf)}</strong>
@@ -128,6 +176,7 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel }: {
       {split.monthly > 0 && split.oneTime > 0 && (
         <div className="estimateTotal estimateTotalSub"><span>Monthly</span><strong>{formatLineMoney(split.monthly)}/mo</strong></div>
       )}
+      </>}
       {pdf.notes?.trim() && <p className="estimateNotes">{pdf.notes.trim()}</p>}
     </article>
   );

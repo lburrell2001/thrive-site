@@ -46,6 +46,10 @@ export const estimateSchema = z.object({
   issue_date: isoDate,
   valid_until: isoDate.nullable(),
   totals_only: z.boolean().optional(),
+  /** Migration 049: the deal to file it under (else the insert trigger picks one). */
+  crm_deal_id: z.string().uuid().nullable().optional(),
+  /** Migration 062: made from these phases of a phased estimate (not stored on this row). */
+  from_phases: z.object({ estimate_id: z.string().uuid(), phases: z.array(z.string().trim().min(1).max(80)).min(1).max(50) }).optional(),
 });
 
 export const estimatePatchSchema = estimateSchema.partial().extend({
@@ -56,6 +60,8 @@ export const estimatePatchSchema = estimateSchema.partial().extend({
 /** The stored row for a create or edit: the lines set the total. */
 export function estimateRow(input: Partial<z.infer<typeof estimateSchema>>) {
   const row: Record<string, unknown> = { ...input };
+  delete row.from_phases;
+  if (row.crm_deal_id === undefined || row.crm_deal_id === null) delete row.crm_deal_id;
   if (input.line_items) row.total_cents = totalCents(input.line_items);
   if (typeof input.notes === 'string') row.notes = input.notes.trim() || null;
   return row;

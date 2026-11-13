@@ -23,7 +23,13 @@ export interface BuilderLineItem {
   /** Tiers and optional extras (migration 061). */
   tier?: string | null;
   is_optional?: boolean;
+  /** Phases (migration 062). */
+  phase?: string | null;
+  phase_terms?: string | null;
 }
+
+/** One-tap payment terms for a phase. */
+const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on completion', 'Monthly'];
 
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
 const stripMo = (d: string | null) => (d ?? '').replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
@@ -69,6 +75,9 @@ export function PricingForm({
   const [note, setNote] = useState('');
   const [newTiers, setNewTiers] = useState<string[]>([]);
   const [tierName, setTierName] = useState('');
+  // Phases (migration 062): named in the bar, with their payment terms.
+  const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
+  const [phaseDraft, setPhaseDraft] = useState({ name: '', terms: '' });
 
   useEffect(() => {
     apiGet<Catalog & { ready: boolean }>('/api/price-list')
@@ -84,12 +93,55 @@ export function PricingForm({
   const total = counted.reduce((n, i) => n + lineCents(i), 0);
   const oneTime = total - monthly;
   const tierTotal = (t: string) => lineItems.filter((i) => !i.is_optional && (!i.tier?.trim() || i.tier.trim() === t)).reduce((n, i) => n + lineCents(i), 0);
+  // Phases: each with its terms (from its lines, or as typed in the bar) and subtotal.
+  const phases: { name: string; terms: string }[] = [];
+  for (const i of lineItems) {
+    const name = i.phase?.trim();
+    if (!name) continue;
+    const found = phases.find((p) => p.name === name);
+    if (!found) phases.push({ name, terms: i.phase_terms?.trim() ?? '' });
+    else if (!found.terms && i.phase_terms?.trim()) found.terms = i.phase_terms.trim();
+  }
+  for (const p of newPhases) if (!phases.some((x) => x.name === p.name)) phases.push(p);
+  const phased = lineItems.some((i) => i.phase?.trim());
+  const hasTierChoices = lineItems.some((i) => i.tier?.trim() || i.is_optional) || newTiers.length > 0;
+  const phaseTotal = (name: string) => lineItems.filter((i) => i.phase?.trim() === name).reduce((n, i) => n + lineCents(i), 0);
 
   const names = lineItems.map((i) => i.label);
   const missing = catalog ? missingRequired(catalog, names) : [];
   const suggestions = catalog ? suggestionsFor(catalog, names) : [];
 
-  const setItems = (items: BuilderLineItem[]) => onLineItemsChange(items.map((item, index) => ({ ...item, position: index })));
+  // Once there are phases, every line is in one: a new line joins the last phase.
+  const setItems = (items: BuilderLineItem[]) => {
+    const last = [...items].reverse().find((i) => i.phase?.trim())
+      ?? (newPhases[0] ? { phase: newPhases[0].name, phase_terms: newPhases[0].terms || null } : undefined);
+    onLineItemsChange(items.map((item, index) => ({
+      ...item, position: index,
+      ...(last && !item.phase?.trim() ? { phase: last.phase!.trim(), phase_terms: last.phase_terms ?? null } : {}),
+    })));
+  };
+  /** A line into a phase, taking that phase's terms. */
+  const toPhase = (index: number, name: string) => {
+    const terms = phases.find((p) => p.name === name)?.terms ?? '';
+    update(index, { phase: name, phase_terms: terms || null });
+  };
+  /** A phase's terms, on every line in it. */
+  const setPhaseTerms = (name: string, terms: string) => {
+    setNewPhases((cur) => cur.map((p) => (p.name === name ? { ...p, terms } : p)));
+    if (lineItems.some((i) => i.phase?.trim() === name)) {
+      setItems(lineItems.map((i) => (i.phase?.trim() === name ? { ...i, phase_terms: terms || null } : i)));
+    }
+  };
+  function addPhase() {
+    const name = phaseDraft.name.trim().slice(0, 80);
+    const terms = phaseDraft.terms.trim().slice(0, 300);
+    if (!name || phases.some((p) => p.name === name)) return;
+    // The first phase takes every line already there.
+    if (!phased && lineItems.length) setItems(lineItems.map((i) => ({ ...i, phase: name, phase_terms: terms || null })));
+    else setNewPhases((cur) => [...cur, { name, terms }]);
+    setPhaseDraft({ name: '', terms: '' });
+  }
+
   const update = (index: number, patch: Partial<BuilderLineItem>) =>
     setItems(lineItems.map((item, i) => (i === index ? { ...item, ...patch } : item)));
 
@@ -146,12 +198,54 @@ export function PricingForm({
         <div className={pf.sectionHead}>
           <strong>Prices</strong>
           <span className={pf.total}>
-            {monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
-            {monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
+            {phased ? `${phases.length} phase${phases.length === 1 ? '' : 's'}` : monthly && !oneTime ? `${formatMoneyCents(monthly, currency)}/mo` : formatMoneyCents(oneTime, currency)}
+            {!phased && monthly > 0 && oneTime > 0 && <small> + {formatMoneyCents(monthly, currency)}/mo</small>}
           </span>
         </div>
 
+        {/* Phases (migration 062): each phase paid on its own terms; the client approves phases, no total. */}
         <div className={pf.tierBar}>
+          <strong>Phases</strong>
+          <span className={s.hint}>
+            {hasTierChoices
+              ? 'Phases can’t be mixed with tiers or optional extras. Remove those to work in phases.'
+              : phases.length
+                ? 'Each phase shows its own subtotal and payment terms — no grand total. The client approves the phases they want, and you get a text to make the estimate for them.'
+                : 'Split the work into phases (e.g. Discovery, Build), each with its own payment terms. The first phase you add takes every line already here.'}
+          </span>
+          {phases.length > 0 && (
+            <ul className={pf.phaseList}>
+              {phases.map((p, i) => (
+                <li key={p.name}>
+                  <div className={pf.phaseTop}>
+                    <span>Phase {i + 1}: {p.name}</span>
+                    <strong>{lineItems.some((it) => it.phase?.trim() === p.name) ? formatMoneyCents(phaseTotal(p.name), currency) : 'no lines yet'}</strong>
+                  </div>
+                  <input className={s.input} value={p.terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
+                    aria-label={`Payment terms for ${p.name}`} onChange={(e) => setPhaseTerms(p.name, e.target.value)} />
+                  <div className={pf.chips}>
+                    {PHASE_TERMS.map((t) => (
+                      <button key={t} type="button" className={`${pf.chip} ${p.terms === t ? pf.chipOn : ''}`} onClick={() => setPhaseTerms(p.name, t)}>{t}</button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {!hasTierChoices && (
+            <div className={pf.phaseAdd}>
+              <input className={s.input} value={phaseDraft.name} placeholder="New phase, e.g. Discovery"
+                onChange={(e) => setPhaseDraft((d) => ({ ...d, name: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPhase(); } }} />
+              <input className={s.input} value={phaseDraft.terms} placeholder="Payment terms (optional)"
+                onChange={(e) => setPhaseDraft((d) => ({ ...d, terms: e.target.value }))}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPhase(); } }} />
+              <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!phaseDraft.name.trim()} onClick={addPhase}>Add phase</button>
+            </div>
+          )}
+        </div>
+
+        {!phased && newPhases.length === 0 && <div className={pf.tierBar}>
           <strong>Tiers</strong>
           <span className={s.hint}>
             {tiers.length
@@ -169,7 +263,7 @@ export function PricingForm({
             <button type="button" className={`${s.btn} ${s.btnSmall}`} disabled={!tierName.trim()}
               onClick={() => { const t = tierName.trim().slice(0, 80); if (t) { setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t])); setTierName(''); } }}>Add tier</button>
           </div>
-        </div>
+        </div>}
 
         {lineItems.length === 0 ? (
           <div className={pf.empty}>
@@ -195,6 +289,7 @@ export function PricingForm({
                         {!cat && item.label && <span className={pf.badgeCustom}>Custom</span>}
                         {item.is_optional && <span className={pf.badgeCustom}>Optional</span>}
                         {item.tier?.trim() && <span className={pf.badgeTier}>{item.tier.trim()}</span>}
+                        {item.phase?.trim() && <span className={pf.badgeTier}>{item.phase.trim()}</span>}
                       </span>
                       {stripMo(item.description) && <span className={pf.rowDesc}>{stripMo(item.description)}</span>}
                       {locked && <span className={pf.lock}>Required with {locked}</span>}
@@ -212,6 +307,13 @@ export function PricingForm({
                   </div>
                   {/* Tier and optional, right on the row (migration 061). */}
                   <div className={pf.rowChoices}>
+                    {phases.length > 0 && (phased || newPhases.length > 0) && !hasTierChoices ? (
+                      <select className={pf.tierSelect} value={item.phase?.trim() ?? ''} aria-label={`Phase for ${item.label || 'this line'}`}
+                        onChange={(e) => { if (e.target.value) toPhase(index, e.target.value); }}>
+                        {!item.phase?.trim() && <option value="">Pick a phase</option>}
+                        {phases.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                      </select>
+                    ) : <>
                     {tiers.length > 0 && (
                       <select className={pf.tierSelect} value={item.tier?.trim() ?? ''} aria-label={`Tier for ${item.label || 'this line'}`}
                         onChange={(e) => update(index, { tier: e.target.value || null })}>
@@ -223,6 +325,7 @@ export function PricingForm({
                       <input type="checkbox" checked={!!item.is_optional} onChange={(e) => update(index, { is_optional: e.target.checked || undefined })} />
                       Optional
                     </label>
+                    </>}
                   </div>
                   {open && (
                     <div className={pf.edit}>

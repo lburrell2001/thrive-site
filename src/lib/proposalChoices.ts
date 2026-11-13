@@ -26,6 +26,23 @@ export function proposalChoices(items: ProposalLineItem[]): ProposalChoices | nu
   };
 }
 
+export type ProposalPhase = { name: string; terms: string; total_cents: number; monthly_cents: number };
+
+/** Phases (migration 062): each phase in order with its payment terms and subtotal; null when there are none. */
+export function proposalPhases(items: Pick<ProposalLineItem, 'phase' | 'phase_terms' | 'quantity' | 'unit_price_cents' | 'position' | 'description' | 'label'>[]): ProposalPhase[] | null {
+  const out: ProposalPhase[] = [];
+  for (const i of [...items].sort((a, b) => a.position - b.position)) {
+    const name = i.phase?.trim();
+    if (!name || !i.label.trim()) continue;
+    let p = out.find((x) => x.name === name);
+    if (!p) { p = { name, terms: '', total_cents: 0, monthly_cents: 0 }; out.push(p); }
+    if (!p.terms && i.phase_terms?.trim()) p.terms = i.phase_terms.trim();
+    const c = cents(i);
+    if (/\/\s*mo(nth)?\.?\s*$/i.test((i.description ?? '').trim())) p.monthly_cents += c; else p.total_cents += c;
+  }
+  return out.length ? out : null;
+}
+
 /** A choice made valid (an unknown tier → the first; unknown extras dropped) and its total. */
 export function choiceTotalFor(items: ProposalLineItem[], selection?: Partial<ProposalSelection> | null) {
   const choices = proposalChoices(items);

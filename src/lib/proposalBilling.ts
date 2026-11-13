@@ -18,6 +18,9 @@ export type ProposalLine = {
   position: number;
   tier?: string | null;
   is_optional?: boolean;
+  /** Phases (migration 062). */
+  phase?: string | null;
+  phase_terms?: string | null;
 };
 
 const isMonthly = (d: string | null) => /\/\s*mo(nth)?\.?\s*$/i.test((d ?? '').trim());
@@ -54,6 +57,7 @@ export function estimateToProposalLines(lines: LineItem[]): {
       label: label.slice(0, 200), description, quantity, unit_price_cents: unit, position: lineItems.length,
       ...(line.tier ? { tier: line.tier } : {}),
       ...(line.optional ? { is_optional: true } : {}),
+      ...(line.phase ? { phase: line.phase, phase_terms: line.phase_terms ?? null } : {}),
     });
     const title = label.replace(/\s*\(optional\)\s*$/i, '');
     if (!deliverables.some((d) => d.title === title)) {
@@ -137,6 +141,10 @@ export function proposalToEstimateLines(items: ProposalLine[], previous: LineIte
     if (before?.hide_description) line.hide_description = true;
     if (i.tier?.trim()) line.tier = i.tier.trim();
     if (i.is_optional) line.optional = true;
+    if (i.phase?.trim()) {
+      line.phase = i.phase.trim();
+      if (i.phase_terms?.trim()) line.phase_terms = i.phase_terms.trim();
+    }
     return line;
   });
 }

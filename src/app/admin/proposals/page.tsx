@@ -35,6 +35,9 @@ interface ProposalRow {
   decline_reason: string | null;
   last_reminded_at: string | null;
   updated_at: string;
+  /** Migration 050 / 062: its estimate, and whether it's in phases (approved phase by phase). */
+  estimate_id?: string | null;
+  phased?: boolean;
   proposal_clients: { id: string; name: string; company: string | null } | null;
 }
 
@@ -228,12 +231,16 @@ export default function ProposalsListPage() {
                   <span className={b.docMeta}>{row.proposal_clients?.company || row.proposal_clients?.name || 'No client'}</span>
                   {row.status === 'declined' && row.decline_reason && <span className={s.rowReason}>“{row.decline_reason}”</span>}
                 </Link>
-                <span className={b.docAmount}>{formatMoneyCents(row.total_cents, row.currency)}</span>
+                <span className={b.docAmount}>{row.phased ? 'Phased' : formatMoneyCents(row.total_cents, row.currency)}</span>
                 <div className={b.docActions}>
                   {(row.status === 'sent' || row.status === 'viewed') && (
                     <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={() => setReminding(row)}>Remind</button>
                   )}
-                  {row.status === 'signed' && (
+                  {row.status === 'signed' && row.phased && row.estimate_id && (
+                    <Link href={`/admin/invoices?estimate=${row.estimate_id}`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
+                      title="Make an estimate from the phases they approved">Make estimate</Link>
+                  )}
+                  {row.status === 'signed' && !row.phased && (
                     <Link href={`/admin/invoices?proposal=${row.id}&part=full`} className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`}
                       title={pct > 0 && pct < 100 ? `One invoice: the ${pct}% deposit first, the rest when you open it` : undefined}>Invoice</Link>
                   )}

@@ -21,7 +21,7 @@ import { ProposalFooter } from './ProposalFooter';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
 import { estimateForClientPdf } from '@/lib/estimateAccess';
 import { EstimatePaper } from '@/components/estimate/EstimatePaper';
-import { proposalChoices } from '@/lib/proposalChoices';
+import { proposalChoices, proposalPhases } from '@/lib/proposalChoices';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -64,6 +64,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   const deposit = depositCents(renderable.totalCents, renderable.depositPercent);
   // Tiers and optional extras (migration 061): the client picks in the sign dialog; the footer shows the lowest option.
   const choices = proposalChoices(renderable.lineItems);
+  // Phases (migration 062): approved phase by phase, no total or deposit.
+  const phases = proposalPhases(renderable.lineItems);
   const fromCents = choices?.tiers.length ? Math.min(...choices.tiers.map((t) => t.total_cents)) : renderable.totalCents;
   const estimate = await estimateForClient(row.estimate_id ?? null);
 
@@ -95,7 +97,14 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         </Notice>
       )}
 
-      {renderable.status === 'signed' && (
+      {renderable.status === 'signed' && phases && (
+        <Notice tone="good">
+          Approved — thank you. We’ll send you the estimate for each phase you approved before
+          anything is invoiced.
+        </Notice>
+      )}
+
+      {renderable.status === 'signed' && !phases && (
         <Notice tone="good">
           Approved. A receipt has been emailed to you — the deposit can be paid in your client
           portal.
@@ -133,8 +142,10 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
       <ProposalFooter
         slug={slug}
         token={token ?? ''}
-        totalLabel={choices?.tiers.length && renderable.status !== 'signed' ? `From ${formatMoney(fromCents, renderable.currency)}` : formatMoney(renderable.totalCents, renderable.currency)}
-        depositLabel={`${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
+        totalLabel={phases ? `${phases.length} phase${phases.length === 1 ? '' : 's'}`
+          : choices?.tiers.length && renderable.status !== 'signed' ? `From ${formatMoney(fromCents, renderable.currency)}` : formatMoney(renderable.totalCents, renderable.currency)}
+        depositLabel={phases ? 'Each phase on its own terms' : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
+        phases={phases}
         pdfHref={`/api/proposals/${row.id}/pdf?t=${encodeURIComponent(token ?? '')}`}
         signed={renderable.status === 'signed'}
         signedAt={row.signed_at}

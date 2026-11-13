@@ -15,7 +15,8 @@ import { parseIpAddress } from '@/lib/proposalSignature';
 import { textAgency } from '@/lib/sms';
 import { formatLineMoney } from '@/lib/lineItems';
 import { SITE_URL } from '@/lib/seo';
-import { hasChoices, lineSelectionSchema, tiersOf } from '@/lib/lineItems';
+import { hasChoices, isPhased, lineSelectionSchema, tiersOf } from '@/lib/lineItems';
+import { cleanPhases, recordPhaseApproval, tellPhasesApproved } from '@/lib/phaseApproval';
 import { choiceTotal } from '@/lib/estimateChoice';
 
 const schema = z.object({
@@ -45,6 +46,18 @@ export async function POST(req: Request, { params }: Ctx) {
     if (est.status === 'declined') {
       return NextResponse.json({ error: 'This estimate was marked declined. Reply to the email it came in and we’ll reopen it.' }, { status: 409 });
     }
+    // Phases (migration 062): the phases they approve — no invoice; Lauren makes the estimate for them.
+    if (isPhased(est.line_items)) {
+      const phases = cleanPhases(est.line_items, parsed.data.selection?.phases);
+      if (!phases.length) return NextResponse.json({ error: 'Tick at least one phase to approve.' }, { status: 400 });
+      const { error } = await recordPhaseApproval(db, id, phases, { name: parsed.data.name, ip: parseIpAddress(req.headers.get('x-forwarded-for')) });
+      if (error) return NextResponse.json({ error: 'We couldn’t record that. Please try again.' }, { status: 500 });
+      after(() => tellPhasesApproved({
+        who: parsed.data.name, what: `estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''}`,
+        estimateId: id, lines: est.line_items, phases,
+      }));
+      return NextResponse.json({ ok: true, phased: true, phases, invoiceReady: false, needsSetup: false });
+    }
     // With tiers they must have picked one (nothing is preselected on the page).
     const tiers = tiersOf(est.line_items);
     if (tiers.length && !tiers.includes(parsed.data.selection?.tier ?? '')) {
@@ -68,6 +81,9 @@ export async function POST(req: Request, { params }: Ctx) {
     }).eq('id', id);
     if (error) return NextResponse.json({ error: 'We couldn’t record that. Please try again.' }, { status: 500 });
   }
+
+  // Already approved phases: nothing more happens here.
+  if (isPhased(est.line_items)) return NextResponse.json({ ok: true, phased: true, invoiceReady: false, needsSetup: false });
 
   // The invoice in their project folder if they have a portal (once, however many
   // times this runs); otherwise it waits for Lauren to set the portal up.

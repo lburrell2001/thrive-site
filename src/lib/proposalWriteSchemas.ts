@@ -55,6 +55,9 @@ export const lineItemSchema = z.object({
   /** Migration 061: the option this line is in (null/blank = every option), and an extra the client can tick. */
   tier: z.string().trim().max(80).nullable().optional(),
   is_optional: z.boolean().optional(),
+  /** Migration 062: the phase this line is in, and that phase's payment terms. */
+  phase: z.string().trim().max(80).nullable().optional(),
+  phase_terms: z.string().trim().max(300).nullable().optional(),
 });
 
 /** The autosave payload. Every part is optional so a save can be partial. */

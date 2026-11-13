@@ -1126,3 +1126,14 @@
 .tierList li { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; padding: 6px 10px; border-radius: 10px; background: var(--a-surface-2); }
 .tierAdd { display: flex; gap: 8px; }
 .tierAdd input { flex: 1; min-width: 0; }
+
+/* Phases (migration 062) */
+.phaseList { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.phaseList li { display: grid; gap: 6px; padding: 8px 10px; border-radius: 12px; background: var(--a-surface-2); }
+.phaseTop { display: flex; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.phaseAdd { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+@media (max-width: 640px) { .phaseAdd { grid-template-columns: 1fr; } }
+.phasePick { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 13.5px; cursor: pointer; }
+.phasePick input { width: 18px; height: 18px; accent-color: #e50586; margin: 0; }
+.phasePick strong { margin-left: auto; }
+.phaseFrom { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: #3943b7; color: #fff; font-size: 13.5px; }

@@ -19,7 +19,7 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { amountText, categoryTotals, formatLineMoney, hasChoices, isMonthly, lineBlocks, lineItemsToText, lineText, parseLineItems, selectLines, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { amountText, categoryTotals, formatLineMoney, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setAllPhaseInText, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -177,6 +177,10 @@ export default function InvoiceBuilder() {
   const [drawer, setDrawer] = useState(false);
   /** Tiers named in the bar but not given any items yet (migration 061). */
   const [newTiers, setNewTiers] = useState<string[]>([]);
+  /** Phases named in the bar but not given any items yet (migration 062). */
+  const [newPhases, setNewPhases] = useState<{ name: string; terms: string }[]>([]);
+  /** A new estimate made from a phased one's phases: saving links it back there and files it under that deal. */
+  const [fromPhases, setFromPhases] = useState<{ estimate_id: string; estimate_number: string; phases: string[]; crm_deal_id: string | null } | null>(null);
 
   useEffect(() => {
     apiGet<Catalog & { ready: boolean }>('/api/price-list')
@@ -293,7 +297,8 @@ export default function InvoiceBuilder() {
 
   const parsedLines = parseLineItems(draft.text);
   // An invoice bills everything on it: "optional" only means something on an estimate (migration 061).
-  const items = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, ...it }) => { void _o; return it; }) : parsedLines.items;
+  // …and phases (migration 062) only on an estimate: an invoice is one bill.
+  const items: LineItem[] = draft.mode === 'invoice' ? parsedLines.items.map(({ optional: _o, phase: _p, phase_terms: _t, ...it }) => { void _o; void _p; void _t; return it; }) : parsedLines.items;
   const { problems } = parsedLines;
   const total = totalCents(items);
   const split = splitTotals(items);
@@ -378,6 +383,8 @@ export default function InvoiceBuilder() {
     if (hasDraft && !window.confirm('Start fresh? The unsaved draft you had will be cleared.')) return;
     setEditingId(null);
     setFromEstimateId(null);
+    setFromPhases(null);
+    setNewPhases([]);
     setDraft(blankDraft(mode));
     setView('edit');
     scrollTop();
@@ -388,6 +395,8 @@ export default function InvoiceBuilder() {
     if (!window.confirm(`Delete this unsaved ${draft.mode}${draft.clientName ? ` for ${draft.clientName}` : ''}? It was never saved or sent.`)) return;
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* private window */ }
     setFromEstimateId(null);
+    setFromPhases(null);
+    setNewPhases([]);
     setInvoiceWhen(null);
     setDraft(blankDraft(draft.mode));
     show(`Unsaved ${draft.mode} deleted.`);
@@ -413,6 +422,7 @@ export default function InvoiceBuilder() {
     };
     setEditingId(est.id);
     setFromEstimateId(null);
+    setNewPhases([]);
     setDraft(next);
     setSnapshot(JSON.stringify(next));
     setView('edit');
@@ -467,6 +477,8 @@ export default function InvoiceBuilder() {
       issue_date: draft.issueDate,
       valid_until: draft.dueDate || null,
       totals_only: draft.totalsOnly,
+      // Made from a phased estimate's phases (migration 062): its deal, and the link back.
+      ...(!editingId && fromPhases ? { crm_deal_id: fromPhases.crm_deal_id, from_phases: { estimate_id: fromPhases.estimate_id, phases: fromPhases.phases } } : {}),
     };
   }
 
@@ -478,6 +490,7 @@ export default function InvoiceBuilder() {
         : await apiSend<Estimate>('/api/estimates', 'POST', estimateBody());
       const next = { ...draft, number: saved.estimate_number };
       setEditingId(saved.id);
+      setFromPhases(null);
       setDraft(next);
       setSnapshot(JSON.stringify(next));
       localStorage.removeItem(DRAFT_KEY);
@@ -748,6 +761,46 @@ export default function InvoiceBuilder() {
     if (idx >= 0) set('text', setTierInText(draft.text, idx, tier));
   }
 
+  /** Phase (migration 062): which phase a line is in. Rewrites the list, keeping each phase's lines together. */
+  function setBlockPhase(b: LineBlock, phase: string) {
+    const idx = blocks.filter((x) => x.item).indexOf(b);
+    const terms = newPhases.find((p) => p.name === phase)?.terms ?? '';
+    if (idx >= 0) set('text', setPhaseInText(draft.text, idx, phase, terms));
+  }
+
+  /** A new phase: the first one takes every line already on the list. */
+  function addPhase(name: string, terms: string) {
+    if (!isPhased(items) && items.length) set('text', setAllPhaseInText(draft.text, name, terms));
+    else setNewPhases((cur) => (cur.some((p) => p.name === name) ? cur : [...cur, { name, terms }]));
+  }
+
+  function setPhaseTerms(name: string, terms: string) {
+    setNewPhases((cur) => cur.map((p) => (p.name === name ? { ...p, terms } : p)));
+    if (items.some((it) => it.phase === name)) set('text', setPhaseTermsInText(draft.text, name, terms));
+  }
+
+  /** "Make an estimate" from a phased estimate's phases: a new draft with just those lines and their terms. */
+  function estimateFromPhases(est: Estimate, phases: string[]) {
+    if (!phases.length) return;
+    if (hasDraft && !window.confirm('Start a new estimate from these phases? The unsaved draft you had will be replaced.')) return;
+    const terms = phaseTermsNote(est.line_items, phases);
+    const t = today();
+    setEditingId(null);
+    setFromEstimateId(null);
+    setNewPhases([]);
+    setFromPhases({ estimate_id: est.id, estimate_number: est.estimate_number, phases, crm_deal_id: est.crm_deal_id ?? null });
+    setDraft({
+      ...blankDraft('estimate'), client: clientKeyFor(est), clientName: est.client_name,
+      title: [est.title, phases.join(' + ')].filter(Boolean).join(' — ').slice(0, 200),
+      issueDate: t, dueDate: addDays(t, 30),
+      text: lineItemsToText(phaseLines(est.line_items, phases)),
+      notes: terms, totalsOnly: est.totals_only ?? false,
+    });
+    setView('edit');
+    scrollTop();
+    show(`New estimate from ${phases.join(', ')}. Check it, save, then send.`);
+  }
+
   /** "Extra page (x3)": changes the quantity of a per-unit price list item. */
   function setBlockQty(b: LineBlock, item: PriceItem, qty: number) {
     const lines = draft.text.split('\n');
@@ -874,6 +927,14 @@ export default function InvoiceBuilder() {
                         <span className={s.docNumber}>{est.estimate_number}</span>
                         <span className={`${s.status} ${st.cls}`}>{st.label}</span>
                         {proposalOf(est.id) && <span className={`${s.status} ${s.stDraft}`}>With a proposal</span>}
+                        {isPhased(est.line_items) && (() => {
+                          // Phases (migration 062): approved phases still waiting on their estimate.
+                          const sel = (est as { selection?: LineSelection | null }).selection;
+                          const waiting = (sel?.phases ?? []).filter((n) => !(sel?.made ?? []).some((m) => m.phases.includes(n)));
+                          return <span className={`${s.status} ${waiting.length ? s.stDeclined : s.stDraft}`}>
+                            {waiting.length ? `Make estimate: ${waiting.join(', ')}` : 'Phased'}
+                          </span>;
+                        })()}
                         {(() => {
                           const sch = scheduledFor_('estimate', est.id);
                           return sch && <span className={`${s.status} ${sch.status === 'failed' ? s.stDeclined : s.stSent}`} title={sch.error ?? undefined}>
@@ -885,7 +946,7 @@ export default function InvoiceBuilder() {
                       <span className={s.docMeta}>{[est.title, formatDate(est.issue_date)].filter(Boolean).join(' · ')}</span>
                       {est.status === 'declined' && est.decline_reason && <span className={s.docMeta} style={{ color: '#e50586' }}>Declined{est.declined_by ? ` by ${est.declined_by}` : ''}: “{est.decline_reason}”</span>}
                     </button>
-                    <span className={s.docAmount}>{formatLineMoney(est.total_cents)}</span>
+                    <span className={s.docAmount}>{isPhased(est.line_items) ? `${phasesOf(est.line_items).length} phases` : formatLineMoney(est.total_cents)}</span>
                     <div className={s.docActions}>
                       {est.status !== 'invoiced' && (
                         <select className={s.statusSelect} value={est.status} aria-label={`Status of ${est.estimate_number}`}
@@ -908,7 +969,7 @@ export default function InvoiceBuilder() {
                       ) : (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy} onClick={() => proposalFromEstimate(est)}>Proposal</button>
                       )}
-                      {est.status !== 'invoiced' && (
+                      {est.status !== 'invoiced' && !isPhased(est.line_items) && (
                         <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => invoiceFromEstimate(est)}>Invoice it</button>
                       )}
                       <button type="button" className={s.iconBtn} aria-label={`Delete ${est.estimate_number}`} title="Delete" onClick={() => remove(est)}>×</button>
@@ -1130,10 +1191,14 @@ export default function InvoiceBuilder() {
             ) : (
               <>
                 {!isInvoice && (
+                  <PhaseBar items={items} extra={newPhases} blocked={hasChoices(items) || newTiers.length > 0} onAdd={addPhase} onTerms={setPhaseTerms} />
+                )}
+                {!isInvoice && !isPhased(items) && newPhases.length === 0 && (
                   <TierBar items={items} extra={newTiers} onAdd={(t) => setNewTiers((cur) => (cur.includes(t) ? cur : [...cur, t]))} />
                 )}
                 <ItemRows blocks={blocks} catalog={catalog} onRemove={removeBlock} onQty={setBlockQty} onToggleDescription={toggleDescription}
-                  choices={isInvoice ? undefined : { tiers: [...new Set([...tiersOf(items), ...newTiers])], onTier: setBlockTier, onOptional: toggleOptional }} />
+                  choices={isInvoice || isPhased(items) || newPhases.length ? undefined : { tiers: [...new Set([...tiersOf(items), ...newTiers])], onTier: setBlockTier, onOptional: toggleOptional }}
+                  phases={!isInvoice && (isPhased(items) || newPhases.length) ? { names: [...new Set([...phasesOf(items).map((p) => p.name), ...newPhases.map((p) => p.name)])], onPhase: setBlockPhase } : undefined} />
                 <div className={s.itemsTools}>
                   <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!catalog} onClick={() => setDrawer(true)}
                     title={catalog ? undefined : 'Run migration 047 to use the price list'}>
@@ -1263,6 +1328,12 @@ export default function InvoiceBuilder() {
                 {invoiceWhen && <span className={w.muted} style={{ fontSize: 12.5 }}>The invoice is created at that time, so they can’t see it before then. It waits under Scheduled on the Invoices tab, where you can cancel it.</span>}
               </div>
             )}
+            {fromPhases && !editingId && (
+              <p className={s.phaseFrom}>From {fromPhases.estimate_number}: {fromPhases.phases.join(', ')}. Saving files it under the same deal and marks those phases as estimated.</p>
+            )}
+            {editingEstimate && isPhased(editingEstimate.line_items) && (
+              <PhaseMaker est={editingEstimate} disabled={dirty || busy} onMake={(phases) => estimateFromPhases(editingEstimate, phases)} />
+            )}
             {editingEstimate && (
               <div className={s.finishLinks}>
                 {linkedProposal ? (
@@ -1272,8 +1343,10 @@ export default function InvoiceBuilder() {
                     onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
                 )}
                 {editingEstimate.status !== 'invoiced' && <>
+                  {!isPhased(editingEstimate.line_items) && (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
                     onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
+                  )}
                   <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnDanger}`} onClick={() => remove(editingEstimate)}>Delete estimate</button>
                 </>}
               </div>
@@ -1336,12 +1409,14 @@ export default function InvoiceBuilder() {
 }
 
 /** The items as rows, grouped by category: quantity for per-unit price list items, and remove. */
-function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choices }: {
+function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choices, phases }: {
   blocks: LineBlock[]; catalog: Catalog | null;
   onRemove: (b: LineBlock) => void; onQty: (b: LineBlock, item: PriceItem, qty: number) => void;
   onToggleDescription: (b: LineBlock) => void;
   /** Estimates (migration 061): each line's tier and whether it's optional. */
   choices?: { tiers: string[]; onTier: (b: LineBlock, tier: string | null) => void; onOptional: (b: LineBlock) => void };
+  /** Phased estimates (migration 062): each line's phase. */
+  phases?: { names: string[]; onPhase: (b: LineBlock, phase: string) => void };
 }) {
   const valid = blocks.filter((b): b is LineBlock & { item: LineItem } => b.item !== null);
   const names = valid.map((b) => b.item.name);
@@ -1362,7 +1437,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
             <div className={s.rowGroupHead}>
               <span>{g.category}</span>
               {/* With tiers or extras a category's sum would mix options: the Tiers box has the totals. */}
-              {!(choices && hasChoices(valid.map((b) => b.item))) && <span>{amountText(g.oneTime, g.monthly)}</span>}
+              {!(choices && hasChoices(valid.map((b) => b.item))) && !phases && <span>{amountText(g.oneTime, g.monthly)}</span>}
             </div>
           )}
           {valid.filter((b) => (b.item.category?.trim() || 'Other') === g.category).map((b) => {
@@ -1378,6 +1453,7 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                     {name}
                     {optional && <span className={s.badgeOptional}>Optional</span>}
                     {b.item.tier && <span className={s.badgeTier}>{b.item.tier}</span>}
+                    {b.item.phase && <span className={s.badgeTier}>{b.item.phase}</span>}
                     {!cat && <span className={s.badgeCustom}>Custom</span>}
                     {b.item.percent ? <span className={s.badgePercent}>{b.item.percent}% off</span> : null}
                   </span>
@@ -1394,6 +1470,15 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
                     </>
                   )}
                   {lockedBy && <span className={s.itemRowLock}>Required with {lockedBy}</span>}
+                  {phases && (
+                    <span className={s.choiceControls}>
+                      <select className={s.tierSelect} value={b.item.phase ?? ''} aria-label={`Phase for ${name}`}
+                        onChange={(e) => { if (e.target.value) phases.onPhase(b, e.target.value); }}>
+                        {!b.item.phase && <option value="">Pick a phase</option>}
+                        {phases.names.map((ph) => <option key={ph} value={ph}>{ph}</option>)}
+                      </select>
+                    </span>
+                  )}
                   {choices && !b.item.percent && (
                     <span className={s.choiceControls}>
                       {choices.tiers.length > 0 && (
@@ -1427,6 +1512,119 @@ function ItemRows({ blocks, catalog, onRemove, onQty, onToggleDescription, choic
           })}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** One-tap payment terms for a phase. */
+const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on completion', 'Monthly'];
+
+/**
+ * Phases (migration 062): each phase's subtotal and payment terms, and a box
+ * to add one. The client approves phases (no grand total); you then make an
+ * estimate from the approved ones.
+ */
+function PhaseBar({ items, extra, blocked, onAdd, onTerms }: {
+  items: LineItem[]; extra: { name: string; terms: string }[]; blocked: boolean;
+  onAdd: (name: string, terms: string) => void; onTerms: (name: string, terms: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [terms, setTerms] = useState('');
+  const known = phasesOf(items);
+  const phases = [...known, ...extra.filter((x) => !known.some((k) => k.name === x.name)).map((x) => ({ ...x, total_cents: 0, oneTime: 0, monthly: 0, count: 0 }))];
+  const add = () => {
+    const n = name.trim().replace(/\|/g, ' ').slice(0, 80);
+    if (!n || /^(none|end|no phase)$/i.test(n) || phases.some((p) => p.name === n)) return;
+    onAdd(n, terms.replace(/[|\r\n]+/g, ' ').trim().slice(0, 300));
+    setName(''); setTerms('');
+  };
+  return (
+    <div className={s.tierBar}>
+      <div className={s.tierBarHead}>
+        <strong>Phases</strong>
+        <span className={s.tierHint}>
+          {blocked ? 'Phases can’t be mixed with tiers or optional extras. Remove those to work in phases.'
+            : phases.length ? 'Each phase shows its own subtotal and payment terms — no grand total. The client approves the phases they want; you get a text to make the estimate for them.'
+            : 'Split the work into phases (e.g. Discovery, Build), each with its own payment terms. The first phase takes every item already on the list.'}
+        </span>
+      </div>
+      {phases.length > 0 && (
+        <ul className={s.phaseList}>
+          {phases.map((ph, i) => (
+            <li key={ph.name}>
+              <div className={s.phaseTop}><span>Phase {i + 1}: {ph.name}</span><strong>{ph.count ? amountText(ph.oneTime, ph.monthly) : 'no lines yet'}</strong></div>
+              <input className={p.input} value={ph.terms} placeholder="Payment terms, e.g. 50% to start · 50% on delivery"
+                aria-label={`Payment terms for ${ph.name}`} onChange={(e) => onTerms(ph.name, e.target.value)} />
+              <div className={s.quickDates}>
+                {PHASE_TERMS.map((t) => (
+                  <button key={t} type="button" className={`${s.chip} ${ph.terms === t ? s.chipOn : ''}`} onClick={() => onTerms(ph.name, t)}>{t}</button>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!blocked && (
+        <div className={s.phaseAdd}>
+          <input className={p.input} value={name} placeholder="New phase, e.g. Discovery" onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+          <input className={p.input} value={terms} placeholder="Payment terms (optional)" onChange={(e) => setTerms(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+          <button type="button" className={p.btn} onClick={add} disabled={!name.trim()}>Add phase</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A saved phased estimate (migration 062): which phases the client approved,
+ * which already have an estimate, and "Make estimate" from the ticked ones.
+ */
+function PhaseMaker({ est, disabled, onMake }: { est: Estimate; disabled: boolean; onMake: (phases: string[]) => void }) {
+  const sel = ((est as { selection?: LineSelection | null }).selection ?? null);
+  const approved = sel?.phases ?? [];
+  const made = sel?.made ?? [];
+  const madeFor = (name: string) => made.find((m) => m.phases.includes(name));
+  const phases = phasesOf(est.line_items);
+  const [picked, setPicked] = useState<string[]>(() => {
+    const open = approved.filter((n) => !madeFor(n));
+    return open.length ? [open[0]] : [];
+  });
+  return (
+    <div className={s.tierBar} style={{ marginTop: 16 }}>
+      <div className={s.tierBarHead}>
+        <strong>Make an estimate from phases</strong>
+        <span className={s.tierHint}>
+          {approved.length
+            ? `${(est as { accepted_by?: string | null }).accepted_by ?? 'The client'} approved ${approved.join(', ')}. Tick the phases to estimate now — the new estimate has just their items, with the payment terms in its notes.`
+            : 'Not approved yet. You can still make an estimate from any phase.'}
+        </span>
+      </div>
+      <ul className={s.phaseList}>
+        {phases.map((ph, i) => {
+          const m = madeFor(ph.name);
+          return (
+            <li key={ph.name}>
+              <label className={s.phasePick}>
+                <input type="checkbox" checked={picked.includes(ph.name)}
+                  onChange={(e) => setPicked((cur) => phases.map((x) => x.name).filter((n) => (n === ph.name ? e.target.checked : cur.includes(n))))} />
+                <span>Phase {i + 1}: {ph.name}</span>
+                {approved.includes(ph.name) && <span className={s.badgeTier}>Approved</span>}
+                {m && <span className={s.badgeCustom}>{m.estimate_number} made</span>}
+                <strong>{amountText(ph.oneTime, ph.monthly)}</strong>
+              </label>
+              {ph.terms && <span className={s.tierHint}>Payment terms: {ph.terms}</span>}
+            </li>
+          );
+        })}
+      </ul>
+      <div>
+        <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={disabled || !picked.length}
+          title={disabled ? 'Save your changes first' : undefined} onClick={() => onMake(picked)}>
+          Make estimate{picked.length ? ` from ${picked.length === 1 ? picked[0] : `${picked.length} phases`}` : ''}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1748,6 +1946,27 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         <tbody>
           {items.length === 0 ? (
             <tr><td colSpan={showHours ? 3 : 2} className={s.paperEmpty}>Your items show here as you add them.</td></tr>
+          ) : !isInvoice && isPhased(items) ? (
+            // Phases (migration 062), as the client sees them: each phase, its lines, its subtotal and terms.
+            phasesOf(items).map((ph, n) => (
+              <Fragment key={ph.name}>
+                <tr className={s.catRow}><td colSpan={showHours ? 3 : 2}>Phase {n + 1}: {ph.name}{ph.terms ? ` · ${ph.terms}` : ''}</td></tr>
+                {items.filter((it) => it.phase === ph.name).map((it, i) => (
+                  <tr key={`${ph.name}-${i}`}>
+                    <td>
+                      <div className={s.lineName}>{it.name}</div>
+                      {it.description && <div className={`${s.lineDesc} ${it.hide_description ? s.dimmed : ''}`}>{it.description.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '')}</div>}
+                    </td>
+                    {showHours && <td className={s.num}>{it.hours ?? ''}</td>}
+                    <td className={s.num} style={{ fontWeight: 700 }}>{isMonthly(it) ? amountText(0, it.amount_cents) : amountText(it.amount_cents, 0)}</td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={showHours ? 2 : 1}><div className={s.lineName}>Phase {n + 1} total</div></td>
+                  <td className={s.num} style={{ fontWeight: 800 }}>{amountText(ph.oneTime, ph.monthly)}</td>
+                </tr>
+              </Fragment>
+            ))
           ) : !isInvoice && hasChoices(items) ? (() => {
             // Tiers and extras (migration 061), as the client sees them: the items, then each option's total, then the extras.
             const tiers = tiersOf(items);
@@ -1815,7 +2034,9 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         </tbody>
       </table>
 
-      {!isInvoice && split.monthly ? (
+      {!isInvoice && isPhased(items) ? (
+        <p className={s.paperNotes}>Phased: no grand total. The client approves phases, then you make an estimate for them.</p>
+      ) : !isInvoice && split.monthly ? (
         <>
           {split.oneTime !== 0 && (
             <div className={s.total}>

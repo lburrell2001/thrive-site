@@ -197,6 +197,9 @@ export interface ProposalLineItem {
   /** Tiers and optional extras (migration 061): the option this line is in (null = every option), and whether the client can tick it. */
   tier?: string | null;
   is_optional?: boolean;
+  /** Phases (migration 062): the phase this line is in, and that phase's payment terms. */
+  phase?: string | null;
+  phase_terms?: string | null;
 }
 
 export interface ProposalClient {

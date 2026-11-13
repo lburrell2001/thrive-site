@@ -2,6 +2,7 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
+import type { LineSelection } from '@/lib/lineItems';
 import { estimateRow, estimateSchema, missingEstimatesTable, missingTotalsOnly, nextEstimateNumber, withoutTotalsOnly } from '@/lib/estimates';
 
 const INVOICE_COLUMNS = 'id, client_id, invoice_number, project_name, amount_cents, invoice_date, due_date, status';
@@ -73,7 +74,20 @@ export async function POST(req: Request) {
       .insert({ ...row, estimate_number })
       .select('*')
       .single();
-    if (!error) return NextResponse.json({ ok: true, data });
+    if (!error) {
+      // Made from a phased estimate (migration 062): note it there, so the phases show as estimated.
+      const from = parsed.data.from_phases;
+      if (from) {
+        const { data: src } = await auth.db.from('estimates').select('selection').eq('id', from.estimate_id).maybeSingle();
+        if (src) {
+          const sel = (src.selection ?? { tier: null, optional: [] }) as LineSelection;
+          const made = [...(sel.made ?? []), { phases: from.phases, estimate_id: data.id, estimate_number: data.estimate_number }];
+          const { error: linkErr } = await auth.db.from('estimates').update({ selection: { ...sel, made } }).eq('id', from.estimate_id);
+          if (linkErr) console.error('[estimates] phase link not saved', from.estimate_id, linkErr.message);
+        }
+      }
+      return NextResponse.json({ ok: true, data });
+    }
     if (missingTotalsOnly(error.message) && 'totals_only' in row) { row = withoutTotalsOnly(row); continue; }
     if (missingEstimatesTable(error.message)) return badRequest('Run migration 039 in Supabase to save estimates.', 503);
     if (error.code !== '23505') return badRequest(error.message);

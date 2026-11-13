@@ -1042,6 +1042,17 @@
   .signatureGrid { flex-direction: column; align-items: stretch; }
 }
 
+/* Phases (migration 062): one block per phase, its own subtotal and terms. */
+.pricingPhase + .pricingPhase { margin-top: clamp(14px, 2.4cqw, 28px); }
+.pricingPhaseTotal .pricingTotalLabel,
+.pricingPhaseTotal .pricingTotalValue { font-size: clamp(16px, 3cqw, 30px); }
+.pricingPhaseNote {
+  margin: clamp(12px, 2cqw, 22px) 0 0;
+  font-size: clamp(10px, 1.5cqw, 15px);
+  color: var(--white);
+  opacity: 0.8;
+}
+
 /* --------------------------------------------------------------- print */
 
 @media print {

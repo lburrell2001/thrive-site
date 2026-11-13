@@ -7,7 +7,8 @@ import { estimateForClientPdf, loadClientEstimate } from '@/lib/estimateAccess';
 import { EstimatePaper, estimateTotalLabel } from '@/components/estimate/EstimatePaper';
 import { EstimateActions } from './EstimateActions';
 import { EstimateChoices } from './EstimateChoices';
-import { hasChoices } from '@/lib/lineItems';
+import { hasChoices, isPhased } from '@/lib/lineItems';
+import { EstimatePhases } from './EstimatePhases';
 import { choiceTotal } from '@/lib/estimateChoice';
 
 type PageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string | string[] }> };
@@ -25,10 +26,19 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
   const accepted = !!est.accepted_at;
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
   const expired = !accepted && !!est.valid_until && est.valid_until < today;
+  // Phases (migration 062): approved phases, not a total; Lauren sends an estimate for them.
+  const phased = isPhased(est.line_items);
+  const approvedPhases = est.selection?.phases ?? [];
 
   return (
     <main>
-      {accepted && (
+      {accepted && phased && (
+        <p className="proposalNotice proposalNoticeGood">
+          Approved{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}
+          {approvedPhases.length ? `: ${approvedPhases.join(', ')}` : ''}. We’ll send you the estimate for {approvedPhases.length === 1 ? 'that phase' : 'each phase'} before any invoice.
+        </p>
+      )}
+      {accepted && !phased && (
         <p className="proposalNotice proposalNoticeGood">
           Accepted{est.accepted_by ? ` by ${est.accepted_by}` : ''} on {day(est.accepted_at!)}.{' '}
           {est.invoice_id ? (<>Your invoice is ready in your client portal.{' '}
@@ -47,7 +57,16 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
         </p>
       )}
 
-      {hasChoices(est.line_items) && !accepted ? (
+      {phased && !accepted ? (
+        <EstimatePhases
+          id={est.id}
+          token={token!}
+          pdf={pdf}
+          clientName={est.client_name || null}
+          canAccept={!expired && est.status !== 'declined' && est.status !== 'invoiced'}
+          declined={est.status === 'declined'}
+        />
+      ) : hasChoices(est.line_items) && !accepted ? (
         <EstimateChoices
           id={est.id}
           token={token!}

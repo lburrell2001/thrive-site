@@ -1,4 +1,4 @@
-import type { ProposalChoices } from '@/lib/proposalChoices';
+import type { ProposalChoices, ProposalPhase } from '@/lib/proposalChoices';
 import { DeclineAction } from './DeclineAction';
 import { ApproveAction } from './ApproveAction';
 import { EstimateDownload } from './EstimateDownload';
@@ -27,6 +27,7 @@ export function ProposalFooter({
   currency,
   totalCents,
   depositPercent,
+  phases,
 }: {
   slug: string;
   token: string;
@@ -46,12 +47,14 @@ export function ProposalFooter({
   currency?: string;
   totalCents?: number;
   depositPercent?: number;
+  /** Phases (migration 062): approved phase by phase. */
+  phases?: ProposalPhase[] | null;
 }) {
   return (
     <div className="proposalFooter">
       <div style={{ minWidth: 0 }}>
         <div className="proposalFooterLabel">
-          {signed ? 'Approved' : 'Total'} · {depositLabel}
+          {signed ? 'Approved' : phases ? 'Phased' : 'Total'} · {depositLabel}
         </div>
         <div className="proposalFooterTotal">{totalLabel}</div>
       </div>
@@ -87,7 +90,7 @@ export function ProposalFooter({
           <>
             <DeclineAction slug={slug} token={token} />
             <ApproveAction slug={slug} token={token} pdfHref={pdfHref} termsUrl={termsUrl} choices={choices} currency={currency}
-              totalCents={totalCents ?? 0} depositPercent={depositPercent ?? 0} />
+              totalCents={totalCents ?? 0} depositPercent={depositPercent ?? 0} phases={phases} />
           </>
         )}
       </div>

@@ -3,6 +3,7 @@ import { Markdown } from '@/lib/miniMarkdown';
 import { Kicker, Page } from '../Page';
 import { depositLine, formatMoney, resolveAccent, type BlockProps } from '../context';
 import type { PricingBlock } from '@/types/proposal';
+import { proposalPhases } from '@/lib/proposalChoices';
 
 /**
  * Pricing is the one block where the default is to show the client LESS.
@@ -39,6 +40,49 @@ export function PricingBlockView({ block, ctx, startsPage }: BlockProps<PricingB
   const shownLines = choices ? inOption(lowest) : defaultLines;
   const oneTimeCents = choices ? sum(shownLines) - shownLines.filter((item) => isMonthly(item.description)).reduce((n, item) => n + Math.round(item.quantity * item.unit_price_cents), 0) : ctx.totalCents - monthlyCents;
   const stripMo = (d: string) => d.replace(/\s*\/\s*mo(nth)?\.?\s*$/i, '');
+  // Phases (migration 062): each phase's lines, subtotal and payment terms — no grand total.
+  const phases = proposalPhases(ctx.lineItems);
+  if (phases) {
+    const sorted = [...ctx.lineItems].sort((a, b) => a.position - b.position);
+    return (
+      <Page ctx={ctx} accent={accent} startsPage={startsPage} type="pricing">
+        <Kicker>{c.kicker}</Kicker>
+        <Markdown source={c.intro} className={styles.prose} />
+        {phases.map((ph, n) => (
+          <div key={ph.name} className={styles.pricingPhase}>
+            <div className={styles.pricingList}>
+              <p className={styles.pricingOptionHead}><span>Phase {n + 1} · {ph.name}</span></p>
+              {sorted.filter((item) => item.phase?.trim() === ph.name && item.label.trim()).map((item) => (
+                <div key={item.id} className={styles.pricingRow}>
+                  <div className={styles.pricingRowText}>
+                    <p className={styles.pricingRowTitle}>{item.label}</p>
+                    {item.description && stripMo(item.description) && <p className={styles.pricingRowDescription}>{stripMo(item.description)}</p>}
+                  </div>
+                  {c.showLineItemPrices && (
+                    <div className={styles.pricingRowAmount}>
+                      {formatMoney(Math.round(item.quantity * item.unit_price_cents), ctx.currency)}{isMonthly(item.description) ? '/mo' : ''}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className={`${styles.pricingTotal} ${styles.pricingPhaseTotal}`}>
+              <span className={styles.pricingTotalLabel}>Phase {n + 1}</span>
+              <div className={styles.pricingTotalRight}>
+                <div className={styles.pricingTotalValue}>
+                  {ph.monthly_cents > 0 && ph.total_cents <= 0 ? `${formatMoney(ph.monthly_cents, ctx.currency)}/mo` : formatMoney(ph.total_cents, ctx.currency)}
+                </div>
+                {ph.monthly_cents > 0 && ph.total_cents > 0 && <div className={styles.pricingDeposit}>+ {formatMoney(ph.monthly_cents, ctx.currency)}/mo</div>}
+                <div className={styles.pricingDeposit}>{ph.terms || 'Payment terms to follow'}</div>
+              </div>
+            </div>
+          </div>
+        ))}
+        <p className={styles.pricingPhaseNote}>Approve the phases you’re ready for — we’ll send an estimate for each phase before anything is invoiced.</p>
+        {c.footnote && <Markdown source={c.footnote} className={styles.pricingFootnote} />}
+      </Page>
+    );
+  }
 
   return (
     <Page ctx={ctx} accent={accent} startsPage={startsPage} type="pricing">

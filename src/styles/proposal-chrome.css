@@ -640,3 +640,16 @@ button.proposalFooterAction { font-family: inherit; }
 .estimateTierTag { display: inline-block; margin-left: 8px; padding: 2px 8px; border-radius: 999px; background: #3943b7; color: #fff; font-size: 11px; font-weight: 700; vertical-align: middle; }
 .estimateOptionRows li.estimateOptionRow { align-items: center; padding: 12px; border-radius: 12px; border: 2px solid transparent; }
 .estimateOptionRows li.estimateOptionOn { border-color: #e50586; background: #fff7fb; }
+
+/* Phases (migration 062): each phase's own terms and subtotal, no grand total. */
+.estimatePhase { border: 2px solid transparent; border-radius: 12px; overflow: hidden; margin-top: 18px; }
+.estimatePhase:first-of-type { margin-top: 0; }
+.estimatePhase .estimateSectionHead { border-radius: 0; }
+.estimatePhase.estimateOptionOn { border-color: #e50586; }
+.estimatePhaseFoot {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding: 12px; background: #0a0a0a; color: #fff;
+}
+.estimatePhaseTerms { font-size: 13px; color: #cfcfcf; }
+.estimatePhaseTerms strong { color: #fff; }
+.estimatePhaseTotal { font-size: 18px; white-space: nowrap; }
