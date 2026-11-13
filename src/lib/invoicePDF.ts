@@ -24,6 +24,22 @@ export interface InvoiceForPDF {
   options?: { tier: string; total_cents: number; label?: string }[] | null;
   /** The client's choice, once they've accepted. */
   selection?: LineSelection | null;
+  /** An estimate's payment terms (migration 064): a deposit to start, as a percent. */
+  deposit_percent?: number | null;
+}
+
+/**
+ * An estimate's payment terms as one line (migration 064), or null: "50%
+ * deposit to start — $1,200, invoiced when you accept. The remaining $1,200
+ * is invoiced later." Not for phases or a price range (their own estimates
+ * come later).
+ */
+export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'>): string | null {
+  const pct = Number(e.deposit_percent ?? 0);
+  const lines = (e.line_items ?? []) as LineItem[];
+  if (!(pct > 0 && pct < 100) || isPhased(lines) || hasRange(lines)) return null;
+  const deposit = Math.round((e.amount_cents * pct) / 100);
+  return `Payment terms: ${pct}% deposit to start — ${formatLineMoney(deposit)}, invoiced when you accept. The remaining ${formatLineMoney(e.amount_cents - deposit)} is invoiced later.`;
 }
 
 type Row = { name: string; description: string; hours: number | null; amount: string; heading?: boolean };
@@ -345,6 +361,18 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     doc.setTextColor('#666666');
     doc.text(`Includes the first month of monthly services (${fmtMoney(split.monthly)}/mo).`, M, after);
     after += 8;
+  }
+
+  // An estimate's payment terms (migration 064).
+  const terms = isEstimate ? estimateTermsLine(invoice) : null;
+  if (terms) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.setTextColor('#0a0a0a');
+    const termLines = doc.splitTextToSize(terms, tableW) as string[];
+    if (after + termLines.length * 4.6 > pageBottom) { doc.addPage(); after = 20; }
+    doc.text(termLines, M, after);
+    after += termLines.length * 4.6 + 4;
   }
 
   // ── Notes ────────────────────────────────────────────────────────────────────

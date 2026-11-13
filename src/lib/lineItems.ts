@@ -421,6 +421,20 @@ export function phaseLines(items: LineItem[], phases: string[], end: 'low' | 'hi
   }));
 }
 
+/**
+ * A deposit percent read from payment terms (migration 064): "50% to start",
+ * "25% deposit", "40% upfront", "half up front" → 50. Null when the terms
+ * don't ask for one ("Due upfront", "Due on completion").
+ */
+export function depositPercentFromTerms(terms: string): number | null {
+  const t = terms.toLowerCase();
+  const m = t.match(/(\d{1,3}(?:\.\d+)?)\s*%\s*(?:deposit\s*)?(?:to start|to begin|up ?front|at signing|on signing|down|deposit|now)/)
+    ?? t.match(/deposit\s*(?:of\s*)?(\d{1,3}(?:\.\d+)?)\s*%/);
+  if (m) { const n = Number(m[1]); return n > 0 && n < 100 ? n : null; }
+  if (/\bhalf\b.*\b(to start|up ?front|deposit|down)/.test(t)) return 50;
+  return null;
+}
+
 /** "Discovery: 50% to start · 50% on delivery" lines for the new estimate's notes. */
 export function phaseTermsNote(items: LineItem[], phases: string[]): string {
   const rows = phasesOf(items).filter((p) => phases.includes(p.name));

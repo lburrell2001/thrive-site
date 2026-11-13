@@ -653,3 +653,6 @@ button.proposalFooterAction { font-family: inherit; }
 .estimatePhaseTerms { font-size: 13px; color: #cfcfcf; }
 .estimatePhaseTerms strong { color: #fff; }
 .estimatePhaseTotal { font-size: 18px; white-space: nowrap; }
+
+/* An estimate's payment terms (migration 064). */
+.estimateTerms { margin: 14px 0 0; font-size: 14px; font-weight: 600; line-height: 1.5; color: #0a0a0a; }

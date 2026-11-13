@@ -19,9 +19,10 @@ import w from '../crm/workspace.module.css';
 import s from './billing.module.css';
 import { apiGet, apiSend, formatDate } from '../proposals/adminApi';
 import { Toast, useToast } from '../proposals/Toast';
-import { hasRange, rangeLines, rangeText, rangeTotals, setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
+import { depositPercentFromTerms, hasRange, rangeLines, rangeText, rangeTotals, setPhaseTimelineInText, addToGroupInText, amountText, categoryTotals, formatLineMoney, groupedText, hasChoices, isMonthly, isPhased, lineBlocks, lineItemsToText, lineText, parseLineItems, phaseLines, phaseTermsNote, phasesOf, selectLines, setPhaseInText, setPhaseTermsInText, setTierInText, splitTotals, tierTotal, tiersOf, totalCents, type LineBlock, type LineItem, type LineSelection } from '@/lib/lineItems';
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
+import { estimateTermsLine } from '@/lib/invoicePDF';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import SendLater, { laterAt, scheduledFor } from '../SendLater';
@@ -44,7 +45,7 @@ interface InvoiceRow {
 interface ProjectRow { id: string; client_id: string; name: string; status: string; archived?: boolean | null }
 interface DealRow { id: string; contact_id: string; title: string; stage: string }
 type Scheduled = { id: string; kind: 'proposal' | 'estimate' | 'invoice'; target_id: string | null; label: string; send_at: string; status: string; error: string | null; client_id?: string | null; invoice_number?: string | null; amount_cents?: number | null; project_name?: string | null };
-interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[]; deals?: DealRow[]; proposalLinks?: { id: string; title: string; estimate_id: string }[] }
+interface BillingData { ready: boolean; estimates: Estimate[]; invoices: InvoiceRow[]; clients: PortalClient[]; contacts: Contact[]; projects?: ProjectRow[]; deals?: DealRow[]; proposalLinks?: { id: string; title: string; estimate_id: string; deposit_percent?: number | null }[] }
 
 interface Draft {
   mode: Mode;
@@ -56,6 +57,8 @@ interface Draft {
   issueDate: string;
   dueDate: string;
   text: string;
+  /** An estimate's deposit to start, as a percent ('' = invoiced in full; migration 064). */
+  estDeposit?: string;
   notes: string;
   /** The client's PDF shows category subtotals, not each line. */
   totalsOnly: boolean;
@@ -225,6 +228,7 @@ export default function InvoiceBuilder() {
             ...blankDraft('estimate'), client: linked.portal_client_id ? `p:${linked.portal_client_id}` : linked.crm_contact_id ? `c:${linked.crm_contact_id}` : '',
             clientName: linked.client_name, title: linked.title, number: linked.estimate_number, issueDate: linked.issue_date,
             dueDate: linked.valid_until ?? '', text: lineItemsToText(linked.line_items), notes: linked.notes ?? '', totalsOnly: linked.totals_only ?? false,
+            estDeposit: linked.deposit_percent ? String(Number(linked.deposit_percent)) : '',
           };
           setEditingId(linked.id);
           setDraft(next);
@@ -435,6 +439,7 @@ export default function InvoiceBuilder() {
       mode: 'estimate', client: clientKeyFor(est), clientName: est.client_name, title: est.title,
       number: est.estimate_number, issueDate: est.issue_date, dueDate: est.valid_until ?? '',
       text: lineItemsToText(est.line_items), notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
+      estDeposit: est.deposit_percent ? String(Number(est.deposit_percent)) : '',
     };
     setEditingId(est.id);
     setFromEstimateId(null);
@@ -460,6 +465,9 @@ export default function InvoiceBuilder() {
       // Tiers and extras (migration 061): the client's choice (or the first option, no extras).
       issueDate: t, dueDate: addDays(t, 14), text: lineItemsToText(selectLines(est.line_items, (est as { selection?: LineSelection | null }).selection ?? null)), notes: est.notes ?? '',
       totalsOnly: est.totals_only ?? false,
+      // The estimate's payment terms carry over: just the deposit now (migration 064).
+      ...(est.deposit_percent && Number(est.deposit_percent) > 0 && Number(est.deposit_percent) < 100
+        ? { depositOn: true, depositMode: 'percent' as const, depositValue: String(Number(est.deposit_percent)), depositDue: t } : {}),
     });
     void fillInvoiceNumber(client);
     if (!portalIdOf(client)) show('Pick a client with a portal login to add this invoice to their portal.', 'error');
@@ -496,6 +504,7 @@ export default function InvoiceBuilder() {
       issue_date: draft.issueDate,
       valid_until: draft.dueDate || null,
       totals_only: draft.totalsOnly,
+      deposit_percent: (() => { const n = Number.parseFloat(draft.estDeposit ?? ''); return n > 0 && n < 100 ? n : null; })(),
       // Made from a phased estimate's phases (migration 062): its deal, and the link back.
       ...(!editingId && fromPhases ? { crm_deal_id: fromPhases.crm_deal_id, from_phases: { estimate_id: fromPhases.estimate_id, phases: fromPhases.phases } } : {}),
     };
@@ -907,10 +916,21 @@ export default function InvoiceBuilder() {
       issueDate: t, dueDate: addDays(t, 30),
       text: lineItemsToText(phaseLines(est.line_items, phases, end)),
       notes: terms, totalsOnly: est.totals_only ?? false,
+      // The phase's terms set the deposit ("50% to start" → 50%), when every chosen phase agrees.
+      estDeposit: (() => {
+        const pcts = [...new Set(phasesOf(est.line_items).filter((ph) => phases.includes(ph.name)).map((ph) => depositPercentFromTerms(ph.terms)))];
+        return pcts.length === 1 && pcts[0] ? String(pcts[0]) : '';
+      })(),
     });
     setView('edit');
     scrollTop();
     show(`New estimate from ${phases.join(', ')}. Check it, save, then send.`);
+  }
+
+  /** The deposit percent of the proposal an estimate belongs to, as the builder's text ('' = none). */
+  function proposalDepositFor(estId: string): string {
+    const n = Number(data?.proposalLinks?.find((l) => l.estimate_id === estId)?.deposit_percent ?? 0);
+    return n > 0 && n < 100 ? String(n) : '';
   }
 
   /** The final estimate from a price range (migration 063): the chosen end's items, as a plain estimate. */
@@ -929,6 +949,8 @@ export default function InvoiceBuilder() {
       title: est.title, issueDate: t, dueDate: addDays(t, 30),
       text: lineItemsToText(rangeLines(est.line_items, end, sel)),
       notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
+      // The proposal's deposit (a range's estimate doesn't keep one itself).
+      estDeposit: proposalDepositFor(est.id),
     });
     setView('edit');
     scrollTop();
@@ -1357,6 +1379,9 @@ export default function InvoiceBuilder() {
               <DepositFields draft={draft} total={total} depositCents={depositCents} problem={depositProblem}
                 onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             )}
+            {!isInvoice && !isPhased(items) && !hasRange(items) && (
+              <EstimateDeposit value={draft.estDeposit ?? ''} total={total} locked={!!linkedProposal} onChange={(v) => set('estDeposit', v)} />
+            )}
           </section>
 
           <section className={s.step}>
@@ -1757,6 +1782,35 @@ const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on c
  * A saved phased estimate (migration 062): which phases the client approved,
  * which already have an estimate, and "Make estimate" from the ticked ones.
  */
+/**
+ * An estimate's payment terms (migration 064): a deposit to start. When the
+ * client accepts, the invoice asks for just that; the rest stays locked until
+ * you open the balance. A proposal's estimate follows the proposal's deposit.
+ */
+function EstimateDeposit({ value, total, locked, onChange }: { value: string; total: number; locked: boolean; onChange: (v: string) => void }) {
+  const n = Number.parseFloat(value);
+  const on = n > 0 && n < 100;
+  const preset = ['', '25', '50'];
+  return (
+    <div style={{ display: 'grid', gap: 6, marginTop: 16 }}>
+      <span className={p.label}>Payment terms</span>
+      <div className={s.quickDates}>
+        {preset.map((v) => (
+          <button key={v || 'full'} type="button" disabled={locked} className={`${s.chip} ${value === v || (!v && !on) ? s.chipOn : ''}`}
+            onClick={() => onChange(v)}>{v ? `${v}% deposit` : 'Invoice in full'}</button>
+        ))}
+        <input className={p.input} style={{ width: 110 }} inputMode="decimal" aria-label="Deposit percent" placeholder="Other %" disabled={locked}
+          value={preset.includes(value) ? '' : value} onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))} />
+      </div>
+      <span className={w.muted} style={{ fontSize: 12.5 }}>
+        {locked ? 'Follows the proposal’s deposit.'
+          : on ? `When they accept, the invoice asks for ${n}% now (${formatLineMoney(Math.round((total * n) / 100))}); the rest stays locked until you open the balance.`
+          : 'When they accept, the whole amount is invoiced.'}
+      </span>
+    </div>
+  );
+}
+
 /** Low end / High end: where the final estimate starts from (price ranges, migration 063). */
 function EndPick({ end, onEnd }: { end: 'low' | 'high'; onEnd: (end: 'low' | 'high') => void }) {
   return (
@@ -2266,6 +2320,11 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
         <p className={s.paperNotes}>Includes the first month of monthly services ({formatLineMoney(split.monthly)}/mo).</p>
       )}
 
+      {!isInvoice && (() => {
+        // An estimate's payment terms (migration 064), as the client sees them.
+        const line = estimateTermsLine({ deposit_percent: Number.parseFloat(draft.estDeposit ?? '') || null, amount_cents: total, line_items: items });
+        return line ? <p className={s.paperNotes} style={{ fontWeight: 700 }}>{line}</p> : null;
+      })()}
       {draft.notes.trim() && <p className={s.paperNotes}>{draft.notes.trim()}</p>}
     </section>
   );

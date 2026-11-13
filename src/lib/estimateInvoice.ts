@@ -99,7 +99,8 @@ export async function invoiceForEstimate(
 
   // 3. The invoice.
   const today = dallasToday();
-  const pct = opts.depositPercent ?? 0;
+  // The deposit: a signed proposal's, else the estimate's own payment terms (migration 064).
+  const pct = opts.depositPercent ?? Number(est.deposit_percent ?? 0);
   const deposit = pct > 0 && pct < 100 ? Math.round((total * pct) / 100) : 0;
   const invoiceNumber = await nextInvoiceNumberFor(db, portalId, 'INV');
   const { data: inv, error: invErr } = await db.from('portal_invoices').insert({

@@ -18,7 +18,12 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const row = { ...estimateRow(parsed.data), updated_at: new Date().toISOString() };
   const save = (r: Record<string, unknown>) => auth.db.from('estimates').update(r).eq('id', id).select('*').maybeSingle();
   let { data, error } = await save(row);
-  if (error && missingTotalsOnly(error.message) && 'totals_only' in row) ({ data, error } = await save(withoutTotalsOnly(row)));
+  // Before migration 047 / 064: save without the missing column(s).
+  let trimmed: Record<string, unknown> = row;
+  for (let i = 0; i < 2 && error && missingTotalsOnly(error.message); i++) {
+    trimmed = withoutTotalsOnly(trimmed, error.message);
+    ({ data, error } = await save(trimmed));
+  }
   if (error) return badRequest(error.message);
   if (!data) return badRequest('Estimate not found', 404);
   return NextResponse.json({ ok: true, data });

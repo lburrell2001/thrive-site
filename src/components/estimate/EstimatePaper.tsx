@@ -11,7 +11,7 @@
 // estimate page, before approving).
 
 import { amountText, clientRows, formatLineMoney, hasChoices, hasRange, isMonthly, isPhased, rangeText, rangeTotals, splitTotals, type LineItem, type LineSelection } from '@/lib/lineItems';
-import { optionTotals, phaseGroups, type InvoiceForPDF } from '@/lib/invoicePDF';
+import { estimateTermsLine, optionTotals, phaseGroups, type InvoiceForPDF } from '@/lib/invoicePDF';
 
 export type EstimateApprove = { phases: string[]; onToggle: (phase: string, on: boolean) => void };
 
@@ -182,6 +182,7 @@ export function EstimatePaper({ pdf, clientName, choose, totalLabel, approve }: 
         <div className="estimateTotal estimateTotalSub"><span>Monthly</span><strong>{formatLineMoney(split.monthly)}/mo</strong></div>
       )}
       </>}
+      {estimateTermsLine(pdf) && <p className="estimateTerms">{estimateTermsLine(pdf)}</p>}
       {pdf.notes?.trim() && <p className="estimateNotes">{pdf.notes.trim()}</p>}
     </article>
   );

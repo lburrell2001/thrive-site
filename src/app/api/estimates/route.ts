@@ -41,7 +41,7 @@ export async function GET(req: Request) {
   if (deals.error) deals = await dealQuery(false);
 
   // Estimates that belong to a proposal (migration 050).
-  const linked = await db.from('proposals').select('id, title, estimate_id').not('estimate_id', 'is', null);
+  const linked = await db.from('proposals').select('id, title, estimate_id, deposit_percent').not('estimate_id', 'is', null);
 
   return NextResponse.json({
     ok: true,
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ ok: true, data });
     }
-    if (missingTotalsOnly(error.message) && 'totals_only' in row) { row = withoutTotalsOnly(row); continue; }
+    if (missingTotalsOnly(error.message)) { row = withoutTotalsOnly(row, error.message); continue; }
     if (missingEstimatesTable(error.message)) return badRequest('Run migration 039 in Supabase to save estimates.', 503);
     if (error.code !== '23505') return badRequest(error.message);
   }

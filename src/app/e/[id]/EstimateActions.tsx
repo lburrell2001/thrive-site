@@ -56,6 +56,8 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
   const [declinedNow, setDeclinedNow] = useState(false);
 
   const sel = chooser?.selection;
+  // Payment terms (migration 064): a deposit to start; the invoice asks for just that.
+  const depositPct = (() => { const n = Number(pdf.deposit_percent ?? 0); return n > 0 && n < 100 ? n : 0; })();
   const needsTier = !!chooser?.options.length;
   const chosen = !needsTier || !!sel?.tier;
   const ready = chosen && !pricing && name.trim() && agreed && (!phaser || phaser.selected.length > 0);
@@ -210,7 +212,9 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             <h2 id="accept-title" className="pdTitle">Accept estimate</h2>
             <p className="pdLead">
               {needsTier ? 'Choose your option, add any extras, and accept. ' : ''}
-              {ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.' : 'Once you accept, we’ll send your invoice to your client portal.'}
+              {ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.'
+                : depositPct ? `Once you accept, we’ll send your invoice for the ${depositPct}% deposit${chosen && !pricing ? ` (${formatLineMoney(Math.round((pdf.amount_cents * depositPct) / 100))})` : ''} to your client portal. The rest is invoiced later.`
+                : 'Once you accept, we’ll send your invoice to your client portal.'}
             </p>
 
             {needsTier && (

@@ -28,6 +28,8 @@ export type Estimate = {
   invoice_id: string | null;
   /** Migration 047: the client's PDF shows category subtotals, not each line. */
   totals_only?: boolean;
+  /** Migration 064: a deposit to start (percent of the total); the invoice asks for just that, the rest when Lauren opens it. */
+  deposit_percent?: number | null;
   /** Migration 049: the deal it belongs to. */
   crm_deal_id?: string | null;
   created_at: string;
@@ -46,6 +48,8 @@ export const estimateSchema = z.object({
   issue_date: isoDate,
   valid_until: isoDate.nullable(),
   totals_only: z.boolean().optional(),
+  /** Migration 064: a deposit to start, as a percent (null / 0 = invoiced in full). */
+  deposit_percent: z.number().min(0).max(100).nullable().optional(),
   /** Migration 049: the deal to file it under (else the insert trigger picks one). */
   crm_deal_id: z.string().uuid().nullable().optional(),
   /** Migration 062: made from these phases of a phased estimate (not stored on this row). */
@@ -77,12 +81,13 @@ export async function nextEstimateNumber(db: SupabaseClient): Promise<string> {
   return `EST-${String(max + 1).padStart(3, '0')}`;
 }
 
-/** Before migration 047 there's no totals_only column: save without it. */
-export const missingTotalsOnly = (message: string) => /totals_only/.test(message);
+/** Before migration 047 (totals_only) or 064 (deposit_percent) the column isn't there: save without it. */
+const OPTIONAL_COLUMNS = ['totals_only', 'deposit_percent'] as const;
+export const missingTotalsOnly = (message: string) => OPTIONAL_COLUMNS.some((c) => message.includes(c));
 
-export function withoutTotalsOnly<T extends Record<string, unknown>>(row: T): T {
+export function withoutTotalsOnly<T extends Record<string, unknown>>(row: T, message = ''): T {
   const copy = { ...row };
-  delete copy.totals_only;
+  for (const c of OPTIONAL_COLUMNS) if (!message || message.includes(c)) delete copy[c];
   return copy;
 }
 
