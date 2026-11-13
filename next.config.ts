@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // The proposal PDF starts headless Chrome from @sparticuz/chromium, which
+  // reads its compressed browser from bin/ at run time. File tracing doesn't
+  // follow that read, so without this the function ships without Chrome and
+  // every PDF falls back to the print page.
+  outputFileTracingIncludes: {
+    // A glob: '[id]' would read as a character class.
+    '/api/proposals/*/pdf': ['./node_modules/@sparticuz/chromium/bin/**'],
+  },
   async redirects() {
     return [
       // One canonical host. Vercel's domain settings already 308 www to the
