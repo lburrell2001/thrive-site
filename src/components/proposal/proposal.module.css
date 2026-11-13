@@ -25,25 +25,27 @@
   border-top: 1px solid var(--hairline);
 }
 
-/* Print view: real Letter proportions. `aspect-ratio` sets the preferred
-   height; a block with more content than fits simply grows rather than
-   clipping its own text. */
+/* Print view: one continuous flow on Letter sheets (Nov 2026 — a page per
+   heading left sheets half empty). Sections follow on the same sheet; long
+   lists split between rows, never inside one; a heading, a kicker or a phase
+   title stays with what follows it. The cover, when shown, keeps its own
+   sheet. The sheet margins are in proposal-print.css (painted black). */
 .modePrint {
-  --pad-block: clamp(40px, 6cqw, 64px);
+  --pad-block: clamp(28px, 4.5cqw, 48px);
 }
 
 .modePrint .pageStart {
-  break-before: page;
   display: flex;
   flex-direction: column;
 }
 
-.modePrint .pageStart:first-child {
-  break-before: auto;
+.modePrint .pageStart[data-type='cover'] {
+  break-after: page;
 }
 
-.modePrint .pageContinues {
-  break-inside: avoid;
+/* One running header, at the top of the document — not mid-sheet before every section. */
+.modePrint .pageStart:not([data-type='cover']) ~ .pageStart .runningHeader {
+  display: none;
 }
 
 .page {
@@ -1151,17 +1153,26 @@
     print-color-adjust: exact;
   }
 
-  .pageStart {
-    break-before: page;
-  }
-
   .pageStart[data-type='cover'] {
     min-height: 100vh;
+    break-after: page;
   }
 
-  .pageStart:first-child { break-before: auto; }
+  /* Keep titles with what follows them, and a total with the rows above it. */
+  .headingClip,
+  .kicker,
+  .pricingOptionHead,
+  .tlIntro,
+  .runningHeader {
+    break-after: avoid;
+  }
 
-  .pageContinues { break-inside: avoid; }
+  .pricingTotal {
+    break-inside: avoid;
+    break-before: avoid;
+  }
+
+  .page[data-type='signature'] { break-inside: avoid; }
 
   .cover { min-height: 0; flex: 1; }
 

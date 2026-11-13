@@ -4,9 +4,18 @@
    already in proposal.module.css — this file only sets up the paper.
    ====================================================================== */
 
+/* A black band top and bottom on every sheet (the root's black background
+   fills the margins), so text that flows onto a new sheet never touches the
+   edge. The first sheet starts at the top: it opens with a cover or a section
+   that has its own padding. */
 @page {
   size: Letter;
-  margin: 0;
+  margin: 0.4in 0;
+  background: #000;
+}
+
+@page :first {
+  margin-top: 0;
 }
 
 .proposalPrintRoot {
