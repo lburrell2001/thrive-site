@@ -1380,7 +1380,8 @@ export default function InvoiceBuilder() {
                 onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             )}
             {!isInvoice && !isPhased(items) && !hasRange(items) && (
-              <EstimateDeposit value={draft.estDeposit ?? ''} total={total} locked={!!linkedProposal} onChange={(v) => set('estDeposit', v)} />
+              <EstimateDeposit value={draft.estDeposit ?? ''} total={total} locked={!!linkedProposal} onChange={(v) => set('estDeposit', v)}
+                options={tiersOf(items).map((t) => ({ name: t, total: tierTotal(items, t) }))} />
             )}
           </section>
 
@@ -1789,7 +1790,11 @@ const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on c
  * client accepts, the invoice asks for just that; the rest stays locked until
  * you open the balance. A proposal's estimate follows the proposal's deposit.
  */
-function EstimateDeposit({ value, total, locked, onChange }: { value: string; total: number; locked: boolean; onChange: (v: string) => void }) {
+function EstimateDeposit({ value, total, locked, onChange, options = [] }: {
+  value: string; total: number; locked: boolean; onChange: (v: string) => void;
+  /** Tiers: the deposit depends on the option they pick. */
+  options?: { name: string; total: number }[];
+}) {
   const n = Number.parseFloat(value);
   const on = n > 0 && n < 100;
   const preset = ['', '25', '50'];
@@ -1806,6 +1811,7 @@ function EstimateDeposit({ value, total, locked, onChange }: { value: string; to
       </div>
       <span className={w.muted} style={{ fontSize: 12.5 }}>
         {locked ? 'Follows the proposal’s deposit.'
+          : on && options.length ? `When they accept, the invoice asks for ${n}% of the option they pick now — ${options.map((o) => `${o.name} ${formatLineMoney(Math.round((o.total * n) / 100))}`).join(' · ')} — and the rest stays locked until you open the balance.`
           : on ? `When they accept, the invoice asks for ${n}% now (${formatLineMoney(Math.round((total * n) / 100))}); the rest stays locked until you open the balance.`
           : 'When they accept, the whole amount is invoiced.'}
       </span>
