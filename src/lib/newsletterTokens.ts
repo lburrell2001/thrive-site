@@ -10,8 +10,10 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export type TokenPurpose = 'confirm' | 'unsubscribe';
 
+// Never ANALYTICS_SALT: every sent email's unsubscribe link and reply address
+// are signed with this key, so it must not change when that salt is added.
 function key() {
-  const k = process.env.NEWSLETTER_SECRET || process.env.ANALYTICS_SALT || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const k = process.env.NEWSLETTER_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!k) throw new Error('No key available to sign newsletter links');
   return k;
 }
