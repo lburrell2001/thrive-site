@@ -2,7 +2,10 @@
 // the bottom: export the PDF, or accept — which turns it into an invoice in
 // their portal (see accept/route.ts).
 
-import { notFound } from 'next/navigation';
+import { after } from 'next/server';
+import { LinkHelp } from '@/components/LinkHelp';
+import { proposalServiceClient } from '@/lib/proposalAccess';
+import { reportBrokenLink } from '@/lib/linkRecovery';
 import { estimateForClientPdf, loadClientEstimate } from '@/lib/estimateAccess';
 import { EstimatePaper, estimateTotalLabel } from '@/components/estimate/EstimatePaper';
 import { EstimateActions } from './EstimateActions';
@@ -20,7 +23,22 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
   const t = (await searchParams).t;
   const token = Array.isArray(t) ? t[0] : t;
   const est = await loadClientEstimate(id, token);
-  if (!est) notFound();
+  // A link missing its key (cut off by a mail app, or half copied): never a
+  // dead end — the client can get a fresh link, and Lauren is told.
+  if (!est) {
+    if (/^[0-9a-f-]{36}$/i.test(id)) {
+      after(async () => {
+        const { data } = await proposalServiceClient().from('estimates').select('estimate_number, title, client_name, status').eq('id', id).maybeSingle();
+        if (data && data.status !== 'draft') {
+          await reportBrokenLink(proposalServiceClient(), {
+            key: `estimate:${id}`, label: `Estimate ${data.estimate_number}${data.title ? ` (${data.title})` : ''}`,
+            client: data.client_name || null, path: `/admin/invoices?estimate=${id}`,
+          });
+        }
+      });
+    }
+    return <LinkHelp kind="estimate" path={`/e/${id}`} />;
+  }
 
   const pdf = estimateForClientPdf(est);
   const accepted = !!est.accepted_at;

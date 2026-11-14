@@ -7,7 +7,9 @@ export const dynamic = 'force-dynamic';
 
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { after } from 'next/server';
+import { LinkHelp } from '@/components/LinkHelp';
+import { reportBrokenLink } from '@/lib/linkRecovery';
 import { ProposalRenderer } from '@/components/proposal/ProposalRenderer';
 import {
   firstParam,
@@ -50,7 +52,22 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   const fromPortal = firstParam(query.from) === 'portal';
 
   const access = await resolveProposalAccess(slug, token);
-  if (!access.ok) notFound();
+  // A link missing its key (cut off by a mail app, or half copied): never a
+  // dead end — the client can get a fresh link, and Lauren is told.
+  if (!access.ok) {
+    after(async () => {
+      const db = proposalServiceClient();
+      const { data } = await db.from('proposals').select('id, title, status, proposal_clients ( name, company )').eq('slug', slug).maybeSingle();
+      if (data && data.status !== 'draft') {
+        const who = (Array.isArray(data.proposal_clients) ? data.proposal_clients[0] : data.proposal_clients) as { name?: string; company?: string } | null;
+        await reportBrokenLink(db, {
+          key: `proposal:${data.id}`, label: `Proposal “${data.title}”`,
+          client: who?.name || who?.company || null, path: `/admin/crm/proposals/${data.id}`,
+        });
+      }
+    });
+    return <LinkHelp kind="proposal" path={`/p/${slug}`} dark />;
+  }
 
   const { row, renderable } = access.loaded;
 
