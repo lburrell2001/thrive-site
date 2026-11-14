@@ -32,6 +32,8 @@ export type Estimate = {
   deposit_percent?: number | null;
   /** Migration 049: the deal it belongs to. */
   crm_deal_id?: string | null;
+  /** Migration 051: the key in the client's link, /e/<id>?t=<access_token>. */
+  access_token?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -1596,6 +1596,14 @@ export default function InvoiceBuilder() {
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty || busy} title={dirty ? 'Save your changes first' : undefined}
                     onClick={() => proposalFromEstimate(editingEstimate)}>Turn into proposal</button>
                 )}
+                {editingEstimate.access_token && editingEstimate.status !== 'draft' && (
+                  <button type="button" className={`${p.btn} ${p.btnSmall}`}
+                    title="The link to their estimate page — paste it into a text if the email's link didn't work"
+                    onClick={() => {
+                      const url = `${window.location.origin}/e/${editingEstimate.id}?t=${editingEstimate.access_token}`;
+                      navigator.clipboard.writeText(url).then(() => show('Client link copied — paste it into a text or email.'), () => window.prompt('Copy the client link:', url));
+                    }}>Copy client link</button>
+                )}
                 {editingEstimate.status !== 'invoiced' && <>
                   {!isPhased(editingEstimate.line_items) && !hasRange(editingEstimate.line_items) && (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}

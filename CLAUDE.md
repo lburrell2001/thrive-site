@@ -154,7 +154,7 @@ Migration `051`. Each estimate has a private page, `/e/<id>?t=<access_token>` (`
 
 ### Broken estimate/proposal links
 
-A `/e/<id>` or `/p/<slug>` link missing its `?t=` key (cut off by a mail app, half copied) never 404s: the page renders `LinkHelp` (`src/components/LinkHelp.tsx`, same copy for any link so it can't reveal what exists) — "Send me a fresh link": `POST /api/link-help` (5/hour per IP) → `sendFreshLinks()` in `src/lib/linkRecovery.ts` emails every non-draft estimate (`sent_to`) and proposal (recipient email) from the last 180 days to that address with its full link, and tells Lauren. Opening a real, sent document with a bad key also texts/emails Lauren (`reportBrokenLink()`, at most every 6 hours per document, `rate_limit_hits` bucket `broken_link`).
+A `/e/<id>` or `/p/<slug>` link missing its `?t=` key (cut off by a mail app, half copied) never 404s: the page renders `LinkHelp` (`src/components/LinkHelp.tsx`, same copy for any link so it can't reveal what exists) — "Send me a fresh link": `POST /api/link-help` (5/hour per IP) → `sendFreshLinks()` in `src/lib/linkRecovery.ts` emails every non-draft estimate (`sent_to`) and proposal (recipient email) from the last 180 days to that address with its full link, and tells Lauren. Opening a real, sent document with a bad key also texts/emails Lauren (`reportBrokenLink()`, at most every 6 hours per document, `rate_limit_hits` bucket `broken_link`), with the full client link in the alert to forward. The estimate editor's Finish step has **Copy client link** (sent estimates); proposals have it under More in the builder.
 
 ### Phased estimates and proposals
 

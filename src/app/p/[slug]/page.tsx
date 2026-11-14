@@ -10,6 +10,7 @@ import type { Metadata } from 'next';
 import { after } from 'next/server';
 import { LinkHelp } from '@/components/LinkHelp';
 import { reportBrokenLink } from '@/lib/linkRecovery';
+import { SITE_URL } from '@/lib/seo';
 import { ProposalRenderer } from '@/components/proposal/ProposalRenderer';
 import {
   firstParam,
@@ -57,12 +58,12 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
   if (!access.ok) {
     after(async () => {
       const db = proposalServiceClient();
-      const { data } = await db.from('proposals').select('id, title, status, proposal_clients ( name, company )').eq('slug', slug).maybeSingle();
+      const { data } = await db.from('proposals').select('id, title, status, access_token, proposal_clients ( name, company )').eq('slug', slug).maybeSingle();
       if (data && data.status !== 'draft') {
         const who = (Array.isArray(data.proposal_clients) ? data.proposal_clients[0] : data.proposal_clients) as { name?: string; company?: string } | null;
         await reportBrokenLink(db, {
           key: `proposal:${data.id}`, label: `Proposal “${data.title}”`,
-          client: who?.name || who?.company || null, path: `/admin/crm/proposals/${data.id}`,
+          client: who?.name || who?.company || null, path: `/admin/crm/proposals/${data.id}`, clientUrl: `${SITE_URL}/p/${slug}?t=${data.access_token}`,
         });
       }
     });

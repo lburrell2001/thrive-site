@@ -6,6 +6,7 @@ import { after } from 'next/server';
 import { LinkHelp } from '@/components/LinkHelp';
 import { proposalServiceClient } from '@/lib/proposalAccess';
 import { reportBrokenLink } from '@/lib/linkRecovery';
+import { SITE_URL } from '@/lib/seo';
 import { estimateForClientPdf, loadClientEstimate } from '@/lib/estimateAccess';
 import { EstimatePaper, estimateTotalLabel } from '@/components/estimate/EstimatePaper';
 import { EstimateActions } from './EstimateActions';
@@ -28,11 +29,11 @@ export default async function ClientEstimatePage({ params, searchParams }: PageP
   if (!est) {
     if (/^[0-9a-f-]{36}$/i.test(id)) {
       after(async () => {
-        const { data } = await proposalServiceClient().from('estimates').select('estimate_number, title, client_name, status').eq('id', id).maybeSingle();
+        const { data } = await proposalServiceClient().from('estimates').select('estimate_number, title, client_name, status, access_token').eq('id', id).maybeSingle();
         if (data && data.status !== 'draft') {
           await reportBrokenLink(proposalServiceClient(), {
             key: `estimate:${id}`, label: `Estimate ${data.estimate_number}${data.title ? ` (${data.title})` : ''}`,
-            client: data.client_name || null, path: `/admin/invoices?estimate=${id}`,
+            client: data.client_name || null, path: `/admin/invoices?estimate=${id}`, clientUrl: `${SITE_URL}/e/${id}?t=${data.access_token}`,
           });
         }
       });

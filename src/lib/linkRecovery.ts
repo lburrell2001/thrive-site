@@ -99,15 +99,15 @@ export async function sendFreshLinks(db: SupabaseClient, emailIn: string, broken
  * A real estimate/proposal was opened with a missing or wrong key: tell
  * Lauren (at most every 6 hours per document) so she can check on them.
  */
-export async function reportBrokenLink(db: SupabaseClient, doc: { key: string; label: string; client: string | null; path: string }): Promise<void> {
+export async function reportBrokenLink(db: SupabaseClient, doc: { key: string; label: string; client: string | null; path: string; clientUrl: string }): Promise<void> {
   try {
     const bucket = 'broken_link';
     if ((await recentHits(db, bucket, doc.key, 6 * 3_600_000)) > 0) return;
     await recordHit(db, bucket, doc.key);
     await tellLauren(
       `Broken link opened: ${doc.label}`,
-      `Someone${doc.client ? ` (${doc.client})` : ''} opened ${doc.label} with an incomplete link — the key at the end was missing or cut off. The page offered them a fresh link by email; you may want to text them the full link.\n\n${SITE_URL}${doc.path}`,
-      `Heads up: ${doc.label}${doc.client ? ` (${doc.client})` : ''} was opened with an incomplete link. They were offered a fresh one; you may want to text them the full link.`,
+      `Someone${doc.client ? ` (${doc.client})` : ''} opened ${doc.label} with an incomplete link — the key at the end was missing or cut off. The page offered them a fresh link by email; you may want to text them the full link.\n\nThe full link to send them:\n${doc.clientUrl}\n\nIn admin: ${SITE_URL}${doc.path}`,
+      `Heads up: ${doc.label}${doc.client ? ` (${doc.client})` : ''} was opened with an incomplete link. They were offered a fresh one. Full link to send them: ${doc.clientUrl}`,
     );
   } catch (e) {
     console.error('[linkRecovery] report', e);
