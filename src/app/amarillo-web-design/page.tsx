@@ -16,9 +16,12 @@ import s from "./amarillo.module.css";
 // service pages.
 
 const PATH = "/amarillo-web-design";
-const TITLE = "Amarillo Web Design & Development, Branding & Social Media | Thrive Creative Studios";
+// Exact keywords first: "Amarillo Web Design" / "Amarillo Graphic Design".
+const TITLE = "Amarillo Web Design & Graphic Design | Thrive Creative Studios";
+const WEB_FROM = SERVICE_PRICING["digital-design"].sections[0].cards[0].price;
+const BRAND_FROM = SERVICE_PRICING["brand-design"].sections[0].cards[0].price;
 const DESCRIPTION =
-  "Web design & development, graphic design, and social media marketing for Amarillo small businesses. Starter websites from $1,250. Founded by an Amarillo native.";
+  `Amarillo web design and graphic design for small businesses and nonprofits: websites from ${WEB_FROM}, logos and branding from ${BRAND_FROM}, and social media management. Founded by an Amarillo native.`;
 
 const base = buildPageMetadata({ title: TITLE, description: DESCRIPTION, path: PATH });
 export const metadata: Metadata = {
@@ -30,7 +33,7 @@ export const metadata: Metadata = {
 const CLASSIC_ROLLERS = {
   href: "/work/classic-rollers-car-club",
   img: "/case-studies/classic-rollers-car-club/mockup-screens-1200.webp",
-  alt: "The Classic Rollers Car Club website on a desktop monitor, with its Join the Club, Donate, Membership and Events sections and the phone version floating around it",
+  alt: "Amarillo web design project: the Classic Rollers Car Club website on a desktop monitor, with its Join the Club, Donate, Membership and Events sections and the phone version floating around it",
 };
 
 /**
@@ -81,11 +84,32 @@ const PRICES = [
   { group: "Social media", rows: [{ name: "Monthly management", price: social.price.replace("/month", " a month"), note: social.scope ?? "" }], href: "/services/social-media#pricing" },
 ];
 
+/** The steps of a project, from the service page's process (configs.ts). */
+const PROCESS = [
+  { title: "A free call", text: "We talk through your business, who you want to reach and what the website or brand needs to do. Book a time online or send a message; calls and video work the same from Amarillo as from Dallas." },
+  { title: "A written proposal", text: "You get the pages or pieces, the timeline and the price in writing before any work starts, so you know exactly what you're paying for." },
+  { title: "Design", text: "For a website, a page-by-page plan, then the full visual design: color, type, imagery and layout. For a brand, two logo concepts to choose from, then refinement." },
+  { title: "Build", text: "Your site is built in your colors and fonts, designed for phones first and set up for Google, or your brand files are finished for print and web." },
+  { title: "Launch", text: "We test on phones and desktops, then launch. Care plans keep the site secure and up to date after launch." },
+];
+
 /** Shown on the page and sent as FAQPage schema — one list, so they always match. */
 const FAQS = [
   {
     q: "How much does a website cost in Amarillo?",
     a: `With us, a small business website costs ${tier("Starter").price} to ${tier("Large").price}. Starter is ${tier("Starter").price} for ${pages("Starter")}, Medium is ${tier("Medium").price} for ${pages("Medium")}, and Large is ${tier("Large").price} for ${pages("Large")} with an admin area. Sites that need more, like logins or online payments, are quoted separately. You get a written proposal with the price before any work starts.`,
+  },
+  {
+    q: "How much does graphic design cost in Amarillo?",
+    a: `Logo and essentials is ${brand[0].price} and a full brand identity is ${brand[1].price}. Single pieces start at $70 for a flyer, poster or social graphic, and an event flyer set with feed, story and print versions is $180. Every project gets a written price before work starts.`,
+  },
+  {
+    q: "Will my new website show up on Google?",
+    a: "Every site we build is set up for Google, with search groundwork built in, and every page is designed for phones first. Nobody can honestly promise a top spot on Google, but a well-built site gives you the best start.",
+  },
+  {
+    q: "What do I need to get started?",
+    a: "Just a free call. Bring what you have, like a logo, photos or a site you like, but you don't need any of it. If you don't have a brand yet, branding can be part of the same project.",
   },
   {
     q: "Do you meet with Amarillo clients in person?",
@@ -106,6 +130,16 @@ const FAQS = [
 
 ];
 
+const dollars = (p: string) => Number((p.match(/[\d,]+/)?.[0] ?? "0").replace(/,/g, ""));
+const SERVICES_LD = [
+  { id: "web-design", name: "Amarillo Web Design & Development", type: "Web design and development", href: "/services/digital-design", from: tier("Starter").price,
+    description: "Websites for Amarillo small businesses and nonprofits: designed and built in your brand, mobile-first and set up for Google, or work on your existing WordPress, Wix, Squarespace or Shopify site." },
+  { id: "graphic-design", name: "Amarillo Graphic Design & Branding", type: "Graphic design and branding", href: "/services/brand-design", from: brand[0].price,
+    description: "Logos, color palettes, fonts, brand guidelines, flyers, social graphics and print pieces for Amarillo businesses." },
+  { id: "social-media", name: "Social Media Marketing in Amarillo", type: "Social media management", href: "/services/social-media", from: social.price,
+    description: "Monthly content calendar, designed graphics, edited video, captions, scheduling and posting, with every post approved by you." },
+];
+
 export default function AmarilloPage() {
   const url = absoluteUrl(PATH);
   const city = (name: string) => ({ "@type": "City", name, containedInPlace: { "@type": "State", name: "Texas" } });
@@ -123,6 +157,17 @@ export default function AmarilloPage() {
         address: { "@type": "PostalAddress", addressLocality: "Dallas", addressRegion: "TX", addressCountry: "US" },
         areaServed: [city("Amarillo"), city("Dallas")],
       },
+      ...SERVICES_LD.map((sv) => ({
+        "@type": "Service",
+        "@id": `${url}#${sv.id}`,
+        name: sv.name,
+        serviceType: sv.type,
+        description: sv.description,
+        provider: { "@id": BUSINESS_ID },
+        areaServed: city("Amarillo"),
+        url: absoluteUrl(sv.href),
+        offers: { "@type": "Offer", priceCurrency: "USD", price: dollars(sv.from), description: `From ${sv.from}` },
+      })),
       {
         "@type": "FAQPage",
         "@id": `${url}#faq`,
@@ -146,11 +191,12 @@ export default function AmarilloPage() {
         <section className={s.hero}>
           <div className={s.heroText}>
             <h1 className={s.h1}>
-              Web Design & Development, Branding &amp; Social Media in <span className={s.accent}>Amarillo</span>, TX
+              <span className={s.accent}>Amarillo</span> Web Design &amp; Graphic Design
             </h1>
             <p className={s.lead}>
-              Our founder is from Amarillo, born and raised, Tascosa High School. Thrive is based in Dallas and works
-              with Amarillo businesses and nonprofits.
+              Websites, logos and branding, and social media for Amarillo businesses and nonprofits. Our founder is
+              from Amarillo, born and raised, Tascosa High School. Thrive is based in Dallas and works with Amarillo
+              clients remotely, and in person when she’s home.
             </p>
             <div className={s.actions}>
               <Link href="/contact" className={s.btnPrimary}>Let’s Start a Project</Link>
@@ -176,7 +222,7 @@ export default function AmarilloPage() {
         <section className={s.services}>
           <article className={`${s.service} ${s.pink}`}>
             <div className={s.serviceHead}>
-              <h2 className={s.h2}>Web Design & Development in Amarillo</h2>
+              <h2 className={s.h2}>Amarillo Web Design &amp; Development</h2>
               <ServicePhoto photo={PHOTOS.web} />
             </div>
             <div className={s.serviceBody}>
@@ -188,14 +234,14 @@ export default function AmarilloPage() {
               <p>
                 We handle the design and the build. Sites we build work on any screen and are set up for Google. Larger sites include an admin area, so
                 your team can update text and photos themselves. Starter sites go live in {weeks("Starter")}. See
-                packages on our <Link href="/services/digital-design">web development page</Link>.
+                packages on our <Link href="/services/digital-design">web design &amp; development page</Link>.
               </p>
             </div>
           </article>
 
           <article className={`${s.service} ${s.orange}`}>
             <div className={s.serviceHead}>
-              <h2 className={s.h2}>Graphic Design and Branding in Amarillo, TX</h2>
+              <h2 className={s.h2}>Amarillo Graphic Design &amp; Branding</h2>
               <ServicePhoto photo={PHOTOS.brand} />
             </div>
             <div className={s.serviceBody}>
@@ -230,9 +276,52 @@ export default function AmarilloPage() {
           </article>
         </section>
 
+        {/* ── LOCAL ── */}
+        <section className={s.local} aria-labelledby="local-heading">
+          <h2 id="local-heading" className={s.h2}>Web Design for How Amarillo Finds You</h2>
+          <div className={s.localBody}>
+            <p>
+              In Amarillo, a lot of business still comes by word of mouth: a friend’s recommendation, a flyer at
+              church, a post someone shared. But almost everyone looks you up before they call. They search your
+              name on their phone, find your Google listing, and tap through to your website or your Instagram. If
+              what they find is out of date, hard to read on a phone, or missing, many of them move on to the next
+              name.
+            </p>
+            <p>
+              Good Amarillo web design closes that gap. Your site should say what you do and who you do it for in
+              the first few seconds, show your real work, and make the next step obvious, whether that’s calling,
+              booking, ordering or coming by. Your graphic design should look the same everywhere people see you,
+              from your sign and business cards to your social media and your homepage, so you’re easy to
+              recognize and easy to trust.
+            </p>
+            <p>
+              That’s the work we do, for Amarillo businesses and nonprofits, from a starter website to a full brand.
+              You work with the same team from the first call to launch, the people who design your brand
+              are the people who build your site, and every price is agreed in writing before anything starts.
+            </p>
+          </div>
+        </section>
+
+        {/* ── PROCESS ── */}
+        <section className={s.process} aria-labelledby="process-heading">
+          <h2 id="process-heading" className={s.h2}>How an Amarillo Web Design Project Works</h2>
+          <ol className={s.steps}>
+            {PROCESS.map((st, i) => (
+              <li key={st.title} className={s.step}>
+                <span className={s.stepNum}>{i + 1}</span>
+                <h3 className={s.stepTitle}>{st.title}</h3>
+                <p className={s.stepText}>{st.text}</p>
+              </li>
+            ))}
+          </ol>
+          <div className={s.actions}>
+            <Link href="/book" className={s.btnPrimary}>Book your free call</Link>
+          </div>
+        </section>
+
         {/* ── PRICING ── */}
         <section className={s.pricing} aria-labelledby="pricing-heading">
-          <h2 id="pricing-heading" className={s.h2}>Pricing</h2>
+          <h2 id="pricing-heading" className={s.h2}>Amarillo Web Design &amp; Graphic Design Pricing</h2>
           <div className={s.priceGrid}>
             {PRICES.map((g) => (
               <div key={g.group} className={s.priceCard}>
@@ -288,7 +377,7 @@ export default function AmarilloPage() {
 
         {/* ── FAQ ── */}
         <section className={s.faq} aria-labelledby="faq-heading">
-          <h2 id="faq-heading" className={s.h2}>FAQ</h2>
+          <h2 id="faq-heading" className={s.h2}>Amarillo Web Design FAQ</h2>
           <div className={s.faqList}>
             {FAQS.map((f) => (
               <details key={f.q} className={s.faqItem}>

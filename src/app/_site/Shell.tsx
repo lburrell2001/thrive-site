@@ -100,7 +100,7 @@ export default function Shell({ children, legacy = false }: { children: React.Re
           </div>
         </div>
         <div className={s.footerBottom}>
-          <p className={s.footerSmall}>© {year} Thrive Creative Studios · Black-owned · Black-led · Dallas, TX · <Link href="/privacy">Privacy</Link></p>
+          <p className={s.footerSmall}>© {year} Thrive Creative Studios · Black-owned · Black-led · Dallas, TX · <Link href="/amarillo-web-design">Amarillo Web Design</Link> · <Link href="/privacy">Privacy</Link></p>
           <a href="/admin" className={s.adminBtn}>Admin</a>
         </div>
       </footer>

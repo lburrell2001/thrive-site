@@ -50,7 +50,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
     ],
     workHeading: 'Sites we’ve built',
     cta: ['Ready for a Website', 'That Works?'],
-    related: { before: 'We also work with businesses in Amarillo. See our ', label: 'Amarillo web development', href: '/amarillo-web-design', after: ' page.' },
+    related: { before: 'We also work with businesses in Amarillo. See our ', label: 'Amarillo web design', href: '/amarillo-web-design', after: ' page.' },
   },
   'brand-design': {
     slug: 'brand-design',
@@ -78,6 +78,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
     ],
     workHeading: 'Brands and graphics we’ve made',
     cta: ['Ready to Build', 'Your Brand?'],
+    related: { before: 'We also work with businesses in Amarillo. See our ', label: 'Amarillo graphic design', href: '/amarillo-web-design', after: ' page.' },
   },
   'social-media': {
     slug: 'social-media',
@@ -102,6 +103,7 @@ export const SERVICE_CONFIGS: Record<ServiceSlug, ServiceConfig> = {
     ],
     workHeading: 'Posts we’ve made',
     cta: ['Ready to Grow', 'Your Audience?'],
+    related: { before: 'We also manage social media for businesses in Amarillo. See our ', label: 'Amarillo web design and social media', href: '/amarillo-web-design', after: ' page.' },
   },
   photography: {
     slug: 'photography',

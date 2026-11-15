@@ -232,7 +232,7 @@ export default function Redesign({ projects, photos }: { projects: ReelProject[]
               <div><p className={s.figure}>5</p><p className={s.figureLabel}>Services under one roof</p></div>
               <div><p className={s.figure}>1</p><p className={s.figureLabel}>Team that designs and builds</p></div>
             </div>
-            <p className={s.numbersLine}>The people who design your brand are the people who build it — so your colors, voice and story carry from your business card to your homepage to your feed.</p>
+            <p className={s.numbersLine}>The people who design your brand are the people who build it — so your colors, voice and story carry from your business card to your homepage to your feed. Based in Dallas, with clients in our founder’s hometown too: see our <Link href="/amarillo-web-design" style={{ color: 'inherit', textDecoration: 'underline', textUnderlineOffset: 3 }}>Amarillo web design</Link> page.</p>
           </div>
         </section>
 

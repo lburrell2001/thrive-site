@@ -41,6 +41,18 @@
 .serviceBody p { margin: 0 0 1em; font-size: clamp(1rem, 1.2vw, 1.12rem); line-height: 1.6; letter-spacing: -0.01em; }
 .serviceBody a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 2px; }
 
+/* Local context */
+.local { margin-top: clamp(70px, 9vw, 130px); max-width: 900px; }
+.localBody p { margin: 0 0 1.1em; font-size: 1.1rem; line-height: 1.7; letter-spacing: -0.01em; color: #222; }
+
+/* Process */
+.process { margin-top: clamp(70px, 9vw, 130px); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(12px, 1.4vw, 20px); }
+.step { border-radius: 20px; padding: clamp(18px, 2vw, 26px); background: #141414; color: #fff; }
+.stepNum { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #e50586; color: #fff; font-weight: 700; }
+.stepTitle { margin: 14px 0 8px; font-weight: 700; letter-spacing: var(--track-sm); word-spacing: var(--word); font-size: clamp(1.2rem, 1.6vw, 1.5rem); line-height: 1.05; }
+.stepText { margin: 0; font-size: 0.98rem; line-height: 1.55; letter-spacing: -0.01em; color: rgba(255, 255, 255, 0.82); }
+
 /* Pricing */
 .pricing { margin-top: clamp(70px, 9vw, 130px); }
 .priceGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(12px, 1.4vw, 20px); }
@@ -85,8 +97,13 @@
 .faqItem[open] .faqQ::after { content: '–'; background: #e50586; }
 .faqA { margin: 0 0 clamp(18px, 2vw, 26px); max-width: 70ch; font-size: 1.02rem; line-height: 1.6; letter-spacing: -0.01em; }
 
+@media (max-width: 1200px) and (min-width: 901px) {
+  .steps { grid-template-columns: repeat(3, 1fr); }
+}
+
 @media (max-width: 900px) {
   .hero, .service, .workGrid { grid-template-columns: 1fr; }
   .polaroid { justify-self: start; }
   .priceGrid { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: 1fr; }
 }
