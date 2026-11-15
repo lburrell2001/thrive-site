@@ -694,7 +694,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         <div className={pb.sendBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget && !sending.busy) setSending(null); }}>
           <div className={pb.sendDialog} role="dialog" aria-modal="true" aria-labelledby="send-proposal-title">
             <h2 id="send-proposal-title" className={pb.sendTitle}>Send “{doc.title}”</h2>
-            <p className={s.hint}>They get an email with a button to the proposal. Their estimate is inside it, with Save as PDF and Approve and sign at the bottom. Signing makes their invoice{doc.depositPercent > 0 && doc.depositPercent < 100 ? ` (${doc.depositPercent}% deposit first)` : ''} and wins the deal.</p>
+            <p className={s.hint}>They get an email with a button to the proposal. Their estimate is inside it, with Save as PDF and Approve and sign at the bottom. Signing makes their invoice{doc.depositPercent > 0 && doc.depositPercent < 100 ? ` (${doc.depositPercent}% deposit first)` : ''}; the deal is won when they pay.</p>
             <label>
               <span className={s.label}>To</span>
               <input className={s.input} type="email" value={sending.email} placeholder={sending.busy ? 'Looking up their email…' : 'name@business.com'}

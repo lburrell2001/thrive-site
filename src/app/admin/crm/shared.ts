@@ -33,8 +33,11 @@ export const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
 };
 
 export function lifecycleOf(c: { portal_client_id: string | null; won_deals?: number; open_deals?: number; prospect_status?: string | null }): Lifecycle {
-  if (c.portal_client_id || (c.won_deals ?? 0) > 0) return 'client';
+  // Client = they've paid (a won deal). A portal login alone — made when they
+  // accept, before paying — stays a Lead while a deal is open (065).
+  if ((c.won_deals ?? 0) > 0) return 'client';
   if ((c.open_deals ?? 0) > 0) return 'lead';
+  if (c.portal_client_id) return 'client';
   if (c.prospect_status === 'prospect') return 'prospect';
   return 'contact';
 }

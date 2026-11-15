@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 
 // The client accepts an estimate (no login needed): recorded (who, when, from
-// where), marked accepted — which wins the deal. If they already have a portal,
+// where), marked accepted (the deal is won only once they pay, 065). If they already have a portal,
 // it becomes an invoice in their project folder; if not, Lauren is asked to set
 // up their portal (src/lib/acceptedPortal.ts). Lauren is texted and emailed.
 
