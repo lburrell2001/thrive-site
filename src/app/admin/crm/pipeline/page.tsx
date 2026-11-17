@@ -75,7 +75,8 @@ export default function PipelinePage() {
 
   const visibleDeals = useMemo(() => (deals ?? []).filter((d) => {
     // Finished work (closed in the panel, or a retainer whose contract ran out) isn't pipeline.
-    if (d.closed_at) return false;
+    // Lost deals are closed too (066) but stay in the Lost column.
+    if (d.closed_at && d.stage !== 'lost') return false;
     if (dueOnly && !(d.next_task_due && d.next_task_due <= today)) return false;
     if (!q) return true;
     return [d.title, d.contact.name, d.contact.company, d.contact.email, d.source, ...d.contact.tags]

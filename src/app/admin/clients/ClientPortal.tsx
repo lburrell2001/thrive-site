@@ -53,6 +53,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   in_progress: { bg: PINK, color: '#fff' },
   review:      { bg: ORANGE, color: DARK },
   completed:   { bg: GREEN, color: DARK },
+  lost:        { bg: DARK, color: '#fff' }, // its deal was moved to Lost (066)
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────

@@ -561,6 +561,12 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
               )}
             </div>
             <DealBilling key={deal.id} deal={deal} onSave={(patch, ok) => onSave(deal.id, patch, ok)} />
+            {deal.stage === 'lost' && deal.closed_at && (
+              <p className={s.eventMeta} style={{ marginTop: 8 }}>
+                <span className={w.pill}>Closed {formatDate(deal.closed_at)}</span>{' '}
+                Lost · its portal project is archived. Move it to another stage to reopen it.
+              </p>
+            )}
             {deal.stage === 'lost' && (
               <LostReason key={deal.lost_reason ?? ''} reason={deal.lost_reason} onSave={(lost_reason) => onSave(deal.id, { lost_reason }, 'Saved.')} />
             )}
