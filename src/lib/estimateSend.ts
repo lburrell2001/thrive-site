@@ -51,16 +51,20 @@ export async function sendEstimateEmail(
   };
 
   const total = formatLineMoney(est.total_cents);
+  // Its proposal was amended (migration 068): say it's updated, with what it was.
+  const was = await amendedFrom(db, id, est.total_cents);
   const until = est.valid_until
     ? new Date(`${est.valid_until}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null;
   const report = await deliver(db, contact, {
-    subject: `Estimate ${est.estimate_number}${est.title ? ` — ${est.title}` : ''}`,
-    eyebrow: 'Your estimate',
-    headline: est.access_token
+    subject: `${was ? 'Your updated estimate' : 'Estimate'} ${est.estimate_number}${est.title ? ` — ${est.title}` : ''}`,
+    eyebrow: was ? 'Your updated estimate' : 'Your estimate',
+    headline: was
+      ? `I’ve updated your estimate${est.title ? ` for ${est.title}` : ''}: ${total} (it was ${was}). Open it to look it over — at the bottom you can save it as a PDF or accept it, and your invoice will be ready in your portal straight away.`
+      : est.access_token
       ? `Here’s your estimate${est.title ? ` for ${est.title}` : ''}: ${total}. Open it to look it over — at the bottom you can save it as a PDF or accept it, and your invoice will be ready in your portal straight away.`
       : `Here’s your estimate${est.title ? ` for ${est.title}` : ''}: ${total}. The full estimate is attached as a PDF.`,
-    detail: [est.title && `Project: ${est.title}`, `Estimate: ${est.estimate_number}`, `Total: ${total}`, until && `Good until: ${until}`].filter(Boolean).join('\n'),
+    detail: [est.title && `Project: ${est.title}`, `Estimate: ${est.estimate_number}`, was ? `Total: ${total} (was ${was})` : `Total: ${total}`, until && `Good until: ${until}`].filter(Boolean).join('\n'),
     note: parsed.data.note?.trim() || null,
     ctaUrl: est.access_token ? `${SITE_URL}/e/${est.id}?t=${est.access_token}` : '',
     ctaLabel: est.access_token ? 'View & accept your estimate' : '',
@@ -79,7 +83,7 @@ export async function sendEstimateEmail(
   if (contactId) {
     await db.from('crm_activities').insert({
       contact_id: contactId, kind: 'email',
-      body: `Sent estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''}: ${total}`,
+      body: `Sent ${was ? "the updated " : ""}estimate ${est.estimate_number}${est.title ? ` (${est.title})` : ''}: ${was ? `was ${was}, now ` : ""}${total}`,
       metadata: { estimate_id: id, to: parsed.data.email },
     });
   }
@@ -92,3 +96,14 @@ export const estimateSendSchema = z.object({
   /** The PDF as base64, under ~3 MB. */
   pdf: z.string().min(100).max(4_000_000),
 });
+
+/** The total it had before its proposal was amended, when that's different (migration 068). */
+async function amendedFrom(db: SupabaseClient, estimateId: string, nowCents: number): Promise<string | null> {
+  const { data: p, error } = await db.from('proposals').select('id, revision').eq('estimate_id', estimateId).maybeSingle();
+  if (error || !p || !(p.revision > 1)) return null;
+  const { data: v } = await db.from('proposal_versions').select('total_cents, estimate')
+    .eq('proposal_id', p.id).order('revision', { ascending: false }).limit(1).maybeSingle();
+  if (!v) return null;
+  const before = (v.estimate as { total_cents?: number } | null)?.total_cents ?? v.total_cents;
+  return before !== nowCents ? formatLineMoney(before) : null;
+}

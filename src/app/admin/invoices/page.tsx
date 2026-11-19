@@ -1314,8 +1314,9 @@ export default function InvoiceBuilder() {
           {fromEstimateId && <p className={w.sub}>The estimate will be marked Invoiced once this is sent.</p>}
           {linkedProposal && (
             <p className={s.proposalLink}>
-              This is the estimate for the proposal <strong>{linkedProposal.title}</strong>. It’s rebuilt from the proposal’s pricing, so change prices there.
+              This is the estimate for the proposal <strong>{linkedProposal.title}</strong>. It’s rebuilt from the proposal’s pricing, so change prices there (Amend the proposal if it’s been sent).
               {' '}<Link href={`/admin/crm/proposals/${linkedProposal.id}/edit`}>Open the proposal →</Link>
+              {' '}To email them only this estimate, use <strong>Send just the estimate</strong> below: they can look it over and accept it on its own.
             </p>
           )}
         </div>
@@ -1636,7 +1637,7 @@ export default function InvoiceBuilder() {
           <button type="button" className={p.btn} disabled={!canSave} onClick={draftPdf}>PDF</button>
           {!isInvoice && editingEstimate && !dirty ? (
             <button type="button" className={`${p.btn} ${p.btnPrimary}`} onClick={() => startSend(editingEstimate)}>
-              {editingEstimate.status === 'draft' ? 'Send to client' : 'Send again'}
+              {linkedProposal ? 'Send just the estimate' : editingEstimate.status === 'draft' ? 'Send to client' : 'Send again'}
             </button>
           ) : (
             <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={primaryDisabled}
