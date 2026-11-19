@@ -9,7 +9,7 @@ import { CASE_STUDIES } from '@/app/work/caseStudies';
 import { normalizeCaseStudy } from '@/lib/caseStudyNormalize';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
 import { decryptSecret, encryptSecret, vaultKeyReady } from '@/lib/credentialCrypto';
-import { loadProposalById } from '@/lib/proposalRepo';
+import { collectImagePaths, loadProposalById, signImageUrls } from '@/lib/proposalRepo';
 import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
@@ -886,6 +886,20 @@ export async function POST(req: NextRequest) {
 
         const proposal = await loadProposalById(admin, proposalId);
         if (!proposal) return err('Proposal not found', 404);
+        // An earlier version kept by Amend (migration 068), shown read-only.
+        const { version } = params as { version?: string };
+        if (version) {
+          const { data: v } = await admin.from('proposal_versions').select('revision, created_at, snapshot')
+            .eq('id', version).eq('proposal_id', proposalId).maybeSingle();
+          if (!v) return err('That version was not found', 404);
+          const snap = v.snapshot as Partial<typeof proposal>;
+          const blocks = snap.blocks ?? [];
+          return NextResponse.json({ ok: true, data: {
+            ...proposal, ...snap, blocks, lineItems: snap.lineItems ?? [],
+            imageUrls: await signImageUrls(admin, collectImagePaths(blocks)),
+            version: { revision: v.revision, replacedAt: v.created_at },
+          } });
+        }
         return NextResponse.json({ ok: true, data: proposal });
       }
 

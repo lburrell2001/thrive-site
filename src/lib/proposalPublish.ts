@@ -8,11 +8,11 @@ import { syncProposalEstimate } from './proposalEstimate';
 import { scopeWorkProblem } from './scopeWork';
 import { SITE_URL } from './seo';
 
-export type Published = { ok: true; url: string; path: string; clientId: string | null; title: string } | { ok: false; error: string; status?: number };
+export type Published = { ok: true; url: string; path: string; clientId: string | null; title: string; revision: number } | { ok: false; error: string; status?: number };
 
 export async function publishProposal(db: SupabaseClient, id: string): Promise<Published> {
   const { data: proposal, error } = await db.from('proposals')
-    .select('slug, access_token, status, sent_at, declined_at, client_id, title').eq('id', id).maybeSingle();
+    .select('*').eq('id', id).maybeSingle();
   if (error) return { ok: false, error: error.message };
   if (!proposal) return { ok: false, error: 'Proposal not found', status: 404 };
 
@@ -38,7 +38,20 @@ export async function publishProposal(db: SupabaseClient, id: string): Promise<P
     if (updateError) return { ok: false, error: updateError.message };
   }
 
+  // An amendment going out (migration 068): it's new to them, so a 'viewed'
+  // proposal is 'sent' again until they open this version.
+  const revision = proposal.revision as number | undefined;
+  if (revision && revision > (proposal.sent_revision ?? 1)) {
+    const synced = await syncProposalEstimate(db, id);
+    if (!synced.ok) return { ok: false, error: synced.error };
+    const { error: amendErr } = await db.from('proposals').update({
+      sent_revision: revision,
+      ...(proposal.status === 'viewed' ? { status: 'sent' } : {}),
+    }).eq('id', id);
+    if (amendErr) return { ok: false, error: amendErr.message };
+  }
+
   const path = `/p/${proposal.slug}?t=${proposal.access_token}`;
   const site = process.env.NEXT_PUBLIC_SITE_URL || SITE_URL;
-  return { ok: true, url: `${site}${path}`, path, clientId: proposal.client_id, title: proposal.title };
+  return { ok: true, url: `${site}${path}`, path, clientId: proposal.client_id, title: proposal.title, revision: revision ?? 1 };
 }

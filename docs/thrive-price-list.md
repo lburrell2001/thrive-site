@@ -50,6 +50,7 @@ Shopify Store – Custom | Fully custom storefront design, up to 20 products loa
 Shopify store configuration | Payments, shipping, taxes, checkout, and inventory setup | $300
 Shopify account setup | Store account creation and walkthrough | Included
 Extra Shopify products | Per 20 products beyond the first 20 | $90
+Shopify Starter Store | Free Shopify theme customized in your brand, up to 10 products loaded, payments, simple shipping, and taxes set up, mobile-friendly, and launch-ready. Shopify subscription billed separately by Shopify. | $500
 Client/member login area | Private accounts and gated content | $720
 Third-party integration | CRM, POS, calendar, or other tool, each | $135
 Content migration | Move content from your old site | $135

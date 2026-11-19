@@ -21,7 +21,7 @@ export default function ProposalPreviewPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [proposal, setProposal] = useState<RenderableProposal | null>(null);
+  const [proposal, setProposal] = useState<(RenderableProposal & { version?: { revision: number; replacedAt: string } }) | null>(null);
   const [error, setError] = useState('');
   const [mode, setMode] = useState<RenderMode>('web');
 
@@ -34,11 +34,13 @@ export default function ProposalPreviewPage({
           method: 'POST',
           headers: { ...(await adminHeaders()), 'Content-Type': 'application/json' },
           // A UUID goes through as `id`; anything else is treated as a slug.
-          body: JSON.stringify(
-            /^[0-9a-f-]{36}$/i.test(id)
+          body: JSON.stringify({
+            ...(/^[0-9a-f-]{36}$/i.test(id)
               ? { action: 'get_proposal', id }
-              : { action: 'get_proposal', slug: id },
-          ),
+              : { action: 'get_proposal', slug: id }),
+            // ?version=<id>: an earlier version kept by Amend (migration 068).
+            version: new URLSearchParams(window.location.search).get('version') || undefined,
+          }),
         });
         const body = (await res.json()) as { data?: RenderableProposal; error?: string };
         if (cancelled) return;
@@ -74,7 +76,11 @@ export default function ProposalPreviewPage({
           fontWeight: 700,
         }}
       >
-        <span>Draft preview — this is what the client sees. Not a shared link.</span>
+        <span>
+          {proposal?.version
+            ? `Revision ${proposal.version.revision}, as it was until ${new Date(proposal.version.replacedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}. Not what the client sees now.`
+            : 'Draft preview — this is what the client sees. Not a shared link.'}
+        </span>
         <span style={{ display: 'flex', gap: 6 }}>
           {(['web', 'print'] as RenderMode[]).map((option) => (
             <button

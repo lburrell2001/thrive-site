@@ -139,6 +139,16 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
         </Notice>
       )}
 
+      {(row.revision ?? 1) > 1 && (row.sent_revision ?? 1) >= (row.revision ?? 1) && row.amended_at && renderable.status !== 'signed' && (
+        <Notice tone="good">
+          Updated{' '}
+          {new Date(row.amended_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago' })}
+          {row.revision === 2 && row.sent_at
+            ? ` — this replaces the version sent ${new Date(row.sent_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'America/Chicago' })}`
+            : ' — this replaces the earlier version'}.
+        </Notice>
+      )}
+
       {renderable.status === 'declined' && (
         <Notice tone="warn">
           You let us know this is not going ahead

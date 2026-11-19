@@ -102,6 +102,15 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
       .catch(() => setScheduledSend(null));
   }, [id]);
   useEffect(() => { loadScheduled(); }, [loadScheduled]);
+  // Amendments (migration 068): its revision and the versions kept before it. Null before 068.
+  const [amend, setAmend] = useState<AmendState | null>(null);
+  const [amending, setAmending] = useState(false);
+  const loadAmend = useCallback(() => {
+    apiGet<AmendState>(`/api/proposals/${id}/amend`).then(setAmend).catch(() => setAmend(null));
+  }, [id]);
+  useEffect(() => { loadAmend(); }, [loadAmend]);
+  /** Amended and not sent yet. */
+  const amendPending = !!amend && amend.revision > amend.sentRevision;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('clean');
   const [publishing, setPublishing] = useState(false);
@@ -317,6 +326,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
       setMeta((current) => (current ? { ...current, status: 'sent' } : current));
       setDeclineReason(null);
       setDeclinedAt(null);
+      loadAmend();
       const link = result.url || `${window.location.origin}${result.path}`;
       const reopened = meta?.status === 'declined';
       try {
@@ -360,16 +370,32 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
         return;
       }
       const r = await apiSend<{ to: string }>(`/api/proposals/${id}/email`, 'POST', { email: sending.email, note: sending.note });
-      setMeta((current) => (current && (current.status === 'draft' || current.status === 'declined') ? { ...current, status: 'sent' } : current));
+      setMeta((current) => (current && (current.status === 'draft' || current.status === 'declined' || amendPending) ? { ...current, status: 'sent' } : current));
       setDeclineReason(null);
       setDeclinedAt(null);
       setSending(null);
+      loadAmend();
       show(`Sent to ${r.to}.`);
       loadScheduled();
     } catch (error) {
       setSending((cur) => (cur ? { ...cur, busy: false } : cur));
       show(error instanceof Error ? error.message : 'Could not send it', 'error');
     }
+  }
+
+  /** Keep the version the client has, then edit the next revision. */
+  async function startAmend() {
+    setAmending(true);
+    try {
+      const r = await apiSend<AmendState | null>(`/api/proposals/${id}/amend`, 'POST');
+      if (r) setAmend(r);
+      else loadAmend();
+      show('The version they have is kept. Make your changes, then Send the amendment.');
+      setTab('pricing');
+    } catch (error) {
+      show(error instanceof Error ? error.message : 'Could not amend it', 'error');
+    }
+    setAmending(false);
   }
 
   /**
@@ -488,7 +514,7 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
                 </div>
               </details>
               <button type="button" className={`${s.btn} ${s.btnSmall} ${s.btnPrimary} ${pb.primary}`} disabled={!!sending} onClick={startSend}>
-                {publishLabel(meta.status)}
+                {amendPending && meta.status !== 'signed' ? 'Send the amendment' : publishLabel(meta.status)}
               </button>
             </div>
           </div>
@@ -498,6 +524,12 @@ export default function ProposalBuilderPage({ params }: { params: Promise<{ id: 
               phasedEstimateId={doc.lineItems.some((i) => i.phase?.trim() || i.range_end) ? estimate?.id ?? null : undefined} />
           )}
           {meta.status === 'declined' && <DeclinedBanner reason={declineReason} declinedAt={declinedAt} />}
+          {amend && meta.status !== 'draft' && meta.status !== 'signed' && (
+            <AmendBanner proposalId={id} state={amend} status={meta.status} currency={meta.currency} busy={amending} onAmend={startAmend} />
+          )}
+          {amend && meta.status === 'signed' && amend.versions.length > 0 && (
+            <AmendBanner proposalId={id} state={amend} status={meta.status} currency={meta.currency} busy={amending} onAmend={startAmend} />
+          )}
           {scheduledSend && (
             <div className={pb.scheduled} role="status">
               <span>
@@ -807,4 +839,61 @@ function publishLabel(status: ProposalStatus): string {
   if (status === 'draft') return 'Send';
   if (status === 'signed') return 'Email it again';
   return 'Send again';
+}
+
+interface AmendState {
+  revision: number;
+  sentRevision: number;
+  amendedAt: string | null;
+  versions: { id: string; revision: number; title: string; total_cents: number; status: string; sent_at: string | null; created_at: string }[];
+}
+
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+/**
+ * Amending a sent proposal (migration 068). Before: offers Amend. While
+ * amending: says the earlier version is kept and that Send emails the update.
+ * Either way, earlier versions open read-only in the preview.
+ */
+function AmendBanner({ proposalId, state, status, currency, busy, onAmend }: {
+  proposalId: string; state: AmendState; status: ProposalStatus; currency: string; busy: boolean; onAmend: () => void;
+}) {
+  const pending = state.revision > state.sentRevision;
+  const previous = state.versions[0];
+  const list = state.versions.length > 0 && (
+    <ul className={pb.versions}>
+      {state.versions.map((v) => (
+        <li key={v.id}>
+          Revision {v.revision}{v.sent_at ? ` · sent ${shortDate(v.sent_at)}` : ''} · replaced {shortDate(v.created_at)} · {formatMoneyCents(v.total_cents, currency)} ·{' '}
+          <Link href={`/admin/crm/proposals/${proposalId}/preview?version=${v.id}`} target="_blank">View</Link>
+        </li>
+      ))}
+    </ul>
+  );
+  if (status === 'signed') {
+    return <div className={`${pb.banner} ${pb.bannerAmend}`}><strong>Earlier versions</strong>{list}</div>;
+  }
+  if (pending) {
+    return (
+      <div className={`${pb.banner} ${pb.bannerAmending}`}>
+        <strong>Amending: revision {state.revision}</strong>
+        <p>
+          Revision {previous?.revision ?? state.revision - 1}{previous ? ` (${formatMoneyCents(previous.total_cents, currency)})` : ''} is kept as it was.
+          Make your changes on Pricing and Pages, then <strong>Send the amendment</strong>: they get an “updated proposal” email and their link says it was updated.
+        </p>
+        <p className={pb.bannerSmall}>Changes save to their link as you make them, so finish before they open it again.</p>
+        {list}
+      </div>
+    );
+  }
+  return (
+    <div className={`${pb.banner} ${pb.bannerAmend}`}>
+      <strong>{status === 'viewed' ? 'They’ve opened this proposal' : status === 'declined' ? 'They said no to this version' : 'They have this proposal'}</strong>
+      <p>To change the price or scope, amend it. The version they have is kept, and Send emails them the updated one.</p>
+      <div className={pb.bannerActions}>
+        <button type="button" className={`${s.btn} ${s.btnSmall}`} onClick={onAmend} disabled={busy}>{busy ? 'Amending…' : 'Amend proposal'}</button>
+      </div>
+      {list}
+    </div>
+  );
 }

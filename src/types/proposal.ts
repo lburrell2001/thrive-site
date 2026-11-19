@@ -251,6 +251,10 @@ export interface Proposal {
   decline_reason: string | null;
   /** The estimate that goes with it (migration 050). */
   estimate_id?: string | null;
+  /** Amendments (migration 068): this revision, the last one sent to the client, when it was amended. */
+  revision?: number;
+  sent_revision?: number;
+  amended_at?: string | null;
   created_at: string;
   updated_at: string;
 }
