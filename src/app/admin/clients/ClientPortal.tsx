@@ -64,6 +64,12 @@ interface Project { id: string; name: string; status: string; progress: number; 
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; installments?: unknown; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
+// Pages an onboarding step's button can open — only real portal pages (a typed URL once 404'd).
+const PORTAL_PAGES: [string, string][] = [
+  ['/portal/dashboard', 'Dashboard'], ['/portal/onboarding', 'Onboarding'], ['/portal/progress', 'My Projects'],
+  ['/portal/files', 'Files'], ['/portal/invoices', 'Billing'], ['/portal/proposals', 'Proposals'],
+  ['/portal/requests', 'Requests'], ['/portal/vault', 'Secure Vault'], ['/portal/settings', 'Settings'],
+];
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
 interface Activity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
 interface Milestone { id: string; project_name: string; title: string; due_date: string; color: string; completed: boolean; }
@@ -1946,7 +1952,7 @@ function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; d
     e.preventDefault();
     if (!title) { setAddErr('Title required'); return; }
     setAdding(true); setAddErr('');
-    const r = await api({ action: 'add_onboarding_step', clientId, step_number: stepNum, title, description: desc, action_label: actLabel, action_href: actHref }) as { error?: string };
+    const r = await api({ action: 'add_onboarding_step', clientId, step_number: stepNum, title, description: desc, action_label: actHref ? (actLabel.trim() || `Open ${PORTAL_PAGES.find(([h]) => h === actHref)?.[1] ?? 'it'}`) : '', action_href: actHref }) as { error?: string };
     if (r.error) { setAddErr(r.error); setAdding(false); return; }
     setStepNum((n) => n + 1); setTitle(''); setDesc(''); setActLabel(''); setActHref(''); setShowForm(false);
     setAdding(false); onRefresh();
@@ -1986,7 +1992,12 @@ function OnboardingTab({ clientId, data, api, onRefresh }: { clientId: string; d
             <FormRow label="Description"><input style={INPUT} value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Please review and sign…" /></FormRow>
             <FormGrid>
               <FormRow label="Action Label"><input style={INPUT} value={actLabel} onChange={(e) => setActLabel(e.target.value)} placeholder="Sign Now" /></FormRow>
-              <FormRow label="Action URL"><input style={INPUT} value={actHref} onChange={(e) => setActHref(e.target.value)} placeholder="/portal/files" /></FormRow>
+              <FormRow label="Button opens">
+                <select style={INPUT} value={actHref} onChange={(e) => setActHref(e.target.value)}>
+                  <option value="">No button</option>
+                  {PORTAL_PAGES.map(([href, label]) => <option key={href} value={href}>{label}</option>)}
+                </select>
+              </FormRow>
             </FormGrid>
             <div><Btn type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add Step'}</Btn><ErrorMsg msg={addErr} /></div>
           </form>
