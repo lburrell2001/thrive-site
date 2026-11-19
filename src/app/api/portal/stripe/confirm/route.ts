@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     if (!result.ok) return NextResponse.json({ error: 'Could not confirm this payment.', paid: false }, { status: 400 });
 
     after(() => trackPaidSession(session, result.invoiceId));
-    if (result.fresh) after(() => sendPaymentReceipt(getServiceClient(), result.invoiceId, result.part ?? 'full', 'card').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
+    if (result.fresh) after(() => sendPaymentReceipt(getServiceClient(), result.invoiceId, result.part ?? 'full', 'card', result.index).then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
     return NextResponse.json({ paid: true, invoiceId: result.invoiceId });
   } catch (err: unknown) {
     console.error('[stripe] confirm failed', err instanceof Error ? err.message : err);

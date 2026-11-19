@@ -1,6 +1,7 @@
 // Estimates from the invoice and estimate builder (/admin/invoices, migration 039).
 // Admin-only: every read and write goes through /api/estimates with the service role.
 
+import { paymentPlanSchema, type PlanPayment } from './paymentPlan';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { lineItemsSchema, totalCents, type LineItem } from './lineItems';
@@ -30,6 +31,8 @@ export type Estimate = {
   totals_only?: boolean;
   /** Migration 064: a deposit to start (percent of the total); the invoice asks for just that, the rest when Lauren opens it. */
   deposit_percent?: number | null;
+  /** Migration 069: pay over time, [{ cents, days }] adding up to the total; wins over deposit_percent. */
+  payment_plan?: PlanPayment[] | null;
   /** Migration 049: the deal it belongs to. */
   crm_deal_id?: string | null;
   /** Migration 051: the key in the client's link, /e/<id>?t=<access_token>. */
@@ -52,6 +55,8 @@ export const estimateSchema = z.object({
   totals_only: z.boolean().optional(),
   /** Migration 064: a deposit to start, as a percent (null / 0 = invoiced in full). */
   deposit_percent: z.number().min(0).max(100).nullable().optional(),
+  /** Migration 069: pay over time (checked against the total in estimateRow's callers). */
+  payment_plan: paymentPlanSchema.nullable().optional(),
   /** Migration 049: the deal to file it under (else the insert trigger picks one). */
   crm_deal_id: z.string().uuid().nullable().optional(),
   /** Migration 062: made from these phases of a phased estimate (not stored on this row). */
@@ -84,7 +89,7 @@ export async function nextEstimateNumber(db: SupabaseClient): Promise<string> {
 }
 
 /** Before migration 047 (totals_only) or 064 (deposit_percent) the column isn't there: save without it. */
-const OPTIONAL_COLUMNS = ['totals_only', 'deposit_percent'] as const;
+const OPTIONAL_COLUMNS = ['totals_only', 'deposit_percent', 'payment_plan'] as const;
 export const missingTotalsOnly = (message: string) => OPTIONAL_COLUMNS.some((c) => message.includes(c));
 
 export function withoutTotalsOnly<T extends Record<string, unknown>>(row: T, message = ''): T {

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       if (result.ok) {
         after(() => trackPaidSession(session, result.invoiceId));
         // The receipt, once — whichever of this and the return-page confirm recorded the payment.
-        if (result.fresh) after(() => sendPaymentReceipt(getServiceClient(), result.invoiceId, result.part ?? 'full', 'card').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
+        if (result.fresh) after(() => sendPaymentReceipt(getServiceClient(), result.invoiceId, result.part ?? 'full', 'card', result.index).then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
       }
       else console.error('[stripe] webhook did not mark invoice paid:', result.reason, session.id);
     }

@@ -23,12 +23,13 @@ import { depositPercentFromTerms, hasRange, rangeLines, rangeText, rangeTotals, 
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
 import { estimateTermsLine, PHASES_NOTE, TIERS_NOTE } from '@/lib/invoicePDF';
+import { evenPlan, MAX_PAYMENTS, planOf, planProblem, whenText, type PlanPayment } from '@/lib/paymentPlan';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
 import SendLater, { laterAt, scheduledFor } from '../SendLater';
 import { formatWhen } from '@/lib/scheduleTime';
 import { chosenProposalLines, proposalInvoiceText, type InvoicePart, type ProposalLine } from '@/lib/proposalBilling';
-import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
+import { dueNow, partWord, remainingCents } from '@/lib/invoiceDeposit';
 
 type Mode = 'estimate' | 'invoice';
 
@@ -59,6 +60,8 @@ interface Draft {
   text: string;
   /** An estimate's deposit to start, as a percent ('' = invoiced in full; migration 064). */
   estDeposit?: string;
+  /** Pay over time (migration 069): the estimate's plan, or null. */
+  estPlan?: PlanPayment[] | null;
   notes: string;
   /** The client's PDF shows category subtotals, not each line. */
   totalsOnly: boolean;
@@ -126,7 +129,8 @@ function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
   if (due.kind === 'held') return { cls: s.stDraft, label: 'Balance on hold' };
   if (due.kind === 'declined') return { cls: s.stDeclined, label: 'Declined by client' };
   const late = inv.status === 'overdue' || (!!due.dueDate && due.dueDate < today());
-  const what = due.part === 'deposit' ? 'Deposit' : due.part === 'balance' ? 'Balance' : '';
+  const word = partWord(due);
+  const what = word ? `${word[0].toUpperCase()}${word.slice(1)}` : '';
   if (late) return { cls: s.stDeclined, label: what ? `${what} overdue` : 'Overdue' };
   return { cls: s.stSent, label: what ? `${what} due` : 'Due' };
 }
@@ -135,6 +139,7 @@ function invoiceState(inv: InvoiceRow): { cls: string; label: string } {
 function invoiceMeta(inv: InvoiceRow): string {
   if (inv.status === 'paid') return `issued ${formatDate(inv.invoice_date)}`;
   const due = dueNow(inv);
+  if (due.kind === 'pay' && due.of) return `payment ${due.index! + 1} of ${due.of}: ${formatLineMoney(due.cents)} due ${formatDate(due.dueDate ?? inv.due_date)}`;
   if (due.kind === 'pay' && due.part === 'deposit') return `${formatLineMoney(due.cents)} deposit due ${formatDate(due.dueDate ?? inv.due_date)}`;
   if (due.kind === 'held') return `deposit paid · ${formatLineMoney(due.cents)} on hold`;
   if (due.kind === 'pay' && due.part === 'balance') return `deposit paid · ${formatLineMoney(due.cents)} due ${formatDate(due.dueDate ?? inv.due_date)}`;
@@ -440,6 +445,7 @@ export default function InvoiceBuilder() {
       number: est.estimate_number, issueDate: est.issue_date, dueDate: est.valid_until ?? '',
       text: lineItemsToText(est.line_items), notes: est.notes ?? '', totalsOnly: est.totals_only ?? false,
       estDeposit: est.deposit_percent ? String(Number(est.deposit_percent)) : '',
+      estPlan: planOf(est.payment_plan),
     };
     setEditingId(est.id);
     setFromEstimateId(null);
@@ -504,7 +510,8 @@ export default function InvoiceBuilder() {
       issue_date: draft.issueDate,
       valid_until: draft.dueDate || null,
       totals_only: draft.totalsOnly,
-      deposit_percent: (() => { const n = Number.parseFloat(draft.estDeposit ?? ''); return n > 0 && n < 100 ? n : null; })(),
+      deposit_percent: draft.estPlan ? null : (() => { const n = Number.parseFloat(draft.estDeposit ?? ''); return n > 0 && n < 100 ? n : null; })(),
+      payment_plan: draft.estPlan ?? null,
       // Made from a phased estimate's phases (migration 062): its deal, and the link back.
       ...(!editingId && fromPhases ? { crm_deal_id: fromPhases.crm_deal_id, from_phases: { estimate_id: fromPhases.estimate_id, phases: fromPhases.phases } } : {}),
     };
@@ -512,6 +519,20 @@ export default function InvoiceBuilder() {
 
   async function saveEstimate() {
     setBusy(true);
+    // A proposal's estimate: only its payment terms are saved here (the pricing is the proposal's).
+    if (editingId && linkedProposal) {
+      try {
+        const body = estimateBody();
+        const saved = await apiSend<Estimate>(`/api/estimates/${editingId}`, 'PATCH', { deposit_percent: body.deposit_percent, payment_plan: body.payment_plan });
+        show('Payment terms saved.');
+        await load();
+        openEstimate(saved);
+      } catch (e) {
+        show(e instanceof Error ? e.message : 'Could not save', 'error');
+      }
+      setBusy(false);
+      return;
+    }
     try {
       const saved = editingId
         ? await apiSend<Estimate>(`/api/estimates/${editingId}`, 'PATCH', estimateBody())
@@ -984,11 +1005,17 @@ export default function InvoiceBuilder() {
   }
 
   const clientNameById = new Map(data.clients.map((c) => [c.id, clientLabel(c)]));
-  const canSave = items.length > 0 && problems.length === 0 && missing.length === 0 && !depositProblem;
+  // Pay over time (069): the payments must add up to the total.
+  const planIssue = !isInvoice && draft.estPlan ? planProblem(draft.estPlan, total) : null;
+  const canSave = items.length > 0 && problems.length === 0 && missing.length === 0 && !depositProblem && !planIssue;
   const editingEstimate = editingId ? data.estimates.find((e) => e.id === editingId) : undefined;
   /** The proposal an estimate belongs to: its pricing is the source. */
   const proposalOf = (estId: string | undefined) => (estId ? data.proposalLinks?.find((l) => l.estimate_id === estId) : undefined);
   const linkedProposal = proposalOf(editingEstimate?.id);
+  // A proposal's estimate can still change its payment terms (and only those).
+  const termsChanged = !!editingEstimate && (
+    JSON.stringify(planOf(editingEstimate.payment_plan)) !== JSON.stringify(draft.estPlan ?? null)
+    || (draft.estPlan ? false : (Number.parseFloat(draft.estDeposit ?? '') || 0) !== Number(editingEstimate.deposit_percent ?? 0)));
 
   // The custom item form: inside the tier or phase card it was opened from, else under the list.
   const customForm = (
@@ -1284,14 +1311,15 @@ export default function InvoiceBuilder() {
   const heading = editingId ? `Edit ${draft.number}` : fromEstimateId ? 'Invoice from estimate' : `New ${isInvoice ? 'invoice' : 'estimate'}`;
   const primaryLabel = isInvoice
     ? (busy ? (invoiceWhen ? 'Scheduling…' : 'Sending…') : invoiceWhen ? 'Schedule' : 'Send to client portal')
-    : (busy ? 'Saving…' : editingId ? (dirty ? 'Save changes' : 'Saved') : 'Save estimate');
+    : (busy ? 'Saving…' : editingId && linkedProposal ? 'Save payment terms' : editingId ? (dirty ? 'Save changes' : 'Saved') : 'Save estimate');
   const primaryDisabled = isInvoice
     ? !canSave || !portalId || busy || !data.ready
-    : !canSave || busy || !data.ready || (!!editingId && !dirty) || !!linkedProposal;
+    : !canSave || busy || !data.ready || (!!editingId && !dirty) || (!!linkedProposal && !termsChanged);
   const blocker = items.length === 0 ? 'Add at least one item'
     : problems.length ? `Fix line ${problems[0].line}`
     : missing.length ? `${missing[0].required.name} is required`
     : depositProblem ? depositProblem
+    : planIssue ? planIssue
     : isInvoice && !portalId ? 'Pick a portal client to send it'
     : '';
 
@@ -1381,7 +1409,12 @@ export default function InvoiceBuilder() {
                 onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} />
             )}
             {!isInvoice && !isPhased(items) && !hasRange(items) && (
-              <EstimateDeposit value={draft.estDeposit ?? ''} total={total} locked={!!linkedProposal} onChange={(v) => set('estDeposit', v)}
+              <EstimateDeposit value={draft.estDeposit ?? ''} total={total} linked={!!linkedProposal}
+                onChange={(v) => setDraft((d) => ({ ...d, estDeposit: v, estPlan: null }))}
+                plan={draft.estPlan ?? null} planIssue={planIssue}
+                onPlan={(plan) => setDraft((d) => ({ ...d, estPlan: plan, ...(plan ? { estDeposit: '' } : {}) }))}
+                // Pay over time needs one fixed total: no options, extras or monthly lines.
+                canPlan={!tiersOf(items).length && !hasChoices(items) && !splitTotals(items).monthly}
                 options={tiersOf(items).map((t) => ({ name: t, total: tierTotal(items, t) }))} />
             )}
           </section>
@@ -1606,7 +1639,7 @@ export default function InvoiceBuilder() {
                     }}>Copy client link</button>
                 )}
                 {editingEstimate.status !== 'invoiced' && <>
-                  {!isPhased(editingEstimate.line_items) && !hasRange(editingEstimate.line_items) && (
+                  {!isPhased(editingEstimate.line_items) && !hasRange(editingEstimate.line_items) && !planOf(editingEstimate.payment_plan) && (
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={dirty} title={dirty ? 'Save your changes first' : undefined}
                     onClick={() => invoiceFromEstimate(editingEstimate)}>Turn into invoice</button>
                   )}
@@ -1799,34 +1832,81 @@ const PHASE_TERMS = ['Due upfront', '50% to start · 50% on delivery', 'Due on c
  * client accepts, the invoice asks for just that; the rest stays locked until
  * you open the balance. A proposal's estimate follows the proposal's deposit.
  */
-function EstimateDeposit({ value, total, locked, onChange, options = [] }: {
-  value: string; total: number; locked: boolean; onChange: (v: string) => void;
+function EstimateDeposit({ value, total, linked, onChange, options = [], plan, planIssue, onPlan, canPlan }: {
+  value: string; total: number; linked: boolean; onChange: (v: string) => void;
   /** Tiers: the deposit depends on the option they pick. */
   options?: { name: string; total: number }[];
+  /** Pay over time (migration 069). */
+  plan: PlanPayment[] | null; planIssue: string | null; onPlan: (plan: PlanPayment[] | null) => void; canPlan: boolean;
 }) {
   const n = Number.parseFloat(value);
-  const on = n > 0 && n < 100;
+  const on = !plan && n > 0 && n < 100;
   const preset = ['', '25', '50'];
+  const setRow = (i: number, patch: Partial<PlanPayment>) => plan && onPlan(plan.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return (
     <div style={{ display: 'grid', gap: 6, marginTop: 16 }}>
       <span className={p.label}>Payment terms</span>
       <div className={s.quickDates}>
         {preset.map((v) => (
-          <button key={v || 'full'} type="button" disabled={locked} className={`${s.chip} ${value === v || (!v && !on) ? s.chipOn : ''}`}
+          <button key={v || 'full'} type="button" className={`${s.chip} ${!plan && (value === v || (!v && !on)) ? s.chipOn : ''}`}
             onClick={() => onChange(v)}>{v ? `${v}% deposit` : 'Invoice in full'}</button>
         ))}
-        <input className={p.input} style={{ width: 110 }} inputMode="decimal" aria-label="Deposit percent" placeholder="Other %" disabled={locked}
-          value={preset.includes(value) ? '' : value} onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))} />
+        <input className={p.input} style={{ width: 110 }} inputMode="decimal" aria-label="Deposit percent" placeholder="Other %"
+          value={plan || preset.includes(value) ? '' : value} onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, '').slice(0, 5))} />
+        {canPlan && (
+          <button type="button" className={`${s.chip} ${plan ? s.chipOn : ''}`} onClick={() => onPlan(plan ?? evenPlan(total, 3))}>Pay over time</button>
+        )}
       </div>
-      <span className={w.muted} style={{ fontSize: 12.5 }}>
-        {locked ? 'Follows the proposal’s deposit.'
-          : on && options.length ? `When they accept, the invoice asks for ${n}% of the option they pick now — ${options.map((o) => `${o.name} ${formatLineMoney(Math.round((o.total * n) / 100))}`).join(' · ')} — and the rest stays locked until you open the balance.`
-          : on ? `When they accept, the invoice asks for ${n}% now (${formatLineMoney(Math.round((total * n) / 100))}); the rest stays locked until you open the balance.`
-          : 'When they accept, the whole amount is invoiced.'}
-      </span>
+      {plan ? (
+        <div style={{ display: 'grid', gap: 8, marginTop: 4 }}>
+          {plan.map((r, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, minWidth: 82 }}>Payment {i + 1}</span>
+              <input className={p.input} style={{ width: 110 }} inputMode="decimal" aria-label={`Payment ${i + 1} amount`}
+                value={r.cents ? String(r.cents / 100) : ''} placeholder="$"
+                onChange={(e) => { const d = Number.parseFloat(e.target.value.replace(/[^\d.]/g, '')); setRow(i, { cents: Number.isFinite(d) ? Math.round(d * 100) : 0 }); }} />
+              {i === 0 ? (
+                <span className={w.muted}>when they accept</span>
+              ) : (
+                <select className={p.input} style={{ width: 'auto' }} aria-label={`Payment ${i + 1} due`} value={r.days}
+                  onChange={(e) => setRow(i, { days: Number(e.target.value) })}>
+                  {[...new Set([...PLAN_DAYS, r.days])].sort((a, b) => a - b).filter((d) => d > 0).map((d) => (
+                    <option key={d} value={d}>{whenText(d).replace('after you accept', 'after they accept')}</option>
+                  ))}
+                </select>
+              )}
+              {plan.length > 2 && (
+                <button type="button" className={`${p.btn} ${p.btnSmall}`} aria-label={`Remove payment ${i + 1}`} onClick={() => onPlan(plan.filter((_, j) => j !== i))}>×</button>
+              )}
+            </div>
+          ))}
+          <div className={s.quickDates}>
+            <span className={w.muted} style={{ alignSelf: 'center' }}>Split evenly:</span>
+            {[2, 3, 4, 6].map((k) => (
+              <button key={k} type="button" className={s.chip} onClick={() => onPlan(evenPlan(total, k))}>{k}</button>
+            ))}
+            {plan.length < MAX_PAYMENTS && (
+              <button type="button" className={s.chip} onClick={() => onPlan([...plan, { cents: 0, days: (plan[plan.length - 1]?.days ?? 0) + 30 }])}>+ Add a payment</button>
+            )}
+          </div>
+          <span style={{ fontSize: 12.5, color: planIssue ? '#e50586' : undefined }} className={planIssue ? undefined : w.muted}>
+            {planIssue ?? `Adds up to ${formatLineMoney(total)}. When they accept, payment 1 is invoiced in their portal (paying it wins the deal and starts the work); each of the others comes due on its date, with reminders.`}
+          </span>
+        </div>
+      ) : (
+        <span className={w.muted} style={{ fontSize: 12.5 }}>
+          {on && options.length ? `When they accept, the invoice asks for ${n}% of the option they pick now — ${options.map((o) => `${o.name} ${formatLineMoney(Math.round((o.total * n) / 100))}`).join(' · ')} — and the rest stays locked until you open the balance.`
+            : on ? `When they accept, the invoice asks for ${n}% now (${formatLineMoney(Math.round((total * n) / 100))}); the rest stays locked until you open the balance.`
+            : 'When they accept, the whole amount is invoiced.'}
+        </span>
+      )}
+      {linked && <span className={w.muted} style={{ fontSize: 12.5 }}>This estimate belongs to a proposal: saving these terms updates the proposal’s deposit too.</span>}
     </div>
   );
 }
+
+/** Due dates offered for payments 2+, in days after they accept. */
+const PLAN_DAYS = [14, 30, 45, 60, 90, 120, 150, 180, 270, 365];
 
 /** Low end / High end: where the final estimate starts from (price ranges, migration 063). */
 function EndPick({ end, onEnd }: { end: 'low' | 'high'; onEnd: (end: 'low' | 'high') => void }) {
@@ -2342,7 +2422,7 @@ function Preview({ draft, items, total, depositCents }: { draft: Draft; items: L
 
       {!isInvoice && (() => {
         // An estimate's payment terms (migration 064), as the client sees them.
-        const line = estimateTermsLine({ deposit_percent: Number.parseFloat(draft.estDeposit ?? '') || null, amount_cents: total, line_items: items });
+        const line = estimateTermsLine({ deposit_percent: Number.parseFloat(draft.estDeposit ?? '') || null, amount_cents: total, line_items: items, payment_plan: draft.estPlan ?? null });
         return line ? <p className={s.paperNotes} style={{ fontWeight: 700 }}>{line}</p> : null;
       })()}
       {draft.notes.trim() && <p className={s.paperNotes}>{draft.notes.trim()}</p>}

@@ -11,6 +11,7 @@
 // (migration 062) is approved phase by phase instead: no total, no invoice —
 // Lauren is texted and sends the estimate for the approved phases.
 
+import { planOf } from '@/lib/paymentPlan';
 import { useState } from 'react';
 import { ClientDialog } from '@/components/ClientDialog';
 import type { InvoiceForPDF } from '@/lib/invoicePDF';
@@ -57,6 +58,8 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
 
   const sel = chooser?.selection;
   // Payment terms (migration 064): a deposit to start; the invoice asks for just that.
+  // Pay over time (migration 069).
+  const plan = planOf(pdf.payment_plan);
   const depositPct = (() => { const n = Number(pdf.deposit_percent ?? 0); return n > 0 && n < 100 ? n : 0; })();
   const needsTier = !!chooser?.options.length;
   const chosen = !needsTier || !!sel?.tier;
@@ -212,7 +215,8 @@ export function EstimateActions({ id, token, pdf, clientName, totalLabel, accept
             <h2 id="accept-title" className="pdTitle">Accept estimate</h2>
             <p className="pdLead">
               {needsTier ? 'Choose your option, add any extras, and accept. ' : ''}
-              {ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.'
+              {plan ? `Once you accept, payment 1 of ${plan.length} (${formatLineMoney(plan[0].cents)}) is invoiced to your client portal, and each of the others when it’s due.`
+                : ranged ? 'This is a price range: once you accept, Lauren sends the estimate with the final price — nothing is invoiced until you accept that.'
                 : depositPct ? `Once you accept, we’ll send your invoice for the ${depositPct}% deposit${chosen && !pricing ? ` (${formatLineMoney(Math.round((pdf.amount_cents * depositPct) / 100))})` : ''} to your client portal. The rest is invoiced upon final approval.`
                 : 'Once you accept, we’ll send your invoice to your client portal.'}
             </p>

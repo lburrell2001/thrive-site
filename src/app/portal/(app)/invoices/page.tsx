@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabasePortal } from '@/lib/supabasePortal';
-import { dueNow, remainingCents } from '@/lib/invoiceDeposit';
+import { dueNow, partWord, remainingCents } from '@/lib/invoiceDeposit';
 import { portalApi } from '@/lib/portalApi';
 import { portalTrack } from '@/lib/portalTrack';
 
@@ -43,7 +43,7 @@ function effectiveStatus(inv: DbInvoice): string {
 function payNow(inv: DbInvoice): { cents: number; label: string; date: string } | null {
   const due = dueNow(inv);
   if (due.kind !== 'pay') return null;
-  return { cents: due.cents, label: due.part === 'deposit' ? 'deposit' : due.part === 'balance' ? 'balance' : '', date: due.dueDate ?? inv.due_date };
+  return { cents: due.cents, label: partWord(due), date: due.dueDate ?? inv.due_date };
 }
 function statusLabel(inv: DbInvoice): string {
   const es = effectiveStatus(inv);
@@ -56,6 +56,11 @@ function statusLabel(inv: DbInvoice): string {
 function depositNote(inv: DbInvoice): string | null {
   if (!inv.deposit_cents || inv.status === 'paid') return null;
   const due = dueNow(inv);
+  // Pay over time (069): this payment, and how much is left after it.
+  if (due.kind === 'pay' && due.of) {
+    const after = remainingCents(inv) - due.cents;
+    return `Payment ${due.index! + 1} of ${due.of}: ${fmtCurrency(due.cents)} due ${fmtDate(due.dueDate ?? inv.due_date)}${after > 0 ? ` · ${fmtCurrency(after)} after that, on schedule` : ' · the last one'}`;
+  }
   if (due.kind === 'pay' && due.part === 'deposit') return `Deposit ${fmtCurrency(due.cents)} due ${fmtDate(due.dueDate ?? inv.due_date)} · the rest later`;
   if (due.kind === 'held') return `Deposit received · ${fmtCurrency(due.cents)} balance, we’ll let you know when it’s ready`;
   if (due.kind === 'pay' && due.part === 'balance') return `Deposit received · ${fmtCurrency(due.cents)} balance due ${fmtDate(due.dueDate ?? inv.due_date)}`;

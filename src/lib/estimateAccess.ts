@@ -16,6 +16,8 @@ export type ClientEstimate = {
   selection?: LineSelection | null;
   /** A deposit to start, as a percent (migration 064). */
   deposit_percent?: number | null;
+  /** Pay over time (migration 069): [{ cents, days }]. */
+  payment_plan?: unknown;
 };
 
 const same = (a: string, b: string) => {
@@ -28,8 +30,9 @@ export async function loadClientEstimate(id: string, token: string | undefined):
   if (!token || !/^[0-9a-f-]{36}$/i.test(id)) return null;
   const cols = 'id, estimate_number, title, client_name, line_items, notes, total_cents, issue_date, valid_until, status, totals_only, accepted_at, accepted_by, invoice_id, access_token';
   const db = proposalServiceClient();
-  let { data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason, selection, deposit_percent`).eq('id', id).maybeSingle();
-  // Before migration 064 / 061 / 058.
+  let { data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason, selection, deposit_percent, payment_plan`).eq('id', id).maybeSingle();
+  // Before migration 069 / 064 / 061 / 058.
+  if (error) ({ data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason, selection, deposit_percent`).eq('id', id).maybeSingle());
   if (error) ({ data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason, selection`).eq('id', id).maybeSingle());
   if (error) ({ data, error } = await db.from('estimates').select(`${cols}, declined_at, decline_reason`).eq('id', id).maybeSingle());
   if (error) ({ data } = await db.from('estimates').select(cols).eq('id', id).maybeSingle());
@@ -45,7 +48,7 @@ import type { InvoiceForPDF } from './invoicePDF';
  * subtotals when it's totals-only), collapsed here so the page never carries
  * a price the estimate hides. Used by the estimate page and a proposal page.
  */
-export function estimateForClientPdf(est: Pick<ClientEstimate, 'estimate_number' | 'title' | 'line_items' | 'notes' | 'total_cents' | 'issue_date' | 'valid_until' | 'totals_only'> & { selection?: ClientEstimate['selection']; deposit_percent?: number | null }): InvoiceForPDF {
+export function estimateForClientPdf(est: Pick<ClientEstimate, 'estimate_number' | 'title' | 'line_items' | 'notes' | 'total_cents' | 'issue_date' | 'valid_until' | 'totals_only'> & { selection?: ClientEstimate['selection']; deposit_percent?: number | null; payment_plan?: unknown }): InvoiceForPDF {
   const rows = clientRows(est.line_items, !!est.totals_only);
   const tiers = tiersOf(est.line_items);
   return {
@@ -77,5 +80,6 @@ export function estimateForClientPdf(est: Pick<ClientEstimate, 'estimate_number'
     }) : null,
     selection: est.selection ?? null,
     deposit_percent: est.deposit_percent ?? null,
+    payment_plan: est.payment_plan ?? null,
   };
 }

@@ -5,6 +5,7 @@
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+import { planOf } from '@/lib/paymentPlan';
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { after } from 'next/server';
@@ -184,7 +185,8 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
           : ranged && !choices?.tiers.length ? (() => { const e = endTotals(rangeLines); return rangeLabel(e.low, e.high, (c) => formatMoney(c, renderable.currency)); })()
           : choices?.tiers.length && renderable.status !== 'signed' ? `${choices.tiers.length} options` : formatMoney(renderable.totalCents, renderable.currency)}
         depositLabel={phases ? 'Each phase on its own terms' : ranged ? 'Price range · final price in your estimate'
-          : choices?.tiers.length && renderable.status !== 'signed' ? (renderable.depositPercent > 0 && renderable.depositPercent < 100 ? `${renderable.depositPercent}% deposit on the option you choose` : 'Choose one when you approve') : `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}`}
+          : choices?.tiers.length && renderable.status !== 'signed' ? (renderable.depositPercent > 0 && renderable.depositPercent < 100 ? `${renderable.depositPercent}% deposit on the option you choose` : 'Choose one when you approve') : planOf(estimate?.payment_plan) ? `Pay over time · ${planOf(estimate?.payment_plan)!.length} payments`
+          : renderable.depositPercent > 0 && renderable.depositPercent < 100 ? `${renderable.depositPercent}% deposit ${formatMoney(deposit, renderable.currency)}` : 'Invoiced in full'}
         phases={phases}
         ranged={ranged}
         tiered={!!choices?.tiers.length && renderable.status !== 'signed'}
@@ -209,9 +211,11 @@ export default async function PublicProposalPage({ params, searchParams }: PageP
 /** The proposal's estimate as the client may see it (rows already collapsed). */
 async function estimateForClient(id: string | null): Promise<InvoiceForPDF | null> {
   if (!id) return null;
-  const { data: est } = await proposalServiceClient().from('estimates')
-    .select('estimate_number, title, line_items, notes, total_cents, issue_date, valid_until, totals_only')
-    .eq('id', id).maybeSingle();
+  const db = proposalServiceClient();
+  const cols = 'estimate_number, title, line_items, notes, total_cents, issue_date, valid_until, totals_only';
+  // Its payment plan (migration 069) prints under it; older databases read without.
+  const first = await db.from('estimates').select(`${cols}, payment_plan`).eq('id', id).maybeSingle();
+  const est = first.error ? (await db.from('estimates').select(cols).eq('id', id).maybeSingle()).data : first.data;
   if (!est || !Array.isArray(est.line_items) || !est.line_items.length) return null;
   return estimateForClientPdf(est as Parameters<typeof estimateForClientPdf>[0]);
 }

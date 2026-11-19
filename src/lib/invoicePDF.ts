@@ -1,3 +1,4 @@
+import { installmentsOf, planOf, planText } from './paymentPlan';
 import { amountText, clientRows, defaultSelection, formatLineMoney, hasChoices, hasRange, isPhased, rangeText, rangeTotals, splitTotals, tierTotal, tiersOf, type EndTotals, type LineItem, type LineSelection } from './lineItems';
 import { dueNow } from './invoiceDeposit';
 
@@ -26,6 +27,9 @@ export interface InvoiceForPDF {
   selection?: LineSelection | null;
   /** An estimate's payment terms (migration 064): a deposit to start, as a percent. */
   deposit_percent?: number | null;
+  /** Pay over time (migration 069): an estimate's plan, or an invoice's schedule. */
+  payment_plan?: unknown;
+  installments?: unknown;
 }
 
 /**
@@ -34,7 +38,10 @@ export interface InvoiceForPDF {
  * is invoiced upon final approval." Not for phases or a price range (their own estimates
  * come later).
  */
-export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'> & { selection?: LineSelection | null }): string | null {
+export function estimateTermsLine(e: Pick<InvoiceForPDF, 'deposit_percent' | 'amount_cents' | 'line_items'> & { selection?: LineSelection | null; payment_plan?: unknown }): string | null {
+  // Pay over time (migration 069) comes first.
+  const plan = planOf(e.payment_plan);
+  if (plan) return planText(plan);
   const pct = Number(e.deposit_percent ?? 0);
   const lines = (e.line_items ?? []) as LineItem[];
   if (!(pct > 0 && pct < 100) || isPhased(lines) || hasRange(lines)) return null;
@@ -421,7 +428,8 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     };
     // A deposit invoice says which part is due.
     const due = dueNow(invoice);
-    const depositBadge = due.kind === 'pay' && due.part === 'deposit' ? { bg: '#fd6100', text: '#ffffff', label: 'DEPOSIT DUE' }
+    const depositBadge = due.kind === 'pay' && due.of ? { bg: '#fd6100', text: '#ffffff', label: `PAYMENT ${due.index! + 1} OF ${due.of} DUE` }
+      : due.kind === 'pay' && due.part === 'deposit' ? { bg: '#fd6100', text: '#ffffff', label: 'DEPOSIT DUE' }
       : due.kind === 'held' ? { bg: '#0cf574', text: '#0a0a0a', label: 'DEPOSIT PAID' }
       : due.kind === 'pay' && due.part === 'balance' ? { bg: '#fd6100', text: '#ffffff', label: 'BALANCE DUE' }
       : null;
@@ -448,6 +456,18 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
           : 'Please remit payment by the due date. Thank you for your business!',
         M, badgeY + 20,
       );
+    }
+    // Pay over time (069): the schedule, each payment with its date and whether it's in.
+    const plan = installmentsOf(invoice.installments);
+    if (plan) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor('#0a0a0a');
+      plan.forEach((p, i) => {
+        const paid = i === 0 ? !!invoice.deposit_paid_at : !!p.paid_at;
+        const when = new Date(`${p.due_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        doc.text(`Payment ${i + 1} of ${plan.length}: ${formatLineMoney(p.cents)} due ${when}${paid ? ' (paid)' : ''}`, M, badgeY + 28 + i * 5);
+      });
     }
   }
 

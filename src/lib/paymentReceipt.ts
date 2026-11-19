@@ -7,6 +7,7 @@
 // A description Lauren hid from the client ("Show description" off) stays hidden.
 
 import 'server-only';
+import { installmentsOf } from './paymentPlan';
 import { Resend } from 'resend';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { BRAND, brandEmail, button, esc, paragraph, rows, signoff } from './emailLayout';
@@ -15,7 +16,7 @@ import { portalContact } from './clientNotify';
 import { postalAddress } from './newsletter';
 import { SITE_URL } from './seo';
 
-export type ReceiptPart = 'full' | 'deposit' | 'balance';
+export type ReceiptPart = 'full' | 'deposit' | 'balance' | 'installment';
 export type ReceiptMethod = 'card' | 'recorded';
 
 const BODY = "'Bai Jamjuree', 'Helvetica Neue', Helvetica, Arial, sans-serif";
@@ -41,22 +42,27 @@ ${hours ? `<div style="margin-top:3px;font-size:12px;color:${BRAND.muted};">${es
 }
 
 export type ReceiptInput = {
-  invoice: { invoice_number: string; project_name: string | null; amount_cents: number; deposit_cents?: number | null; line_items?: LineItem[] | null; notes?: string | null };
+  invoice: { invoice_number: string; project_name: string | null; amount_cents: number; deposit_cents?: number | null; line_items?: LineItem[] | null; notes?: string | null; installments?: unknown };
   part: ReceiptPart; method: ReceiptMethod; paidOn: Date;
+  /** Pay over time (069): which payment (0-based); payment 1 arrives as part 'deposit'. */
+  index?: number;
   firstName: string; email: string; billedTo: string; address: string | null;
 };
 
 /** The receipt email (HTML and text) — pure, so it can be previewed. */
-export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address }: ReceiptInput) {
+export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address, index }: ReceiptInput) {
     const total: number = inv.amount_cents;
     const deposit: number = inv.deposit_cents ?? 0;
-    const paid = part === 'deposit' ? deposit : part === 'balance' ? total - deposit : total;
-    const paidToDate = part === 'deposit' ? deposit : total;
+    // Pay over time (069): this payment, and everything up to it.
+    const plan = installmentsOf(inv.installments);
+    const at = plan && (part === 'deposit' || part === 'installment') ? Math.min(part === 'deposit' ? 0 : index ?? 1, plan.length - 1) : null;
+    const paid = at !== null ? plan![at].cents : part === 'deposit' ? deposit : part === 'balance' ? total - deposit : total;
+    const paidToDate = at !== null ? plan!.slice(0, at + 1).reduce((t, p) => t + p.cents, 0) : part === 'deposit' ? deposit : total;
     const remaining = Math.max(0, total - paidToDate);
     const lines = ((inv.line_items ?? []) as LineItem[]);
     const today = dallasDay(paidOn);
-    const number = `${inv.invoice_number}${part === 'deposit' ? '-D' : part === 'balance' ? '-B' : ''}`;
-    const what = part === 'deposit' ? 'Deposit' : part === 'balance' ? 'Balance' : 'Payment in full';
+    const number = `${inv.invoice_number}${at !== null ? `-P${at + 1}` : part === 'deposit' ? '-D' : part === 'balance' ? '-B' : ''}`;
+    const what = at !== null ? `Payment ${at + 1} of ${plan!.length}` : part === 'deposit' ? 'Deposit' : part === 'balance' ? 'Balance' : 'Payment in full';
 
     const html = brandEmail({
       title: `Receipt ${number} — ${formatLineMoney(paid)}`,
@@ -118,6 +124,7 @@ export async function sendPaymentReceipt(
   invoiceId: string,
   part: ReceiptPart,
   method: ReceiptMethod,
+  index?: number,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const key = process.env.RESEND_API_KEY;
@@ -133,7 +140,7 @@ export async function sendPaymentReceipt(
     const address = await postalAddress(db).catch(() => null);
     const billedTo = [client?.full_name || contact.name, client?.company_name].filter(Boolean).join(' · ');
     const { html, text, paid, what } = buildReceipt({
-      invoice: inv, part, method, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address,
+      invoice: inv, part, method, index, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address,
     });
 
     const notify = process.env.CONTACT_NOTIFY_TO;
@@ -143,7 +150,7 @@ export async function sendPaymentReceipt(
       replyTo: notify || 'hello@thrivecreativestudios.org',
       subject: `Receipt for ${formatLineMoney(paid)} — invoice ${inv.invoice_number}`,
       html, text,
-    }, { idempotencyKey: `receipt-${invoiceId}-${part}` });
+    }, { idempotencyKey: `receipt-${invoiceId}-${part}${index ? `-${index}` : ''}` });
     if (error) return { ok: false, error: error.message };
 
     await db.from('portal_activity').insert({

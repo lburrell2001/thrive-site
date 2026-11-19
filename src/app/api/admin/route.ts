@@ -5,6 +5,8 @@ import { recipientForPortalClient } from '@/lib/proposalRecipients';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { sendPaymentReceipt } from '@/lib/paymentReceipt';
+import { dueNow, planFor } from '@/lib/invoiceDeposit';
+import { recordInstallment } from '@/lib/invoicePayment';
 import { CASE_STUDIES } from '@/app/work/caseStudies';
 import { normalizeCaseStudy } from '@/lib/caseStudyNormalize';
 import { nextInvoiceNumberFor, generateDueInvoices, markOverdueInvoices } from '@/lib/invoiceHelpers';
@@ -457,6 +459,28 @@ export async function POST(req: NextRequest) {
         await projectChecklistFromInvoice(admin, id).catch(() => undefined);
         // A receipt for the deposit, once.
         if (marked?.length) after(() => sendPaymentReceipt(admin, id, 'deposit', 'recorded').then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
+        return NextResponse.json({ ok: true });
+      }
+
+      // Pay over time (069): the next payment on the plan, paid some other way.
+      case 'mark_next_payment_paid': {
+        const { id } = params as { id?: string };
+        if (!id) return err('Missing invoice');
+        const { data: inv } = await admin.from('portal_invoices').select('*').eq('id', id).maybeSingle();
+        if (!inv) return err('Invoice not found');
+        const due = dueNow(inv);
+        if (due.kind !== 'pay' || !due.of) return err('Nothing on a payment plan is due on this invoice');
+        if (due.index === 0) {
+          const { data: marked, error } = await admin.from('portal_invoices').update({ deposit_paid_at: new Date().toISOString() })
+            .eq('id', id).is('deposit_paid_at', null).select('id');
+          if (error) return err(error.message);
+          await projectChecklistFromInvoice(admin, id).catch(() => undefined);
+          if (marked?.length) after(() => sendPaymentReceipt(admin, id, 'deposit', 'recorded', 0).then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
+          return NextResponse.json({ ok: true });
+        }
+        const recorded = await recordInstallment(admin, id, planFor(inv)!, due.index!, null);
+        if (!recorded.ok) return err('Could not record that payment');
+        if (recorded.fresh) after(() => sendPaymentReceipt(admin, id, 'installment', 'recorded', due.index).then((r) => { if (!r.ok) console.error('[receipt]', r.error); }));
         return NextResponse.json({ ok: true });
       }
 

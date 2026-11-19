@@ -1,5 +1,7 @@
 export const runtime = 'nodejs';
 
+import { planProblem } from '@/lib/paymentPlan';
+import { totalCents } from '@/lib/lineItems';
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
 import type { LineSelection } from '@/lib/lineItems';
@@ -21,7 +23,8 @@ export async function GET(req: Request) {
 
   // Lines and notes only exist once 039 is in.
   const recent = (columns: string) => db.from('portal_invoices').select(columns).order('created_at', { ascending: false }).limit(30);
-  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, accepted_at, declined_at, decline_reason`);
+  let invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, accepted_at, declined_at, decline_reason, installments`);
+  if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, accepted_at, declined_at, decline_reason`);
   if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only, deposit_cents, deposit_due_date, deposit_paid_at, balance_open`);
   if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes, totals_only`);
   if (invoices.error) invoices = await recent(`${INVOICE_COLUMNS}, line_items, notes`);
@@ -66,6 +69,11 @@ export async function POST(req: Request) {
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? 'Invalid estimate');
 
   // The unique number is the guard if two saves race; try once more.
+  // Pay over time (069): the payments add up to the total.
+  if (parsed.data.payment_plan) {
+    const problem = planProblem(parsed.data.payment_plan, totalCents(parsed.data.line_items));
+    if (problem) return badRequest(problem);
+  }
   let row = estimateRow(parsed.data);
   for (let attempt = 0; attempt < 3; attempt++) {
     const estimate_number = await nextEstimateNumber(auth.db);

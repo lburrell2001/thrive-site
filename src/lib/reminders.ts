@@ -106,7 +106,8 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
   switch (target.kind) {
     case 'invoice': {
       const pick = (cols: string) => db.from('portal_invoices').select(cols).eq('id', target.id).maybeSingle();
-      let found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at');
+      let found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at, installments');
+      if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open, declined_at');
       if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status, deposit_cents, deposit_due_date, deposit_paid_at, balance_open');
       if (found.error) found = await pick('id, client_id, invoice_number, project_name, amount_cents, due_date, status');
       const inv = found.data as unknown as (DepositFields & { id: string; client_id: string; invoice_number: string; project_name: string }) | null;
@@ -122,14 +123,15 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
 
       const dueDate = due.dueDate ?? inv.due_date;
       const overdue = dueDate < new Date().toISOString().slice(0, 10);
-      const partWord = due.part === 'deposit' ? 'the deposit on ' : due.part === 'balance' ? 'the balance on ' : '';
+      // "the deposit on ", "the balance on ", "payment 2 of 3 on " (pay over time, 069).
+      const partWord = due.of ? `payment ${due.index! + 1} of ${due.of} on ` : due.part === 'deposit' ? 'the deposit on ' : due.part === 'balance' ? 'the balance on ' : '';
       const amount = money(due.cents);
       const when = overdue ? `was due ${day(dueDate)}` : `is due ${day(dueDate)}`;
       return {
         contact,
         targetType: 'invoice',
         targetId: inv.id,
-        summary: `${partWord ? `${partWord[4].toUpperCase()}${partWord.slice(5)}` : ''}Invoice ${inv.invoice_number} · ${amount} ${overdue ? 'overdue' : `due ${day(dueDate)}`}`,
+        summary: `${partWord ? `${partWord.replace(/^the /, '')[0].toUpperCase()}${partWord.replace(/^the /, '').slice(1)}` : ''}Invoice ${inv.invoice_number} · ${amount} ${overdue ? 'overdue' : `due ${day(dueDate)}`}`,
         message: {
           subject: overdue
             ? `Past due: ${partWord}invoice ${inv.invoice_number} — ${amount}`

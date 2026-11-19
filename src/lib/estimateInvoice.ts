@@ -13,6 +13,7 @@
 //
 // Safe to call twice: an estimate with an invoice returns that invoice.
 
+import { installmentsFrom, planOf, planProblem } from './paymentPlan';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { makePortalClient } from './portalClient';
 import { nextInvoiceNumberFor } from './invoiceHelpers';
@@ -101,7 +102,10 @@ export async function invoiceForEstimate(
   const today = dallasToday();
   // The deposit: a signed proposal's, else the estimate's own payment terms (migration 064).
   const pct = opts.depositPercent ?? Number(est.deposit_percent ?? 0);
-  const deposit = pct > 0 && pct < 100 ? Math.round((total * pct) / 100) : 0;
+  // Pay over time (migration 069) wins: payment 1 is the deposit, the rest come due on their dates.
+  const planned = planOf(est.payment_plan);
+  const plan = planned && !planProblem(planned, total) ? installmentsFrom(planned, today) : null;
+  const deposit = plan ? plan[0].cents : pct > 0 && pct < 100 ? Math.round((total * pct) / 100) : 0;
   const invoiceNumber = await nextInvoiceNumberFor(db, portalId, 'INV');
   const { data: inv, error: invErr } = await db.from('portal_invoices').insert({
     client_id: portalId,
@@ -109,13 +113,15 @@ export async function invoiceForEstimate(
     project_name: project?.name ?? projectName,
     amount_cents: total,
     invoice_date: today,
-    due_date: addDays(today, 14),
+    due_date: plan ? plan[plan.length - 1].due_date : addDays(today, 14),
     status: 'due',
     line_items: lines,
     notes: est.notes,
     totals_only: est.totals_only ?? false,
     ...(est.crm_deal_id ? { crm_deal_id: est.crm_deal_id } : {}),
-    ...(deposit > 0 ? { deposit_cents: deposit, deposit_due_date: today, balance_open: false } : {}),
+    ...(plan
+      ? { deposit_cents: deposit, deposit_due_date: today, balance_open: true, installments: plan }
+      : deposit > 0 ? { deposit_cents: deposit, deposit_due_date: today, balance_open: false } : {}),
   }).select('id').single();
   if (invErr) return { ok: false, error: invErr.message };
 
@@ -124,7 +130,9 @@ export async function invoiceForEstimate(
   const totalText = formatLineMoney(total);
   await db.from('portal_activity').insert({
     client_id: portalId,
-    text: deposit
+    text: plan
+      ? `Invoice ${invoiceNumber} ready — payment 1 of ${plan.length} (${formatLineMoney(deposit)}) due now, the rest on schedule (${formatLineMoney(total)} total)`
+      : deposit
       ? `Invoice ${invoiceNumber} ready — ${formatLineMoney(deposit)} deposit due now (${totalText} total)`
       : `Invoice ${invoiceNumber} ready — ${totalText} due`,
     dot_color: '#1e3add',
@@ -133,7 +141,16 @@ export async function invoiceForEstimate(
 
   // 4. Tell them.
   if (opts.notify !== false) {
-    await notifyPortalClient(db, portalId, deposit
+    const schedule = plan?.map((p, i) => `Payment ${i + 1}: ${formatLineMoney(p.cents)} due ${new Date(`${p.due_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`) ?? [];
+    await notifyPortalClient(db, portalId, plan
+      ? {
+          subject: `Invoice ${invoiceNumber} — payment 1 of ${plan.length}: ${formatLineMoney(deposit)}`,
+          headline: `Thank you! Your invoice is ready in your portal. You’re paying over time: ${formatLineMoney(deposit)} now gets us started, and each of the other payments shows up in your portal when it’s due.`,
+          detail: [`Project: ${projectName}`, ...schedule, `Total: ${totalText}`].join('\n'),
+          ctaUrl: `${SITE_URL}/portal/invoices`, ctaLabel: 'Pay payment 1',
+          sms: `thank you! Invoice ${invoiceNumber} is ready: payment 1 of ${plan.length} (${formatLineMoney(deposit)}) to get started. Pay here:`,
+        }
+      : deposit
       ? {
           subject: `Invoice ${invoiceNumber} — ${formatLineMoney(deposit)} deposit to get started`,
           headline: `Thank you! Your invoice is ready in your portal. The ${formatLineMoney(deposit)} deposit gets us started; the rest is due later.`,

@@ -61,7 +61,7 @@ interface Client { id: string; full_name: string; company_name: string; initials
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
-interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
+interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; installments?: unknown; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
 interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
 interface OnboardingStep { id: string; step_number: number; title: string; description: string; action_label: string; action_href: string; completed: boolean; }
@@ -1648,6 +1648,14 @@ function ProjectSubInvoices({ project, invoices, estimates = [], clientId, data,
     setMarkingPaid(null); onRefresh();
   }
 
+  async function handleNextPaymentPaid(inv: Invoice) {
+    setMarkingPaid(inv.id);
+    const r = await api({ action: 'mark_next_payment_paid', id: inv.id }) as { error?: string };
+    setMarkingPaid(null);
+    if (r.error) { alert(r.error); return; }
+    onRefresh();
+  }
+
   async function handleOpenBalance(inv: Invoice) {
     const d = new Date(); d.setDate(d.getDate() + 14);
     const due = window.prompt('When is the balance due? (YYYY-MM-DD)\nThe client gets an email (and a text if opted in) saying it’s ready to pay.', d.toISOString().slice(0, 10));
@@ -1734,7 +1742,7 @@ function ProjectSubInvoices({ project, invoices, estimates = [], clientId, data,
               <Badge status={inv.status} />
               {depositLabel(inv) && (
                 <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#fff', background: dueNow(inv).kind === 'held' ? DARK : '#fd6100', padding: '2px 8px', borderRadius: 999 }}>
-                  {depositLabel(inv)}{dueNow(inv).kind === 'pay' && inv.deposit_cents && !inv.deposit_paid_at ? ` · ${fmtAmount(inv.deposit_cents)} by ${fmtDate(inv.deposit_due_date ?? inv.due_date)}` : ''}
+                  {depositLabel(inv)}{(() => { const d = dueNow(inv); return d.kind === 'pay' && d.of ? ` · ${fmtAmount(d.cents)} by ${fmtDate(d.dueDate ?? inv.due_date)}` : d.kind === 'pay' && inv.deposit_cents && !inv.deposit_paid_at ? ` · ${fmtAmount(inv.deposit_cents)} by ${fmtDate(inv.deposit_due_date ?? inv.due_date)}` : ''; })()}
                 </span>
               )}
               {inv.subscription_id && <RecurringBadge />}
@@ -1751,7 +1759,11 @@ function ProjectSubInvoices({ project, invoices, estimates = [], clientId, data,
                 <span style={{ fontFamily: F.inter, fontSize: 11, color: '#808080' }}>{lastRemindedLabel(data.reminders, 'invoice', inv.id)}</span>
               )}
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {inv.deposit_cents && !inv.deposit_paid_at && inv.status !== 'paid' && (
+                {/* Pay over time (069): the next payment, paid some other way. */}
+                {(() => { const d = dueNow(inv); return d.kind === 'pay' && d.of ? (
+                  <Btn onClick={() => handleNextPaymentPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : `Mark payment ${d.index! + 1} of ${d.of} paid`}</Btn>
+                ) : null; })()}
+                {inv.deposit_cents && !inv.deposit_paid_at && inv.status !== 'paid' && !(inv.installments as unknown[] | null)?.length && (
                   <Btn onClick={() => handleDepositPaid(inv)} disabled={markingPaid === inv.id} style={{ padding: '3px 8px', fontSize: 11, background: '#0cf574', color: DARK }}>{markingPaid === inv.id ? '…' : 'Mark deposit paid'}</Btn>
                 )}
                 {dueNow(inv).kind === 'held' && (
