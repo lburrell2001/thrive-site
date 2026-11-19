@@ -485,6 +485,9 @@ function RequestInboxSection({ clientId, data, api, onRefresh }: {
   // exist yet. Both need a decision from you.
   const isProposal = (r: Request) => !!r.project_name && !data.projects.some(p => p.name === r.project_name);
   const inbox      = data.requests.filter(r => !r.project_name || isProposal(r));
+  // Dumps sent from a project's page are filed already — still listed here so they're seen.
+  const filed      = data.requests.filter(r => !inbox.includes(r))
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''));
 
   const [busyId,     setBusyId]     = useState<string | null>(null);
   const [newForId,   setNewForId]   = useState<string | null>(null);
@@ -534,17 +537,17 @@ function RequestInboxSection({ clientId, data, api, onRefresh }: {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 0 4px' }}>
-        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Brain Dump Inbox</h3>
+        <h3 style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 800, color: DARK, margin: 0 }}>Brain Dumps</h3>
         <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, background: inbox.length ? '#ffffff' : '#f5f5f5', color: inbox.length ? ORANGE : '#808080', padding: '1px 7px', borderRadius: 999 }}>{inbox.length}</span>
       </div>
       <p style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', margin: '0 0 12px' }}>
-        Everything the client brain-dumped without a project. File each one under an existing project or spin up a new one.
+        Everything they've brain-dumped. Ones sent without a project are listed first: file each under a project or start a new one.
       </p>
 
       <ErrorMsg msg={error} />
 
       {inbox.length === 0 ? (
-        <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>Inbox is clear — every brain dump is filed under a project.</p>
+        filed.length === 0 && <p style={{ fontFamily: F.inter, fontSize: 14, color: '#bfbfbf', margin: 0 }}>No brain dumps yet.</p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {inbox.map((req) => {
@@ -607,6 +610,25 @@ function RequestInboxSection({ clientId, data, api, onRefresh }: {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {filed.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: inbox.length ? 12 : 0 }}>
+          {filed.map((req) => (
+            <div key={req.id} style={{ border: '1px solid var(--a-border)', borderLeft: `3px solid ${BLUE}`, borderRadius: 8, padding: '12px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, color: DARK, flex: 1, minWidth: 160 }}>{req.title}</span>
+                <Badge status={req.status} />
+              </div>
+              {req.description && (
+                <p style={{ fontFamily: F.inter, fontSize: 13, color: '#808080', margin: '4px 0 0', whiteSpace: 'pre-wrap' }}>{req.description}</p>
+              )}
+              <p style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', margin: '6px 0 0' }}>
+                {req.project_name}{req.created_at ? ` · ${new Date(req.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+              </p>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1825,7 +1847,7 @@ function ProjectSubRequests({ project, requests, projects = [], clientId, api, o
 
   return (
     <div style={{ padding: 16, background: 'var(--a-surface-2)', borderBottom: '1px solid var(--a-border)' }}>
-      <SubSectionHead title="Requests" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
+      <SubSectionHead title="Brain Dumps & Requests" action={<Btn style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add'}</Btn>} />
       {showForm && (
         <form onSubmit={handleAdd} style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--a-border)', padding: 14, marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <FormGrid>
