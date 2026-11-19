@@ -15,7 +15,7 @@ import { SITE_URL } from './seo';
 type EstimateRow = {
   id: string; estimate_number: string; title: string; client_name: string; total_cents: number;
   valid_until: string | null; status: string; portal_client_id: string | null; crm_contact_id: string | null;
-  access_token?: string | null;
+  access_token?: string | null; crm_deal_id?: string | null;
 };
 
 export async function estimateRecipient(db: SupabaseClient, est: EstimateRow): Promise<{ contact: Contact | null; contactId: string | null }> {
@@ -98,7 +98,7 @@ export const estimateSendSchema = z.object({
 });
 
 /** The total it had before its proposal was amended, when that's different (migration 068). */
-async function amendedFrom(db: SupabaseClient, estimateId: string, nowCents: number): Promise<string | null> {
+export async function amendedFrom(db: SupabaseClient, estimateId: string, nowCents: number): Promise<string | null> {
   const { data: p, error } = await db.from('proposals').select('id, revision').eq('estimate_id', estimateId).maybeSingle();
   if (error || !p || !(p.revision > 1)) return null;
   const { data: v } = await db.from('proposal_versions').select('total_cents, estimate')
@@ -107,3 +107,34 @@ async function amendedFrom(db: SupabaseClient, estimateId: string, nowCents: num
   const before = (v.estimate as { total_cents?: number } | null)?.total_cents ?? v.total_cents;
   return before !== nowCents ? formatLineMoney(before) : null;
 }
+
+/**
+ * Texted from Lauren's Google Voice (no API: the browser copies the message
+ * and opens Voice). Marks a draft Sent and logs the text on their timeline,
+ * like a text logged from the contact panel.
+ */
+export async function logEstimateText(
+  db: SupabaseClient, id: string, input: { phone: string; message: string },
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const est = await loadEstimate(db, id);
+  if (!est) return { ok: false, error: 'Estimate not found', status: 404 };
+  const { contactId } = await estimateRecipient(db, est);
+  await db.from('estimates').update({
+    ...(est.status === 'draft' ? { status: 'sent' } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  if (contactId) {
+    const { error } = await db.from('crm_activities').insert({
+      contact_id: contactId, kind: 'text', body: input.message,
+      metadata: { direction: 'sent', phone: input.phone, estimate_id: id },
+      ...(est.crm_deal_id ? { deal_id: est.crm_deal_id } : {}),
+    });
+    if (error) return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
+export const estimateTextSchema = z.object({
+  phone: z.string().trim().min(7, 'Enter their mobile number').max(40),
+  message: z.string().trim().min(1, 'Write the message').max(1600),
+});

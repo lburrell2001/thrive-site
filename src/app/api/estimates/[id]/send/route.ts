@@ -8,7 +8,9 @@ export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { estimateRecipient, loadEstimate, sendEstimateEmail, estimateSendSchema } from '@/lib/estimateSend';
+import { amendedFrom, estimateRecipient, loadEstimate, sendEstimateEmail, estimateSendSchema } from '@/lib/estimateSend';
+import { formatLineMoney } from '@/lib/lineItems';
+import { SITE_URL } from '@/lib/seo';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,7 +22,13 @@ export async function GET(req: Request, { params }: Ctx) {
   const est = await loadEstimate(auth.db, id);
   if (!est) return badRequest('Estimate not found', 404);
   const { contact } = await estimateRecipient(auth.db, est);
-  return NextResponse.json({ ok: true, data: { email: contact?.email ?? '', name: contact?.name || est.client_name } });
+  // For "Text": their mobile and what the message needs (the private link, the total, what it was).
+  const was = await amendedFrom(auth.db, id, est.total_cents);
+  return NextResponse.json({ ok: true, data: {
+    email: contact?.email ?? '', name: contact?.name || est.client_name, phone: contact?.phone ?? '',
+    link: est.access_token ? `${SITE_URL}/e/${id}?t=${est.access_token}` : '',
+    total: formatLineMoney(est.total_cents), was, title: est.title,
+  } });
 }
 
 

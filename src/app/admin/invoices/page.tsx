@@ -23,6 +23,7 @@ import { depositPercentFromTerms, hasRange, rangeLines, rangeText, rangeTotals, 
 import type { Estimate, EstimateStatus } from '@/lib/estimates';
 import { isScopeWork, needsWorkDescription, scopeWorkProblem } from '@/lib/scopeWork';
 import { estimateTermsLine, PHASES_NOTE, TIERS_NOTE } from '@/lib/invoicePDF';
+import { googleVoiceUrl } from '@/lib/googleVoice';
 import { evenPlan, MAX_PAYMENTS, planOf, planProblem, whenText, type PlanPayment } from '@/lib/paymentPlan';
 import { itemForLine, insertUnderHeading, itemLine, missingRequired, priceLabel, suggestionsFor, type Catalog, type PriceItem } from '@/lib/priceCatalog';
 import { PriceListDrawer, type Pick } from './PriceListDrawer';
@@ -173,7 +174,7 @@ export default function InvoiceBuilder() {
   // "Open balance" on a held deposit invoice: which row, and the balance's due date.
   const [opening, setOpening] = useState<{ id: string; due: string } | null>(null);
   // "Send" on an estimate: the email dialog.
-  const [sending, setSending] = useState<{ est: Estimate; email: string; note: string; loading: boolean; when: string | null } | null>(null);
+  const [sending, setSending] = useState<{ est: Estimate; email: string; note: string; loading: boolean; when: string | null; mode?: 'email' | 'text'; phone?: string; message?: string } | null>(null);
   // Scheduled sends (migration 053): estimates waiting to go, invoices not created yet.
   const [scheduled, setScheduled] = useState<Scheduled[]>([]);
   // The invoice builder's "Send later" time; null = send now.
@@ -662,12 +663,37 @@ export default function InvoiceBuilder() {
 
   /** Opens the Send dialog with their email filled in when it's on file. */
   async function startSend(est: Estimate) {
-    setSending({ est, email: '', note: '', loading: true, when: null });
+    setSending({ est, email: '', note: '', loading: true, when: null, mode: 'email', phone: '', message: '' });
     try {
-      const r = await apiGet<{ email: string }>(`/api/estimates/${est.id}/send`);
-      setSending((cur) => (cur && cur.est.id === est.id ? { ...cur, email: cur.email || r.email, loading: false } : cur));
+      const r = await apiGet<{ email: string; name: string; phone: string; link: string; total: string; was: string | null; title: string }>(`/api/estimates/${est.id}/send`);
+      setSending((cur) => (cur && cur.est.id === est.id ? {
+        ...cur, email: cur.email || r.email, phone: cur.phone || r.phone, message: cur.message || estimateTextMessage(r), loading: false,
+      } : cur));
     } catch {
       setSending((cur) => (cur ? { ...cur, loading: false } : cur));
+    }
+  }
+
+  /**
+   * Text it from Google Voice (no API): copy the message, open Voice on their
+   * number — both inside the click so the browser allows them — then log it.
+   */
+  async function textEstimate() {
+    if (!sending?.phone || !sending.message) return;
+    const { est, phone, message } = sending;
+    // Copy first: once the new tab opens, this page loses focus and the clipboard may refuse.
+    const copying = navigator.clipboard?.writeText(message).then(() => true, () => false) ?? Promise.resolve(false);
+    window.open(googleVoiceUrl(phone), '_blank', 'noopener');
+    const copied = await copying;
+    setSending({ ...sending, loading: true });
+    try {
+      await apiSend(`/api/estimates/${est.id}/text`, 'POST', { phone, message });
+      setSending(null);
+      show(copied ? 'Message copied. Paste it into Google Voice and send.' : 'Google Voice is open. Copy the message from the estimate’s timeline entry.');
+      await load();
+    } catch (e) {
+      setSending((cur) => (cur ? { ...cur, loading: false } : cur));
+      show(e instanceof Error ? e.message : 'Could not log the text', 'error');
     }
   }
 
@@ -1297,6 +1323,10 @@ export default function InvoiceBuilder() {
           note={sending.note}
           loading={sending.loading}
           when={sending.when}
+          mode={sending.mode ?? 'email'}
+          phone={sending.phone ?? ''}
+          message={sending.message ?? ''}
+          onText={textEstimate}
           onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
           onSend={sendEstimate}
           onClose={() => setSending(null)}
@@ -1695,6 +1725,10 @@ export default function InvoiceBuilder() {
           note={sending.note}
           loading={sending.loading}
           when={sending.when}
+          mode={sending.mode ?? 'email'}
+          phone={sending.phone ?? ''}
+          message={sending.message ?? ''}
+          onText={textEstimate}
           onChange={(patch) => setSending((cur) => (cur ? { ...cur, ...patch } : cur))}
           onSend={sendEstimate}
           onClose={() => setSending(null)}
@@ -2129,34 +2163,70 @@ function DepositFields({ draft, total, depositCents, problem, onChange }: {
   );
 }
 
-/** "Send estimate": to whom, an optional note, and Send. The PDF goes attached. */
-function SendDialog({ number, email, note, loading, when, onChange, onSend, onClose }: {
+/** The text message for an estimate: their name, what it's for, the total (and what it was), the link. */
+function estimateTextMessage(r: { name: string; link: string; total: string; was: string | null; title: string }): string {
+  const name = (r.name || '').trim();
+  // "Mr. Strong" stays whole; otherwise their first name.
+  const greet = /^(mr|mrs|ms|miss|dr)\.?\s/i.test(name) ? name : name.split(/\s+/)[0] || 'there';
+  return `Hi ${greet}, here’s your ${r.was ? 'updated ' : ''}estimate${r.title ? ` for ${r.title}` : ''}: ${r.total}${r.was ? ` (it was ${r.was})` : ''}. You can look it over and accept it here: ${r.link}\n\nLauren, Thrive Creative Studios`;
+}
+
+/** "Send estimate": by email (the PDF attached) or by text from Google Voice. */
+function SendDialog({ number, email, note, loading, when, mode, phone, message, onChange, onSend, onText, onClose }: {
   number: string; email: string; note: string; loading: boolean; when: string | null;
-  onChange: (patch: { email?: string; note?: string; when?: string | null }) => void; onSend: () => void; onClose: () => void;
+  mode: 'email' | 'text'; phone: string; message: string;
+  onChange: (patch: { email?: string; note?: string; when?: string | null; mode?: 'email' | 'text'; phone?: string; message?: string }) => void;
+  onSend: () => void; onText: () => void; onClose: () => void;
 }) {
   const valid = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const phoneOk = phone.replace(/\D/g, '').length >= 10;
   return (
     <div className={s.drawerBackdrop} style={{ alignItems: 'center', justifyContent: 'center', padding: 16 }}
       onMouseDown={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}>
       <div className={s.sendDialog} role="dialog" aria-modal="true" aria-labelledby="send-title">
         <h2 id="send-title" className={s.drawerTitle}>Send {number}</h2>
-        <p className={s.stepHint}>They get a short email with the estimate attached as a PDF. It’s marked Sent and logged on their timeline.</p>
-        <label>
-          <span className={p.label}>To</span>
-          <input className={p.input} type="email" value={email} placeholder={loading ? 'Looking up their email…' : 'name@business.com'}
-            onChange={(e) => onChange({ email: e.target.value })} autoFocus />
-        </label>
-        <label>
-          <span className={p.label}>Note (optional)</span>
-          <textarea className={p.textarea} rows={3} value={note} placeholder="A line from you, e.g. Let me know if you have any questions."
-            onChange={(e) => onChange({ note: e.target.value })} />
-        </label>
-        <SendLater when={when} onChange={(v) => onChange({ when: v })} disabled={loading} />
+        <div className={s.quickDates} role="radiogroup" aria-label="Send by">
+          {(['email', 'text'] as const).map((m) => (
+            <button key={m} type="button" role="radio" aria-checked={mode === m} className={`${s.chip} ${mode === m ? s.chipOn : ''}`}
+              onClick={() => onChange({ mode: m, ...(m === 'text' ? { when: null } : {}) })}>{m === 'email' ? 'Email' : 'Text'}</button>
+          ))}
+        </div>
+        {mode === 'email' ? (<>
+          <p className={s.stepHint}>They get a short email with the estimate attached as a PDF. It’s marked Sent and logged on their timeline.</p>
+          <label>
+            <span className={p.label}>To</span>
+            <input className={p.input} type="email" value={email} placeholder={loading ? 'Looking up their email…' : 'name@business.com'}
+              onChange={(e) => onChange({ email: e.target.value })} autoFocus />
+          </label>
+          <label>
+            <span className={p.label}>Note (optional)</span>
+            <textarea className={p.textarea} rows={3} value={note} placeholder="A line from you, e.g. Let me know if you have any questions."
+              onChange={(e) => onChange({ note: e.target.value })} />
+          </label>
+          <SendLater when={when} onChange={(v) => onChange({ when: v })} disabled={loading} />
+        </>) : (<>
+          <p className={s.stepHint}>From your Google Voice number: this copies the message (with their private link) and opens Google Voice on their number. Paste and send it there. It’s marked Sent and logged on their timeline.</p>
+          <label>
+            <span className={p.label}>Their mobile</span>
+            <input className={p.input} type="tel" value={phone} placeholder={loading ? 'Looking up their number…' : '(214) 555-0123'}
+              onChange={(e) => onChange({ phone: e.target.value })} autoFocus />
+          </label>
+          <label>
+            <span className={p.label}>Message</span>
+            <textarea className={p.textarea} rows={6} value={message} onChange={(e) => onChange({ message: e.target.value })} />
+          </label>
+        </>)}
         <div className={s.sendActions}>
           <button type="button" className={p.btn} onClick={onClose} disabled={loading}>Cancel</button>
-          <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!valid || loading} onClick={onSend}>
-            {loading ? (when ? 'Scheduling…' : 'Sending…') : when ? 'Schedule' : 'Send estimate'}
-          </button>
+          {mode === 'email' ? (
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!valid || loading} onClick={onSend}>
+              {loading ? (when ? 'Scheduling…' : 'Sending…') : when ? 'Schedule' : 'Send estimate'}
+            </button>
+          ) : (
+            <button type="button" className={`${p.btn} ${p.btnPrimary}`} disabled={!phoneOk || !message.trim() || loading} onClick={onText}>
+              {loading ? 'Opening…' : 'Copy & open Google Voice'}
+            </button>
+          )}
         </div>
       </div>
     </div>
