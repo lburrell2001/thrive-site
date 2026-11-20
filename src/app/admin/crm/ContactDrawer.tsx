@@ -993,6 +993,7 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   const [name, setName] = useState(c.name);
   const [company, setCompany] = useState(c.company ?? '');
   const [jobTitle, setJobTitle] = useState(c.job_title ?? '');
+  const [billingAddress, setBillingAddress] = useState(c.billing_address ?? '');
   const [email, setEmail] = useState(c.email ?? '');
   const [phone, setPhone] = useState(c.phone ? formatPhone(c.phone) : '');
   const [source, setSource] = useState(c.source);
@@ -1006,7 +1007,8 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
   const dirty =
     name !== c.name || company !== (c.company ?? '') || jobTitle !== (c.job_title ?? '') || email !== (c.email ?? '') ||
     phone !== (c.phone ? formatPhone(c.phone) : '') || source !== c.source || nextTags.join(',') !== c.tags.join(',') ||
-    website !== (c.website ?? '') || instagram !== (c.instagram ? `@${c.instagram}` : '') || facebook !== (c.facebook ?? '');
+    website !== (c.website ?? '') || instagram !== (c.instagram ? `@${c.instagram}` : '') || facebook !== (c.facebook ?? '') ||
+    billingAddress !== (c.billing_address ?? '');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -1015,6 +1017,7 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
       name, company, email, phone, website, instagram, facebook, source: source.trim() || 'manual', tags: nextTags,
       // Only when changed, so other details save before migration 042.
       ...(jobTitle !== (c.job_title ?? '') ? { job_title: jobTitle } : {}),
+      ...(billingAddress !== (c.billing_address ?? '') ? { billing_address: billingAddress } : {}),
     } as Partial<CrmContact>);
     setSaving(false);
   }
@@ -1063,6 +1066,10 @@ function DetailsSection({ contact: c, onSave }: { contact: CrmContact; onSave: (
           <label>
             <span className={s.miniLabel}>Tags (comma separated)</span>
             <input className={p.input} value={tags} onChange={(e) => setTags(e.target.value)} placeholder="branding, retainer" />
+          </label>
+          <label style={{ gridColumn: '1 / -1' }}>
+            <span className={s.miniLabel}>Billing address (on their estimates, invoices and receipts)</span>
+            <textarea className={p.input} rows={2} style={{ resize: 'vertical' }} value={billingAddress} onChange={(e) => setBillingAddress(e.target.value)} placeholder={'123 Main St\nDallas, TX 75201'} />
           </label>
         </div>
         <p className={s.eventMeta}>

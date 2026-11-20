@@ -29,6 +29,11 @@ export async function makePortalClient(db: SupabaseClient, contactId: string): P
     initials,
     role: 'client',
   });
+  // Their billing address (072 → 071) comes along; skipped before those migrations.
+  if (!insertErr && contact.billing_address) {
+    const { error: addrErr } = await db.from('portal_clients').update({ billing_address: contact.billing_address }).eq('id', portalId);
+    if (addrErr) console.error('[portal client] billing address not copied', addrErr.message);
+  }
   if (insertErr) {
     await db.auth.admin.deleteUser(portalId);
     return { ok: false, error: insertErr.message };

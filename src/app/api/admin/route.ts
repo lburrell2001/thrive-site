@@ -305,6 +305,11 @@ export async function POST(req: NextRequest) {
         // Before 071 there's no billing_address: save the rest.
         if (error && /billing_address/.test(error.message)) { delete profile.billing_address; ({ error } = await admin.from('portal_clients').update(profile).eq('id', clientId)); }
         if (error) return err(error.message);
+        // And on their CRM contact (072), so both read the same.
+        if (profile.billing_address !== undefined) {
+          const { error: syncErr } = await admin.from('crm_contacts').update({ billing_address: profile.billing_address }).eq('portal_client_id', clientId);
+          if (syncErr && !/billing_address/.test(syncErr.message)) console.error('[admin] billing address not copied to the contact', syncErr.message);
+        }
         return NextResponse.json({ ok: true });
       }
 

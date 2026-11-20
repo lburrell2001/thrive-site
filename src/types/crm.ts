@@ -82,6 +82,8 @@ export interface CrmContact {
   company: string | null;
   /** Their role: "Owner", "Marketing manager" (migration 042; undefined before it). */
   job_title?: string | null;
+  /** Billing address for their PDFs and receipts (migration 072; undefined before it). */
+  billing_address?: string | null;
   email: string | null;
   phone: string | null;
   source: string;

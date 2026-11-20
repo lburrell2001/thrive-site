@@ -42,6 +42,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
     .maybeSingle();
   if (error) return badRequest(error.message);
   if (!data) return badRequest('Contact not found', 404);
+  // Their portal account's billing address (071) follows the contact's.
+  if (parsed.data.billing_address !== undefined && data.portal_client_id) {
+    const { error: syncErr } = await auth.db.from('portal_clients').update({ billing_address: parsed.data.billing_address }).eq('id', data.portal_client_id);
+    if (syncErr) console.error('[contacts] billing address not copied to the portal', syncErr.message);
+  }
   return NextResponse.json({ ok: true, data });
 }
 

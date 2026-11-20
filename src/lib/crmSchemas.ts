@@ -43,6 +43,8 @@ const contactFields = {
   company: optionalText(160),
   /** Their role: "Owner", "Marketing manager" (migration 042). */
   job_title: optionalText(120),
+  /** Printed on their estimates, invoices and receipts (migration 072). */
+  billing_address: optionalText(500),
   email,
   phone: optionalText(40),
   source: z.string().trim().min(1).max(60),

@@ -145,7 +145,7 @@ export async function sendPaymentReceipt(
     const address = await postalAddress(db).catch(() => null);
     const billedTo = [client?.full_name || contact.name, client?.company_name].filter(Boolean).join(' · ');
     const { html, text, paid, what } = buildReceipt({
-      invoice: inv, part, method, index, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address, billingAddress: client?.billing_address ?? null,
+      invoice: inv, part, method, index, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address, billingAddress: client?.billing_address || await contactAddress(db, inv.client_id),
     });
 
     const notify = process.env.CONTACT_NOTIFY_TO;
@@ -169,4 +169,10 @@ export async function sendPaymentReceipt(
     console.error('[receipt] not sent', invoiceId, e);
     return { ok: false, error: (e as Error).message };
   }
+}
+
+/** The billing address on the portal client's CRM contact (072), when their portal account has none. */
+async function contactAddress(db: SupabaseClient, portalClientId: string): Promise<string | null> {
+  const { data, error } = await db.from('crm_contacts').select('billing_address').eq('portal_client_id', portalClientId).limit(1).maybeSingle();
+  return error ? null : (data as { billing_address?: string | null } | null)?.billing_address ?? null;
 }

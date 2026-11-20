@@ -178,7 +178,7 @@ Migration `069`. An estimate's Payment terms (Details step) has **Pay over time*
 
 ### Billing addresses
 
-Migration `071` (`portal_clients.billing_address`, column grant so clients can edit it). Set on the Client tab's Profile ("Billing address") or by the client in portal Settings; printed under the name in "Billed to" on invoice PDFs (admin, Client tab and the portal's download — `generateInvoicePDF(…, { address })`) and as "Billing address" on payment receipts (`paymentReceipt.ts`). Every read/save falls back without it before 071. Estimates don't print it.
+Migration `071` (`portal_clients.billing_address`, column grant so clients can edit it). Set on the Client tab's Profile ("Billing address") or by the client in portal Settings; printed under the name in "Billed to" on invoice PDFs (admin, Client tab and the portal's download — `generateInvoicePDF(…, { address })`) and as "Billing address" on payment receipts (`paymentReceipt.ts`). Every read/save falls back without it before 071. Migration `072` puts one on the CRM contact too (`crm_contacts.billing_address`, the contact panel's Details), so people without a portal login have one: saving either in admin copies it to the other (contact PATCH ↔ `update_profile`), `makePortalClient()` copies it to a new login, receipts fall back to the contact's, and the Estimates & invoices page prints it on estimate and invoice PDFs (`billingAddressFor()`: portal account, else contact) — including the estimate PDF that Send emails. The client's `/e` and `/p` estimate downloads don't print it.
 
 ### Clients decline (and accept invoices)
 

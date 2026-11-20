@@ -35,7 +35,7 @@ import { dueNow, partWord, remainingCents } from '@/lib/invoiceDeposit';
 type Mode = 'estimate' | 'invoice';
 
 interface PortalClient { id: string; full_name: string; company_name: string; billing_address?: string | null }
-interface Contact { id: string; name: string; company: string | null; email: string | null; portal_client_id: string | null }
+interface Contact { id: string; name: string; company: string | null; email: string | null; portal_client_id: string | null; billing_address?: string | null }
 interface InvoiceRow {
   id: string; client_id: string; invoice_number: string; project_name: string; amount_cents: number;
   invoice_date: string; due_date: string; status: string; line_items?: LineItem[] | null; notes?: string | null;
@@ -614,15 +614,24 @@ export default function InvoiceBuilder() {
     setBusy(false);
   }
 
+  /** Their billing address: the portal account's, else their CRM contact's. */
+  function billingAddressFor(portalId?: string | null, contactId?: string | null): string | null {
+    const fromPortal = portalId ? data?.clients.find((c) => c.id === portalId)?.billing_address : null;
+    if (fromPortal) return fromPortal;
+    const contact = data?.contacts.find((c) => (contactId && c.id === contactId) || (portalId && c.portal_client_id === portalId));
+    return contact?.billing_address ?? null;
+  }
+
   async function downloadPdf(doc: {
     kind: Mode; number: string; title: string; total: number; issue: string; due: string;
     status: string; lines: LineItem[]; notes: string | null; client: string; totalsOnly: boolean;
     deposit?: { cents: number; due: string; paidAt: string | null; balanceOpen: boolean } | null;
-    /** Portal client id: their billing address (071) prints under the name. */
+    /** Portal client id / CRM contact id: their billing address (071/072) prints under the name. */
     clientId?: string | null;
+    contactId?: string | null;
   }) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
-    const address = doc.clientId ? data?.clients.find((c) => c.id === doc.clientId)?.billing_address ?? null : null;
+    const address = billingAddressFor(doc.clientId, doc.contactId);
     await generateInvoicePDF({
       kind: doc.kind, invoice_number: doc.number || 'DRAFT', project_name: doc.title, amount_cents: doc.total,
       invoice_date: doc.issue, due_date: doc.due, status: doc.status, line_items: doc.lines, notes: doc.notes,
@@ -631,9 +640,9 @@ export default function InvoiceBuilder() {
     }, doc.client || null, { address });
   }
 
-  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, clientId: portalId, totalsOnly: draft.totalsOnly,
+  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, clientId: portalId, contactId: draft.client.startsWith('c:') ? draft.client.slice(2) : null, totalsOnly: draft.totalsOnly,
     deposit: depositCents ? { cents: depositCents, due: draft.depositDue ?? '', paidAt: null, balanceOpen: false } : null });
-  const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, clientId: est.portal_client_id, totalsOnly: est.totals_only ?? false });
+  const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, clientId: est.portal_client_id, contactId: est.crm_contact_id, totalsOnly: est.totals_only ?? false });
 
   /** Turns on the rest of a deposit invoice; the client is emailed (and texted if opted in). */
   async function openBalance() {
@@ -711,7 +720,7 @@ export default function InvoiceBuilder() {
         kind: 'estimate', invoice_number: est.estimate_number, project_name: est.title, amount_cents: est.total_cents,
         invoice_date: est.issue_date, due_date: est.valid_until ?? '', status: est.status, line_items: est.line_items,
         notes: est.notes, totals_only: est.totals_only ?? false,
-      }, est.client_name || null, { output: 'base64' });
+      }, est.client_name || null, { output: 'base64', address: billingAddressFor(est.portal_client_id, est.crm_contact_id) });
       const later = laterAt(sending.when);
       if (later) {
         if (later.problem) throw new Error(later.problem);
