@@ -47,10 +47,12 @@ export type ReceiptInput = {
   /** Pay over time (069): which payment (0-based); payment 1 arrives as part 'deposit'. */
   index?: number;
   firstName: string; email: string; billedTo: string; address: string | null;
+  /** The client's billing address (071), under Paid by. */
+  billingAddress?: string | null;
 };
 
 /** The receipt email (HTML and text) — pure, so it can be previewed. */
-export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address, index }: ReceiptInput) {
+export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address, billingAddress, index }: ReceiptInput) {
     const total: number = inv.amount_cents;
     const deposit: number = inv.deposit_cents ?? 0;
     // Pay over time (069): this payment, and everything up to it.
@@ -76,6 +78,7 @@ export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, em
           { label: 'Receipt', value: number },
           { label: 'Date paid', value: today },
           { label: 'Paid by', value: billedTo || email },
+          ...(billingAddress?.trim() ? [{ label: 'Billing address', value: billingAddress.trim().replace(/\n+/g, ', ') }] : []),
           { label: 'Payment method', value: method === 'card' ? 'Card (Stripe)' : 'Recorded by Thrive Creative Studios' },
           { label: 'Invoice', value: inv.invoice_number },
           ...(inv.project_name ? [{ label: 'Project', value: inv.project_name }] : []),
@@ -102,7 +105,7 @@ export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, em
     const text = [
       `Payment received — thank you. This is your receipt; keep it for your records and taxes.`,
       ``,
-      `Receipt: ${number}`, `Date paid: ${today}`, `Paid by: ${billedTo || email}`,
+      `Receipt: ${number}`, `Date paid: ${today}`, `Paid by: ${billedTo || email}`, ...(billingAddress?.trim() ? [`Billing address: ${billingAddress.trim().replace(/\n+/g, ', ')}`] : []),
       `Payment method: ${method === 'card' ? 'Card (Stripe)' : 'Recorded by Thrive Creative Studios'}`,
       `Invoice: ${inv.invoice_number}${inv.project_name ? ` — ${inv.project_name}` : ''}`,
       `${what}: ${formatLineMoney(paid)}`,
@@ -135,12 +138,14 @@ export async function sendPaymentReceipt(
     if (!inv) return { ok: false, error: 'Invoice not found' };
     const contact = await portalContact(db, inv.client_id);
     if (!contact?.email) return { ok: false, error: 'No email for this client' };
-    const { data: client } = await db.from('portal_clients').select('full_name, company_name').eq('id', inv.client_id).maybeSingle();
+    let found = await db.from('portal_clients').select('full_name, company_name, billing_address').eq('id', inv.client_id).maybeSingle();
+    if (found.error) found = await db.from('portal_clients').select('full_name, company_name').eq('id', inv.client_id).maybeSingle();
+    const client = found.data as { full_name: string | null; company_name: string | null; billing_address?: string | null } | null;
 
     const address = await postalAddress(db).catch(() => null);
     const billedTo = [client?.full_name || contact.name, client?.company_name].filter(Boolean).join(' · ');
     const { html, text, paid, what } = buildReceipt({
-      invoice: inv, part, method, index, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address,
+      invoice: inv, part, method, index, paidOn: new Date(), firstName: contact.firstName, email: contact.email, billedTo, address, billingAddress: client?.billing_address ?? null,
     });
 
     const notify = process.env.CONTACT_NOTIFY_TO;

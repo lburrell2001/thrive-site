@@ -15,11 +15,15 @@ export async function GET(req: Request) {
   if (!auth.ok) return auth.response;
   const db = auth.db;
 
-  const [estimates, clients, contacts] = await Promise.all([
+  const clientQuery = (cols: string) => db.from('portal_clients').select(cols).eq('role', 'client').order('company_name');
+  const [estimates, clientsFirst, contacts] = await Promise.all([
     db.from('estimates').select('*').order('created_at', { ascending: false }).limit(100),
-    db.from('portal_clients').select('id, full_name, company_name').eq('role', 'client').order('company_name'),
+    clientQuery('id, full_name, company_name, billing_address'),
     db.from('crm_contacts').select('id, name, company, email, portal_client_id').order('name').limit(2000),
   ]);
+
+  // Billing address once 071 is in.
+  const clients = clientsFirst.error ? await clientQuery('id, full_name, company_name') : clientsFirst;
 
   // Lines and notes only exist once 039 is in.
   const recent = (columns: string) => db.from('portal_invoices').select(columns).order('created_at', { ascending: false }).limit(30);

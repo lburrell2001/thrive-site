@@ -27,6 +27,7 @@ export default function SettingsPage() {
   const [initials,     setInitials]     = useState('');
   const [email,        setEmail]        = useState('');
   const [phone,        setPhone]        = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
   const [smsOptIn,     setSmsOptIn]     = useState(false);
   const [userId,       setUserId]       = useState('');
 
@@ -40,6 +41,9 @@ export default function SettingsPage() {
       const { data } = await supabasePortal
         .from('portal_clients').select('full_name, company_name, initials, phone, sms_opt_in')
         .eq('id', user.id).single();
+      // Billing address (071), read apart so the page works before it's applied.
+      const addr = await supabasePortal.from('portal_clients').select('billing_address').eq('id', user.id).maybeSingle();
+      if (!addr.error) setBillingAddress((addr.data as { billing_address?: string | null } | null)?.billing_address ?? '');
       if (data) {
         setFullName(data.full_name ?? '');
         setCompanyName(data.company_name ?? '');
@@ -73,6 +77,9 @@ export default function SettingsPage() {
       })
       .eq('id', userId);
     if (upErr) { setSaveErr(upErr.message); setSaving(false); return; }
+    const { error: addrErr } = await supabasePortal.from('portal_clients')
+      .update({ billing_address: billingAddress.trim().slice(0, 500) || null }).eq('id', userId);
+    if (addrErr && !/billing_address/.test(addrErr.message)) { setSaveErr(addrErr.message); setSaving(false); return; }
     setSaveMsg('Profile updated.');
     setSaving(false);
     setTimeout(() => setSaveMsg(''), 3000);
@@ -117,6 +124,12 @@ export default function SettingsPage() {
                   <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mobile</label>
                   <input style={inp} type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="(555) 123-4567" />
                 </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <label style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: '#808080', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Billing address</label>
+                <textarea style={{ ...inp, minHeight: 64, resize: 'vertical', fontFamily: F.inter }} autoComplete="street-address" value={billingAddress} onChange={e => setBillingAddress(e.target.value)} placeholder={'123 Main St\nDallas, TX 75201'} />
+                <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>Shown on your invoices and payment receipts.</span>
               </div>
 
               <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? '#0a0a0a' : '#bfbfbf', lineHeight: 1.5 }}>

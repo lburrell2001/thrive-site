@@ -137,7 +137,14 @@ export default function InvoicesPage() {
   async function handleExportPDF(inv: DbInvoice) {
     void portalTrack('action', { label: `Downloaded invoice ${inv.invoice_number} (PDF)` });
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
-    await generateInvoicePDF(inv);
+    // Billed to: their name, company and billing address (071).
+    const { data: { user } } = await supabasePortal.auth.getUser();
+    let me: { full_name?: string | null; company_name?: string | null; billing_address?: string | null } | null = null;
+    if (user) {
+      const r = await supabasePortal.from('portal_clients').select('full_name, company_name, billing_address').eq('id', user.id).maybeSingle();
+      me = r.error ? (await supabasePortal.from('portal_clients').select('full_name, company_name').eq('id', user.id).maybeSingle()).data : r.data;
+    }
+    await generateInvoicePDF(inv, [me?.full_name, me?.company_name].filter(Boolean).join(' · ') || null, { address: me?.billing_address });
   }
 
   async function decide() {

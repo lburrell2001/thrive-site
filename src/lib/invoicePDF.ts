@@ -150,7 +150,7 @@ async function fetchImageAsBase64(src: string): Promise<{ data: string; w: numbe
 }
 
 /** Downloads the PDF; with { output: 'base64' } returns it instead (for emailing). */
-export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: string | null, opts: { output?: 'save' | 'base64' } = {}): Promise<string | void> {
+export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: string | null, opts: { output?: 'save' | 'base64'; address?: string | null } = {}): Promise<string | void> {
   const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -226,6 +226,16 @@ export async function generateInvoicePDF(invoice: InvoiceForPDF, clientName?: st
     doc.setTextColor('#0a0a0a');
     doc.text(clientName, M, ly);
     ly += 8;
+    // Their billing address (migration 071), under the name.
+    const addr = (opts.address ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
+    if (addr.length) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor('#0a0a0a');
+      ly -= 2;
+      for (const line of addr.slice(0, 5)) { doc.text(doc.splitTextToSize(line, 100) as string[], M, ly); ly += 5; }
+      ly += 3;
+    }
   }
   // With itemised lines, the project name no longer prints as the only line.
   if (invoice.line_items?.length && invoice.project_name) {

@@ -34,7 +34,7 @@ import { dueNow, partWord, remainingCents } from '@/lib/invoiceDeposit';
 
 type Mode = 'estimate' | 'invoice';
 
-interface PortalClient { id: string; full_name: string; company_name: string }
+interface PortalClient { id: string; full_name: string; company_name: string; billing_address?: string | null }
 interface Contact { id: string; name: string; company: string | null; email: string | null; portal_client_id: string | null }
 interface InvoiceRow {
   id: string; client_id: string; invoice_number: string; project_name: string; amount_cents: number;
@@ -618,19 +618,22 @@ export default function InvoiceBuilder() {
     kind: Mode; number: string; title: string; total: number; issue: string; due: string;
     status: string; lines: LineItem[]; notes: string | null; client: string; totalsOnly: boolean;
     deposit?: { cents: number; due: string; paidAt: string | null; balanceOpen: boolean } | null;
+    /** Portal client id: their billing address (071) prints under the name. */
+    clientId?: string | null;
   }) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
+    const address = doc.clientId ? data?.clients.find((c) => c.id === doc.clientId)?.billing_address ?? null : null;
     await generateInvoicePDF({
       kind: doc.kind, invoice_number: doc.number || 'DRAFT', project_name: doc.title, amount_cents: doc.total,
       invoice_date: doc.issue, due_date: doc.due, status: doc.status, line_items: doc.lines, notes: doc.notes,
       totals_only: doc.totalsOnly,
       ...(doc.deposit ? { deposit_cents: doc.deposit.cents, deposit_due_date: doc.deposit.due, deposit_paid_at: doc.deposit.paidAt, balance_open: doc.deposit.balanceOpen } : {}),
-    }, doc.client || null);
+    }, doc.client || null, { address });
   }
 
-  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, totalsOnly: draft.totalsOnly,
+  const draftPdf = () => downloadPdf({ kind: draft.mode, number: draft.number, title: draft.title, total, issue: draft.issueDate, due: draft.dueDate, status: 'due', lines: items, notes: draft.notes || null, client: draft.clientName, clientId: portalId, totalsOnly: draft.totalsOnly,
     deposit: depositCents ? { cents: depositCents, due: draft.depositDue ?? '', paidAt: null, balanceOpen: false } : null });
-  const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, totalsOnly: est.totals_only ?? false });
+  const estimatePdf = (est: Estimate) => downloadPdf({ kind: 'estimate', number: est.estimate_number, title: est.title, total: est.total_cents, issue: est.issue_date, due: est.valid_until ?? '', status: est.status, lines: est.line_items, notes: est.notes, client: est.client_name, clientId: est.portal_client_id, totalsOnly: est.totals_only ?? false });
 
   /** Turns on the rest of a deposit invoice; the client is emailed (and texted if opted in). */
   async function openBalance() {
@@ -1307,7 +1310,7 @@ export default function InvoiceBuilder() {
                           onClick={() => setOpening({ id: inv.id, due: addDays(today(), 14) })}>Open balance</button>
                       ))}
                       <button type="button" className={`${p.btn} ${p.btnSmall}`}
-                        onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client, totalsOnly: inv.totals_only ?? false,
+                        onClick={() => downloadPdf({ kind: 'invoice', number: inv.invoice_number, title: inv.project_name, total: inv.amount_cents, issue: inv.invoice_date, due: inv.due_date, status: inv.status, lines: inv.line_items ?? [], notes: inv.notes ?? null, client, clientId: inv.client_id, totalsOnly: inv.totals_only ?? false,
                           deposit: inv.deposit_cents ? { cents: inv.deposit_cents, due: inv.deposit_due_date ?? '', paidAt: inv.deposit_paid_at ?? null, balanceOpen: inv.balance_open !== false } : null })}>
                         PDF
                       </button>

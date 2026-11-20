@@ -286,8 +286,9 @@ export async function POST(req: NextRequest) {
       }
 
       case 'update_profile': {
-        const { clientId, full_name, company_name, initials, email, phone, sms_opt_in } = params as Record<string, string> & { sms_opt_in?: boolean };
+        const { clientId, full_name, company_name, initials, email, phone, sms_opt_in, billing_address } = params as Record<string, string> & { sms_opt_in?: boolean };
         const profile: Record<string, unknown> = { full_name, company_name, initials };
+        if (typeof billing_address === 'string') profile.billing_address = billing_address.trim().slice(0, 500) || null;
         if (phone !== undefined) {
           const normalized = normalizePhone(phone);
           if (phone.trim() && !normalized) return err('Enter a valid mobile number, e.g. (555) 123-4567');
@@ -300,7 +301,9 @@ export async function POST(req: NextRequest) {
           const { error: emailErr } = await admin.auth.admin.updateUserById(clientId, { email });
           if (emailErr) return err(emailErr.message);
         }
-        const { error } = await admin.from('portal_clients').update(profile).eq('id', clientId);
+        let { error } = await admin.from('portal_clients').update(profile).eq('id', clientId);
+        // Before 071 there's no billing_address: save the rest.
+        if (error && /billing_address/.test(error.message)) { delete profile.billing_address; ({ error } = await admin.from('portal_clients').update(profile).eq('id', clientId)); }
         if (error) return err(error.message);
         return NextResponse.json({ ok: true });
       }

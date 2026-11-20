@@ -57,7 +57,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; welcome_on?: boolean; welcome_done_at?: string | null; }
+interface Client { id: string; full_name: string; company_name: string; initials: string; role: string; email?: string | null; phone?: string | null; sms_opt_in?: boolean; sms_opt_in_at?: string | null; welcome_on?: boolean; welcome_done_at?: string | null; billing_address?: string | null; }
 interface ReminderLog { id: string; target_type: string; target_id: string | null; email_status: string; sms_status: string; created_at: string; }
 interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
@@ -402,6 +402,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
   const [email, setEmail] = useState(p?.email ?? '');
   const [phone, setPhone] = useState(formatPhone(p?.phone));
   const [smsOptIn, setSmsOptIn] = useState(Boolean(p?.sms_opt_in));
+  const [billingAddress, setBillingAddress] = useState(p?.billing_address ?? '');
   const [welcomeOn, setWelcomeOn] = useState(Boolean(p?.welcome_on));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -411,7 +412,7 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true); setError(''); setSuccess('');
-    const r = await api({ action: 'update_profile', clientId, full_name: fullName, company_name: companyName, initials, email, phone, sms_opt_in: smsOptIn }) as { ok?: boolean; error?: string };
+    const r = await api({ action: 'update_profile', clientId, full_name: fullName, company_name: companyName, initials, email, phone, sms_opt_in: smsOptIn, billing_address: billingAddress }) as { ok?: boolean; error?: string };
     if (r.error) setError(r.error); else { setSuccess('Saved.'); onRefresh(); }
     setSaving(false);
   }
@@ -426,6 +427,9 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
           <FormRow label="Initials"><input style={INPUT} value={initials} onChange={(e) => setInitials(e.target.value)} maxLength={3} /></FormRow>
           <FormRow label="Mobile"><input style={INPUT} type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 123-4567" /></FormRow>
         </FormGrid>
+        <FormRow label="Billing address (on their invoices and receipts)">
+          <textarea style={{ ...INPUT, minHeight: 64, resize: 'vertical', fontFamily: F.inter }} value={billingAddress} onChange={(e) => setBillingAddress(e.target.value)} placeholder={'123 Main St\nDallas, TX 75201'} />
+        </FormRow>
         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontFamily: F.inter, fontSize: 13, color: phone.trim() ? DARK : '#bfbfbf' }}>
           <input type="checkbox" checked={smsOptIn && Boolean(phone.trim())} disabled={!phone.trim()} onChange={(e) => setSmsOptIn(e.target.checked)} style={{ marginTop: 2, accentColor: PINK }} />
           <span>
@@ -1720,7 +1724,7 @@ function ProjectSubInvoices({ project, invoices, estimates = [], clientId, data,
 
   async function handleExportPDF(inv: Invoice) {
     const { generateInvoicePDF } = await import('@/lib/invoicePDF');
-    await generateInvoicePDF(inv, data.profile?.full_name ?? null);
+    await generateInvoicePDF(inv, [data.profile?.full_name, data.profile?.company_name].filter(Boolean).join(' · ') || null, { address: data.profile?.billing_address });
   }
 
   return (
