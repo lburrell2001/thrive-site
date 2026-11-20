@@ -29,7 +29,7 @@ export type WelcomeQuestionnaire = { id: string; title: string; questionnaire: Q
 export type WelcomePreview = { name: string; company: string; email?: string; projects: string[]; questionnaires: WelcomeQuestionnaire[] };
 
 type Step =
-  | { kind: 'welcome' | 'email' | 'profile' | 'texts' | 'tour' | 'done' }
+  | { kind: 'welcome' | 'email' | 'profile' | 'address' | 'texts' | 'tour' | 'done' }
   | { kind: 'intro'; qi: number }
   | { kind: 'section'; qi: number; si: number };
 
@@ -47,6 +47,9 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
   const [phone, setPhone] = useState('');
+  // Billing address (071): on file already (from their contact or Lauren) → they confirm it.
+  const [address, setAddress] = useState('');
+  const [savedAddress, setSavedAddress] = useState('');
   const [email, setEmail] = useState('');
   const [emailMode, setEmailMode] = useState<'confirm' | 'change' | 'code'>('confirm');
   const [newEmail, setNewEmail] = useState('');
@@ -92,6 +95,10 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
       setCompany(me?.company_name ?? '');
       setPhone(formatPhone(me?.phone));
       setSmsOptIn(Boolean(me?.sms_opt_in));
+      // Read apart, so the welcome still works before 071.
+      const addr = await supabasePortal.from('portal_clients').select('billing_address').eq('id', user.id).maybeSingle();
+      const onFile = addr.error ? '' : ((addr.data as { billing_address?: string | null } | null)?.billing_address ?? '');
+      setAddress(onFile); setSavedAddress(onFile);
       setProjects((proj ?? []).filter((p: { archived?: boolean }) => !p.archived).map((p: { name: string }) => p.name));
       setQs(details.filter((d): d is WelcomeQuestionnaire => Boolean(d)).filter((d) => d.questionnaire.sections.length > 0));
       setReady(true);
@@ -140,7 +147,7 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
 
   // ---- the steps
   const steps: Step[] = [
-    { kind: 'welcome' }, { kind: 'email' }, { kind: 'profile' }, { kind: 'texts' }, { kind: 'tour' },
+    { kind: 'welcome' }, { kind: 'email' }, { kind: 'profile' }, { kind: 'address' }, { kind: 'texts' }, { kind: 'tour' },
     ...qs.flatMap((q, qi): Step[] => [{ kind: 'intro', qi }, ...q.questionnaire.sections.map((_, si): Step => ({ kind: 'section', qi, si }))]),
     { kind: 'done' },
   ];
@@ -205,6 +212,18 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
     const { error: e } = await supabasePortal.from('portal_clients').update({ full_name: name, company_name: company.trim(), initials }).eq('id', userId);
     setBusy(false);
     if (e) { setError('That didn’t save. Try again.'); return; }
+    go(step + 1);
+  }
+
+  /** Optional: keep, change or add the billing address on their invoices and receipts. */
+  async function saveAddress() {
+    const next = address.trim().slice(0, 500);
+    if (preview || next === savedAddress.trim()) { go(step + 1); return; }
+    setBusy(true);
+    const { error: e } = await supabasePortal.from('portal_clients').update({ billing_address: next || null }).eq('id', userId);
+    setBusy(false);
+    if (e && !/billing_address/.test(e.message)) { setError('That didn’t save. Try again.'); return; }
+    setSavedAddress(next);
     go(step + 1);
   }
 
@@ -358,6 +377,30 @@ export default function WelcomeFlow({ preview: previewProp }: { preview?: Welcom
               </div>
               <div className={s.actions}>
                 <button type="button" className={`${s.btn} ${s.btnDark}`} disabled={busy} onClick={saveProfile}>{busy ? 'Saving…' : 'Continue'}</button>
+              </div>
+            </>
+          )}
+
+          {cur.kind === 'address' && (
+            <>
+              <Badge icon="card" tone={s.bOrange} />
+              <h1 className={s.title}>{savedAddress.trim() ? 'Is This Your Billing Address?' : 'Add a Billing Address?'}</h1>
+              <p className={s.lead}>
+                {savedAddress.trim()
+                  ? 'This goes on your invoices and payment receipts. Change it if anything’s off.'
+                  : 'If you’d like an address on your invoices and payment receipts, add it here. It’s optional, and you can add it later in Settings.'}
+              </p>
+              <div className={`${s.content} ${s.narrow}`}>
+                <label className={s.field}>Billing address
+                  <textarea className={s.input} rows={3} style={{ resize: 'vertical', fontFamily: 'inherit' }} value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="street-address" placeholder={'123 Main St\nDallas, TX 75201'} />
+                </label>
+                {error && <p className={s.error} role="alert">{error}</p>}
+              </div>
+              <div className={s.actions}>
+                <button type="button" className={`${s.btn} ${s.btnDark}`} disabled={busy} onClick={saveAddress}>
+                  {busy ? 'Saving…' : savedAddress.trim() && address.trim() === savedAddress.trim() ? 'That’s Right' : address.trim() ? 'Save Address' : 'Continue'}
+                </button>
+                {!savedAddress.trim() && <button type="button" className={`${s.btn} ${s.btnGhost}`} onClick={() => { setAddress(''); go(step + 1); }}>Skip</button>}
               </div>
             </>
           )}
