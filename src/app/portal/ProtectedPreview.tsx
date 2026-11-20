@@ -110,3 +110,79 @@ export default function ProtectedPreview({ fileId, label, maxHeight = 420 }: { f
     </div>
   );
 }
+
+/** A delivered file as the portal gets it from /api/portal/documents (073). */
+export type ViewFile = {
+  id: string; name: string; project_name?: string;
+  /** Null while it's a draft or locked until an invoice is paid. */
+  file_url: string | null;
+  locked?: 'draft' | 'unpaid' | null;
+  has_preview?: boolean;
+  unlock_invoice?: { id: string; invoice_number: string } | null;
+};
+
+const IMAGE = /\.(png|jpe?g|webp|gif|avif|svg)$/i;
+const FONT = 'var(--font-inter), Inter, sans-serif';
+
+/** A signed storage link that downloads under the file's own name. */
+export function downloadUrl(f: ViewFile): string | null {
+  if (!f.file_url) return null;
+  if (!/\/storage\/v1\/object\/sign\//.test(f.file_url)) return f.file_url;
+  return `${f.file_url}${f.file_url.includes('?') ? '&' : '?'}download=${encodeURIComponent(f.name)}`;
+}
+
+/** Badge text for a file: Draft, Final · Locked or Final. */
+export function fileBadge(f: ViewFile): { text: string; bg: string; color: string } {
+  if (f.locked === 'draft') return { text: 'Draft', bg: '#fd6100', color: '#fff' };
+  if (f.locked === 'unpaid') return { text: 'Final · Locked', bg: '#e50586', color: '#fff' };
+  return { text: 'Final', bg: '#0cf574', color: '#0a0a0a' };
+}
+
+/**
+ * Opens a file full screen. Drafts and locked finals show only the protected,
+ * watermarked preview; a final file shows the real thing with Download.
+ */
+export function FileViewer({ file, onClose }: { file: ViewFile; onClose: () => void }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [onClose]);
+  const badge = fileBadge(file);
+  const dl = downloadUrl(file);
+  const pill: React.CSSProperties = { fontFamily: FONT, fontSize: 13, fontWeight: 700, borderRadius: 999, padding: '9px 20px', textDecoration: 'none', cursor: 'pointer', border: 'none', whiteSpace: 'nowrap' };
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label={file.name} onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(10,10,10,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(100%, 1100px)', display: 'flex', justifyContent: 'center' }}>
+        {file.locked ? (
+          file.has_preview
+            ? <div style={{ width: '100%' }}><ProtectedPreview fileId={file.id} label={file.name} maxHeight="72vh" /></div>
+            : <div style={{ background: '#1f1f1f', color: '#bfbfbf', borderRadius: 12, padding: 40, fontFamily: FONT, fontSize: 14, textAlign: 'center' }}>No preview for this file type.</div>
+        ) : dl && IMAGE.test(file.name) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={file.file_url ?? ''} alt={file.name} style={{ display: 'block', maxWidth: '100%', maxHeight: '72vh', borderRadius: 12, background: '#f2f2f2' }} />
+        ) : (
+          <div style={{ background: '#1f1f1f', color: '#fff', borderRadius: 12, padding: 40, fontFamily: FONT, fontSize: 15, fontWeight: 700, textAlign: 'center' }}>{file.name}</div>
+        )}
+      </div>
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', justifyContent: 'center', maxWidth: 'min(100%, 1100px)' }}>
+        <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60vw' }}>{file.name}</span>
+        <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
+      </div>
+      {file.locked && (
+        <p onClick={(e) => e.stopPropagation()} style={{ fontFamily: FONT, fontSize: 13, color: '#bfbfbf', margin: 0, textAlign: 'center', maxWidth: 520, lineHeight: 1.5 }}>
+          {file.locked === 'draft'
+            ? 'This is a draft for your review. It’s watermarked and can’t be downloaded; the final files come once it’s approved and paid for.'
+            : `Unlocks when ${file.unlock_invoice?.invoice_number ?? 'your invoice'} is paid in full. You’ll get an email the moment it’s ready to download.`}
+        </p>
+      )}
+      <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {!file.locked && dl && <a href={dl} style={{ ...pill, background: '#e50586', color: '#fff' }}>Download</a>}
+        {file.locked === 'unpaid' && <a href="/portal/invoices" style={{ ...pill, background: '#e50586', color: '#fff' }}>Pay Invoice</a>}
+        <button type="button" onClick={onClose} style={{ ...pill, background: '#fff', color: '#0a0a0a' }}>Close</button>
+      </div>
+    </div>
+  );
+}

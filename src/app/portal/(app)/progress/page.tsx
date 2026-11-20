@@ -5,12 +5,13 @@ import { portalApi } from '@/lib/portalApi';
 import type { ReportData } from '@/lib/reportPDF';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
+import { FileViewer, downloadUrl, fileBadge, type ViewFile } from '../../ProtectedPreview';
 import { portalTrack } from '@/lib/portalTrack';
 
 interface DbStage    { key: string; label: string; }
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; stages?: DbStage[]; archived?: boolean; }
 interface DbInvoice  { id: string; invoice_number: string; amount_cents: number; invoice_date: string; due_date: string; status: string; project_name?: string; declined_at?: string | null; accepted_at?: string | null; }
-interface DbFile     { id: string; name: string; file_url: string; project_name?: string; }
+type DbFile = ViewFile;
 interface DbProposal { id: string; name: string; file_url: string; signed_file_url: string | null; status: string; project_id?: string; }
 interface DbMilestone { id: string; title: string; due_date: string; color: string; completed: boolean; project_name?: string; }
 interface DbRequest  { id: string; title: string; description?: string; type: string; status: string; priority: string; project_name?: string; created_at: string; }
@@ -216,6 +217,7 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
   const [reqDesc,   setReqDesc]     = useState('');
   const [reqSubmitting, setReqSubmitting] = useState(false);
   const [reqError, setReqError]     = useState('');
+  const [viewing, setViewing]       = useState<DbFile | null>(null);
 
   const accent      = proj.color || STATUS_COLOR[proj.status] || '#808080';
   const dimAccent   = archived ? '#bfbfbf' : accent;
@@ -437,17 +439,28 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
           )}
 
           {/* Files */}
+          {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
           {files.length > 0 && (
             <div className="proj-section" style={{ padding: '20px 24px' }}>
               <SectionLabel label="Files & Assets" count={files.length} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {files.map(f => (
-                  <div key={f.id} style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, background: '#fafafa' }}>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
-                    <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1 }}>{f.name}</span>
-                    <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', textDecoration: 'none' }}>Download ↗</a>
-                  </div>
-                ))}
+                {files.map(f => {
+                  // Click opens it; drafts and locked finals only as the watermarked preview (073).
+                  const badge = fileBadge(f);
+                  const dl = f.locked ? null : downloadUrl(f);
+                  return (
+                    <div key={f.id} role="button" tabIndex={0} onClick={() => setViewing(f)} onKeyDown={(e) => { if (e.key === 'Enter') setViewing(f); }}
+                      style={{ border: '1px solid #f2f2f2', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, background: '#fafafa', cursor: 'pointer', flexWrap: 'wrap' }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+                      <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1, minWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
+                      <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7' }}>{f.locked ? 'Preview' : 'Open'}</span>
+                      {dl && (
+                        <a href={dl} onClick={(e) => e.stopPropagation()} style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', textDecoration: 'none' }}>Download</a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

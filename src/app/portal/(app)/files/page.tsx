@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
 import Link from 'next/link';
-import ProtectedPreview from '../../ProtectedPreview';
+import ProtectedPreview, { FileViewer, downloadUrl } from '../../ProtectedPreview';
 
 interface DbFile {
   id: string;
@@ -233,18 +233,8 @@ export default function FilesPage() {
         </div>
       )}
 
-      {/* Larger view of one preview — same protections. */}
-      {viewing && (
-        <div role="dialog" aria-modal="true" aria-label={viewing.name} onClick={() => setViewing(null)}
-          style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(10,10,10,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 12 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(100%, 1100px)' }}>
-            <ProtectedPreview fileId={viewing.id} label={viewing.name} maxHeight="78vh" />
-          </div>
-          <button type="button" onClick={() => setViewing(null)} style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, fontWeight: 700, background: '#fff', color: '#0a0a0a', border: 'none', borderRadius: 999, padding: '9px 20px', cursor: 'pointer' }}>
-            Close
-          </button>
-        </div>
-      )}
+      {/* Opens any file: drafts / locked finals as the protected preview, finals with Download. */}
+      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
 
       {/* Files section heading */}
       {!loading && ready.length > 0 && (
@@ -335,13 +325,14 @@ export default function FilesPage() {
 
               {/* Name + project */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
+                <button type="button" onClick={() => setViewing(file)} style={{
+                  all: 'unset', cursor: 'pointer', display: 'block', maxWidth: '100%',
                   fontFamily: 'var(--font-inter), Inter, sans-serif',
                   fontSize: 14, fontWeight: 700, color: '#0a0a0a',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {file.name}
-                </div>
+                </button>
                 <div style={{
                   fontFamily: 'var(--font-inter), Inter, sans-serif',
                   fontSize: 12, color: '#808080', marginTop: 2,
@@ -352,7 +343,7 @@ export default function FilesPage() {
 
               {/* Download */}
               <a
-                href={file.file_url ?? '#'}
+                href={downloadUrl(file) ?? '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

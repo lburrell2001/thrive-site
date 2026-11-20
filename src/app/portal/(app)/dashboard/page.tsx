@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { loadMyDocuments } from '@/lib/portalDocuments';
+import { FileViewer, type ViewFile } from '../../ProtectedPreview';
 import Link from 'next/link';
 import { supabasePortal } from '@/lib/supabasePortal';
 
@@ -55,6 +57,10 @@ export default function DashboardPage() {
   const [loading,    setLoading]    = useState(true);
   const [projects,   setProjects]   = useState<DbProject[] | null>(null);
   const [activity,   setActivity]   = useState<DbActivity[] | null>(null);
+  // Delivered files, so an update about one opens it (drafts as the protected preview, 073).
+  const [docFiles,   setDocFiles]   = useState<ViewFile[]>([]);
+  const [viewing,    setViewing]    = useState<ViewFile | null>(null);
+  const fileFor = (text: string) => docFiles.find((f) => text.endsWith(`: ${f.name}`)) ?? null;
   const [milestones, setMilestones] = useState<DbMilestone[] | null>(null);
   const [stats, setStats] = useState<{
     activeProjects: number | null;
@@ -79,6 +85,7 @@ export default function DashboardPage() {
 
       setProjects(pR.data ?? []);
       setActivity(aR.data ?? []);
+      loadMyDocuments<ViewFile, unknown>().then((d) => setDocFiles(d?.files ?? [])).catch(() => undefined);
       setMilestones(mR.data ?? []);
 
       const dbR = rR.data ?? [];
@@ -154,8 +161,12 @@ export default function DashboardPage() {
       `}</style>
 
       {/* ── Latest Update banner ── */}
+      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
       {!loading && latestActivity && (
-        <div style={{
+        <div
+          {...(fileFor(latestActivity.text) ? { role: 'button', tabIndex: 0, onClick: () => setViewing(fileFor(latestActivity.text)), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter') setViewing(fileFor(latestActivity.text)); } } : {})}
+          style={{
+          cursor: fileFor(latestActivity.text) ? 'pointer' : 'default',
           display: 'flex', alignItems: 'center', gap: 14,
           background: '#fff', border: '1px solid #e5e5e5',
           borderLeft: `4px solid ${latestActivity.dot_color}`,
@@ -170,6 +181,9 @@ export default function DashboardPage() {
               {latestActivity.text}
             </p>
           </div>
+          {fileFor(latestActivity.text) && (
+            <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', flexShrink: 0 }}>Open</span>
+          )}
           <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf', flexShrink: 0 }}>
             {relativeTime(latestActivity.created_at)}
           </span>
@@ -276,13 +290,15 @@ export default function DashboardPage() {
           ) : activity && activity.length > 0 ? (
             <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               {activity.map((item) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div key={item.id}
+                  {...(fileFor(item.text) ? { role: 'button', tabIndex: 0, onClick: () => setViewing(fileFor(item.text)), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter') setViewing(fileFor(item.text)); } } : {})}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: fileFor(item.text) ? 'pointer' : 'default' }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: item.dot_color, flexShrink: 0, marginTop: 5 }} />
                   <div>
                     {item.project_name && (
                       <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, color: item.dot_color, display: 'block', marginBottom: 1 }}>{item.project_name}</span>
                     )}
-                    <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a', display: 'block' }}>{item.text}</span>
+                    <span style={{ fontFamily: F.inter, fontSize: 14, color: '#0a0a0a', display: 'block', textDecoration: fileFor(item.text) ? 'underline' : 'none', textDecorationColor: '#bfbfbf', textUnderlineOffset: 3 }}>{item.text}</span>
                     <span style={{ fontFamily: F.inter, fontSize: 12, color: '#bfbfbf' }}>{relativeTime(item.created_at)}</span>
                   </div>
                 </div>
