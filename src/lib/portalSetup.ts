@@ -98,7 +98,7 @@ export async function sendPortalInvite(db: SupabaseClient, clientId: string, inp
     headline: `Hi ${contact.firstName}, your Thrive client portal is ready${project ? ` for ${project}` : ''}. It’s where you’ll find your project’s progress, estimates and invoices, files, and a few questions to get us started.`,
     detail: `Sign in with this email address (${contact.email}). We’ll email you a 6-digit code, so there’s no password to remember.`,
     note: input.note?.trim() || null,
-    ctaUrl: `${SITE_URL}/portal`,
+    ctaUrl: `${SITE_URL}/portal/dashboard`,
     ctaLabel: 'Open your portal',
     sms: 'your client portal is ready. Sign in with your email here:',
   }, { email: true, sms: true }, { fromInbox: true });
