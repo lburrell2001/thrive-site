@@ -16,7 +16,17 @@ export type FileStage = 'draft' | 'final';
 export type FileRow = {
   id: string; client_id: string; name: string; project_name: string; file_url: string; created_at: string;
   stage?: FileStage | null; unlock_invoice_id?: string | null; preview_path?: string | null;
+  /** The client's like / dislike (074). */
+  reaction?: 'like' | 'dislike' | null;
 };
+
+export type FileComment = { id: string; file_id: string; author: 'client' | 'admin'; body: string; created_at: string };
+
+/** Comments on a client's files, oldest first (074); none before it's run. */
+export async function fileComments(db: SupabaseClient, clientId: string): Promise<FileComment[]> {
+  const { data, error } = await db.from('portal_file_comments').select('id, file_id, author, body, created_at').eq('client_id', clientId).order('created_at', { ascending: true });
+  return error ? [] : (data ?? []) as FileComment[];
+}
 
 type InvoiceBit = { id: string; invoice_number: string; status: string };
 
@@ -30,7 +40,8 @@ export function lockOf(file: FileRow, invoice: InvoiceBit | undefined): 'draft' 
 /** Reads files with 073's columns, or without them before it's run. */
 export async function selectFiles(db: SupabaseClient, clientId: string): Promise<FileRow[]> {
   const q = (cols: string) => db.from('portal_files').select(cols).eq('client_id', clientId).order('created_at', { ascending: false });
-  let res = await q('id, client_id, name, project_name, file_url, created_at, stage, unlock_invoice_id, preview_path');
+  let res = await q('id, client_id, name, project_name, file_url, created_at, stage, unlock_invoice_id, preview_path, reaction');
+  if (res.error) res = await q('id, client_id, name, project_name, file_url, created_at, stage, unlock_invoice_id, preview_path');
   if (res.error) res = await q('id, client_id, name, project_name, file_url, created_at');
   if (res.error) throw new Error(res.error.message);
   return (res.data ?? []) as unknown as FileRow[];
@@ -48,7 +59,7 @@ async function invoicesFor(db: SupabaseClient, files: FileRow[]): Promise<Map<st
  * with no link at all — just whether a preview exists and what unlocks them.
  */
 export async function filesForClient(db: SupabaseClient, clientId: string) {
-  const files = await selectFiles(db, clientId);
+  const [files, comments] = await Promise.all([selectFiles(db, clientId), fileComments(db, clientId)]);
   const invoices = await invoicesFor(db, files);
   const open = files.filter((f) => !lockOf(f, invoices.get(f.unlock_invoice_id ?? '')));
   const signed = new Map((await signDocs(db, open, ['file_url'])).map((f) => [f.id, f.file_url]));
@@ -62,6 +73,8 @@ export async function filesForClient(db: SupabaseClient, clientId: string) {
       file_url: lock ? null : signed.get(f.id) ?? null,
       has_preview: Boolean(f.preview_path),
       unlock_invoice: inv ? { id: inv.id, invoice_number: inv.invoice_number } : null,
+      reaction: f.reaction ?? null,
+      comments: comments.filter((c) => c.file_id === f.id).map(({ id, author, body, created_at }) => ({ id, author, body, created_at })),
     };
   });
 }

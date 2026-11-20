@@ -16,7 +16,7 @@ import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { DOC_BUCKET, docRef, isDocPath, removeDoc, signDocs } from '@/lib/clientDocs';
-import { makeFilePreview } from '@/lib/draftFiles';
+import { fileComments, makeFilePreview } from '@/lib/draftFiles';
 import { canPreview } from '@/lib/watermark';
 
 import { createPortalInvoice } from '@/lib/invoiceCreate';
@@ -243,7 +243,11 @@ export async function POST(req: NextRequest) {
               accepted_at: e.accepted_at ?? null, decline_reason: e.decline_reason ?? null,
             })),
             // Drafts / locked finals (073) also carry a link to the client's watermarked preview.
-            files: await signDocs(admin, (files.data ?? []).map((f) => ({ ...f, preview_url: f.preview_path ? docRef(f.preview_path) : null })), ['file_url', 'preview_url']),
+            files: await (async () => {
+              // Drafts' likes and comments from the client (074).
+              const comments = await fileComments(admin, clientId);
+              return signDocs(admin, (files.data ?? []).map((f) => ({ ...f, preview_url: f.preview_path ? docRef(f.preview_path) : null, comments: comments.filter((c) => c.file_id === f.id) })), ['file_url', 'preview_url']);
+            })(),
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],
@@ -678,6 +682,25 @@ export async function POST(req: NextRequest) {
             { sms: `the final version of ${file.name} is ready.`, path: '/portal/files' },
           );
         }
+        return NextResponse.json({ ok: true });
+      }
+
+      case 'reply_file_comment': {
+        // Lauren answers a client's comments on a draft (074); they're emailed.
+        const fileId = String(params.fileId ?? '');
+        const body = String(params.body ?? '').trim().slice(0, 2000);
+        if (!body) return err('Write a reply first');
+        const { data: file } = await admin.from('portal_files').select('id, client_id, name, project_name').eq('id', fileId).maybeSingle();
+        if (!file) return err('File not found');
+        const { error } = await admin.from('portal_file_comments').insert({ file_id: fileId, client_id: file.client_id, author: 'admin', body });
+        if (error) return err(/portal_file_comments/.test(error.message) ? 'Run migration 074 in Supabase first.' : error.message);
+        notifyClient(
+          admin, file.client_id,
+          `A reply about ${file.name}`,
+          `I replied to your comments on ${file.name}`,
+          `“${body}”`,
+          { path: '/portal/files' },
+        );
         return NextResponse.json({ ok: true });
       }
 

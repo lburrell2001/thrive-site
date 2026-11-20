@@ -120,11 +120,11 @@ function overlaySvg(w: number, h: number, line: string): string {
   const nameD = textPath(line, w - lineW - small * 1.6, h - small * 2.6, small);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
   <g transform="translate(${w / 2} ${h / 2}) rotate(-40) scale(${scale.toFixed(4)}) translate(${-LOGO_W / 2} ${-LOGO_H / 2})">
-    <g opacity="0.2" fill="#000" stroke="#000" stroke-width="${halo * 2}" stroke-linejoin="round" stroke-linecap="round">${d}</g>
-    <g opacity="0.16" fill="#fff">${d}</g>
+    <g opacity="0.1" fill="#000" stroke="#000" stroke-width="${halo * 2}" stroke-linejoin="round" stroke-linecap="round">${d}</g>
+    <g opacity="0.09" fill="#fff">${d}</g>
   </g>
-  <path d="${nameD}" fill="none" stroke="#000" stroke-opacity="0.18" stroke-width="${Math.max(2.4, small / 3)}" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="${nameD}" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="${Math.max(1.1, small / 7)}" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="${nameD}" fill="none" stroke="#000" stroke-opacity="0.1" stroke-width="${Math.max(2.4, small / 3)}" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="${nameD}" fill="none" stroke="#fff" stroke-opacity="0.32" stroke-width="${Math.max(1.1, small / 7)}" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 }
 

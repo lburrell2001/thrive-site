@@ -119,7 +119,103 @@ export type ViewFile = {
   locked?: 'draft' | 'unpaid' | null;
   has_preview?: boolean;
   unlock_invoice?: { id: string; invoice_number: string } | null;
+  /** The client's verdict on a draft and their comments (074). */
+  reaction?: 'like' | 'dislike' | null;
+  comments?: { id: string; author: 'client' | 'admin'; body: string; created_at: string }[];
 };
+
+function Thumb({ down = false, size = 18 }: { down?: boolean; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden
+      style={down ? { transform: 'rotate(180deg)' } : undefined}>
+      <path d="M7 10v11" /><path d="M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3.1 3.1 0 0 1 4 3.9Z" />
+    </svg>
+  );
+}
+
+async function sendFeedback(fileId: string, body: { reaction?: 'like' | 'dislike' | null; comment?: string }) {
+  const { data: { session } } = await supabasePortal.auth.getSession();
+  if (!session) throw new Error('Please sign in again.');
+  const res = await fetch(`/api/portal/files/${fileId}/feedback`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({})) as { error?: string; reaction?: 'like' | 'dislike' | null; comment?: NonNullable<ViewFile['comments']>[number] | null };
+  if (!res.ok) throw new Error(json.error ?? 'Could not save that.');
+  return json;
+}
+
+/** Like / dislike buttons for a draft. `dark` for the full-screen viewer. */
+export function DraftReactions({ file, onChange, dark = false }: { file: ViewFile; onChange: (f: ViewFile) => void; dark?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  async function pick(r: 'like' | 'dislike') {
+    const next = file.reaction === r ? null : r;
+    setBusy(true); setErr('');
+    onChange({ ...file, reaction: next });
+    try { await sendFeedback(file.id, { reaction: next }); }
+    catch (e) { onChange({ ...file }); setErr((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  const btn = (r: 'like' | 'dislike'): React.CSSProperties => {
+    const on = file.reaction === r;
+    const color = r === 'like' ? '#0cf574' : '#e50586';
+    return {
+      display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: FONT, fontSize: 13, fontWeight: 700, borderRadius: 999, padding: '8px 14px', cursor: busy ? 'default' : 'pointer',
+      border: `1.5px solid ${on ? color : dark ? '#4d4d4d' : '#e5e5e5'}`, background: on ? color : 'transparent',
+      color: on ? (r === 'like' ? '#0a0a0a' : '#fff') : dark ? '#fff' : '#0a0a0a',
+    };
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <button type="button" disabled={busy} aria-pressed={file.reaction === 'like'} onClick={(e) => { e.stopPropagation(); void pick('like'); }} style={btn('like')}><Thumb /> {file.reaction === 'like' ? 'Liked' : 'Like'}</button>
+      <button type="button" disabled={busy} aria-pressed={file.reaction === 'dislike'} onClick={(e) => { e.stopPropagation(); void pick('dislike'); }} style={btn('dislike')}><Thumb down /> {file.reaction === 'dislike' ? 'Not For Me' : 'Dislike'}</button>
+      {err && <span style={{ fontFamily: FONT, fontSize: 12, color: '#e50586' }}>{err}</span>}
+    </div>
+  );
+}
+
+/** The comment thread on a draft, with a box to add one. */
+function DraftComments({ file, onChange }: { file: ViewFile; onChange: (f: ViewFile) => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const comments = file.comments ?? [];
+  async function post() {
+    const body = text.trim();
+    if (!body) return;
+    setBusy(true); setErr('');
+    try {
+      const res = await sendFeedback(file.id, { comment: body });
+      if (res.comment) onChange({ ...file, comments: [...comments, res.comment] });
+      setText('');
+    } catch (e) { setErr((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return (
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {comments.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 160, overflowY: 'auto' }}>
+          {comments.map((c) => (
+            <div key={c.id} style={{ alignSelf: c.author === 'client' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: c.author === 'client' ? '#3943b7' : '#fff', color: c.author === 'client' ? '#fff' : '#0a0a0a', borderRadius: 14, padding: '8px 12px', fontFamily: FONT, fontSize: 13, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+              {c.author === 'admin' && <strong style={{ display: 'block', fontSize: 11 }}>Thrive</strong>}
+              {c.body}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} rows={2} placeholder="What do you like, or what would you change?"
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void post(); }}
+          style={{ flex: 1, minWidth: 0, resize: 'vertical', fontFamily: FONT, fontSize: 14, borderRadius: 14, border: '1px solid #4d4d4d', background: '#1f1f1f', color: '#fff', padding: '10px 12px' }} />
+        <button type="button" disabled={busy || !text.trim()} onClick={() => void post()}
+          style={{ fontFamily: FONT, fontSize: 13, fontWeight: 700, borderRadius: 999, padding: '10px 18px', border: 'none', cursor: busy || !text.trim() ? 'default' : 'pointer', background: text.trim() ? '#e50586' : '#4d4d4d', color: '#fff', whiteSpace: 'nowrap' }}>
+          {busy ? 'Sending…' : 'Comment'}
+        </button>
+      </div>
+      {err && <span style={{ fontFamily: FONT, fontSize: 12, color: '#e50586' }}>{err}</span>}
+    </div>
+  );
+}
 
 const IMAGE = /\.(png|jpe?g|webp|gif|avif|svg)$/i;
 const FONT = 'var(--font-inter), Inter, sans-serif';
@@ -142,7 +238,7 @@ export function fileBadge(f: ViewFile): { text: string; bg: string; color: strin
  * Opens a file full screen. Drafts and locked finals show only the protected,
  * watermarked preview; a final file shows the real thing with Download.
  */
-export function FileViewer({ file, onClose }: { file: ViewFile; onClose: () => void }) {
+export function FileViewer({ file, onClose, onChange }: { file: ViewFile; onClose: () => void; onChange?: (f: ViewFile) => void }) {
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', esc);
@@ -154,11 +250,11 @@ export function FileViewer({ file, onClose }: { file: ViewFile; onClose: () => v
 
   return (
     <div role="dialog" aria-modal="true" aria-label={file.name} onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(10,10,10,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 14 }}>
+      style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(10,10,10,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'safe center', padding: 16, gap: 14, overflowY: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(100%, 1100px)', display: 'flex', justifyContent: 'center' }}>
         {file.locked ? (
           file.has_preview
-            ? <div style={{ width: '100%' }}><ProtectedPreview fileId={file.id} label={file.name} maxHeight="72vh" /></div>
+            ? <div style={{ width: '100%' }}><ProtectedPreview fileId={file.id} label={file.name} maxHeight={file.locked === 'draft' ? '56vh' : '72vh'} /></div>
             : <div style={{ background: '#1f1f1f', color: '#bfbfbf', borderRadius: 12, padding: 40, fontFamily: FONT, fontSize: 14, textAlign: 'center' }}>No preview for this file type.</div>
         ) : dl && IMAGE.test(file.name) ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -171,6 +267,12 @@ export function FileViewer({ file, onClose }: { file: ViewFile; onClose: () => v
         <span style={{ fontFamily: FONT, fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60vw' }}>{file.name}</span>
         <span style={{ fontFamily: FONT, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
       </div>
+      {file.locked === 'draft' && onChange && (
+        <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(100%, 620px)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <DraftReactions file={file} onChange={onChange} dark />
+          <DraftComments file={file} onChange={onChange} />
+        </div>
+      )}
       {file.locked && (
         <p onClick={(e) => e.stopPropagation()} style={{ fontFamily: FONT, fontSize: 13, color: '#bfbfbf', margin: 0, textAlign: 'center', maxWidth: 520, lineHeight: 1.5 }}>
           {file.locked === 'draft'

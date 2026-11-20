@@ -218,6 +218,9 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
   const [reqSubmitting, setReqSubmitting] = useState(false);
   const [reqError, setReqError]     = useState('');
   const [viewing, setViewing]       = useState<DbFile | null>(null);
+  // Likes / comments made here (074), shown before the page reloads.
+  const [changed, setChanged]       = useState<Record<string, DbFile>>({});
+  const updateFile = (f: DbFile) => { setChanged((m) => ({ ...m, [f.id]: f })); setViewing((v) => (v && v.id === f.id ? f : v)); };
 
   const accent      = proj.color || STATUS_COLOR[proj.status] || '#808080';
   const dimAccent   = archived ? '#bfbfbf' : accent;
@@ -439,12 +442,12 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
           )}
 
           {/* Files */}
-          {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
+          {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} onChange={updateFile} />}
           {files.length > 0 && (
             <div className="proj-section" style={{ padding: '20px 24px' }}>
               <SectionLabel label="Files & Assets" count={files.length} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {files.map(f => {
+                {files.map(file => changed[file.id] ?? file).map(f => {
                   // Click opens it; drafts and locked finals only as the watermarked preview (073).
                   const badge = fileBadge(f);
                   const dl = f.locked ? null : downloadUrl(f);
@@ -454,7 +457,12 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
                       <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 600, color: '#0a0a0a', flex: 1, minWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
                       <span style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
-                      <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7' }}>{f.locked ? 'Preview' : 'Open'}</span>
+                      {f.locked === 'draft' && f.reaction && (
+                        <span title={f.reaction === 'like' ? 'You liked this' : 'You disliked this'} style={{ fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: f.reaction === 'like' ? '#0cf574' : '#e50586', color: f.reaction === 'like' ? '#0a0a0a' : '#fff' }}>
+                          {f.reaction === 'like' ? 'Liked' : 'Disliked'}
+                        </span>
+                      )}
+                      <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7' }}>{f.locked === 'draft' ? 'Preview & Feedback' : f.locked ? 'Preview' : 'Open'}</span>
                       {dl && (
                         <a href={dl} onClick={(e) => e.stopPropagation()} style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: '#3943b7', textDecoration: 'none' }}>Download</a>
                       )}

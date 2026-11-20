@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
 import Link from 'next/link';
-import ProtectedPreview, { FileViewer, downloadUrl } from '../../ProtectedPreview';
+import ProtectedPreview, { DraftReactions, FileViewer, downloadUrl, type ViewFile } from '../../ProtectedPreview';
 
 interface DbFile {
   id: string;
@@ -17,6 +17,8 @@ interface DbFile {
   locked?: 'draft' | 'unpaid' | null;
   has_preview?: boolean;
   unlock_invoice?: { id: string; invoice_number: string } | null;
+  reaction?: ViewFile['reaction'];
+  comments?: ViewFile['comments'];
 }
 
 interface DbProposal {
@@ -45,6 +47,12 @@ export default function FilesPage() {
   const [uploadError, setUploadError] = useState('');
   const [justSigned, setJustSigned] = useState<string | null>(null);
   const [viewing, setViewing] = useState<DbFile | null>(null);
+  // A like, dislike or comment on a draft (074), kept in the list and the open viewer.
+  const updateFile = (changed: ViewFile) => {
+    const f = changed as DbFile; // always one of these, with its fields spread back in
+    setFiles((list) => list.map((x) => (x.id === f.id ? f : x)));
+    setViewing((v) => (v && v.id === f.id ? f : v));
+  };
   const drafts = files.filter((f) => f.locked === 'draft');
   const lockedFinals = files.filter((f) => f.locked === 'unpaid');
   const ready = files.filter((f) => !f.locked && f.file_url);
@@ -193,7 +201,7 @@ export default function FilesPage() {
           <div>
             <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 18, color: '#0a0a0a', margin: 0 }}>Drafts For Your Review</h2>
             <p style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, color: '#808080', margin: '4px 0 0', lineHeight: 1.5 }}>
-              Previews are watermarked with your name and can&apos;t be downloaded. Final files unlock once they&apos;re paid for.
+              Like or dislike each one and leave comments so I know what to keep. Previews are watermarked and can&apos;t be downloaded; final files unlock once they&apos;re paid for.
             </p>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 12 }}>
@@ -216,6 +224,14 @@ export default function FilesPage() {
                       {draft ? 'Draft' : 'Final · Locked'}
                     </span>
                   </div>
+                  {draft && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', borderTop: '1px solid #f2f2f2', paddingTop: 10 }}>
+                      <DraftReactions file={f} onChange={updateFile} />
+                      <button type="button" onClick={() => setViewing(f)} style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, fontWeight: 700, borderRadius: 999, padding: '8px 14px', border: '1.5px solid #e5e5e5', background: 'transparent', color: '#0a0a0a', cursor: 'pointer' }}>
+                        {f.comments?.length ? `Comments (${f.comments.length})` : 'Comment'}
+                      </button>
+                    </div>
+                  )}
                   {!draft && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: '1px solid #f2f2f2', paddingTop: 10 }}>
                       <span style={{ flex: 1, minWidth: 160, fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, color: '#0a0a0a' }}>
@@ -234,7 +250,7 @@ export default function FilesPage() {
       )}
 
       {/* Opens any file: drafts / locked finals as the protected preview, finals with Download. */}
-      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} onChange={updateFile} />}
 
       {/* Files section heading */}
       {!loading && ready.length > 0 && (

@@ -161,7 +161,7 @@ export default function DashboardPage() {
       `}</style>
 
       {/* ── Latest Update banner ── */}
-      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} />}
+      {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} onChange={(f) => { setDocFiles((l) => l.map((x) => (x.id === f.id ? f : x))); setViewing(f); }} />}
       {!loading && latestActivity && (
         <div
           {...(fileFor(latestActivity.text) ? { role: 'button', tabIndex: 0, onClick: () => setViewing(fileFor(latestActivity.text)), onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter') setViewing(fileFor(latestActivity.text)); } } : {})}

@@ -63,7 +63,7 @@ interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; installments?: unknown; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
-interface PortalFile { id: string; name: string; project_name: string; file_url: string; stage?: 'draft' | 'final' | null; unlock_invoice_id?: string | null; preview_url?: string | null; }
+interface PortalFile { id: string; name: string; project_name: string; file_url: string; stage?: 'draft' | 'final' | null; unlock_invoice_id?: string | null; preview_url?: string | null; reaction?: 'like' | 'dislike' | null; comments?: { id: string; author: 'client' | 'admin'; body: string; created_at: string }[]; }
 // Pages an onboarding step's button can open — only real portal pages (a typed URL once 404'd).
 const PORTAL_PAGES: [string, string][] = [
   ['/portal/dashboard', 'Dashboard'], ['/portal/onboarding', 'Onboarding'], ['/portal/progress', 'My Projects'],
@@ -1596,6 +1596,11 @@ function ProjectSubFiles({ project, files, invoices, clientId, api, onRefresh }:
                 <div style={{ flex: 1, minWidth: 160 }}>
                   <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
                   <span style={{ display: 'inline-block', marginTop: 4, fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
+                  {f.reaction && (
+                    <span style={{ display: 'inline-block', marginTop: 4, marginLeft: 6, fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: f.reaction === 'like' ? GREEN : PINK, color: f.reaction === 'like' ? DARK : '#fff' }}>
+                      {f.reaction === 'like' ? 'They like it' : 'Not for them'}
+                    </span>
+                  )}
                 </div>
                 <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
                 {(draft || locked) && f.preview_url && (
@@ -1620,11 +1625,44 @@ function ProjectSubFiles({ project, files, invoices, clientId, api, onRefresh }:
                   </select>
                 )}
                 <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
+                {(draft || (f.comments?.length ?? 0) > 0) && <FileThread file={f} api={api} onRefresh={onRefresh} />}
               </div>
             );
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/** The client's comments on a draft (074), with a reply box. */
+function FileThread({ file, api, onRefresh }: { file: PortalFile; api: SubProps['api']; onRefresh: () => void }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const comments = file.comments ?? [];
+  async function reply() {
+    if (!text.trim()) return;
+    setBusy(true); setError('');
+    const r = await api({ action: 'reply_file_comment', fileId: file.id, body: text.trim() }) as { error?: string };
+    setBusy(false);
+    if (r.error) setError(r.error); else { setText(''); onRefresh(); }
+  }
+  return (
+    <div style={{ flexBasis: '100%', display: 'flex', flexDirection: 'column', gap: 6, borderTop: '1px solid var(--a-border)', paddingTop: 8 }}>
+      {comments.length === 0 && <span style={{ fontFamily: F.inter, fontSize: 12, color: '#808080' }}>No comments yet.</span>}
+      {comments.map((c) => (
+        <div key={c.id} style={{ alignSelf: c.author === 'admin' ? 'flex-end' : 'flex-start', maxWidth: '85%', background: c.author === 'admin' ? DARK : '#f2f2f2', color: c.author === 'admin' ? '#fff' : DARK, borderRadius: 12, padding: '6px 10px', fontFamily: F.inter, fontSize: 12, lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+          <strong style={{ display: 'block', fontSize: 10 }}>{c.author === 'admin' ? 'You' : 'Client'} · {new Date(c.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</strong>
+          {c.body}
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void reply(); }} maxLength={2000} placeholder="Reply to their comments"
+          style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 12, padding: '6px 10px', borderRadius: 999, border: '1.5px solid var(--a-border)' }} />
+        <Btn disabled={busy || !text.trim()} onClick={() => void reply()} style={{ padding: '4px 12px', fontSize: 12 }}>{busy ? 'Sending…' : 'Reply'}</Btn>
+      </div>
+      <ErrorMsg msg={error} />
     </div>
   );
 }
