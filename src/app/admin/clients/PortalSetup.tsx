@@ -3,8 +3,8 @@
 // "Set up the portal" for each new project (migration 057, src/lib/portalSetup.ts):
 // invite them, assign questionnaires, add an estimate or invoice, add
 // milestones. Each step ticks itself once it's done. A new client's first
-// project must be set up (no skip; Home lists it). For an existing client
-// it's optional: a slim prompt that opens the checklist, or "Not needed".
+// project shows the full checklist (Home lists it); for an existing client
+// it's a slim prompt that opens it. Either can be closed (× / "Not needed").
 // Shown at the top of the client tab.
 
 import { useCallback, useEffect, useState } from 'react';
@@ -62,7 +62,7 @@ export default function PortalSetup({ clientId, version, onGo, notify }: {
   }
 
   async function skip(s: Setup) {
-    if (!window.confirm(`Skip the portal setup for ${s.project_name}? ${s.client_name} already has their portal from earlier work.`)) return;
+    if (!window.confirm(`Close the portal setup for ${s.project_name}? It won't show here or on Home again.`)) return;
     try {
       await apiSend('/api/portal-setup', 'POST', { action: 'skip', project_id: s.project_id });
       load();
@@ -119,8 +119,11 @@ export default function PortalSetup({ clientId, version, onGo, notify }: {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, letterSpacing: '-0.065em', wordSpacing: '0.1em' }}>Set up the portal for {s.project_name}</h3>
               <span style={{ fontSize: 12.5, color: '#d4d4d4' }}>
                 {done} of 4 done
-                {/* A new client's first project can't be skipped. */}
-                {s.required === false && <> · <button type="button" onClick={() => skip(s)} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', color: '#d4d4d4', textDecoration: 'underline', cursor: 'pointer' }}>Not needed</button></>}
+                {' · '}
+                <button type="button" onClick={() => skip(s)} style={{ border: 0, background: 'none', padding: 0, font: 'inherit', color: '#d4d4d4', textDecoration: 'underline', cursor: 'pointer' }}>Not needed</button>
+                {/* Any checklist can be closed, a new client's first one too. */}
+                <button type="button" aria-label={`Close the portal setup for ${s.project_name}`} title="Close" onClick={() => skip(s)}
+                  style={{ marginLeft: 12, border: 0, background: 'rgba(255,255,255,0.12)', color: '#fff', width: 26, height: 26, borderRadius: 999, cursor: 'pointer', fontSize: 15, lineHeight: '26px', padding: 0 }}>×</button>
               </span>
             </div>
             <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
