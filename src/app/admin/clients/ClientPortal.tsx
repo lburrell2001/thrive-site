@@ -1580,7 +1580,8 @@ function ProjectSubFiles({ project, files, invoices, clientId, api, onRefresh }:
             ? `They see a watermarked preview until ${invoiceLabel(unlock)} is paid in full, then it unlocks and they're told.`
             : 'They can download it as soon as it is uploaded.'}
       </p>
-      <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
+      <DropZone onFile={handleFile} uploading={uploading} maxMB={50}
+        accept={stage === 'draft' ? '.png,.jpg,.jpeg,.webp,.svg,.gif,.avif,.tif,.tiff' : '.svg,.png,.jpg,.jpeg,.webp,.gif,.avif,.tif,.tiff,.pdf,.ai,.eps,.psd,.zip,.doc,.docx,.csv,.mp4,.mov,.ttf,.otf,.woff,.woff2'} />
       <ErrorMsg msg={error} />
       {files.length > 0 && (
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
