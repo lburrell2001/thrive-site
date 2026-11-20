@@ -36,6 +36,32 @@ export type ServicePricing = {
   sections: PriceSection[];
 };
 
+/** The Starter Website & Brand Package: on both the web and the brand pages. */
+const BRAND_WEBSITE_PACKAGE: PriceSection = {
+  id: 'brand-website',
+  heading: 'Brand + website package',
+  intro: 'Starting from scratch? Get your brand and your first website together, for less than buying them apart.',
+  cards: [
+    {
+      name: 'Starter Website & Brand Package',
+      price: '$1,850',
+      scope: 'Your brand first, then a 3 to 5 page website built on it',
+      items: [
+        'Full brand identity: logo suite, colors, fonts, patterns and a brand guide',
+        'Site planning: pages, layout and how visitors move through it',
+        'Starter website, 3 to 5 pages, designed in your new brand',
+        'Works on phones, tablets, and desktops',
+        'SEO setup, schema markup and your Google Business Profile',
+        'Launched on your domain',
+        '50% to start, 50% on final approval',
+      ],
+    },
+  ],
+  notes: [
+    'Hosting is billed through Thrive during the build. At the end of the project, the hosting accounts switch over to you and you pay the hosting companies directly.',
+  ],
+};
+
 export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
   'digital-design': {
     from: 'From $1,250',
@@ -113,6 +139,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           'Hosting is billed through Thrive during the build. At launch, the hosting account transfers to you and you pay the hosting company directly.',
         ],
       },
+      BRAND_WEBSITE_PACKAGE,
       {
         id: 'shopify',
         heading: 'Shopify stores',
@@ -250,6 +277,7 @@ export const SERVICE_PRICING: Record<ServiceSlug, ServicePricing> = {
           },
         ],
       },
+      BRAND_WEBSITE_PACKAGE,
       {
         id: 'graphics',
         heading: 'Graphics & print',

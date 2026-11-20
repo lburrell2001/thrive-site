@@ -21,6 +21,8 @@ type Data = Catalog & { ready: boolean };
 type ItemForm = {
   category_id: string; name: string; description: string; price: string; price_type: PriceType;
   hours: string; is_optional: boolean; is_active: boolean; unit: string; notes: string;
+  /** Default payment terms: deposit %, blank = none. */
+  deposit: string;
 };
 
 const formFor = (item: PriceItem): ItemForm => ({
@@ -28,11 +30,12 @@ const formFor = (item: PriceItem): ItemForm => ({
   price: item.price === null ? '' : String(item.price), price_type: item.price_type,
   hours: item.hours === null ? '' : String(item.hours), is_optional: item.is_optional,
   is_active: item.is_active, unit: item.unit ?? '', notes: item.notes,
+  deposit: item.deposit_percent ? String(item.deposit_percent) : '',
 });
 
 const blankForm = (category_id: string): ItemForm => ({
   category_id, name: '', description: '', price: '', price_type: 'flat', hours: '',
-  is_optional: false, is_active: true, unit: '', notes: '',
+  is_optional: false, is_active: true, unit: '', notes: '', deposit: '',
 });
 
 function itemBody(f: ItemForm) {
@@ -48,6 +51,7 @@ function itemBody(f: ItemForm) {
     is_active: f.is_active,
     unit: f.unit.trim() || null,
     notes: f.notes,
+    deposit_percent: (() => { const n = num(f.deposit); return n !== null && n > 0 && n < 100 ? n : null; })(),
   };
 }
 
@@ -325,6 +329,10 @@ function ItemEditor({ item, categoryId, catalog, categories, busy, onSave, onCan
       <label>
         <span className={p.label}>Per unit (gets a quantity box)</span>
         <input className={p.input} value={f.unit} placeholder="e.g. page, slide" onChange={(e) => set('unit', e.target.value)} />
+      </label>
+      <label>
+        <span className={p.label}>Default payment terms (% up front)</span>
+        <input className={p.input} inputMode="decimal" value={f.deposit} placeholder="e.g. 50 — blank for none" onChange={(e) => set('deposit', e.target.value)} />
       </label>
       <div className={pl.checks}>
         <label><input type="checkbox" checked={f.is_optional} onChange={(e) => set('is_optional', e.target.checked)} /> Optional add-on</label>

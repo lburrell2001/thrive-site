@@ -244,12 +244,14 @@ function ProjectCard({ proj, archived = false, userId, onRefresh, invoices, file
     setReqSubmitting(true); setReqError('');
     void portalTrack('action', { label: `Sent a brain dump: ${reqTitle.trim().slice(0, 80)}` });
     // Thrive sets type and priority when the request is triaged.
-    const { error } = await supabasePortal.from('portal_requests').insert({
+    const { data: made, error } = await supabasePortal.from('portal_requests').insert({
       client_id: userId, title: reqTitle.trim(), description: reqDesc.trim(),
       type: '', priority: 'normal', status: 'kickoff', project_name: proj.name,
-    });
+    }).select('id').single();
     setReqSubmitting(false);
     if (error) { setReqError(error.message); return; }
+    // Lauren hears about it (email + text); never holds up the form.
+    if (made?.id) portalApi('/api/portal/brain-dump', { body: { id: made.id } }).catch(() => undefined);
     setReqTitle(''); setReqDesc(''); setShowReqForm(false);
     onRefresh();
   }

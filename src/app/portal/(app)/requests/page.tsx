@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { portalTrack } from '@/lib/portalTrack';
+import { portalApi } from '@/lib/portalApi';
 
 type FilterTab = 'All' | 'In Progress' | 'Review' | 'Completed';
 
@@ -86,12 +87,14 @@ export default function RequestsPage() {
     // in Thrive's inbox, where it becomes a real project or gets filed elsewhere.
     const projectName = fProject === NEW_PROJECT ? fNewProj.trim() : fProject;
     // Type and priority are Thrive's to decide when the brain dump is filed.
-    const { error: insErr } = await supabasePortal.from('portal_requests').insert({
+    const { data: made, error: insErr } = await supabasePortal.from('portal_requests').insert({
       client_id: userId, title: fTitle.trim(), description: fDesc.trim(),
       project_name: projectName || null,
       type: '', priority: 'normal', status: 'kickoff',
-    });
+    }).select('id').single();
     if (insErr) { setFormError(insErr.message); setSubmitting(false); return; }
+    // Lauren hears about it (email + text); never holds up the form.
+    if (made?.id) portalApi('/api/portal/brain-dump', { body: { id: made.id } }).catch(() => undefined);
     setFTitle(''); setFDesc(''); setFProject(''); setFNewProj('');
     setShowForm(false); setSubmitting(false);
     load();

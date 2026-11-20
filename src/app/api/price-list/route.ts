@@ -10,6 +10,9 @@ import { baseName, categoryInput, itemInput, sameName } from '@/lib/priceCatalog
 
 const missing = (message: string) => /price_(categories|items|item_rules)/.test(message) && /does not exist|schema cache|Could not find/i.test(message);
 const NOT_READY = 'Run migration 047 in Supabase to use the price list.';
+const ITEM_COLUMNS = 'id, category_id, name, description, price, price_type, hours, is_optional, is_active, sort_order, unit, notes';
+/** Before 070 there's no deposit_percent column: save without it. */
+const noTerms = (message: string) => /deposit_percent/.test(message);
 
 export async function GET(req: Request) {
   const auth = await requireAdmin(req);
@@ -17,7 +20,8 @@ export async function GET(req: Request) {
   const db = auth.db;
   const [categories, items, rules] = await Promise.all([
     db.from('price_categories').select('id, name, description, sort_order').order('sort_order'),
-    db.from('price_items').select('id, category_id, name, description, price, price_type, hours, is_optional, is_active, sort_order, unit, notes').order('sort_order'),
+    db.from('price_items').select(`${ITEM_COLUMNS}, deposit_percent`).order('sort_order')
+      .then(async (r) => (r.error && /deposit_percent/.test(r.error.message) ? db.from('price_items').select(ITEM_COLUMNS).order('sort_order') : r)),
     db.from('price_item_rules').select('id, item_id, rule_type, related_item_id'),
   ]);
   const error = categories.error ?? items.error ?? rules.error;
@@ -31,7 +35,7 @@ export async function GET(req: Request) {
     data: {
       ready: true,
       categories: categories.data,
-      items: (items.data ?? []).map((i) => ({ ...i, price: num(i.price), hours: num(i.hours) })),
+      items: ((items.data ?? []) as unknown as Record<string, unknown>[]).map((i) => ({ ...i, price: num(i.price), hours: num(i.hours), deposit_percent: num(i.deposit_percent) })),
       rules: rules.data,
     },
   });
@@ -96,8 +100,10 @@ export async function POST(req: Request) {
     case 'create_item': {
       const { data: last } = await db.from('price_items').select('sort_order').eq('category_id', body.item.category_id)
         .order('sort_order', { ascending: false }).limit(1).maybeSingle();
-      const { data, error } = await db.from('price_items')
-        .insert({ ...normalize(body.item), sort_order: (last?.sort_order ?? 0) + 10 }).select('id').single();
+      const insert = (row: Record<string, unknown>) => db.from('price_items').insert(row).select('id').single();
+      const row: Record<string, unknown> = { ...normalize(body.item), sort_order: (last?.sort_order ?? 0) + 10 };
+      let { data, error } = await insert(row);
+      if (error && noTerms(error.message)) { delete row.deposit_percent; ({ data, error } = await insert(row)); }
       if (error) return fail(error.message);
       return NextResponse.json({ ok: true, data });
     }
@@ -110,7 +116,8 @@ export async function POST(req: Request) {
           .order('sort_order', { ascending: false }).limit(1).maybeSingle();
         row.sort_order = (last?.sort_order ?? 0) + 10;
       }
-      const { error } = await db.from('price_items').update(row).eq('id', body.id);
+      let { error } = await db.from('price_items').update(row).eq('id', body.id);
+      if (error && noTerms(error.message)) { delete row.deposit_percent; ({ error } = await db.from('price_items').update(row).eq('id', body.id)); }
       if (error) return fail(error.message);
       return NextResponse.json({ ok: true, data: null });
     }

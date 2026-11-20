@@ -816,6 +816,12 @@ export default function InvoiceBuilder() {
     }
     set('text', text);
     setDrawer(false);
+    // An item with default payment terms (070) sets an estimate's, if none are chosen yet.
+    const terms = isInvoice || draft.estPlan || (draft.estDeposit ?? '') !== '' ? null : picks.find(({ item }) => item.deposit_percent)?.item;
+    if (terms) {
+      setDraft((d) => ({ ...d, estDeposit: String(terms.deposit_percent) }));
+      added.push(`Payment terms set to ${terms.deposit_percent}% up front, the rest on final approval (from ${terms.name})`);
+    }
     show(added.length ? added.join('. ') : `Added ${picks.length} item${picks.length === 1 ? '' : 's'}${into && !isInvoice ? ` to ${groupLabel(into)}` : ''}.`);
   }
 

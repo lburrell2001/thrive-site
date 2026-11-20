@@ -37,6 +37,8 @@ export type PriceItem = {
   /** Per-unit items get a quantity box: "page", "slide", "image"… */
   unit: string | null;
   notes: string;
+  /** Default payment terms (migration 070): the deposit % an estimate takes when this is added. */
+  deposit_percent?: number | null;
 };
 
 export type RuleType = 'requires' | 'suggests';
@@ -62,6 +64,7 @@ export const itemInput = z.object({
   is_active: z.boolean().default(true),
   unit: z.string().trim().max(40).nullable().transform((u) => u || null),
   notes: z.string().max(4000).default(''),
+  deposit_percent: z.number().gt(0).lt(100).nullable().default(null),
 });
 
 // ── Money ──────────────────────────────────────────────────────────────────

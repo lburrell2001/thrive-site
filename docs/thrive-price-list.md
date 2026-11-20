@@ -27,6 +27,7 @@ Priority Rush – App development | More than 1 week ahead of schedule | $1,000
 === WEBSITE PACKAGES ===
 Landing Page | Single scrolling page, mobile-friendly, contact info, launch | $650
 Starter Website | 3–5 pages, mobile-friendly design, buttons and links, contact info, launch | $1,250
+Starter Website & Brand Package | Full brand identity (logo suite, colors, fonts, patterns, brand guide) plus a starter website: 3–5 pages, site planning, mobile-friendly design, SEO setup, schema markup and Google Business Profile, launched on your domain. 50% up front, 50% on final approval; requires Hosting setup | $1,850
 Medium Website | 6–15 pages, mobile-friendly design, no admin area | $1,600
 Large Website | 16–25 pages with admin area | $1,950
 Hosting setup | Billed during the build, transferred to you at launch | Included
