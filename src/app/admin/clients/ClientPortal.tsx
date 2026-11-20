@@ -63,7 +63,7 @@ interface Stage   { key: string; label: string; }
 interface Project { id: string; name: string; status: string; progress: number; color: string; stages?: Stage[]; archived?: boolean; crm_deal_id?: string | null; }
 interface Invoice { id: string; invoice_number: string; project_name: string; amount_cents: number; invoice_date: string; due_date: string; status: string; subscription_id?: string | null; deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null; installments?: unknown; accepted_at?: string | null; accepted_by?: string | null; declined_at?: string | null; decline_reason?: string | null; }
 interface Request { id: string; title: string; type: string; status: string; priority: string; project_name?: string | null; description?: string; created_at?: string; }
-interface PortalFile { id: string; name: string; project_name: string; file_url: string; }
+interface PortalFile { id: string; name: string; project_name: string; file_url: string; stage?: 'draft' | 'final' | null; unlock_invoice_id?: string | null; preview_url?: string | null; }
 // Pages an onboarding step's button can open — only real portal pages (a typed URL once 404'd).
 const PORTAL_PAGES: [string, string][] = [
   ['/portal/dashboard', 'Dashboard'], ['/portal/onboarding', 'Onboarding'], ['/portal/progress', 'My Projects'],
@@ -1405,7 +1405,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
           <ProjectSubInvoices   project={project} invoices={projectInvoices} estimates={projectEstimates} clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
           <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} reminders={data.reminders} api={api} onRefresh={onRefresh} />
-          <ProjectSubFiles      project={project} files={projectFiles}           clientId={clientId} api={api} onRefresh={onRefresh} />
+          <ProjectSubFiles      project={project} files={projectFiles} invoices={projectInvoices} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubMilestones project={project} milestones={projectMilestones} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubActivity   project={project} activity={projectActivity}     clientId={clientId} api={api} onRefresh={onRefresh} />
         </div>
@@ -1520,39 +1520,109 @@ function ProjectSubProposals({ project, proposals, clientId, reminders, api, onR
   );
 }
 
-function ProjectSubFiles({ project, files, clientId, api, onRefresh }: SubProps & { files: PortalFile[] }) {
+// Files: drafts (the client only sees a watermarked preview) and final copies,
+// which can stay locked until one of the project's invoices is paid (073).
+const IMAGE_FILE = /\.(png|jpe?g|webp|gif|avif|tiff?|svg)$/i;
+
+function ProjectSubFiles({ project, files, invoices, clientId, api, onRefresh }: SubProps & { files: PortalFile[]; invoices: Invoice[] }) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [stage, setStage] = useState<'draft' | 'final'>('draft');
+  const [unlock, setUnlock] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const unpaid = invoices.filter((i) => i.status !== 'paid');
+  const invoiceLabel = (id: string | null | undefined) => invoices.find((i) => i.id === id)?.invoice_number ?? 'the invoice';
+  const isPaid = (id: string | null | undefined) => invoices.find((i) => i.id === id)?.status === 'paid';
 
   async function handleFile(file: File) {
     if (file.size > 50 * 1024 * 1024) { setError('File must be under 50 MB'); return; }
+    if (stage === 'draft' && !IMAGE_FILE.test(file.name)) { setError('Drafts need an image (PNG, JPG, WebP or SVG) so they can be watermarked. Export the artboard as a PNG.'); return; }
     setUploading(true); setError('');
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = await directUpload(api, file, `client-files/${clientId}/${Date.now()}-${safeName}`);
-      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, path }) as { error?: string };
+      const r = await api({ action: 'upload_file', clientId, name: file.name, projectName: project.name, path, stage, unlockInvoiceId: stage === 'final' ? unlock || null : null }) as { error?: string };
       if (r.error) setError(r.error); else onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : 'Upload failed — please try again.'); }
     finally { setUploading(false); }
   }
 
+  async function change(f: PortalFile, next: 'draft' | 'final', unlockInvoiceId: string | null) {
+    setBusy(f.id); setError('');
+    const r = await api({ action: 'set_file_stage', id: f.id, stage: next, unlockInvoiceId }) as { error?: string };
+    setBusy(null);
+    if (r.error) setError(r.error); else onRefresh();
+  }
+
+  const chip = (on: boolean): React.CSSProperties => ({
+    fontFamily: F.inter, fontSize: 12, fontWeight: 700, padding: '6px 14px', borderRadius: 999, cursor: 'pointer',
+    border: `1.5px solid ${on ? DARK : 'var(--a-border)'}`, background: on ? DARK : '#fff', color: on ? '#fff' : DARK,
+  });
+
   return (
     <div style={{ padding: 16, background: 'var(--a-surface-2)', borderBottom: '1px solid var(--a-border)' }}>
       <SubSectionHead title="Files" />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: DARK }}>Send as</span>
+        <button type="button" style={chip(stage === 'draft')} onClick={() => setStage('draft')}>Draft</button>
+        <button type="button" style={chip(stage === 'final')} onClick={() => setStage('final')}>Final copy</button>
+        {stage === 'final' && (
+          <select value={unlock} onChange={(e) => setUnlock(e.target.value)} style={{ fontFamily: F.inter, fontSize: 12, padding: '6px 10px', borderRadius: 999, border: '1.5px solid var(--a-border)', background: '#fff' }}>
+            <option value="">Download right away</option>
+            {unpaid.map((i) => <option key={i.id} value={i.id}>Locked until {i.invoice_number} is paid</option>)}
+          </select>
+        )}
+      </div>
+      <p style={{ fontFamily: F.inter, fontSize: 12, color: '#808080', margin: '0 0 10px', lineHeight: 1.5 }}>
+        {stage === 'draft'
+          ? 'They see a watermarked preview with their name on it. No download, no original. Images only (PNG, JPG, WebP, SVG).'
+          : unlock
+            ? `They see a watermarked preview until ${invoiceLabel(unlock)} is paid in full, then it unlocks and they're told.`
+            : 'They can download it as soon as it is uploaded.'}
+      </p>
       <DropZone onFile={handleFile} uploading={uploading} maxMB={50} />
       <ErrorMsg msg={error} />
       {files.length > 0 && (
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {files.map((f) => (
-            <div key={f.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
-              <div style={{ width: 28, height: 28, borderRadius: 6, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3V2z" stroke="#808080" strokeWidth="1.2"/><path d="M10 2v3h3" stroke="#808080" strokeWidth="1.2"/></svg>
+          {files.map((f) => {
+            const draft = f.stage === 'draft';
+            const locked = !draft && !!f.unlock_invoice_id && !isPaid(f.unlock_invoice_id);
+            const badge = draft
+              ? { text: 'Draft', bg: ORANGE, color: '#fff' }
+              : locked ? { text: `Final · Locked until ${invoiceLabel(f.unlock_invoice_id)} is paid`, bg: PINK, color: '#fff' }
+              : { text: 'Final', bg: GREEN, color: DARK };
+            return (
+              <div key={f.id} style={{ border: '1px solid var(--a-border)', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, background: '#fff', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                  <span style={{ display: 'inline-block', marginTop: 4, fontFamily: F.inter, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: badge.bg, color: badge.color }}>{badge.text}</span>
+                </div>
+                <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>Original ↗</a>
+                {(draft || locked) && f.preview_url && (
+                  <a href={f.preview_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>What they see ↗</a>
+                )}
+                {draft ? (
+                  <select disabled={busy === f.id} value="" onChange={(e) => { if (e.target.value) change(f, 'final', e.target.value === 'now' ? null : e.target.value); }}
+                    style={{ fontFamily: F.inter, fontSize: 12, padding: '4px 8px', borderRadius: 999, border: '1.5px solid var(--a-border)', background: '#fff' }}>
+                    <option value="">{busy === f.id ? 'Saving…' : 'Mark final…'}</option>
+                    <option value="now">Final — download right away</option>
+                    {unpaid.map((i) => <option key={i.id} value={i.id}>Final — locked until {i.invoice_number} is paid</option>)}
+                  </select>
+                ) : (
+                  <select disabled={busy === f.id} value="" onChange={(e) => {
+                    const v = e.target.value; if (!v) return;
+                    if (v === 'draft') change(f, 'draft', null); else change(f, 'final', v === 'unlock' ? null : v);
+                  }} style={{ fontFamily: F.inter, fontSize: 12, padding: '4px 8px', borderRadius: 999, border: '1.5px solid var(--a-border)', background: '#fff' }}>
+                    <option value="">{busy === f.id ? 'Saving…' : 'Change…'}</option>
+                    {locked && <option value="unlock">Unlock now</option>}
+                    {unpaid.filter((i) => i.id !== f.unlock_invoice_id).map((i) => <option key={i.id} value={i.id}>Lock until {i.invoice_number} is paid</option>)}
+                    {IMAGE_FILE.test(f.name) && <option value="draft">Back to draft</option>}
+                  </select>
+                )}
+                <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
               </div>
-              <div style={{ flex: 1, minWidth: 0, fontFamily: F.inter, fontSize: 13, fontWeight: 700, color: DARK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
-              <a href={f.file_url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: F.inter, fontSize: 12, fontWeight: 700, color: BLUE, textDecoration: 'none' }}>View ↗</a>
-              <Btn variant="danger" style={{ padding: '3px 8px', fontSize: 11 }} onClick={async () => { if (!confirm('Delete?')) return; await api({ action: 'delete_file', id: f.id }); onRefresh(); }}>Delete</Btn>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

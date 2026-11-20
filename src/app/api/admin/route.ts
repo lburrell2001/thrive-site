@@ -16,6 +16,8 @@ import { notifyPortalClient } from '@/lib/clientNotify';
 import { normalizePhone } from '@/lib/phone';
 import { resolveSiteOrigin } from '@/lib/proposalUrls';
 import { DOC_BUCKET, docRef, isDocPath, removeDoc, signDocs } from '@/lib/clientDocs';
+import { makeFilePreview } from '@/lib/draftFiles';
+import { canPreview } from '@/lib/watermark';
 
 import { createPortalInvoice } from '@/lib/invoiceCreate';
 import {
@@ -240,7 +242,8 @@ export async function POST(req: NextRequest) {
               issue_date: e.issue_date, crm_deal_id: e.crm_deal_id ?? null, sent_to: e.sent_to ?? null,
               accepted_at: e.accepted_at ?? null, decline_reason: e.decline_reason ?? null,
             })),
-            files: await signDocs(admin, files.data, ['file_url']),
+            // Drafts / locked finals (073) also carry a link to the client's watermarked preview.
+            files: await signDocs(admin, (files.data ?? []).map((f) => ({ ...f, preview_url: f.preview_path ? docRef(f.preview_path) : null })), ['file_url', 'preview_url']),
             milestones: milestones.data ?? [],
             onboarding: onboarding.data ?? [],
             activity: activity.data ?? [],
@@ -609,26 +612,86 @@ export async function POST(req: NextRequest) {
 
       case 'upload_file': {
         const { clientId, name, projectName, path } = params as Record<string, string>;
+        // Draft or final (073); a final copy can stay locked until an invoice is paid.
+        const stage = params.stage === 'draft' ? 'draft' : 'final';
+        const unlockInvoiceId = stage === 'final' && typeof params.unlockInvoiceId === 'string' && params.unlockInvoiceId ? params.unlockInvoiceId : null;
         if (!clientId || !name || !path) return err('clientId, name, and path are required');
         if (!isDocPath(path)) return err('Unexpected file location');
-        const { data, error: insertErr } = await admin.from('portal_files').insert({
-          client_id: clientId, name, project_name: projectName ?? '', file_url: docRef(path),
-        }).select().single();
-        if (insertErr) return err(insertErr.message);
-        logActivity(admin, clientId, `New file delivered: ${name}`, '#fd6100', projectName || null);
+        if (stage === 'draft' && !canPreview(name)) {
+          await admin.storage.from(DOC_BUCKET).remove([path]);
+          return err('Drafts need an image (PNG, JPG, WebP or SVG) so they can be watermarked. Export the page or artboard as a PNG.');
+        }
+        const locked = stage === 'draft' || Boolean(unlockInvoiceId);
+        const row: Record<string, unknown> = { client_id: clientId, name, project_name: projectName ?? '', file_url: docRef(path) };
+        if (locked) { row.stage = stage; row.unlock_invoice_id = unlockInvoiceId; }
+        const { data, error: insertErr } = await admin.from('portal_files').insert(row).select().single();
+        if (insertErr) {
+          // Before 073 a locked file would go out unlocked — refuse instead.
+          if (locked && /stage|unlock_invoice_id|preview_path/.test(insertErr.message)) {
+            await admin.storage.from(DOC_BUCKET).remove([path]);
+            return err('Run migration 073 in Supabase to send drafts and locked files.');
+          }
+          return err(insertErr.message);
+        }
+        if (locked) {
+          const made = await makeFilePreview(admin, data.id);
+          if (!made.ok) {
+            await admin.from('portal_files').delete().eq('id', data.id);
+            await admin.storage.from(DOC_BUCKET).remove([path]);
+            return err(made.error);
+          }
+        }
+        const what = stage === 'draft' ? 'draft' : 'file';
+        logActivity(admin, clientId, stage === 'draft' ? `New draft to review: ${name}` : `New file delivered: ${name}`, '#fd6100', projectName || null);
         notifyClient(
           admin, clientId,
-          'A new file has been delivered to your portal',
-          `A new file is ready for you: ${name}`,
-          projectName ? `Project: ${projectName}` : '',
-          { sms: `a new file is ready for you: ${name}.`, path: '/portal/files' },
+          stage === 'draft' ? 'A new draft is ready for your review' : 'A new file has been delivered to your portal',
+          stage === 'draft' ? `A new draft is ready for you to review: ${name}` : `A new file is ready for you: ${name}`,
+          [projectName ? `Project: ${projectName}` : '', unlockInvoiceId ? 'You can preview it now; it downloads once the invoice is paid.' : ''].filter(Boolean).join('\n'),
+          { sms: `a new ${what} is ready for you: ${name}.`, path: '/portal/files' },
         );
         return NextResponse.json({ ok: true, data });
       }
 
+      case 'set_file_stage': {
+        // Change a file between draft and final, or lock / unlock a final copy (073).
+        const id = String(params.id ?? '');
+        const stage = params.stage === 'draft' ? 'draft' : 'final';
+        const unlockInvoiceId = stage === 'final' && typeof params.unlockInvoiceId === 'string' && params.unlockInvoiceId ? params.unlockInvoiceId : null;
+        const { data: file } = await admin.from('portal_files').select('id, client_id, name, project_name, stage').eq('id', id).maybeSingle();
+        if (!file) return err('File not found');
+        if (stage === 'draft' && !canPreview(file.name)) return err('Only images can be drafts (they need a watermarked preview).');
+        const { error } = await admin.from('portal_files').update({ stage, unlock_invoice_id: unlockInvoiceId }).eq('id', id);
+        if (error) return err(/stage|unlock_invoice_id/.test(error.message) ? 'Run migration 073 in Supabase first.' : error.message);
+        // The preview says DRAFT or PREVIEW: remake it whenever it's locked.
+        if (stage === 'draft' || unlockInvoiceId) {
+          const made = await makeFilePreview(admin, id);
+          if (!made.ok) return err(made.error);
+        }
+        if (file.stage === 'draft' && stage === 'final') {
+          logActivity(admin, file.client_id, `Final version ready: ${file.name}`, '#0cf574', file.project_name || null);
+          notifyClient(
+            admin, file.client_id,
+            'Your final file is ready',
+            unlockInvoiceId ? `The final version of ${file.name} is ready` : `The final version of ${file.name} is ready to download`,
+            unlockInvoiceId ? 'You can preview it now; it downloads once the invoice is paid.' : '',
+            { sms: `the final version of ${file.name} is ready.`, path: '/portal/files' },
+          );
+        }
+        return NextResponse.json({ ok: true });
+      }
+
       case 'delete_file': {
+        // The original and its watermarked preview go too.
+        let found = await admin.from('portal_files').select('file_url, preview_path').eq('id', params.id).maybeSingle();
+        if (found.error) found = await admin.from('portal_files').select('file_url').eq('id', params.id).maybeSingle();
         const { error } = await admin.from('portal_files').delete().eq('id', params.id);
         if (error) return err(error.message);
+        const f = found.data as { file_url?: string; preview_path?: string | null } | null;
+        if (f) {
+          await removeDoc(admin, f.file_url);
+          if (f.preview_path) await admin.storage.from(DOC_BUCKET).remove([f.preview_path]);
+        }
         return NextResponse.json({ ok: true });
       }
 

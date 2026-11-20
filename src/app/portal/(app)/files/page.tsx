@@ -3,13 +3,20 @@
 import { useEffect, useState } from 'react';
 import { supabasePortal } from '@/lib/supabasePortal';
 import { loadMyDocuments } from '@/lib/portalDocuments';
+import Link from 'next/link';
+import ProtectedPreview from '../../ProtectedPreview';
 
 interface DbFile {
   id: string;
   name: string;
   project_name: string;
-  file_url: string;
+  /** Null while it's a draft or locked until an invoice is paid (073). */
+  file_url: string | null;
   created_at: string;
+  stage?: 'draft' | 'final';
+  locked?: 'draft' | 'unpaid' | null;
+  has_preview?: boolean;
+  unlock_invoice?: { id: string; invoice_number: string } | null;
 }
 
 interface DbProposal {
@@ -37,6 +44,10 @@ export default function FilesPage() {
   const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [justSigned, setJustSigned] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<DbFile | null>(null);
+  const drafts = files.filter((f) => f.locked === 'draft');
+  const lockedFinals = files.filter((f) => f.locked === 'unpaid');
+  const ready = files.filter((f) => !f.locked && f.file_url);
 
   async function refreshProposals() {
     const docs = await loadMyDocuments<DbFile, DbProposal>();
@@ -176,8 +187,67 @@ export default function FilesPage() {
         </div>
       )}
 
+      {/* Drafts to review and final files locked until paid (073): watermarked previews only. */}
+      {!loading && (drafts.length > 0 || lockedFinals.length > 0) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 18, color: '#0a0a0a', margin: 0 }}>Drafts For Your Review</h2>
+            <p style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, color: '#808080', margin: '4px 0 0', lineHeight: 1.5 }}>
+              Previews are watermarked with your name and can&apos;t be downloaded. Final files unlock once they&apos;re paid for.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 12 }}>
+            {[...drafts, ...lockedFinals].map((f) => {
+              const draft = f.locked === 'draft';
+              return (
+                <div key={f.id} style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button type="button" onClick={() => f.has_preview && setViewing(f)} disabled={!f.has_preview}
+                    style={{ all: 'unset', cursor: f.has_preview ? 'zoom-in' : 'default', display: 'block', borderRadius: 12 }} aria-label={`Open ${f.name}`}>
+                    {f.has_preview
+                      ? <ProtectedPreview fileId={f.id} label={f.name} maxHeight={260} />
+                      : <div style={{ background: '#f2f2f2', borderRadius: 12, minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, color: '#808080' }}>No preview for this file type</div>}
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 14, fontWeight: 700, color: '#0a0a0a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</div>
+                      <div style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, color: '#808080', marginTop: 2 }}>{f.project_name}</div>
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: draft ? '#fd6100' : '#e50586', color: '#fff', whiteSpace: 'nowrap' }}>
+                      {draft ? 'Draft' : 'Final · Locked'}
+                    </span>
+                  </div>
+                  {!draft && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: '1px solid #f2f2f2', paddingTop: 10 }}>
+                      <span style={{ flex: 1, minWidth: 160, fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, color: '#0a0a0a' }}>
+                        Unlocks when {f.unlock_invoice?.invoice_number ?? 'your invoice'} is paid in full.
+                      </span>
+                      <Link href="/portal/invoices" style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 12, fontWeight: 700, background: '#0a0a0a', color: '#fff', borderRadius: 999, padding: '7px 16px', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                        Pay Invoice
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Larger view of one preview — same protections. */}
+      {viewing && (
+        <div role="dialog" aria-modal="true" aria-label={viewing.name} onClick={() => setViewing(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(10,10,10,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, gap: 12 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(100%, 1100px)' }}>
+            <ProtectedPreview fileId={viewing.id} label={viewing.name} maxHeight="78vh" />
+          </div>
+          <button type="button" onClick={() => setViewing(null)} style={{ fontFamily: 'var(--font-inter), Inter, sans-serif', fontSize: 13, fontWeight: 700, background: '#fff', color: '#0a0a0a', border: 'none', borderRadius: 999, padding: '9px 20px', cursor: 'pointer' }}>
+            Close
+          </button>
+        </div>
+      )}
+
       {/* Files section heading */}
-      {!loading && files.length > 0 && (
+      {!loading && ready.length > 0 && (
         <h2 style={{ fontFamily: 'var(--font-bungee), sans-serif', fontSize: 18, color: '#0a0a0a', margin: 0, letterSpacing: '0em' }}>Files & Assets</h2>
       )}
 
@@ -225,7 +295,7 @@ export default function FilesPage() {
       )}
 
       {/* File list — only shown when not loading and files exist */}
-      {!loading && files.length > 0 && (
+      {!loading && ready.length > 0 && (
         <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #e5e5e5', overflow: 'hidden' }}>
           {/* Table header */}
           <div style={{
@@ -244,13 +314,13 @@ export default function FilesPage() {
           </div>
 
           {/* File rows */}
-          {files.map((file, i) => (
+          {ready.map((file, i) => (
             <div
               key={file.id}
               style={{
                 display: 'flex', alignItems: 'center', gap: 16,
                 padding: '16px 24px',
-                borderBottom: i < files.length - 1 ? '1px solid #f2f2f2' : 'none',
+                borderBottom: i < ready.length - 1 ? '1px solid #f2f2f2' : 'none',
                 justifyContent: 'space-between',
               }}
             >
@@ -282,7 +352,7 @@ export default function FilesPage() {
 
               {/* Download */}
               <a
-                href={file.file_url}
+                href={file.file_url ?? '#'}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

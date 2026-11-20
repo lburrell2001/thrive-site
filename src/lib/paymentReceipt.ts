@@ -6,6 +6,7 @@
 // recorded the payment), from CONTACT_NOTIFY_FROM, with Lauren copied.
 // A description Lauren hid from the client ("Show description" off) stays hidden.
 
+import { notifyUnlockedFiles } from './draftFiles';
 import 'server-only';
 import { installmentsOf } from './paymentPlan';
 import { Resend } from 'resend';
@@ -164,6 +165,8 @@ export async function sendPaymentReceipt(
       dot_color: '#0cf574',
       project_name: inv.project_name,
     });
+    // Paid in full: final files locked to this invoice (073) are theirs now.
+    if (inv.status === 'paid') await notifyUnlockedFiles(db, invoiceId).catch((e) => console.error('[receipt] unlocked files not announced', e));
     return { ok: true };
   } catch (e) {
     console.error('[receipt] not sent', invoiceId, e);

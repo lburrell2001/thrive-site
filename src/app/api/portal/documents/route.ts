@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { signDocs } from '@/lib/clientDocs';
+import { filesForClient } from '@/lib/draftFiles';
 
 // The signed-in client's proposals and delivered files, with links to the
 // private documents signed for an hour. The portal reads these here instead of
@@ -16,8 +17,9 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await db.auth.getUser(token);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Drafts and final files locked until paid (073) come back with no link.
   const [files, proposals] = await Promise.all([
-    db.from('portal_files').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
+    filesForClient(db, user.id).then((data) => ({ data, error: null }), (e: Error) => ({ data: null, error: e })),
     db.from('portal_proposals').select('*').eq('client_id', user.id).order('created_at', { ascending: false }),
   ]);
   if (files.error || proposals.error) {
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(
     {
-      files: await signDocs(db, files.data, ['file_url']),
+      files: files.data,
       proposals: await signDocs(db, proposals.data, ['file_url', 'signed_file_url']),
     },
     { headers: { 'Cache-Control': 'no-store' } },
