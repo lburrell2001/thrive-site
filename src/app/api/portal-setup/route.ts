@@ -12,7 +12,7 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { portalSetups, sendPortalInvite, skipSetup } from '@/lib/portalSetup';
+import { portalSetups, sendPortalInvite, skipSetup, skipSetupStep } from '@/lib/portalSetup';
 import { acceptedWaiting, setUpFromEstimate } from '@/lib/acceptedPortal';
 
 export async function GET(req: Request) {
@@ -29,6 +29,7 @@ export async function GET(req: Request) {
 const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('invite'), client_id: z.string().uuid(), project_name: z.string().max(200).optional(), note: z.string().max(2000).optional() }),
   z.object({ action: z.literal('skip'), project_id: z.string().uuid() }),
+  z.object({ action: z.literal('skip_step'), project_id: z.string().uuid(), step: z.enum(['questionnaire', 'billing', 'milestones']), skip: z.boolean().default(true) }),
   z.object({ action: z.literal('from_estimate'), estimate_id: z.string().uuid(), note: z.string().max(2000).optional() }),
 ]);
 
@@ -41,6 +42,10 @@ export async function POST(req: Request) {
   if (body.action === 'from_estimate') {
     const r = await setUpFromEstimate(auth.db, body.estimate_id, body.note);
     return r.ok ? NextResponse.json({ ok: true, data: r }) : badRequest(r.error);
+  }
+  if (body.action === 'skip_step') {
+    const r = await skipSetupStep(auth.db, body.project_id, body.step, body.skip);
+    return r.ok ? NextResponse.json({ ok: true }) : badRequest(r.error);
   }
   if (body.action === 'skip') {
     const r = await skipSetup(auth.db, body.project_id);

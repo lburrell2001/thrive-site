@@ -5,6 +5,7 @@
 //   billing       an estimate, proposal or invoice is on the project's deal (or name)
 //   milestones    the project has at least one milestone
 // When every step is done, or Lauren skips it, portal_projects.setup_done_at is set.
+// Questionnaires, billing and milestones can each be marked "Not needed" (counts as done).
 // A new client's first project must be set up (`required`: no skipping, listed
 // on Home). For an existing client — one who already had a project — it's
 // optional: a quieter prompt on their Client tab only, which can be dismissed.
@@ -24,7 +25,31 @@ export type ProjectSetup = {
   invited_at: string | null; signed_in: boolean;
   /** Their first project: setting up the portal isn't optional. */
   required: boolean;
+  /** Steps Lauren marked "Not needed" for this project — they count as done. */
+  skipped: SetupStep[];
 };
+
+// Steps marked "Not needed" per project, in admin_config (no migration):
+// { [project_id]: SetupStep[] }. The invite can't be skipped.
+const SKIP_KEY = 'portal_setup_skipped_steps';
+export const SKIPPABLE: SetupStep[] = ['questionnaire', 'billing', 'milestones'];
+
+async function loadSkipped(db: SupabaseClient): Promise<Record<string, SetupStep[]>> {
+  const { data } = await db.from('admin_config').select('value').eq('key', SKIP_KEY).maybeSingle();
+  try { return data?.value ? JSON.parse(String(data.value)) as Record<string, SetupStep[]> : {}; } catch { return {}; }
+}
+
+/** Marks one step of a project's setup "Not needed" (or needed again). */
+export async function skipSetupStep(db: SupabaseClient, projectId: string, step: SetupStep, skip: boolean) {
+  if (!SKIPPABLE.includes(step)) return { ok: false as const, error: 'That step can’t be skipped' };
+  const all = await loadSkipped(db);
+  const next = new Set(all[projectId] ?? []);
+  if (skip) next.add(step); else next.delete(step);
+  if (next.size) all[projectId] = [...next]; else delete all[projectId];
+  const { error } = await db.from('admin_config')
+    .upsert({ key: SKIP_KEY, value: JSON.stringify(all), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  return error ? { ok: false as const, error: error.message } : { ok: true as const };
+}
 
 const lower = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 
@@ -51,6 +76,7 @@ export async function portalSetups(db: SupabaseClient, opts: { clientId?: string
     Promise.all(clientIds.map((id) => db.auth.admin.getUserById(id).then((r) => [id, Boolean(r.data.user?.last_sign_in_at)] as const).catch(() => [id, false] as const))),
   ]);
   const signedIn = new Map(users);
+  const skippedAll = await loadSkipped(db);
   const dealsWithQuote = new Set([...(estimates.data ?? []), ...(proposals.data ?? [])].map((r) => r.crm_deal_id));
 
   const out: ProjectSetup[] = [];
@@ -64,6 +90,8 @@ export async function portalSetups(db: SupabaseClient, opts: { clientId?: string
         || invoices.data?.some((i) => i.client_id === p.client_id && ((p.crm_deal_id && i.crm_deal_id === p.crm_deal_id) || lower(i.project_name) === lower(p.name)))),
       milestones: Boolean(milestones.data?.some((m) => m.client_id === p.client_id && lower(m.project_name) === lower(p.name))),
     };
+    const skipped = (skippedAll[p.id] ?? []).filter((k) => SKIPPABLE.includes(k));
+    for (const k of skipped) steps[k] = true;
     // All done: it leaves the list for good.
     if (SETUP_STEPS.every((k) => steps[k])) {
       await db.from('portal_projects').update({ setup_done_at: new Date().toISOString() }).eq('id', p.id);
@@ -76,6 +104,7 @@ export async function portalSetups(db: SupabaseClient, opts: { clientId?: string
       deal_id: p.crm_deal_id, steps, invited_at: invite?.created_at ?? null, signed_in: Boolean(signedIn.get(p.client_id)),
       // Required unless they already had a project before this one.
       required: !allProjects.data?.some((o) => o.client_id === p.client_id && o.id !== p.id && o.created_at < p.created_at),
+      skipped,
     });
   }
   return out;

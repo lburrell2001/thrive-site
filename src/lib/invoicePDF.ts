@@ -133,7 +133,7 @@ function fmtDate(s: string) {
   return new Date(s.length === 10 ? `${s}T00:00:00` : s).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
-async function fetchImageAsBase64(src: string): Promise<{ data: string; w: number; h: number }> {
+export async function fetchImageAsBase64(src: string): Promise<{ data: string; w: number; h: number }> {
   const res = await fetch(src);
   const blob = await res.blob();
   return new Promise((resolve, reject) => {

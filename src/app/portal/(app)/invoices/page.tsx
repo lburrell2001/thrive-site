@@ -13,6 +13,8 @@ interface DbInvoice {
   deposit_cents?: number | null; deposit_due_date?: string | null; deposit_paid_at?: string | null; balance_open?: boolean | null;
   /** Accepted or declined here (migration 058). */
   accepted_at?: string | null; declined_at?: string | null; decline_reason?: string | null;
+  /** Pay over time (069): [{ cents, due_date, paid_at }]. */
+  installments?: unknown;
 }
 
 /** Nothing paid on it and not answered yet: they can accept or decline it. */
@@ -82,6 +84,10 @@ export default function InvoicesPage() {
   const [payLoading,  setPayLoading]  = useState(false);
   const [payError,    setPayError]    = useState('');
   const [confirming,  setConfirming]  = useState(false);
+  // The invoice just paid (from the confirm call), for "Download receipt" on the banner.
+  const [paidInvoiceId, setPaidInvoiceId] = useState<string | null>(null);
+  const [receiptBusy, setReceiptBusy] = useState<string | null>(null);
+  const [receiptError, setReceiptError] = useState('');
   const [statCards,   setStatCards]   = useState<{label:string;value:string;color:string}[]>([]);
   const [filter,      setFilter]      = useState<'all'|'due'|'paid'|'overdue'>('all');
   // Accepting or declining an invoice (migration 058).
@@ -120,11 +126,13 @@ export default function InvoicesPage() {
     (async () => {
       setConfirming(true);
       try {
-        await fetch('/api/portal/stripe/confirm', {
+        const res = await fetch('/api/portal/stripe/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId }),
         });
+        const json = await res.json().catch(() => ({})) as { invoiceId?: string };
+        if (!cancelled && json.invoiceId) setPaidInvoiceId(json.invoiceId);
       } catch { /* ignore — webhook is a fallback */ }
       if (!cancelled) {
         await loadInvoices();
@@ -133,6 +141,27 @@ export default function InvoicesPage() {
     })();
     return () => { cancelled = true; };
   }, [justPaid, sessionId, loadInvoices]);
+
+  // The receipt for a payment (the same one that was emailed), as a PDF.
+  // `which` = that receipt's position; none = the latest payment.
+  async function downloadReceipt(invoiceId: string, which?: number) {
+    setReceiptBusy(invoiceId); setReceiptError('');
+    try {
+      const { data: { session } } = await supabasePortal.auth.getSession();
+      if (!session) throw new Error('Please sign in again.');
+      const res = await fetch(`/api/portal/invoices/${invoiceId}/receipts`, { headers: { Authorization: `Bearer ${session.access_token}` }, cache: 'no-store' });
+      const json = await res.json() as { receipts?: import('@/app/api/portal/invoices/[id]/receipts/route').PortalReceipt[]; error?: string };
+      const list = json.receipts ?? [];
+      const r = which !== undefined ? list[which] : list[list.length - 1];
+      if (!res.ok || !r) throw new Error(json.error ?? 'No receipt yet — refresh in a moment.');
+      void portalTrack('action', { label: `Downloaded receipt ${r.number}` });
+      const { generateReceiptPDF } = await import('@/lib/receiptPDF');
+      await generateReceiptPDF(r);
+    } catch (e) {
+      setReceiptError((e as Error).message);
+    }
+    setReceiptBusy(null);
+  }
 
   async function handleExportPDF(inv: DbInvoice) {
     void portalTrack('action', { label: `Downloaded invoice ${inv.invoice_number} (PDF)` });
@@ -165,6 +194,31 @@ export default function InvoicesPage() {
   }
 
   /** Accept / Decline buttons, or what they chose. */
+  // Payments made on it so far: the deposit / each plan payment / the balance or the whole.
+  function receiptCount(inv: DbInvoice): number {
+    const plan = Array.isArray(inv.installments) ? inv.installments as { paid_at?: string | null }[] : null;
+    if (plan?.length) return plan.filter((p) => p.paid_at).length;
+    return (inv.deposit_cents && inv.deposit_paid_at ? 1 : 0) + (inv.status === 'paid' ? 1 : 0);
+  }
+
+  function receiptButton(inv: DbInvoice, big = false) {
+    const n = receiptCount(inv);
+    if (!n) return null;
+    const style: React.CSSProperties = { fontFamily:F.inter, fontSize:big?13:12, fontWeight:700, color:'#0a0a0a', background:'#0cf574', border:'none', borderRadius:big?10:8, padding:big?'10px 16px':'6px 14px', cursor:'pointer' };
+    if (n === 1) return (
+      <button onClick={() => downloadReceipt(inv.id)} disabled={receiptBusy === inv.id} style={style}>
+        {receiptBusy === inv.id ? '…' : 'Receipt'}
+      </button>
+    );
+    return (
+      <select value="" disabled={receiptBusy === inv.id} onChange={(e) => { if (e.target.value !== '') void downloadReceipt(inv.id, Number(e.target.value)); }}
+        aria-label={`Receipts for ${inv.invoice_number}`} style={{ ...style, appearance:'auto' }}>
+        <option value="">{receiptBusy === inv.id ? 'Preparing…' : `Receipts (${n})`}</option>
+        {Array.from({ length: n }, (_, i) => <option key={i} value={i}>Receipt {i + 1} of {n}</option>)}
+      </select>
+    );
+  }
+
   function decideButtons(inv: DbInvoice, big = false) {
     const pad = big ? '10px 16px' : '6px 12px';
     if (inv.declined_at) return <span style={{ fontFamily:F.inter, fontSize:12, color:'#808080' }}>You declined this</span>;
@@ -221,8 +275,19 @@ export default function InvoicesPage() {
 
       {justPaid && (
         <div style={{ background:'#f5f5f5', border:'1px solid #0cf574', borderRadius:12, padding:'14px 20px', fontFamily:F.inter, fontSize:14, fontWeight:600, color:'#08b957' }}>
-          {confirming ? 'Confirming payment…' : 'Payment received — your invoice has been updated.'}
+          <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+            <span style={{ flex:1, minWidth:200 }}>{confirming ? 'Confirming payment…' : 'Payment received — your invoice has been updated. Your receipt is in your email, and here:'}</span>
+            {!confirming && paidInvoiceId && (
+              <button onClick={() => downloadReceipt(paidInvoiceId)} disabled={receiptBusy === paidInvoiceId}
+                style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#0a0a0a', border:'none', borderRadius:999, padding:'8px 18px', cursor:'pointer' }}>
+                {receiptBusy === paidInvoiceId ? 'Preparing…' : 'Download Receipt'}
+              </button>
+            )}
+          </div>
         </div>
+      )}
+      {receiptError && (
+        <div style={{ border:'1px solid #e50586', borderRadius:12, padding:'10px 16px', fontFamily:F.inter, fontSize:13, color:'#e50586' }}>{receiptError}</div>
       )}
 
       {/* Stat cards */}
@@ -319,6 +384,7 @@ export default function InvoicesPage() {
                     style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#808080', background:'#f2f2f2', border:'none', borderRadius:8, padding:'6px 14px', cursor:'pointer' }}>
                     PDF
                   </button>
+                  {receiptButton(inv)}
                   {canPay && (
                     <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
                       style={{ fontFamily:F.inter, fontSize:12, fontWeight:700, color:'#fff', background:'#e50586', border:'none', borderRadius:8, padding:'6px 16px', cursor:'pointer', opacity:payLoading?0.6:1 }}>
@@ -352,6 +418,7 @@ export default function InvoicesPage() {
                       style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#808080', background:'#f2f2f2', border:'none', borderRadius:10, padding:'10px 16px', cursor:'pointer' }}>
                       PDF
                     </button>
+                    {receiptButton(inv, true)}
                     {canPay && (
                       <button onClick={() => handlePay(inv.id, inv.amount_cents, `Invoice ${inv.invoice_number} — ${inv.project_name}`)} disabled={payLoading}
                         style={{ fontFamily:F.inter, fontSize:13, fontWeight:700, color:'#fff', background:'#e50586', border:'none', borderRadius:10, padding:'10px 20px', cursor:'pointer', opacity:payLoading?0.6:1 }}>

@@ -53,7 +53,8 @@ export type ReceiptInput = {
 };
 
 /** The receipt email (HTML and text) — pure, so it can be previewed. */
-export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address, billingAddress, index }: ReceiptInput) {
+/** The numbers on a receipt — shared by the email and the portal's receipt download. */
+export function receiptFigures(inv: ReceiptInput['invoice'], part: ReceiptPart, index?: number) {
     const total: number = inv.amount_cents;
     const deposit: number = inv.deposit_cents ?? 0;
     // Pay over time (069): this payment, and everything up to it.
@@ -62,10 +63,15 @@ export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, em
     const paid = at !== null ? plan![at].cents : part === 'deposit' ? deposit : part === 'balance' ? total - deposit : total;
     const paidToDate = at !== null ? plan!.slice(0, at + 1).reduce((t, p) => t + p.cents, 0) : part === 'deposit' ? deposit : total;
     const remaining = Math.max(0, total - paidToDate);
-    const lines = ((inv.line_items ?? []) as LineItem[]);
-    const today = dallasDay(paidOn);
     const number = `${inv.invoice_number}${at !== null ? `-P${at + 1}` : part === 'deposit' ? '-D' : part === 'balance' ? '-B' : ''}`;
     const what = at !== null ? `Payment ${at + 1} of ${plan!.length}` : part === 'deposit' ? 'Deposit' : part === 'balance' ? 'Balance' : 'Payment in full';
+    return { total, deposit, paid, paidToDate, remaining, number, what };
+}
+
+export function buildReceipt({ invoice: inv, part, method, paidOn, firstName, email, billedTo, address, billingAddress, index }: ReceiptInput) {
+    const { total, deposit, paid, paidToDate, remaining, number, what } = receiptFigures(inv, part, index);
+    const lines = ((inv.line_items ?? []) as LineItem[]);
+    const today = dallasDay(paidOn);
 
     const html = brandEmail({
       title: `Receipt ${number} — ${formatLineMoney(paid)}`,
@@ -175,7 +181,7 @@ export async function sendPaymentReceipt(
 }
 
 /** The billing address on the portal client's CRM contact (072), when their portal account has none. */
-async function contactAddress(db: SupabaseClient, portalClientId: string): Promise<string | null> {
+export async function contactAddress(db: SupabaseClient, portalClientId: string): Promise<string | null> {
   const { data, error } = await db.from('crm_contacts').select('billing_address').eq('portal_client_id', portalClientId).limit(1).maybeSingle();
   return error ? null : (data as { billing_address?: string | null } | null)?.billing_address ?? null;
 }
