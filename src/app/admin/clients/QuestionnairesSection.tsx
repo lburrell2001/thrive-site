@@ -24,10 +24,10 @@ type Assigned = {
 
 const FONT = 'var(--a-font)';
 const STATUS_COLOR: Record<AssignmentStatus, { bg: string; fg: string }> = {
-  not_started: { bg: '#f5f5f5', fg: '#4a4a4a' },
-  in_progress: { bg: '#fff3e8', fg: '#a14000' },
-  reopened: { bg: '#ffffff', fg: '#b0005f' },
-  submitted: { bg: '#e6fff0', fg: '#141414' },
+  not_started: { bg: '#0a0a0a', fg: '#ffffff' },
+  in_progress: { bg: '#fd6100', fg: '#ffffff' },
+  reopened: { bg: '#e50586', fg: '#ffffff' },
+  submitted: { bg: '#0cf574', fg: '#0a0a0a' },
 };
 
 export default function QuestionnairesSection({ clientId, projects, reminders, remind }: {
@@ -103,6 +103,17 @@ export default function QuestionnairesSection({ clientId, projects, reminders, r
     setAssigned((cur) => cur?.map((x) => (x.id === a.id ? { ...x, include_optional_sections: sections } : x)) ?? cur);
     try { await apiSend(`/api/admin/questionnaires/assignments/${a.id}`, 'PATCH', { action: 'optional', sections }); await load(); }
     catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Could not update', tone: 'error' }); load(); }
+  }
+
+  async function setProject(a: Assigned, projectId: string) {
+    setBusy(a.id);
+    try {
+      await apiSend(`/api/admin/questionnaires/assignments/${a.id}`, 'PATCH', { action: 'project', projectId: projectId || null });
+      const name = projects.find((x) => x.id === projectId)?.name;
+      setMsg({ text: name ? `Filed “${a.title}” under ${name}.` : `“${a.title}” isn’t filed under a project now.`, tone: 'ok' });
+      await load();
+    } catch (e) { setMsg({ text: e instanceof Error ? e.message : 'Could not update', tone: 'error' }); }
+    setBusy('');
   }
 
   async function reopen(a: Assigned) {
@@ -200,7 +211,14 @@ export default function QuestionnairesSection({ clientId, projects, reminders, r
                   Include {sec.label || sec.title}
                 </label>
               ))}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {projects.length > 0 && (
+                  <select className={p.select} aria-label={`Project for ${a.title}`} value={a.project_id ?? ''} disabled={busy === a.id}
+                    onChange={(e) => setProject(a, e.target.value)} style={{ maxWidth: 220, fontSize: 12, padding: '4px 8px', minHeight: 0 }}>
+                    <option value="">No project</option>
+                    {projects.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                  </select>
+                )}
                 <Link href={`/admin/questionnaires/responses/${a.id}`} className={`${p.btn} ${p.btnSmall}`}>{a.status === 'submitted' ? 'Responses' : 'View answers'}</Link>
                 {a.status !== 'submitted' && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => remind({ kind: 'questionnaire', id: a.id }, `Remind about ${a.title}`)}>Remind</button>}
                 {a.status === 'submitted' && <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy === a.id} onClick={() => reopen(a)}>Reopen</button>}

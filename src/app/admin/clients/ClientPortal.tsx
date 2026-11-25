@@ -13,6 +13,7 @@ import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import QuestionnairesSection from './QuestionnairesSection';
 import AssetRequestsSection from './AssetRequestsSection';
+import ProjectIntake from './ProjectIntake';
 import PortalSetup from './PortalSetup';
 import PortalActivity from './PortalActivity';
 import { useCrm } from '../crm/CrmContext';
@@ -1405,6 +1406,7 @@ function ProjectCard({ project, expanded, onToggle, clientId, data, api, onRefre
             </div>
           </div>
 
+          <ProjectIntake clientId={clientId} projectId={project.id} projectName={project.name} />
           <ProjectSubInvoices   project={project} invoices={projectInvoices} estimates={projectEstimates} clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
           <ProjectSubRequests   project={project} requests={projectRequests}     projects={data.projects} clientId={clientId} api={api} onRefresh={onRefresh} />
           <ProjectSubProposals  project={project} proposals={projectProposals}   clientId={clientId} reminders={data.reminders} api={api} onRefresh={onRefresh} />

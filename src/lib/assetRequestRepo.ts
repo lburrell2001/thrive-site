@@ -172,7 +172,7 @@ async function getRequest(db: SupabaseClient, id: string): Promise<ReqRow> {
 export type AdminAction =
   | { action: 'received' }
   | { action: 'reopen'; note?: string | null; notify?: boolean }
-  | { action: 'edit'; title?: string; note?: string | null; dueDate?: string | null }
+  | { action: 'edit'; title?: string; note?: string | null; dueDate?: string | null; projectId?: string | null }
   | { action: 'add_items'; items: NewItem[]; notify?: boolean }
   | { action: 'remove_item'; itemId: string };
 
@@ -196,6 +196,13 @@ export async function updateAssetRequest(db: SupabaseClient, id: string, body: A
       if (body.title !== undefined) { if (!body.title.trim()) throw new AssetError('Give it a name'); patch.title = body.title.trim().slice(0, 160); }
       if (body.note !== undefined) patch.note = body.note?.trim() || null;
       if (body.dueDate !== undefined) patch.due_date = body.dueDate || null;
+      if (body.projectId !== undefined) {
+        if (body.projectId) {
+          const { data: pr } = await db.from('portal_projects').select('id').eq('id', body.projectId).eq('client_id', req.client_id).maybeSingle();
+          if (!pr) throw new AssetError('That project isn’t theirs');
+        }
+        patch.project_id = body.projectId;
+      }
       await must(db.from('asset_requests').update(patch).eq('id', id));
       return { notified: null };
     }

@@ -308,7 +308,15 @@ export default function AssetRequestsSection({ clientId, projects, reminders, re
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', borderTop: '1px solid var(--a-border)', paddingTop: 8 }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--a-border)', paddingTop: 8 }}>
+                    {projects.length > 0 && (
+                      <select className={p.select} aria-label={`Project for ${r.title}`} value={r.project_id ?? ''} disabled={busy === r.id}
+                        onChange={(e) => { const id = e.target.value; const name = projects.find((x) => x.id === id)?.name; act(r, { action: 'edit', projectId: id || null }, name ? `Filed “${r.title}” under ${name}.` : `“${r.title}” isn’t filed under a project now.`); }}
+                        style={{ maxWidth: 220, fontSize: 12, padding: '4px 8px', minHeight: 0 }}>
+                        <option value="">No project</option>
+                        {projects.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                      </select>
+                    )}
                     {r.status !== 'received' && <button type="button" className={`${p.btn} ${p.btnSmall} ${r.status === 'submitted' ? p.btnPrimary : ''}`} disabled={busy === r.id} onClick={() => act(r, { action: 'received' }, `Marked “${r.title}” received.`)}>Mark received</button>}
                     {r.status === 'open' && <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => remind({ kind: 'asset_request', id: r.id }, `Remind about ${r.title}`)}>Remind</button>}
                     {r.status !== 'open' && <button type="button" className={`${p.btn} ${p.btnSmall}`} disabled={busy === r.id}

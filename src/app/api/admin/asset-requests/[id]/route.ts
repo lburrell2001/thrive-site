@@ -20,6 +20,7 @@ const schema = z.discriminatedUnion('action', [
     title: z.string().trim().min(1).max(160).optional(),
     note: z.string().trim().max(2000).nullable().optional(),
     dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    projectId: z.string().uuid().nullable().optional(),
   }),
   z.object({ action: z.literal('add_items'), items: z.array(item).min(1).max(MAX_ITEMS), notify: z.boolean().optional() }),
   z.object({ action: z.literal('remove_item'), itemId: z.string().uuid() }),

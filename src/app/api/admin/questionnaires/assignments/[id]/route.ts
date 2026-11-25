@@ -1,12 +1,13 @@
 export const runtime = 'nodejs';
 
 // One client's questionnaire: the responses (with the question text they
-// saw), reopening it, changing which optional sections they get, removing it.
+// saw), reopening it, changing which optional sections they get, filing it
+// under a project, removing it.
 
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { badRequest, requireAdmin } from '@/lib/adminAuth';
-import { QuestionnaireError, assignmentForAdmin, reopenAssignment, setOptionalSections, unassign } from '@/lib/questionnaireRepo';
+import { QuestionnaireError, assignmentForAdmin, reopenAssignment, setAssignmentProject, setOptionalSections, unassign } from '@/lib/questionnaireRepo';
 
 type Ctx = { params: Promise<{ id: string }> };
 const uuid = z.string().uuid();
@@ -29,6 +30,7 @@ export async function GET(req: Request, { params }: Ctx) {
 const schema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('reopen') }),
   z.object({ action: z.literal('optional'), sections: z.array(z.string().uuid()).max(40) }),
+  z.object({ action: z.literal('project'), projectId: z.string().uuid().nullable() }),
 ]);
 
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -38,8 +40,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!uuid.safeParse(id).success || !parsed.success) return badRequest('Bad request');
   try {
-    if (parsed.data.action === 'reopen') await reopenAssignment(auth.db, id);
-    else await setOptionalSections(auth.db, id, parsed.data.sections);
+    const b = parsed.data;
+    if (b.action === 'reopen') await reopenAssignment(auth.db, id);
+    else if (b.action === 'project') await setAssignmentProject(auth.db, id, b.projectId);
+    else await setOptionalSections(auth.db, id, b.sections);
     return NextResponse.json({ ok: true, data: {} });
   } catch (e) {
     return fail(e);

@@ -406,6 +406,17 @@ export async function setOptionalSections(db: SupabaseClient, id: string, sectio
   if (error) throw new QuestionnaireError(error.message, 500);
 }
 
+/** File a questionnaire under one of the client's projects (or none). */
+export async function setAssignmentProject(db: SupabaseClient, id: string, projectId: string | null) {
+  const a = await getAssignment(db, id);
+  if (projectId) {
+    const { data: pr } = await db.from('portal_projects').select('id').eq('id', projectId).eq('client_id', a.client_id).maybeSingle();
+    if (!pr) throw new QuestionnaireError('That project isn’t theirs');
+  }
+  const { error } = await db.from('client_questionnaires').update({ project_id: projectId, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new QuestionnaireError(error.message, 500);
+}
+
 export async function reopenAssignment(db: SupabaseClient, id: string) {
   const now = new Date().toISOString();
   const { error } = await db.from('client_questionnaires').update({ status: 'reopened', reopened_at: now, updated_at: now }).eq('id', id);

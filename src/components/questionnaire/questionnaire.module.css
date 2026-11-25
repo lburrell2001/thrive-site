@@ -17,10 +17,10 @@
 .bar { height: 8px; border-radius: 999px; background: #f1f0ef; overflow: hidden; }
 .barFill { height: 100%; border-radius: 999px; background: #0cf574; transition: width 0.4s ease; }
 .pill { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-.pill_not_started { background: #f1f0ef; color: #4a4a4a; }
-.pill_in_progress { background: #fff3e8; color: #a14000; }
-.pill_reopened { background: #fff0f8; color: #b0005f; }
-.pill_submitted { background: #e6fff0; color: #0a7a3a; }
+.pill_not_started { background: #0a0a0a; color: #ffffff; }
+.pill_in_progress { background: #fd6100; color: #ffffff; }
+.pill_reopened { background: #e50586; color: #ffffff; }
+.pill_submitted { background: #0cf574; color: #0a0a0a; }
 .go { flex-shrink: 0; font-weight: 700; font-size: 14px; background: #e40586; color: #fff; border-radius: 10px; padding: 10px 16px; }
 .goDone { background: #f1f0ef; color: #0a0a0a; }
 
