@@ -42,6 +42,11 @@ interface WaitingQuestionnaire {
   status: 'not_started' | 'in_progress' | 'reopened' | 'submitted'; answered: number; total: number; assigned_at: string;
 }
 
+interface WaitingAssets {
+  id: string; client_id: string; client_name: string | null; company_name: string | null; title: string;
+  status: 'open' | 'submitted'; done: number; total: number; due_date: string | null; created_at: string; submitted_at: string | null;
+}
+
 export default function AdminHome() {
   const { openContact, contacts, version, refresh, notify } = useCrm();
   const [summary, setSummary] = useState<AdminSummary | null>(null);
@@ -50,6 +55,7 @@ export default function AdminHome() {
   const [reminding, setReminding] = useState<Reminding | null>(null);
   const [sendingDigest, setSendingDigest] = useState(false);
   const [waitingQs, setWaitingQs] = useState<WaitingQuestionnaire[]>([]);
+  const [waitingAssets, setWaitingAssets] = useState<WaitingAssets[]>([]);
   const [work, setWork] = useState<WorkRow[]>([]);
   // New projects whose portal isn't set up yet (migration 057).
   const [setups, setSetups] = useState<{ project_id: string; project_name: string; client_id: string; client_name: string; contact_id: string | null; deal_id: string | null; created_at: string; steps: Record<string, boolean> }[]>([]);
@@ -93,6 +99,13 @@ export default function AdminHome() {
     apiGet<{ assignments: WaitingQuestionnaire[] }>('/api/admin/questionnaires/assignments')
       .then((r) => setWaitingQs(r.assignments))
       .catch(() => setWaitingQs([]));
+  }, [version]);
+
+  // Files asked for (075): sent ones to check, open ones waiting on the client.
+  useEffect(() => {
+    apiGet<{ requests: WaitingAssets[] }>('/api/admin/asset-requests')
+      .then((r) => setWaitingAssets(r.requests))
+      .catch(() => setWaitingAssets([]));
   }, [version]);
 
   useEffect(() => {
@@ -147,6 +160,7 @@ export default function AdminHome() {
     d.proposalsAwaiting.length && plural(d.proposalsAwaiting.length, 'proposal', 'proposals') + ' to be signed',
     d.unpaidInvoices.length && plural(d.unpaidInvoices.length, 'unpaid invoice', 'unpaid invoices') + (d.unpaidTotals.overdue_cents > 0 ? ` (${formatMoneyCents(d.unpaidTotals.overdue_cents)} overdue)` : ''),
     waitingQs.length && plural(waitingQs.length, 'questionnaire', 'questionnaires') + ' out',
+    waitingAssets.some((a) => a.status === 'submitted') && plural(waitingAssets.filter((a) => a.status === 'submitted').length, 'file request', 'file requests') + ' sent back',
     today.quiet.length && plural(today.quiet.length, 'deal', 'deals') + ' gone quiet',
     d.reviewCandidates.length && plural(d.reviewCandidates.length, 'review', 'reviews') + ' to ask for',
   ].filter(Boolean).join(' · ') || 'Nothing waiting on you. A good day to reach out to a few prospects.' : null;
@@ -181,6 +195,7 @@ export default function AdminHome() {
           { id: 'signatures', title: 'Waiting on a signature', count: d.proposalsAwaiting.length, link: { href: '/admin/crm/proposals', label: 'Proposals' } },
           { id: 'invoices', title: 'Unpaid invoices', count: d.unpaidInvoices.length, hot: d.unpaidTotals.overdue_cents > 0, link: { href: '/admin/invoices', label: 'Invoices' } },
           { id: 'questionnaires', title: 'Questionnaires waiting', count: waitingQs.length, link: { href: '/admin/questionnaires', label: 'Questionnaires' } },
+          { id: 'assets', title: 'Files requested', count: waitingAssets.length, hot: waitingAssets.some((a) => a.status === 'submitted'), note: 'Sent back ones first: check them and mark received' },
           { id: 'quiet', title: 'Gone quiet', count: today.quiet.length, note: 'Open deals, nothing in 2+ weeks' },
           { id: 'reviews', title: 'Reviews', count: d.reviewsToApprove.length + d.reviewCandidates.length, link: { href: '/admin/reviews', label: 'Reviews' } },
         ];
@@ -307,6 +322,20 @@ export default function AdminHome() {
                   </Link>
                   <span className={w.itemWhen}>{timeAgo(a.assigned_at)}</span>
                   <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: `Remind about ${a.title}`, target: { kind: 'questionnaire', id: a.id } })}>Remind</button>
+                </div>
+              ))}
+                      </>),
+          assets: (<>
+              {waitingAssets.map((a) => (
+                <div key={a.id} className={w.item} style={{ cursor: 'default', alignItems: 'center' }}>
+                  <button type="button" className={w.itemMain} style={{ all: 'unset', flex: 1, minWidth: 0, cursor: 'pointer' }} onClick={() => openClient(a.client_id)}>
+                    <span className={w.itemTitle}>{a.company_name || a.client_name || 'Client'} · {a.title}</span>
+                    <span className={w.itemSub}>{a.status === 'submitted' ? 'Sent back — ready to check' : 'Waiting on them'} · {a.done} of {a.total} sent{a.due_date ? ` · needed by ${new Date(`${a.due_date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}</span>
+                  </button>
+                  <span className={w.itemWhen}>{timeAgo(a.submitted_at ?? a.created_at)}</span>
+                  {a.status === 'open'
+                    ? <button type="button" className={`${p.btn} ${p.btnSmall}`} onClick={() => setReminding({ title: `Remind about ${a.title}`, target: { kind: 'asset_request', id: a.id } })}>Remind</button>
+                    : <button type="button" className={`${p.btn} ${p.btnSmall} ${p.btnPrimary}`} onClick={() => openClient(a.client_id)}>Check</button>}
                 </div>
               ))}
                       </>),

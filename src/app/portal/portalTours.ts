@@ -18,6 +18,7 @@ export const MAIN_TOUR: TourStep[] = [
   { target: nav('/portal/dashboard'), nav: true, title: 'Dashboard', body: 'What’s happening right now: your projects, invoices due, milestones coming up and what we’ve been working on.' },
   { target: nav('/portal/onboarding'), nav: true, title: 'Onboarding', body: 'Questionnaires and first steps for your project. Your answers save as you go, so you can come back to them.' },
   { target: nav('/portal/progress'), nav: true, title: 'My Projects', body: 'Each project’s progress, files, milestones and requests. Completion reports land here when a project wraps up.' },
+  { target: nav('/portal/assets'), nav: true, title: 'File Requests', body: 'When I need logos, photos or copy from you, the list lands here. Upload, paste a link, or tell me you don’t have it.' },
   { target: nav('/portal/proposals'), nav: true, title: 'Proposals', body: 'Read your proposals and sign them here. Signing sets up your invoice straight away.' },
   { target: nav('/portal/vault'), nav: true, title: 'Secure Vault', body: 'Share website, hosting or social logins safely, instead of texting or emailing passwords.' },
   { target: nav('/portal/invoices'), nav: true, title: 'Billing', body: 'Your invoices: accept or decline them, download PDFs and pay by card.' },
@@ -72,6 +73,14 @@ export const PAGE_GUIDES: Record<string, PageGuide> = {
     tour: [
       { target: { button: 'Review & sign' }, title: 'Review and sign', body: 'Opens your proposal with its estimate. Approve and sign at the bottom, or tell us if you’re not going ahead.' },
       { target: null, title: 'PDF proposals', body: 'If we sent a PDF, download it, sign it, then upload the signed copy here.' },
+    ],
+  },
+  '/portal/assets': {
+    name: 'File Requests',
+    tips: ['Upload straight from your phone: photos up to 50 MB each.', 'Too big, or a whole folder? Paste a Google Drive, Dropbox or WeTransfer link.', 'Don’t have something? Tap “I don’t have this”.'],
+    tour: [
+      { target: { button: '↑ Upload files', up: 2 }, title: 'One item at a time', body: 'Upload files, paste a share link, add a note, or tell me you don’t have it. Everything saves as you go.' },
+      { target: { button: 'Send' }, title: 'Send it over', body: 'When it’s all there, press Send and I’m told straight away. Forgot something? Add it and send the update.' },
     ],
   },
   '/portal/vault': {

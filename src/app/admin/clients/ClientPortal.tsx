@@ -12,6 +12,7 @@ import p from '../proposals/proposals.module.css';
 import w from '../crm/workspace.module.css';
 import { usePortalReminder, lastRemindedLabel } from '../ReminderDialog';
 import QuestionnairesSection from './QuestionnairesSection';
+import AssetRequestsSection from './AssetRequestsSection';
 import PortalSetup from './PortalSetup';
 import PortalActivity from './PortalActivity';
 import { useCrm } from '../crm/CrmContext';
@@ -470,6 +471,8 @@ function ProfileTab({ clientId, data, api, onRefresh }: { clientId: string; data
       <div id="client-questionnaires" style={{ scrollMarginTop: 16 }}>
         <QuestionnairesSection clientId={clientId} projects={data.projects} reminders={data.reminders} remind={remind} />
       </div>
+      <Divider />
+      <AssetRequestsSection clientId={clientId} projects={data.projects} reminders={data.reminders} remind={remind} />
       <Divider />
       <OnboardingTab clientId={clientId} data={data} api={api} onRefresh={onRefresh} />
     </div>

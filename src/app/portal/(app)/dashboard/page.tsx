@@ -5,6 +5,7 @@ import { loadMyDocuments } from '@/lib/portalDocuments';
 import { FileViewer, type ViewFile } from '../../ProtectedPreview';
 import Link from 'next/link';
 import { supabasePortal } from '@/lib/supabasePortal';
+import { portalApi } from '@/lib/portalApi';
 
 interface DbProject  { id: string; name: string; status: string; progress: number; color: string; }
 interface DbActivity { id: string; text: string; dot_color: string; created_at: string; project_name?: string | null; }
@@ -62,6 +63,13 @@ export default function DashboardPage() {
   const [viewing,    setViewing]    = useState<ViewFile | null>(null);
   const fileFor = (text: string) => docFiles.find((f) => text.endsWith(`: ${f.name}`)) ?? null;
   const [milestones, setMilestones] = useState<DbMilestone[] | null>(null);
+  // Files Lauren has asked for and they haven't sent yet (075).
+  const [fileAsks, setFileAsks] = useState<{ id: string; title: string; due_date: string | null }[]>([]);
+  useEffect(() => {
+    portalApi<{ requests: { id: string; title: string; status: string; due_date: string | null }[] }>('/api/portal/asset-requests')
+      .then((r) => setFileAsks(r.requests.filter((x) => x.status === 'open')))
+      .catch(() => undefined);
+  }, []);
   const [stats, setStats] = useState<{
     activeProjects: number | null;
     pendingRequests: number | null;
@@ -129,7 +137,7 @@ export default function DashboardPage() {
 
   const QUICK_ACTIONS = [
     { label: 'Brain Dump',    href: '/portal/requests',   bg: '#e50586', color: '#fff' },
-    { label: 'Upload Files',   href: '/portal/files',      bg: '#fd6100', color: '#fff' },
+    { label: 'Send Files',     href: '/portal/assets',     bg: '#fd6100', color: '#fff' },
     { label: 'Pay Invoice',    href: '/portal/invoices',   bg: '#0cf574', color: '#0a0a0a' },
     { label: 'View Proposal',  href: '/portal/files',      bg: '#3943b7', color: '#fff' },
     { label: 'Secure Vault',   href: '/portal/vault',      bg: '#0a0a0a', color: '#fff' },
@@ -159,6 +167,21 @@ export default function DashboardPage() {
           .dash-stats { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {/* ── Files I need from them (075) ── */}
+      {fileAsks.length > 0 && (
+        <Link href={fileAsks.length === 1 ? `/portal/assets?r=${fileAsks[0].id}` : '/portal/assets'} style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', background: '#fd6100', color: '#fff', borderRadius: 16, padding: '18px 24px', textDecoration: 'none' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontFamily: F.bungee, fontSize: 18 }}>I Need A Few Files From You</div>
+            <div style={{ fontFamily: F.inter, fontSize: 14, marginTop: 4 }}>
+              {fileAsks.length === 1
+                ? `${fileAsks[0].title}${fileAsks[0].due_date ? ` · by ${new Date(`${fileAsks[0].due_date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}`
+                : `${fileAsks.length} requests: ${fileAsks.map((x) => x.title).join(', ')}`}
+            </div>
+          </div>
+          <span style={{ fontFamily: F.inter, fontSize: 14, fontWeight: 700, background: '#fff', color: '#0a0a0a', borderRadius: 999, padding: '10px 18px', whiteSpace: 'nowrap' }}>Send Files</span>
+        </Link>
+      )}
 
       {/* ── Latest Update banner ── */}
       {viewing && <FileViewer file={viewing} onClose={() => setViewing(null)} onChange={(f) => { setDocFiles((l) => l.map((x) => (x.id === f.id ? f : x))); setViewing(f); }} />}

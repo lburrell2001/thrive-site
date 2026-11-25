@@ -27,6 +27,8 @@ export const reminderTargetSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('onboarding'), clientId: z.string().uuid() }),
   // An assigned questionnaire (client_questionnaires id) not yet submitted.
   z.object({ kind: z.literal('questionnaire'), id: z.string().uuid() }),
+  // An asset request (075) still waiting on the client.
+  z.object({ kind: z.literal('asset_request'), id: z.string().uuid() }),
   z.object({
     kind: z.literal('custom'),
     clientId: z.string().uuid(),
@@ -262,6 +264,36 @@ async function prepare(db: SupabaseClient, target: ReminderTarget, site: string)
           ctaUrl: `${site}/portal/onboarding/${a.id}`,
           ctaLabel: started ? 'Continue the questionnaire' : 'Start the questionnaire',
           sms: `Friendly reminder, your ${title} questionnaire is waiting in your client portal:`,
+        },
+      };
+    }
+
+    case 'asset_request': {
+      const { data: r } = await db
+        .from('asset_requests')
+        .select('id, client_id, title, status, due_date')
+        .eq('id', target.id)
+        .maybeSingle();
+      if (!r) throw new ReminderError('Request not found');
+      if (r.status !== 'open') throw new ReminderError(r.status === 'received' ? 'You’ve already marked this received' : 'They’ve already sent it');
+      const contact = await portalContact(db, r.client_id);
+      if (!contact) throw new ReminderError('Client not found');
+      const { data: items } = await db.from('asset_request_items').select('label, files, link, client_note, unavailable').eq('request_id', r.id).order('position');
+      const left = (items ?? []).filter((i) => !(Array.isArray(i.files) && i.files.length) && !i.link && !i.client_note && !i.unavailable).map((i) => i.label);
+      const due = r.due_date ? ` by ${day(r.due_date)}` : '';
+      return {
+        contact,
+        targetType: 'asset_request',
+        targetId: r.id,
+        summary: `Files requested · ${r.title}${left.length ? ` · ${left.length} still to send` : ''}`,
+        message: {
+          subject: `Reminder: files for ${r.title}`,
+          eyebrow: 'Friendly reminder',
+          headline: `I’m still waiting on a few files for ${r.title}${due}. Send them when you can so we can keep moving.`,
+          detail: left.length ? ['Still to send:', ...left.map((l) => `• ${l}`)].join('\n') : 'Open the request and press Send when it’s all there.',
+          ctaUrl: `${site}/portal/assets?r=${r.id}`,
+          ctaLabel: 'Send the files',
+          sms: `Friendly reminder, I still need a few files for ${r.title}${due}. Upload them in your client portal:`,
         },
       };
     }
