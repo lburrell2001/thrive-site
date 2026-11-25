@@ -19,6 +19,7 @@ const ACTIONS = [
   { label: 'Proposals', hint: 'Build, send and track', href: '/admin/crm/proposals' },
   { label: 'New proposal', hint: 'Start from the Thrive layout or a template', href: '/admin/crm/proposals/new' },
   { label: 'Estimates & invoices', hint: 'Type a list, get a PDF or a portal invoice', href: '/admin/invoices' },
+  { label: 'Subcontracts', hint: 'Work for agencies: the protocol, checklist and emails', href: '/admin/subcontracts' },
   { label: 'Price list', hint: 'Services, add-ons and fees for estimates', href: '/admin/price-list' },
   { label: 'Clients', hint: 'Portal logins, projects, files', href: '/admin/clients' },
   { label: 'Work in progress', hint: 'Checklists, social growth, completion reports', href: '/admin/work' },

@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import DealSubcontract from '../subcontracts/DealSubcontract';
 import { useRouter } from 'next/navigation';
 import p from '../proposals/proposals.module.css';
 import s from './crm.module.css';
@@ -600,6 +601,7 @@ function DealsSection({ contactId, detail, focusDealId, onStartProposal, onOpenC
                 + Proposal for this deal
               </button>
             )}
+            {deal.stage !== 'lost' && <DealSubcontract key={`sub-${deal.id}`} dealId={deal.id} notify={notify} />}
             {deal.stage === 'won' && <ReviewLine deal={deal} reviews={detail.reviews} onAsk={() => setAskingReview(deal)} />}
             {deal.stage === 'won' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
